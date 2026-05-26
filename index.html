@@ -1,113 +1,66 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>RainGuard AI - منصة إنذار المطر المحلي</title>
-<link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>RainGuard AI</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-<div class="app">
-  <header class="header">
-    <div class="brand">
-      <div class="logo">🌧</div>
-      <div>
-        <h1>RainGuard AI</h1>
-        <p>منصة إنذار المطر المحلي</p>
-      </div>
-    </div>
-    <span class="live">Real API</span>
-  </header>
 
-  <main id="home" class="page">
-    <section class="hero card">
-      <div class="selector">
-        <select id="citySelect">
-          <option value="21.4858,39.1925,جدة">جدة</option>
-          <option value="24.7136,46.6753,الرياض">الرياض</option>
-          <option value="21.3891,39.8579,مكة">مكة</option>
-          <option value="24.5247,39.5692,المدينة">المدينة</option>
-          <option value="26.4207,50.0888,الدمام">الدمام</option>
-          <option value="18.2465,42.5117,أبها">أبها</option>
-          <option value="16.8892,42.5511,جازان">جازان</option>
-          <option value="27.5114,41.7208,حائل">حائل</option>
-          <option value="28.3838,36.5662,تبوك">تبوك</option>
-          <option value="17.5656,44.2289,نجران">نجران</option>
-        </select>
-        <button onclick="checkCity()">فحص المدينة</button>
-      </div>
+    <div class="container">
 
-      <button class="ghost" onclick="useGPS()">📍 فحص موقعي الحالي</button>
-
-      <div class="scoreArea">
-        <div class="ring" id="ring">
-          <div class="inside">
-            <strong id="score">--</strong>
-            <small>مؤشر المطر</small>
-          </div>
+        <div class="header">
+            <h1>🌧 RainGuard AI</h1>
+            <p>منصة إنذار المطر المحلي الذكية</p>
         </div>
-        <div>
-          <h2 id="alertTitle">جاهز للفحص</h2>
-          <p id="alertMsg">اختر مدينة أو استخدم موقعك الحالي. البيانات تأتي من Backend حقيقي.</p>
-          <p class="status" id="status">لم يتم الاتصال بعد.</p>
+
+        <div class="search-box">
+
+            <input type="text" id="cityInput" placeholder="اكتب اسم المدينة">
+
+            <button onclick="detectRain()">
+                فحص المطر
+            </button>
+
+            <button onclick="getMyLocation()">
+                موقعي الحالي
+            </button>
+
         </div>
-      </div>
-    </section>
 
-    <section class="grid">
-      <div class="card">
-        <h3>البيانات الحالية</h3>
-        <div id="metrics" class="metrics"></div>
-      </div>
-      <div class="card">
-        <h3>قرار الإنذار</h3>
-        <div id="decision" class="metrics"></div>
-      </div>
-    </section>
+        <div class="card">
 
-    <section class="card">
-      <h3>توقع 12 ساعة قادمة</h3>
-      <div class="hours" id="hours"></div>
-    </section>
-  </main>
+            <h2 id="cityName">جاهز للفحص</h2>
 
-  <section id="manual" class="page hidden">
-    <div class="card">
-      <h3>فحص موقع بإحداثيات يدوية</h3>
-      <input id="lat" placeholder="خط العرض مثال: 21.4858">
-      <input id="lon" placeholder="خط الطول مثال: 39.1925">
-      <input id="placeName" placeholder="اسم الموقع مثال: مزرعتي">
-      <button onclick="manualCheck()">فحص الآن</button>
+            <div id="statusText">
+                اختر مدينة أو استخدم موقعك
+            </div>
+
+            <div id="adviceText"></div>
+
+        </div>
+
+        <div class="card">
+
+            <h3>رادار المطر</h3>
+
+            <div id="map"></div>
+
+        </div>
+
     </div>
-  </section>
 
-  <section id="api" class="page hidden">
-    <div class="card">
-      <h3>إعداد رابط الـ API</h3>
-      <p class="muted">بعد رفع Backend على Render، ضع الرابط هنا مرة واحدة فقط.</p>
-      <input id="apiInput" placeholder="https://your-api.onrender.com">
-      <button onclick="saveApi()">حفظ رابط API</button>
-      <p class="status" id="apiStatus"></p>
-    </div>
-  </section>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <section id="reportPage" class="page hidden">
-    <div class="card">
-      <h3>التقرير</h3>
-      <pre id="report">لا يوجد تقرير بعد.</pre>
-      <button class="ghost" onclick="copyReport()">نسخ التقرير</button>
-    </div>
-  </section>
-</div>
+    <script src="app.js"></script>
 
-<nav class="nav">
-  <button class="active" onclick="showPage('home', this)">الرئيسية</button>
-  <button onclick="showPage('manual', this)">إحداثيات</button>
-  <button onclick="showPage('api', this)">API</button>
-  <button onclick="showPage('reportPage', this)">التقرير</button>
-</nav>
-
-<script src="config.js"></script>
-<script src="app.js"></script>
 </body>
+
 </html>
