@@ -1,0 +1,25 @@
+{
+  "name": "RainGuard AI",
+  "short_name": "RainGuard",
+  "description": "منصة ذكية لإنذار المطر المحلي",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1163/1163657.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1163/1163657.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
