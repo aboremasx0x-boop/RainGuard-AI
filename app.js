@@ -10,14 +10,13 @@ let lastLon = 39.1925;
 let lastName = "جدة";
 
 let autoRefreshInterval;
+let autoRefreshEnabled = false;
 
 // ===============================
 // تشغيل الخريطة
 // ===============================
 function initMap(lat = 21.4858, lon = 39.1925) {
-
     if (!map) {
-
         map = L.map("map").setView([lat, lon], 8);
 
         L.tileLayer(
@@ -29,9 +28,7 @@ function initMap(lat = 21.4858, lon = 39.1925) {
         ).addTo(map);
 
         loadRainRadar();
-
     } else {
-
         map.setView([lat, lon], 8);
     }
 
@@ -46,9 +43,7 @@ function initMap(lat = 21.4858, lon = 39.1925) {
 // إضافة رادار المطر
 // ===============================
 async function loadRainRadar() {
-
     try {
-
         const response = await fetch(
             "https://api.rainviewer.com/public/weather-maps.json"
         );
@@ -81,7 +76,6 @@ async function loadRainRadar() {
         }
 
     } catch (error) {
-
         console.error("Radar Error:", error);
     }
 }
@@ -90,61 +84,95 @@ async function loadRainRadar() {
 // تشغيل / إيقاف الرادار
 // ===============================
 function toggleRadar() {
-
     if (!rainLayer) {
         alert("الرادار لم يتم تحميله بعد");
         return;
     }
 
     if (radarEnabled) {
-
         map.removeLayer(rainLayer);
-
         radarEnabled = false;
-
-        alert("تم إيقاف الرادار");
-
+        updateRefreshStatus("تم إيقاف الرادار");
     } else {
-
         rainLayer.addTo(map);
-
         radarEnabled = true;
-
-        alert("تم تشغيل الرادار");
+        updateRefreshStatus("تم تشغيل الرادار");
     }
 }
 
 // ===============================
-// تحديث تلقائي
+// حالة التحديث داخل الواجهة
+// ===============================
+function updateRefreshStatus(extraMessage = "") {
+    const refreshStatus = document.getElementById("refreshStatus");
+
+    if (!refreshStatus) {
+        return;
+    }
+
+    const now = new Date().toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    let text = `آخر تحديث: ${now}`;
+
+    if (autoRefreshEnabled) {
+        text += " | التحديث التلقائي: مفعل كل 10 دقائق";
+    } else {
+        text += " | التحديث التلقائي: غير مفعل";
+    }
+
+    if (extraMessage) {
+        text += ` | ${extraMessage}`;
+    }
+
+    refreshStatus.innerText = text;
+}
+
+// ===============================
+// تفعيل التحديث التلقائي
 // ===============================
 function startAutoRefresh() {
-
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
 
-    autoRefreshInterval = setInterval(() => {
+    autoRefreshEnabled = true;
 
+    autoRefreshInterval = setInterval(() => {
         checkRain(
             lastLat,
             lastLon,
-            lastName
+            lastName,
+            true
         );
-
     }, 10 * 60 * 1000);
 
-    alert("تم تفعيل التحديث التلقائي كل 10 دقائق");
+    updateRefreshStatus("تم تفعيل التحديث التلقائي");
+}
+
+// ===============================
+// إيقاف التحديث التلقائي
+// ===============================
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    autoRefreshInterval = null;
+    autoRefreshEnabled = false;
+
+    updateRefreshStatus("تم إيقاف التحديث التلقائي");
 }
 
 // ===============================
 // ألوان التنبيه
 // ===============================
 function applyAlertCardColor(score) {
-
     const cards = document.querySelectorAll(".card");
 
     cards.forEach(card => {
-
         card.classList.remove(
             "alert-green",
             "alert-yellow",
@@ -155,16 +183,12 @@ function applyAlertCardColor(score) {
     let alertBoxClass = "alert-green";
 
     if (score >= 80) {
-
         alertBoxClass = "alert-red";
-
     } else if (score >= 60) {
-
         alertBoxClass = "alert-yellow";
     }
 
     if (cards.length > 0) {
-
         cards[0].classList.add(alertBoxClass);
     }
 }
@@ -173,40 +197,28 @@ function applyAlertCardColor(score) {
 // توقعات 12 ساعة
 // ===============================
 function buildForecastHTML(nextHours) {
-
     if (!nextHours || nextHours.length === 0) {
         return "";
     }
 
     let forecastHTML = `
         <div class="forecast-section">
-
-            <h3>
-                توقعات 12 ساعة القادمة
-            </h3>
-
+            <h3>توقعات 12 ساعة القادمة</h3>
             <div class="info-grid">
     `;
 
     nextHours.slice(0, 12).forEach(hour => {
-
         let hourClass = "rain-low";
 
         if (hour.rain_score >= 80) {
-
             hourClass = "rain-high";
-
         } else if (hour.rain_score >= 60) {
-
             hourClass = "rain-medium";
         }
 
         forecastHTML += `
             <div class="info-box">
-
-                <span>
-                    ${hour.time.substring(11, 16)}
-                </span>
+                <span>${hour.time.substring(11, 16)}</span>
 
                 <strong class="${hourClass}">
                     ${hour.rain_score}%
@@ -223,7 +235,6 @@ function buildForecastHTML(nextHours) {
                 <div style="margin-top:5px;">
                     💧 ${hour.humidity}%
                 </div>
-
             </div>
         `;
     });
@@ -242,9 +253,9 @@ function buildForecastHTML(nextHours) {
 async function checkRain(
     lat,
     lon,
-    name = "موقع محدد"
+    name = "موقع محدد",
+    silent = false
 ) {
-
     const cityName =
         document.getElementById("cityName");
 
@@ -256,12 +267,11 @@ async function checkRain(
 
     cityName.innerText = name;
 
-    statusText.innerText =
-        "جاري تحليل المطر...";
-
-    statusText.className = "";
-
-    adviceText.innerHTML = "";
+    if (!silent) {
+        statusText.innerText = "جاري تحليل المطر...";
+        statusText.className = "";
+        adviceText.innerHTML = "";
+    }
 
     initMap(lat, lon);
 
@@ -270,7 +280,6 @@ async function checkRain(
     lastName = name;
 
     try {
-
         const url =
             `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
 
@@ -283,7 +292,6 @@ async function checkRain(
         const data = await response.json();
 
         const current = data.current;
-
         const best = data.best_hour;
 
         const forecastHTML =
@@ -292,11 +300,8 @@ async function checkRain(
         let className = "rain-low";
 
         if (best.rain_score >= 80) {
-
             className = "rain-high";
-
         } else if (best.rain_score >= 60) {
-
             className = "rain-medium";
         }
 
@@ -308,7 +313,6 @@ async function checkRain(
             `${best.alert_level} - ${best.rain_score}%`;
 
         adviceText.innerHTML = `
-
             <p>
                 ${best.advice}
             </p>
@@ -325,8 +329,13 @@ async function checkRain(
                 تفعيل التحديث التلقائي
             </button>
 
-            <div class="info-grid">
+            <button
+                onclick="stopAutoRefresh()"
+                style="margin-top:10px;">
+                إيقاف التحديث التلقائي
+            </button>
 
+            <div class="info-grid">
                 <div class="info-box">
                     <span>درجة الحرارة</span>
                     <strong>${current.temperature}°C</strong>
@@ -356,7 +365,6 @@ async function checkRain(
                     <span>الرياح</span>
                     <strong>${current.wind_speed}</strong>
                 </div>
-
             </div>
 
             ${forecastHTML}
@@ -368,15 +376,17 @@ async function checkRain(
             ${best.alert_level}
         `).openPopup();
 
+        updateRefreshStatus();
+
     } catch (error) {
-
         statusText.className = "rain-high";
-
         statusText.innerText = "حدث خطأ";
 
         adviceText.innerHTML = `
             تعذر جلب البيانات
         `;
+
+        updateRefreshStatus("فشل التحديث");
 
         console.error(error);
     }
@@ -386,18 +396,13 @@ async function checkRain(
 // موقعي الحالي
 // ===============================
 function getMyLocation() {
-
     if (!navigator.geolocation) {
-
         alert("المتصفح لا يدعم الموقع");
-
         return;
     }
 
     navigator.geolocation.getCurrentPosition(
-
         (position) => {
-
             const lat =
                 position.coords.latitude;
 
@@ -412,7 +417,6 @@ function getMyLocation() {
         },
 
         () => {
-
             alert("لم يتم السماح بالموقع");
         },
 
@@ -428,16 +432,13 @@ function getMyLocation() {
 // البحث باسم مدينة
 // ===============================
 async function detectRain() {
-
     const cityInput =
         document.getElementById("cityInput")
         .value
         .trim();
 
     if (!cityInput) {
-
         alert("اكتب اسم المدينة");
-
         return;
     }
 
@@ -451,14 +452,10 @@ async function detectRain() {
         document.getElementById("adviceText");
 
     cityName.innerText = cityInput;
-
-    statusText.innerText =
-        "جاري البحث...";
-
+    statusText.innerText = "جاري البحث...";
     adviceText.innerHTML = "";
 
     try {
-
         const geoUrl =
             `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityInput)}&count=1&language=ar&format=json`;
 
@@ -485,7 +482,6 @@ async function detectRain() {
         );
 
     } catch (error) {
-
         statusText.className =
             "rain-high";
 
@@ -495,6 +491,8 @@ async function detectRain() {
         adviceText.innerHTML =
             "جرّب اسمًا آخر";
 
+        updateRefreshStatus("فشل البحث");
+
         console.error(error);
     }
 }
@@ -503,7 +501,6 @@ async function detectRain() {
 // التشغيل الافتراضي
 // ===============================
 window.onload = function () {
-
     initMap();
 
     checkRain(
