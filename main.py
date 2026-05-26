@@ -7,10 +7,12 @@ from datetime import datetime
 app = FastAPI(
     title="RainGuard AI API",
     description="Local rain alert API using live weather data",
-    version="2.0"
+    version="3.0"
 )
 
+# =========================
 # CORS
+# =========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,13 +30,13 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 def calculate_rain_score(data):
     score = 0
 
-    humidity = data["humidity"]
-    rain_probability = data["rain_probability"]
-    cloud_cover = data["cloud_cover"]
-    precipitation = data["precipitation_mm"]
-    dew_point = data["dew_point"]
-    pressure = data["pressure_hpa"]
-    wind_speed = data["wind_speed"]
+    humidity = data.get("humidity", 0)
+    rain_probability = data.get("rain_probability", 0)
+    cloud_cover = data.get("cloud_cover", 0)
+    precipitation = data.get("precipitation_mm", 0)
+    dew_point = data.get("dew_point", 0)
+    pressure = data.get("pressure_hpa", 1013)
+    wind_speed = data.get("wind_speed", 0)
 
     score += rain_probability * 0.45
     score += humidity * 0.13
@@ -56,10 +58,32 @@ def calculate_rain_score(data):
 
 
 # =========================
+# Daily Rain Score
+# =========================
+def calculate_daily_score(day):
+    score = 0
+
+    rain_probability = day.get("rain_probability_max", 0)
+    precipitation_sum = day.get("precipitation_sum", 0)
+
+    score += rain_probability * 0.75
+
+    if precipitation_sum > 0:
+        score += 10
+
+    if precipitation_sum >= 5:
+        score += 10
+
+    if precipitation_sum >= 15:
+        score += 5
+
+    return min(round(score), 100)
+
+
+# =========================
 # Alert Classification
 # =========================
 def classify(score):
-
     if score >= 80:
         return {
             "level": "HIGH RAIN ALERT",
@@ -94,6 +118,12 @@ def root():
         content={
             "name": "RainGuard AI API",
             "status": "running",
+            "version": "3.0",
+            "features": [
+                "hourly rain alert",
+                "12-hour forecast",
+                "daily forecast"
+            ],
             "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
         },
         media_type="application/json; charset=utf-8"
@@ -112,7 +142,7 @@ def health():
 
 
 # =========================
-# Arabic UTF-8 Test
+# Arabic Test
 # =========================
 @app.get("/test-ar")
 def test_ar():
@@ -135,10 +165,10 @@ async def rain_alert(
     name: str = Query("Unknown Location"),
     hours: int = Query(12)
 ):
-
     params = {
         "latitude": lat,
         "longitude": lon,
+
         "hourly": ",".join([
             "temperature_2m",
             "relative_humidity_2m",
@@ -149,7 +179,17 @@ async def rain_alert(
             "pressure_msl",
             "wind_speed_10m"
         ]),
-        "forecast_days": 2,
+
+        "daily": ",".join([
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "precipitation_probability_max",
+            "precipitation_sum",
+            "rain_sum",
+            "wind_speed_10m_max"
+        ]),
+
+        "forecast_days": 7,
         "timezone": "auto"
     }
 
@@ -158,12 +198,14 @@ async def rain_alert(
         response.raise_for_status()
         weather = response.json()
 
+    # =========================
+    # Hourly Data
+    # =========================
     h = weather["hourly"]
 
     next_hours = []
 
     for i in range(min(hours, len(h["time"]))):
-
         row = {
             "time": h["time"][i],
             "temperature": h["temperature_2m"][i] or 0,
@@ -177,7 +219,6 @@ async def rain_alert(
         }
 
         score = calculate_rain_score(row)
-
         alert = classify(score)
 
         row["rain_score"] = score
@@ -188,14 +229,45 @@ async def rain_alert(
 
     best_hour = max(next_hours, key=lambda x: x["rain_score"])
 
+    # =========================
+    # Daily Data
+    # =========================
+    d = weather["daily"]
+
+    daily_forecast = []
+
+    for i in range(len(d["time"])):
+        day = {
+            "date": d["time"][i],
+            "temperature_max": d["temperature_2m_max"][i] or 0,
+            "temperature_min": d["temperature_2m_min"][i] or 0,
+            "rain_probability_max": d["precipitation_probability_max"][i] or 0,
+            "precipitation_sum": d["precipitation_sum"][i] or 0,
+            "rain_sum": d["rain_sum"][i] or 0,
+            "wind_speed_max": d["wind_speed_10m_max"][i] or 0
+        }
+
+        daily_score = calculate_daily_score(day)
+        daily_alert = classify(daily_score)
+
+        day["daily_rain_score"] = daily_score
+        day["alert_level"] = daily_alert["level"]
+        day["advice"] = daily_alert["advice"]
+
+        daily_forecast.append(day)
+
     result = {
         "location_name": name,
         "latitude": lat,
         "longitude": lon,
         "generated_at": datetime.utcnow().isoformat() + "Z",
+
         "current": next_hours[0],
         "best_hour": best_hour,
         "next_hours": next_hours,
+
+        "daily_forecast": daily_forecast,
+
         "source": "Open-Meteo Forecast API",
         "disclaimer": "Experimental local rain prediction system."
     }
