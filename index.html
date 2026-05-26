@@ -11,6 +11,14 @@
 
     <title>RainGuard AI</title>
 
+    <meta
+        name="theme-color"
+        content="#2563eb" />
+
+    <link
+        rel="manifest"
+        href="manifest.json" />
+
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -104,6 +112,34 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     <script src="app.js"></script>
+
+    <script>
+
+        if ("serviceWorker" in navigator) {
+
+            window.addEventListener("load", () => {
+
+                navigator.serviceWorker
+                    .register("/service-worker.js")
+
+                    .then(() => {
+
+                        console.log(
+                            "Service Worker Registered"
+                        );
+                    })
+
+                    .catch((error) => {
+
+                        console.log(
+                            "Service Worker Error:",
+                            error
+                        );
+                    });
+            });
+        }
+
+    </script>
 
 </body>
 
