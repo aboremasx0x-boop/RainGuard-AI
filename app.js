@@ -3,8 +3,11 @@ const API_BASE_URL = "https://rainguard-ai.onrender.com";
 let map;
 let marker;
 let rainLayer;
+let radarEnabled = true;
 
+// ===============================
 // تشغيل الخريطة
+// ===============================
 function initMap(lat = 21.4858, lon = 39.1925) {
     if (!map) {
         map = L.map("map").setView([lat, lon], 8);
@@ -13,6 +16,8 @@ function initMap(lat = 21.4858, lon = 39.1925) {
             maxZoom: 19,
             attribution: "© OpenStreetMap"
         }).addTo(map);
+
+        loadRainRadar();
     } else {
         map.setView([lat, lon], 8);
     }
@@ -24,7 +29,61 @@ function initMap(lat = 21.4858, lon = 39.1925) {
     marker = L.marker([lat, lon]).addTo(map);
 }
 
+// ===============================
+// إضافة رادار المطر RainViewer
+// ===============================
+async function loadRainRadar() {
+    try {
+        const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+        const data = await response.json();
+
+        if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
+            console.log("لا توجد بيانات رادار متاحة");
+            return;
+        }
+
+        const latestRadar = data.radar.past[data.radar.past.length - 1];
+
+        const radarUrl = `${data.host}${latestRadar.path}/256/{z}/{x}/{y}/2/1_1.png`;
+
+        rainLayer = L.tileLayer(radarUrl, {
+            opacity: 0.65,
+            zIndex: 10,
+            attribution: "Rain radar © RainViewer"
+        });
+
+        if (radarEnabled) {
+            rainLayer.addTo(map);
+        }
+
+    } catch (error) {
+        console.error("Radar Error:", error);
+    }
+}
+
+// ===============================
+// تشغيل / إيقاف الرادار
+// ===============================
+function toggleRadar() {
+    if (!rainLayer) {
+        alert("الرادار لم يتم تحميله بعد");
+        return;
+    }
+
+    if (radarEnabled) {
+        map.removeLayer(rainLayer);
+        radarEnabled = false;
+        alert("تم إيقاف رادار المطر");
+    } else {
+        rainLayer.addTo(map);
+        radarEnabled = true;
+        alert("تم تشغيل رادار المطر");
+    }
+}
+
+// ===============================
 // فحص المطر من API
+// ===============================
 async function checkRain(lat, lon, name = "موقع محدد") {
     const cityName = document.getElementById("cityName");
     const statusText = document.getElementById("statusText");
@@ -62,6 +121,10 @@ async function checkRain(lat, lon, name = "موقع محدد") {
 
         adviceText.innerHTML = `
             <p>${best.advice}</p>
+
+            <button onclick="toggleRadar()" style="margin-top:10px;">
+                تشغيل / إيقاف رادار المطر
+            </button>
 
             <div class="info-grid">
                 <div class="info-box">
@@ -113,7 +176,9 @@ async function checkRain(lat, lon, name = "موقع محدد") {
     }
 }
 
+// ===============================
 // تحديد موقعي الحالي
+// ===============================
 function getMyLocation() {
     if (!navigator.geolocation) {
         alert("المتصفح لا يدعم تحديد الموقع");
@@ -138,7 +203,9 @@ function getMyLocation() {
     );
 }
 
+// ===============================
 // البحث باسم المدينة
+// ===============================
 async function detectRain() {
     const cityInput = document.getElementById("cityInput").value.trim();
 
@@ -180,7 +247,9 @@ async function detectRain() {
     }
 }
 
+// ===============================
 // تشغيل افتراضي على جدة
+// ===============================
 window.onload = function () {
     initMap();
     checkRain(21.4858, 39.1925, "جدة");
