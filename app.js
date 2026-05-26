@@ -387,6 +387,72 @@ function buildDailyForecastHTML(dailyForecast) {
 }
 
 // ===============================
+// تقييم دقة التوقع
+// ===============================
+function ratePrediction(isCorrect) {
+    const key = "rainguard_accuracy";
+
+    const saved = JSON.parse(localStorage.getItem(key)) || {
+        total: 0,
+        correct: 0
+    };
+
+    saved.total += 1;
+
+    if (isCorrect) {
+        saved.correct += 1;
+        showActionMessage("تم تسجيل التقييم: التوقع صحيح", "success");
+    } else {
+        showActionMessage("تم تسجيل التقييم: التوقع غير صحيح", "warning");
+    }
+
+    localStorage.setItem(key, JSON.stringify(saved));
+    updateAccuracyBox();
+}
+
+// ===============================
+// تحديث لوحة الدقة
+// ===============================
+function updateAccuracyBox() {
+    const box = document.getElementById("accuracyBox");
+
+    if (!box) return;
+
+    const key = "rainguard_accuracy";
+
+    const saved = JSON.parse(localStorage.getItem(key)) || {
+        total: 0,
+        correct: 0
+    };
+
+    if (saved.total === 0) {
+        box.innerHTML = "لم يتم تسجيل تقييمات بعد.";
+        return;
+    }
+
+    const accuracy = Math.round((saved.correct / saved.total) * 100);
+
+    box.innerHTML = `
+        عدد التقييمات: ${saved.total}<br>
+        التوقعات الصحيحة: ${saved.correct}<br>
+        دقة التوقع حسب تقييمك: ${accuracy}%
+        <br><br>
+        <button onclick="resetAccuracy()">
+            مسح التقييمات
+        </button>
+    `;
+}
+
+// ===============================
+// مسح تقييمات الدقة
+// ===============================
+function resetAccuracy() {
+    localStorage.removeItem("rainguard_accuracy");
+    updateAccuracyBox();
+    showActionMessage("تم مسح تقييمات الدقة", "warning");
+}
+
+// ===============================
 // تحليل المطر
 // ===============================
 async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
@@ -409,8 +475,7 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
     lastName = name;
 
     try {
-        const url =
-            `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
+        const url = `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
 
         const response = await fetch(url);
 
@@ -575,6 +640,8 @@ window.onload = function () {
     initMap();
 
     checkRain(21.4858, 39.1925, "جدة");
+
+    updateAccuracyBox();
 
     setTimeout(() => {
         startAutoRefresh();
