@@ -13,6 +13,22 @@ let autoRefreshInterval = null;
 let autoRefreshEnabled = false;
 
 // ===============================
+// رسالة واضحة داخل الواجهة
+// ===============================
+function showActionMessage(message) {
+    const box = document.getElementById("actionMessage");
+
+    if (!box) return;
+
+    box.innerText = message;
+    box.style.display = "block";
+
+    setTimeout(() => {
+        box.style.display = "none";
+    }, 3000);
+}
+
+// ===============================
 // تشغيل الخريطة
 // ===============================
 function initMap(lat = 21.4858, lon = 39.1925) {
@@ -85,17 +101,21 @@ async function loadRainRadar() {
 // ===============================
 function toggleRadar() {
     if (!rainLayer) {
-        alert("الرادار لم يتم تحميله بعد");
+        showActionMessage("الرادار لم يتم تحميله بعد");
         return;
     }
 
     if (radarEnabled) {
         map.removeLayer(rainLayer);
         radarEnabled = false;
+
+        showActionMessage("تم إيقاف رادار المطر");
         updateRefreshStatus("تم إيقاف الرادار");
     } else {
         rainLayer.addTo(map);
         radarEnabled = true;
+
+        showActionMessage("تم تشغيل رادار المطر");
         updateRefreshStatus("تم تشغيل الرادار");
     }
 }
@@ -135,6 +155,8 @@ function updateRefreshStatus(extraMessage = "") {
 // تحديث يدوي الآن
 // ===============================
 function refreshNow() {
+    showActionMessage("جاري تحديث البيانات الآن");
+
     checkRain(
         lastLat,
         lastLon,
@@ -164,6 +186,7 @@ function startAutoRefresh() {
         );
     }, 10 * 60 * 1000);
 
+    showActionMessage("تم تفعيل التحديث التلقائي كل 10 دقائق");
     updateRefreshStatus("تم تفعيل التحديث التلقائي");
 }
 
@@ -178,6 +201,7 @@ function stopAutoRefresh() {
     autoRefreshInterval = null;
     autoRefreshEnabled = false;
 
+    showActionMessage("تم إيقاف التحديث التلقائي");
     updateRefreshStatus("تم إيقاف التحديث التلقائي");
 }
 
@@ -397,7 +421,7 @@ async function checkRain(
             ${best.alert_level}
         `).openPopup();
 
-        updateRefreshStatus();
+        updateRefreshStatus("تم تحديث البيانات");
 
     } catch (error) {
         statusText.className = "rain-high";
@@ -407,6 +431,7 @@ async function checkRain(
             تعذر جلب البيانات
         `;
 
+        showActionMessage("فشل تحديث البيانات");
         updateRefreshStatus("فشل التحديث");
 
         console.error(error);
@@ -418,9 +443,11 @@ async function checkRain(
 // ===============================
 function getMyLocation() {
     if (!navigator.geolocation) {
-        alert("المتصفح لا يدعم الموقع");
+        showActionMessage("المتصفح لا يدعم تحديد الموقع");
         return;
     }
+
+    showActionMessage("جاري تحديد موقعك");
 
     navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -438,7 +465,7 @@ function getMyLocation() {
         },
 
         () => {
-            alert("لم يتم السماح بالموقع");
+            showActionMessage("لم يتم السماح بتحديد الموقع");
         },
 
         {
@@ -459,7 +486,7 @@ async function detectRain() {
         .trim();
 
     if (!cityInput) {
-        alert("اكتب اسم المدينة");
+        showActionMessage("اكتب اسم المدينة أولًا");
         return;
     }
 
@@ -475,6 +502,8 @@ async function detectRain() {
     cityName.innerText = cityInput;
     statusText.innerText = "جاري البحث...";
     adviceText.innerHTML = "";
+
+    showActionMessage("جاري البحث عن المدينة");
 
     try {
         const geoUrl =
@@ -512,6 +541,7 @@ async function detectRain() {
         adviceText.innerHTML =
             "جرّب اسمًا آخر";
 
+        showActionMessage("لم يتم العثور على المدينة");
         updateRefreshStatus("فشل البحث");
 
         console.error(error);
