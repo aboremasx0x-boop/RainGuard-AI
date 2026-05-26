@@ -80,8 +80,6 @@ function updateRiskBar(score) {
     riskValue.style.color = color;
 
     riskLabel.innerText = label;
-
-    console.log("Risk Updated:", score);
 }
 
 // ===============================
@@ -123,11 +121,15 @@ function checkSmartAlert(score, alertLevel, locationName) {
 // ===============================
 function initMap(lat = 21.4858, lon = 39.1925) {
     if (!map) {
-        map = L.map("map").setView([lat, lon], 7);
+        map = L.map("map", {
+            minZoom: 4,
+            maxZoom: 10
+        }).setView([lat, lon], 6);
 
         L.tileLayer(
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             {
+                minZoom: 4,
                 maxZoom: 19,
                 attribution: "© OpenStreetMap"
             }
@@ -135,7 +137,7 @@ function initMap(lat = 21.4858, lon = 39.1925) {
 
         loadRainRadar();
     } else {
-        map.setView([lat, lon], 7);
+        map.setView([lat, lon], 6);
     }
 
     if (marker) {
@@ -150,7 +152,10 @@ function initMap(lat = 21.4858, lon = 39.1925) {
 // ===============================
 async function loadRainRadar() {
     try {
-        const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+        const response = await fetch(
+            "https://api.rainviewer.com/public/weather-maps.json"
+        );
+
         const data = await response.json();
 
         if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
@@ -159,9 +164,13 @@ async function loadRainRadar() {
         }
 
         const latestRadar = data.radar.past[data.radar.past.length - 1];
-        const radarUrl = `${data.host}${latestRadar.path}/256/{z}/{x}/{y}/2/1_1.png`;
+
+        const radarUrl =
+            `${data.host}${latestRadar.path}/256/{z}/{x}/{y}/2/1_1.png`;
 
         rainLayer = L.tileLayer(radarUrl, {
+            minZoom: 4,
+            maxZoom: 10,
             opacity: 0.65,
             zIndex: 10,
             attribution: "Rain radar © RainViewer"
@@ -400,7 +409,8 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
     lastName = name;
 
     try {
-        const url = `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
+        const url =
+            `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
 
         const response = await fetch(url);
 
@@ -528,7 +538,8 @@ async function detectRain() {
     showActionMessage("جاري البحث عن المدينة", "success");
 
     try {
-        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityInput)}&count=1&language=ar&format=json`;
+        const geoUrl =
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityInput)}&count=1&language=ar&format=json`;
 
         const geoResponse = await fetch(geoUrl);
         const geoData = await geoResponse.json();
