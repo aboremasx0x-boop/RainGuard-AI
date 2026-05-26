@@ -12,20 +12,73 @@ let lastName = "جدة";
 let autoRefreshInterval = null;
 let autoRefreshEnabled = false;
 
+let lastSmartAlertLevel = "";
+
 // ===============================
 // رسالة واضحة داخل الواجهة
 // ===============================
-function showActionMessage(message) {
+function showActionMessage(message, type = "success") {
     const box = document.getElementById("actionMessage");
 
     if (!box) return;
 
+    let background = "#064e3b";
+    let color = "#d1fae5";
+
+    if (type === "warning") {
+        background = "#78350f";
+        color = "#fde68a";
+    }
+
+    if (type === "danger") {
+        background = "#7f1d1d";
+        color = "#fecaca";
+    }
+
     box.innerText = message;
+    box.style.background = background;
+    box.style.color = color;
     box.style.display = "block";
 
     setTimeout(() => {
         box.style.display = "none";
-    }, 3000);
+    }, 5000);
+}
+
+// ===============================
+// تنبيه ذكي حسب مؤشر المطر
+// ===============================
+function checkSmartAlert(score, alertLevel, locationName) {
+    let currentLevel = "LOW";
+
+    if (score >= 80) {
+        currentLevel = "HIGH";
+    } else if (score >= 60) {
+        currentLevel = "MEDIUM";
+    }
+
+    if (currentLevel === lastSmartAlertLevel) {
+        return;
+    }
+
+    lastSmartAlertLevel = currentLevel;
+
+    if (currentLevel === "HIGH") {
+        showActionMessage(
+            `تحذير قوي: مؤشر المطر في ${locationName} وصل إلى ${score}% - ${alertLevel}`,
+            "danger"
+        );
+    } else if (currentLevel === "MEDIUM") {
+        showActionMessage(
+            `تنبيه متوسط: مؤشر المطر في ${locationName} وصل إلى ${score}% - تابع الحالة`,
+            "warning"
+        );
+    } else {
+        showActionMessage(
+            `الحالة مستقرة: مؤشر المطر في ${locationName} منخفض (${score}%)`,
+            "success"
+        );
+    }
 }
 
 // ===============================
@@ -101,7 +154,7 @@ async function loadRainRadar() {
 // ===============================
 function toggleRadar() {
     if (!rainLayer) {
-        showActionMessage("الرادار لم يتم تحميله بعد");
+        showActionMessage("الرادار لم يتم تحميله بعد", "warning");
         return;
     }
 
@@ -109,13 +162,13 @@ function toggleRadar() {
         map.removeLayer(rainLayer);
         radarEnabled = false;
 
-        showActionMessage("تم إيقاف رادار المطر");
+        showActionMessage("تم إيقاف رادار المطر", "warning");
         updateRefreshStatus("تم إيقاف الرادار");
     } else {
         rainLayer.addTo(map);
         radarEnabled = true;
 
-        showActionMessage("تم تشغيل رادار المطر");
+        showActionMessage("تم تشغيل رادار المطر", "success");
         updateRefreshStatus("تم تشغيل الرادار");
     }
 }
@@ -155,7 +208,7 @@ function updateRefreshStatus(extraMessage = "") {
 // تحديث يدوي الآن
 // ===============================
 function refreshNow() {
-    showActionMessage("جاري تحديث البيانات الآن");
+    showActionMessage("جاري تحديث البيانات الآن", "success");
 
     checkRain(
         lastLat,
@@ -186,7 +239,7 @@ function startAutoRefresh() {
         );
     }, 10 * 60 * 1000);
 
-    showActionMessage("تم تفعيل التحديث التلقائي كل 10 دقائق");
+    showActionMessage("تم تفعيل التحديث التلقائي كل 10 دقائق", "success");
     updateRefreshStatus("تم تفعيل التحديث التلقائي");
 }
 
@@ -201,7 +254,7 @@ function stopAutoRefresh() {
     autoRefreshInterval = null;
     autoRefreshEnabled = false;
 
-    showActionMessage("تم إيقاف التحديث التلقائي");
+    showActionMessage("تم إيقاف التحديث التلقائي", "warning");
     updateRefreshStatus("تم إيقاف التحديث التلقائي");
 }
 
@@ -310,6 +363,7 @@ function buildDailyForecastHTML(dailyForecast) {
         }
 
         const dateObj = new Date(day.date);
+
         const dayName = dateObj.toLocaleDateString("ar-SA", {
             weekday: "long"
         });
@@ -426,6 +480,12 @@ async function checkRain(
         statusText.innerText =
             `${best.alert_level} - ${best.rain_score}%`;
 
+        checkSmartAlert(
+            best.rain_score,
+            best.alert_level,
+            name
+        );
+
         adviceText.innerHTML = `
             <p>
                 ${best.advice}
@@ -508,7 +568,7 @@ async function checkRain(
             تعذر جلب البيانات
         `;
 
-        showActionMessage("فشل تحديث البيانات");
+        showActionMessage("فشل تحديث البيانات", "danger");
         updateRefreshStatus("فشل التحديث");
 
         console.error(error);
@@ -520,11 +580,11 @@ async function checkRain(
 // ===============================
 function getMyLocation() {
     if (!navigator.geolocation) {
-        showActionMessage("المتصفح لا يدعم تحديد الموقع");
+        showActionMessage("المتصفح لا يدعم تحديد الموقع", "warning");
         return;
     }
 
-    showActionMessage("جاري تحديد موقعك");
+    showActionMessage("جاري تحديد موقعك", "success");
 
     navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -542,7 +602,7 @@ function getMyLocation() {
         },
 
         () => {
-            showActionMessage("لم يتم السماح بتحديد الموقع");
+            showActionMessage("لم يتم السماح بتحديد الموقع", "warning");
         },
 
         {
@@ -563,7 +623,7 @@ async function detectRain() {
         .trim();
 
     if (!cityInput) {
-        showActionMessage("اكتب اسم المدينة أولًا");
+        showActionMessage("اكتب اسم المدينة أولًا", "warning");
         return;
     }
 
@@ -580,7 +640,7 @@ async function detectRain() {
     statusText.innerText = "جاري البحث...";
     adviceText.innerHTML = "";
 
-    showActionMessage("جاري البحث عن المدينة");
+    showActionMessage("جاري البحث عن المدينة", "success");
 
     try {
         const geoUrl =
@@ -618,7 +678,7 @@ async function detectRain() {
         adviceText.innerHTML =
             "جرّب اسمًا آخر";
 
-        showActionMessage("لم يتم العثور على المدينة");
+        showActionMessage("لم يتم العثور على المدينة", "warning");
         updateRefreshStatus("فشل البحث");
 
         console.error(error);
