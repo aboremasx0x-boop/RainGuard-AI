@@ -287,6 +287,78 @@ function buildForecastHTML(nextHours) {
 }
 
 // ===============================
+// التوقعات اليومية
+// ===============================
+function buildDailyForecastHTML(dailyForecast) {
+    if (!dailyForecast || dailyForecast.length === 0) {
+        return "";
+    }
+
+    let dailyHTML = `
+        <div class="forecast-section">
+            <h3>توقعات الأيام القادمة</h3>
+            <div class="info-grid">
+    `;
+
+    dailyForecast.slice(0, 7).forEach(day => {
+        let dayClass = "rain-low";
+
+        if (day.daily_rain_score >= 80) {
+            dayClass = "rain-high";
+        } else if (day.daily_rain_score >= 60) {
+            dayClass = "rain-medium";
+        }
+
+        const dateObj = new Date(day.date);
+        const dayName = dateObj.toLocaleDateString("ar-SA", {
+            weekday: "long"
+        });
+
+        const dateText = dateObj.toLocaleDateString("ar-SA", {
+            month: "short",
+            day: "numeric"
+        });
+
+        dailyHTML += `
+            <div class="info-box">
+                <span>${dayName}</span>
+
+                <strong class="${dayClass}">
+                    ${day.daily_rain_score}%
+                </strong>
+
+                <div style="margin-top:8px;">
+                    📅 ${dateText}
+                </div>
+
+                <div style="margin-top:5px;">
+                    🌧 احتمال المطر: ${day.rain_probability_max}%
+                </div>
+
+                <div style="margin-top:5px;">
+                    💦 كمية المطر: ${day.precipitation_sum} mm
+                </div>
+
+                <div style="margin-top:5px;">
+                    🌡 ${day.temperature_min}° / ${day.temperature_max}°
+                </div>
+
+                <div style="margin-top:5px;">
+                    💨 الرياح: ${day.wind_speed_max} كم/س
+                </div>
+            </div>
+        `;
+    });
+
+    dailyHTML += `
+            </div>
+        </div>
+    `;
+
+    return dailyHTML;
+}
+
+// ===============================
 // تحليل المطر
 // ===============================
 async function checkRain(
@@ -335,6 +407,9 @@ async function checkRain(
 
         const forecastHTML =
             buildForecastHTML(data.next_hours);
+
+        const dailyForecastHTML =
+            buildDailyForecastHTML(data.daily_forecast);
 
         let className = "rain-low";
 
@@ -413,6 +488,8 @@ async function checkRain(
             </div>
 
             ${forecastHTML}
+
+            ${dailyForecastHTML}
         `;
 
         marker.bindPopup(`
