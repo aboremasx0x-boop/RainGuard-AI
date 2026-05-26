@@ -234,9 +234,7 @@ function updateRefreshStatus(extraMessage = "") {
 
 function refreshNow() {
     showActionMessage("جاري تحديث البيانات الآن", "success");
-
     checkRain(lastLat, lastLon, lastName, false);
-
     updateRefreshStatus("تم طلب تحديث يدوي");
 }
 
@@ -386,9 +384,8 @@ function buildDailyForecastHTML(dailyForecast) {
 // ===============================
 // سجل آخر التوقعات
 // ===============================
-function savePredictionHistory(locationName, score, alertLevel) {
+function savePredictionHistory(locationName, score, alertLevel, lat, lon) {
     const key = "rainguard_history";
-
     const saved = JSON.parse(localStorage.getItem(key)) || [];
 
     const now = new Date().toLocaleString("ar-SA", {
@@ -402,15 +399,20 @@ function savePredictionHistory(locationName, score, alertLevel) {
         locationName,
         score,
         alertLevel,
+        lat,
+        lon,
         time: now
     };
 
-    saved.unshift(item);
+    const filtered = saved.filter(
+        oldItem => oldItem.locationName !== locationName
+    );
 
-    const limited = saved.slice(0, 8);
+    filtered.unshift(item);
+
+    const limited = filtered.slice(0, 8);
 
     localStorage.setItem(key, JSON.stringify(limited));
-
     renderPredictionHistory();
 }
 
@@ -427,7 +429,7 @@ function renderPredictionHistory() {
         return;
     }
 
-    box.innerHTML = saved.map(item => {
+    box.innerHTML = saved.map((item, index) => {
         let color = "#22c55e";
 
         if (item.score >= 80) {
@@ -440,18 +442,53 @@ function renderPredictionHistory() {
 
         return `
             <div style="
-                padding:10px;
-                margin-bottom:10px;
-                border-radius:12px;
+                padding:14px;
+                margin-bottom:12px;
+                border-radius:16px;
                 background:#0f172a;
                 border:1px solid #334155;
             ">
-                <strong>${item.locationName}</strong><br>
-                <span style="color:${color}; font-weight:bold;">
+
+                <strong style="font-size:22px; color:white;">
+                    ${item.locationName}
+                </strong>
+
+                <br><br>
+
+                <span style="color:${color}; font-weight:bold; font-size:22px;">
                     مؤشر الخطر: ${item.score}%
-                </span><br>
-                <span>${item.alertLevel}</span><br>
-                <small style="color:#94a3b8;">${item.time}</small>
+                </span>
+
+                <br>
+
+                <span style="color:#cbd5e1; font-size:18px;">
+                    ${item.alertLevel}
+                </span>
+
+                <br><br>
+
+                <small style="color:#94a3b8;">
+                    ${item.time}
+                </small>
+
+                <br><br>
+
+                <button
+                    onclick="recheckHistoryItem(${index})"
+                    style="
+                        width:100%;
+                        background:#2563eb;
+                        color:white;
+                        border:none;
+                        padding:12px;
+                        border-radius:12px;
+                        font-size:16px;
+                        font-weight:bold;
+                        cursor:pointer;
+                    ">
+                    إعادة الفحص
+                </button>
+
             </div>
         `;
     }).join("");
@@ -461,6 +498,36 @@ function clearPredictionHistory() {
     localStorage.removeItem("rainguard_history");
     renderPredictionHistory();
     showActionMessage("تم مسح سجل التوقعات", "warning");
+}
+
+// ===============================
+// إعادة فحص من السجل
+// ===============================
+function recheckHistoryItem(index) {
+    const key = "rainguard_history";
+    const saved = JSON.parse(localStorage.getItem(key)) || [];
+
+    const item = saved[index];
+
+    if (!item) {
+        showActionMessage("لم يتم العثور على هذا السجل", "warning");
+        return;
+    }
+
+    showActionMessage(`جاري إعادة فحص ${item.locationName}`, "success");
+
+    document.getElementById("cityInput").value = item.locationName;
+
+    if (item.lat && item.lon) {
+        checkRain(item.lat, item.lon, item.locationName);
+    } else {
+        detectRain();
+    }
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
 }
 
 // ===============================
@@ -558,7 +625,6 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
 
         const current = data.current;
         const best = data.best_hour;
-
         const score = Number(best.rain_score) || 0;
 
         const forecastHTML = buildForecastHTML(data.next_hours);
@@ -580,7 +646,7 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
 
         checkSmartAlert(score, best.alert_level, name);
 
-        savePredictionHistory(name, score, best.alert_level);
+        savePredictionHistory(name, score, best.alert_level, lat, lon);
 
         adviceText.innerHTML = `
             <p>${best.advice}</p>
