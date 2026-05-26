@@ -1,16 +1,16 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 import httpx
-from typing import List, Optional
 from datetime import datetime
 
 app = FastAPI(
     title="RainGuard AI API",
-    description="Local rain alert API using live weather data from Open-Meteo.",
-    version="1.0.0"
+    description="Local rain alert API using live weather data",
+    version="2.0"
 )
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,84 +21,121 @@ app.add_middleware(
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
-class HourForecast(BaseModel):
-    time: str
-    temperature: float
-    humidity: float
-    dew_point: float
-    rain_probability: float
-    precipitation_mm: float
-    cloud_cover: float
-    pressure_hpa: float
-    wind_speed: float
-    rain_score: int
-    alert_level: str
-    advice: str
 
-class RainResponse(BaseModel):
-    location_name: str
-    latitude: float
-    longitude: float
-    generated_at: str
-    current: HourForecast
-    best_hour: HourForecast
-    next_hours: List[HourForecast]
-    source: str
-    disclaimer: str
-
-def calculate_rain_score(row: dict) -> int:
-    rain_probability = row.get("rain_probability", 0) or 0
-    humidity = row.get("humidity", 0) or 0
-    cloud_cover = row.get("cloud_cover", 0) or 0
-    precipitation = row.get("precipitation_mm", 0) or 0
-    dew_point = row.get("dew_point", 0) or 0
-    pressure = row.get("pressure_hpa", 1013) or 1013
-    wind_speed = row.get("wind_speed", 0) or 0
-
+# =========================
+# Rain Score Calculation
+# =========================
+def calculate_rain_score(data):
     score = 0
+
+    humidity = data["humidity"]
+    rain_probability = data["rain_probability"]
+    cloud_cover = data["cloud_cover"]
+    precipitation = data["precipitation_mm"]
+    dew_point = data["dew_point"]
+    pressure = data["pressure_hpa"]
+    wind_speed = data["wind_speed"]
+
     score += rain_probability * 0.45
     score += humidity * 0.13
     score += cloud_cover * 0.15
 
     if precipitation > 0:
         score += 16
+
     if dew_point >= 18:
         score += 7
+
     if pressure < 1010:
         score += 4
+
     if wind_speed >= 15:
         score += 3
 
     return min(round(score), 100)
 
-def classify(score: int):
-    if score >= 80:
-        return "إنذار مطر عالي", "فرصة المطر عالية. تابع التنبيهات الرسمية وتجنب مجاري السيول."
-    if score >= 60:
-        return "تنبيه متوسط", "توجد مؤشرات جيدة لاحتمال المطر. تابع الرادار والتحديثات."
-    if score >= 40:
-        return "احتمال ضعيف إلى متوسط", "توجد مؤشرات بسيطة للمطر، لكن لا يوجد إنذار قوي حاليًا."
-    return "لا يوجد إنذار", "فرصة المطر ضعيفة في الوقت الحالي."
 
+# =========================
+# Alert Classification
+# =========================
+def classify(score):
+
+    if score >= 80:
+        return {
+            "level": "HIGH RAIN ALERT",
+            "advice": "Heavy rain possible. Follow weather warnings."
+        }
+
+    elif score >= 60:
+        return {
+            "level": "MODERATE ALERT",
+            "advice": "Rain chance is moderate. Monitor updates."
+        }
+
+    elif score >= 40:
+        return {
+            "level": "LOW TO MODERATE",
+            "advice": "Weak rain indicators detected."
+        }
+
+    else:
+        return {
+            "level": "NO ALERT",
+            "advice": "Rain chance is currently low."
+        }
+
+
+# =========================
+# Root Endpoint
+# =========================
 @app.get("/")
 def root():
-    return {
-        "name": "RainGuard AI API",
-        "status": "running",
-        "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
-    }
+    return JSONResponse(
+        content={
+            "name": "RainGuard AI API",
+            "status": "running",
+            "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
+        },
+        media_type="application/json; charset=utf-8"
+    )
 
+
+# =========================
+# Health Check
+# =========================
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return JSONResponse(
+        content={"status": "ok"},
+        media_type="application/json; charset=utf-8"
+    )
 
-@app.get("/rain-alert", response_model=RainResponse)
+
+# =========================
+# Arabic UTF-8 Test
+# =========================
+@app.get("/test-ar")
+def test_ar():
+    return JSONResponse(
+        content={
+            "message": "لا يوجد إنذار",
+            "advice": "فرصة المطر ضعيفة حاليا"
+        },
+        media_type="application/json; charset=utf-8"
+    )
+
+
+# =========================
+# Main Rain Alert Endpoint
+# =========================
+@app.get("/rain-alert")
 async def rain_alert(
-    lat: float = Query(..., description="Latitude"),
-    lon: float = Query(..., description="Longitude"),
-    name: str = Query("موقع غير محدد", description="Location name"),
-    hours: int = Query(12, ge=1, le=24)
+    lat: float = Query(...),
+    lon: float = Query(...),
+    name: str = Query("Unknown Location"),
+    hours: int = Query(12)
 ):
+
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -119,15 +156,15 @@ async def rain_alert(
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.get(OPEN_METEO_URL, params=params)
         response.raise_for_status()
-        data = response.json()
+        weather = response.json()
 
-    h = data["hourly"]
-    rows = []
+    h = weather["hourly"]
 
-    count = min(hours, len(h["time"]))
+    next_hours = []
 
-    for i in range(count):
-        raw = {
+    for i in range(min(hours, len(h["time"]))):
+
+        row = {
             "time": h["time"][i],
             "temperature": h["temperature_2m"][i] or 0,
             "humidity": h["relative_humidity_2m"][i] or 0,
@@ -139,26 +176,31 @@ async def rain_alert(
             "wind_speed": h["wind_speed_10m"][i] or 0,
         }
 
-        score = calculate_rain_score(raw)
-        level, advice = classify(score)
+        score = calculate_rain_score(row)
 
-        rows.append(HourForecast(
-            **raw,
-            rain_score=score,
-            alert_level=level,
-            advice=advice
-        ))
+        alert = classify(score)
 
-    best = max(rows, key=lambda x: x.rain_score)
+        row["rain_score"] = score
+        row["alert_level"] = alert["level"]
+        row["advice"] = alert["advice"]
 
-    return RainResponse(
-        location_name=name,
-        latitude=lat,
-        longitude=lon,
-        generated_at=datetime.utcnow().isoformat() + "Z",
-        current=rows[0],
-        best_hour=best,
-        next_hours=rows,
-        source="Open-Meteo Forecast API",
-        disclaimer="هذه قراءة تقديرية وليست بديلًا عن تنبيهات المركز الوطني للأرصاد.",
+        next_hours.append(row)
+
+    best_hour = max(next_hours, key=lambda x: x["rain_score"])
+
+    result = {
+        "location_name": name,
+        "latitude": lat,
+        "longitude": lon,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "current": next_hours[0],
+        "best_hour": best_hour,
+        "next_hours": next_hours,
+        "source": "Open-Meteo Forecast API",
+        "disclaimer": "Experimental local rain prediction system."
+    }
+
+    return JSONResponse(
+        content=result,
+        media_type="application/json; charset=utf-8"
     )
