@@ -500,9 +500,6 @@ function clearPredictionHistory() {
     showActionMessage("تم مسح سجل التوقعات", "warning");
 }
 
-// ===============================
-// إعادة فحص من السجل
-// ===============================
 function recheckHistoryItem(index) {
     const key = "rainguard_history";
     const saved = JSON.parse(localStorage.getItem(key)) || [];
@@ -549,6 +546,47 @@ function shareWeatherWhatsApp() {
     const url = "https://wa.me/?text=" + encodeURIComponent(message);
 
     window.open(url, "_blank");
+}
+
+// ===============================
+// تصدير تقرير الطقس
+// ===============================
+function exportWeatherReport() {
+    const riskValue = document.getElementById("riskValue")?.innerText || "--%";
+    const statusText = document.getElementById("statusText")?.innerText || "غير متوفر";
+    const refreshStatus = document.getElementById("refreshStatus")?.innerText || "";
+    const riskLabel = document.getElementById("riskLabel")?.innerText || "";
+
+    const report =
+`RainGuard AI - تقرير الطقس
+
+الموقع: ${lastName}
+مؤشر المطر: ${riskValue}
+مستوى الخطر: ${riskLabel}
+الحالة: ${statusText}
+
+${refreshStatus}
+
+رابط التطبيق:
+https://rain-guard-ai.vercel.app
+
+ملاحظة:
+هذا التقرير تقديري ولا يغني عن التنبيهات الرسمية.`;
+
+    const blob = new Blob([report], {
+        type: "text/plain;charset=utf-8"
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `RainGuard-${lastName}.txt`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+
+    showActionMessage("تم تصدير تقرير الطقس", "success");
 }
 
 // ===============================
@@ -677,6 +715,7 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
             <button onclick="startAutoRefresh()" style="margin-top:10px;">تفعيل التحديث التلقائي</button>
             <button onclick="stopAutoRefresh()" style="margin-top:10px;">إيقاف التحديث التلقائي</button>
             <button onclick="shareWeatherWhatsApp()" style="margin-top:10px;">مشاركة النتيجة في واتساب</button>
+            <button onclick="exportWeatherReport()" style="margin-top:10px;">تصدير تقرير الطقس</button>
 
             <div class="info-grid">
                 <div class="info-box"><span>درجة الحرارة</span><strong>${current.temperature}°C</strong></div>
