@@ -43,7 +43,6 @@ async function loadRainRadar() {
         }
 
         const latestRadar = data.radar.past[data.radar.past.length - 1];
-
         const radarUrl = `${data.host}${latestRadar.path}/256/{z}/{x}/{y}/2/1_1.png`;
 
         rainLayer = L.tileLayer(radarUrl, {
@@ -82,6 +81,33 @@ function toggleRadar() {
 }
 
 // ===============================
+// تطبيق لون بطاقة التنبيه
+// ===============================
+function applyAlertCardColor(score) {
+    const cards = document.querySelectorAll(".card");
+
+    cards.forEach(card => {
+        card.classList.remove(
+            "alert-green",
+            "alert-yellow",
+            "alert-red"
+        );
+    });
+
+    let alertBoxClass = "alert-green";
+
+    if (score >= 80) {
+        alertBoxClass = "alert-red";
+    } else if (score >= 60) {
+        alertBoxClass = "alert-yellow";
+    }
+
+    if (cards.length > 0) {
+        cards[0].classList.add(alertBoxClass);
+    }
+}
+
+// ===============================
 // فحص المطر من API
 // ===============================
 async function checkRain(lat, lon, name = "موقع محدد") {
@@ -115,6 +141,8 @@ async function checkRain(lat, lon, name = "موقع محدد") {
         } else if (best.rain_score >= 60) {
             className = "rain-medium";
         }
+
+        applyAlertCardColor(best.rain_score);
 
         statusText.className = className;
         statusText.innerText = `${best.alert_level} - ${best.rain_score}%`;
