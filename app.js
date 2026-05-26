@@ -11,7 +11,6 @@ let lastName = "جدة";
 
 let autoRefreshInterval = null;
 let autoRefreshEnabled = false;
-
 let lastSmartAlertLevel = "";
 
 // ===============================
@@ -43,6 +42,37 @@ function showActionMessage(message, type = "success") {
     setTimeout(() => {
         box.style.display = "none";
     }, 5000);
+}
+
+// ===============================
+// شريط مؤشر الخطر
+// ===============================
+function updateRiskBar(score) {
+    const riskBar = document.getElementById("riskBar");
+    const riskValue = document.getElementById("riskValue");
+    const riskLabel = document.getElementById("riskLabel");
+
+    if (!riskBar || !riskValue || !riskLabel) return;
+
+    let color = "#22c55e";
+    let label = "منخفض";
+
+    if (score >= 80) {
+        color = "#ef4444";
+        label = "خطر مرتفع";
+    } else if (score >= 60) {
+        color = "#f59e0b";
+        label = "تنبيه متوسط";
+    } else if (score >= 40) {
+        color = "#38bdf8";
+        label = "احتمال ضعيف إلى متوسط";
+    }
+
+    riskBar.style.width = `${score}%`;
+    riskBar.style.background = color;
+    riskValue.innerText = `${score}%`;
+    riskValue.style.color = color;
+    riskLabel.innerText = label;
 }
 
 // ===============================
@@ -86,7 +116,7 @@ function checkSmartAlert(score, alertLevel, locationName) {
 // ===============================
 function initMap(lat = 21.4858, lon = 39.1925) {
     if (!map) {
-        map = L.map("map").setView([lat, lon], 8);
+        map = L.map("map").setView([lat, lon], 7);
 
         L.tileLayer(
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -98,7 +128,7 @@ function initMap(lat = 21.4858, lon = 39.1925) {
 
         loadRainRadar();
     } else {
-        map.setView([lat, lon], 8);
+        map.setView([lat, lon], 7);
     }
 
     if (marker) {
@@ -119,17 +149,12 @@ async function loadRainRadar() {
 
         const data = await response.json();
 
-        if (
-            !data.radar ||
-            !data.radar.past ||
-            data.radar.past.length === 0
-        ) {
+        if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
             console.log("لا توجد بيانات رادار");
             return;
         }
 
-        const latestRadar =
-            data.radar.past[data.radar.past.length - 1];
+        const latestRadar = data.radar.past[data.radar.past.length - 1];
 
         const radarUrl =
             `${data.host}${latestRadar.path}/256/{z}/{x}/{y}/2/1_1.png`;
@@ -179,9 +204,7 @@ function toggleRadar() {
 function updateRefreshStatus(extraMessage = "") {
     const refreshStatus = document.getElementById("refreshStatus");
 
-    if (!refreshStatus) {
-        return;
-    }
+    if (!refreshStatus) return;
 
     const now = new Date().toLocaleTimeString("ar-SA", {
         hour: "2-digit",
@@ -210,12 +233,7 @@ function updateRefreshStatus(extraMessage = "") {
 function refreshNow() {
     showActionMessage("جاري تحديث البيانات الآن", "success");
 
-    checkRain(
-        lastLat,
-        lastLon,
-        lastName,
-        false
-    );
+    checkRain(lastLat, lastLon, lastName, false);
 
     updateRefreshStatus("تم طلب تحديث يدوي");
 }
@@ -231,12 +249,7 @@ function startAutoRefresh() {
     autoRefreshEnabled = true;
 
     autoRefreshInterval = setInterval(() => {
-        checkRain(
-            lastLat,
-            lastLon,
-            lastName,
-            true
-        );
+        checkRain(lastLat, lastLon, lastName, true);
     }, 10 * 60 * 1000);
 
     showActionMessage("تم تفعيل التحديث التلقائي كل 10 دقائق", "success");
@@ -421,14 +434,9 @@ async function checkRain(
     name = "موقع محدد",
     silent = false
 ) {
-    const cityName =
-        document.getElementById("cityName");
-
-    const statusText =
-        document.getElementById("statusText");
-
-    const adviceText =
-        document.getElementById("adviceText");
+    const cityName = document.getElementById("cityName");
+    const statusText = document.getElementById("statusText");
+    const adviceText = document.getElementById("adviceText");
 
     cityName.innerText = name;
 
@@ -459,11 +467,8 @@ async function checkRain(
         const current = data.current;
         const best = data.best_hour;
 
-        const forecastHTML =
-            buildForecastHTML(data.next_hours);
-
-        const dailyForecastHTML =
-            buildDailyForecastHTML(data.daily_forecast);
+        const forecastHTML = buildForecastHTML(data.next_hours);
+        const dailyForecastHTML = buildDailyForecastHTML(data.daily_forecast);
 
         let className = "rain-low";
 
@@ -474,44 +479,31 @@ async function checkRain(
         }
 
         applyAlertCardColor(best.rain_score);
+        updateRiskBar(best.rain_score);
 
         statusText.className = className;
+        statusText.innerText = `${best.alert_level} - ${best.rain_score}%`;
 
-        statusText.innerText =
-            `${best.alert_level} - ${best.rain_score}%`;
-
-        checkSmartAlert(
-            best.rain_score,
-            best.alert_level,
-            name
-        );
+        checkSmartAlert(best.rain_score, best.alert_level, name);
 
         adviceText.innerHTML = `
             <p>
                 ${best.advice}
             </p>
 
-            <button
-                onclick="toggleRadar()"
-                style="margin-top:10px;">
+            <button onclick="toggleRadar()" style="margin-top:10px;">
                 تشغيل / إيقاف الرادار
             </button>
 
-            <button
-                onclick="refreshNow()"
-                style="margin-top:10px;">
+            <button onclick="refreshNow()" style="margin-top:10px;">
                 تحديث الآن
             </button>
 
-            <button
-                onclick="startAutoRefresh()"
-                style="margin-top:10px;">
+            <button onclick="startAutoRefresh()" style="margin-top:10px;">
                 تفعيل التحديث التلقائي
             </button>
 
-            <button
-                onclick="stopAutoRefresh()"
-                style="margin-top:10px;">
+            <button onclick="stopAutoRefresh()" style="margin-top:10px;">
                 إيقاف التحديث التلقائي
             </button>
 
@@ -588,17 +580,10 @@ function getMyLocation() {
 
     navigator.geolocation.getCurrentPosition(
         (position) => {
-            const lat =
-                position.coords.latitude;
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
 
-            const lon =
-                position.coords.longitude;
-
-            checkRain(
-                lat,
-                lon,
-                "موقعي الحالي"
-            );
+            checkRain(lat, lon, "موقعي الحالي");
         },
 
         () => {
@@ -627,14 +612,9 @@ async function detectRain() {
         return;
     }
 
-    const cityName =
-        document.getElementById("cityName");
-
-    const statusText =
-        document.getElementById("statusText");
-
-    const adviceText =
-        document.getElementById("adviceText");
+    const cityName = document.getElementById("cityName");
+    const statusText = document.getElementById("statusText");
+    const adviceText = document.getElementById("adviceText");
 
     cityName.innerText = cityInput;
     statusText.innerText = "جاري البحث...";
@@ -646,21 +626,14 @@ async function detectRain() {
         const geoUrl =
             `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityInput)}&count=1&language=ar&format=json`;
 
-        const geoResponse =
-            await fetch(geoUrl);
+        const geoResponse = await fetch(geoUrl);
+        const geoData = await geoResponse.json();
 
-        const geoData =
-            await geoResponse.json();
-
-        if (
-            !geoData.results ||
-            geoData.results.length === 0
-        ) {
+        if (!geoData.results || geoData.results.length === 0) {
             throw new Error("مدينة غير موجودة");
         }
 
-        const place =
-            geoData.results[0];
+        const place = geoData.results[0];
 
         checkRain(
             place.latitude,
@@ -669,14 +642,10 @@ async function detectRain() {
         );
 
     } catch (error) {
-        statusText.className =
-            "rain-high";
+        statusText.className = "rain-high";
+        statusText.innerText = "المدينة غير موجودة";
 
-        statusText.innerText =
-            "المدينة غير موجودة";
-
-        adviceText.innerHTML =
-            "جرّب اسمًا آخر";
+        adviceText.innerHTML = "جرّب اسمًا آخر";
 
         showActionMessage("لم يتم العثور على المدينة", "warning");
         updateRefreshStatus("فشل البحث");
