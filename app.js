@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://rainguard-ai.onrender.com";
+ const API_BASE_URL = "https://rainguard-ai.onrender.com";
 
 let map;
 let marker;
@@ -108,6 +108,60 @@ function applyAlertCardColor(score) {
 }
 
 // ===============================
+// تجهيز توقعات 12 ساعة
+// ===============================
+function buildForecastHTML(nextHours) {
+    if (!nextHours || nextHours.length === 0) {
+        return "";
+    }
+
+    let forecastHTML = `
+        <div class="forecast-section">
+            <h3>توقعات 12 ساعة القادمة</h3>
+            <div class="info-grid">
+    `;
+
+    nextHours.slice(0, 12).forEach(hour => {
+        let hourClass = "rain-low";
+
+        if (hour.rain_score >= 80) {
+            hourClass = "rain-high";
+        } else if (hour.rain_score >= 60) {
+            hourClass = "rain-medium";
+        }
+
+        forecastHTML += `
+            <div class="info-box">
+                <span>${hour.time.substring(11, 16)}</span>
+
+                <strong class="${hourClass}">
+                    ${hour.rain_score}%
+                </strong>
+
+                <div style="margin-top:8px;">
+                    🌧 احتمال المطر: ${hour.rain_probability}%
+                </div>
+
+                <div style="margin-top:5px;">
+                    ☁ السحب: ${hour.cloud_cover}%
+                </div>
+
+                <div style="margin-top:5px;">
+                    💧 الرطوبة: ${hour.humidity}%
+                </div>
+            </div>
+        `;
+    });
+
+    forecastHTML += `
+            </div>
+        </div>
+    `;
+
+    return forecastHTML;
+}
+
+// ===============================
 // فحص المطر من API
 // ===============================
 async function checkRain(lat, lon, name = "موقع محدد") {
@@ -133,6 +187,7 @@ async function checkRain(lat, lon, name = "موقع محدد") {
         const data = await response.json();
         const current = data.current;
         const best = data.best_hour;
+        const forecastHTML = buildForecastHTML(data.next_hours);
 
         let className = "rain-low";
 
@@ -185,6 +240,8 @@ async function checkRain(lat, lon, name = "موقع محدد") {
                     <strong>${current.wind_speed} كم/س</strong>
                 </div>
             </div>
+
+            ${forecastHTML}
         `;
 
         marker.bindPopup(`
