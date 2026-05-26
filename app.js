@@ -52,10 +52,7 @@ function updateRiskBar(score) {
     const riskValue = document.getElementById("riskValue");
     const riskLabel = document.getElementById("riskLabel");
 
-    if (!riskBar || !riskValue || !riskLabel) {
-        console.log("Risk elements not found");
-        return;
-    }
+    if (!riskBar || !riskValue || !riskLabel) return;
 
     score = Number(score) || 0;
 
@@ -387,6 +384,86 @@ function buildDailyForecastHTML(dailyForecast) {
 }
 
 // ===============================
+// سجل آخر التوقعات
+// ===============================
+function savePredictionHistory(locationName, score, alertLevel) {
+    const key = "rainguard_history";
+
+    const saved = JSON.parse(localStorage.getItem(key)) || [];
+
+    const now = new Date().toLocaleString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "numeric",
+        month: "short"
+    });
+
+    const item = {
+        locationName,
+        score,
+        alertLevel,
+        time: now
+    };
+
+    saved.unshift(item);
+
+    const limited = saved.slice(0, 8);
+
+    localStorage.setItem(key, JSON.stringify(limited));
+
+    renderPredictionHistory();
+}
+
+function renderPredictionHistory() {
+    const box = document.getElementById("historyBox");
+
+    if (!box) return;
+
+    const key = "rainguard_history";
+    const saved = JSON.parse(localStorage.getItem(key)) || [];
+
+    if (saved.length === 0) {
+        box.innerHTML = "لا يوجد سجل حتى الآن.";
+        return;
+    }
+
+    box.innerHTML = saved.map(item => {
+        let color = "#22c55e";
+
+        if (item.score >= 80) {
+            color = "#ef4444";
+        } else if (item.score >= 60) {
+            color = "#f59e0b";
+        } else if (item.score >= 40) {
+            color = "#38bdf8";
+        }
+
+        return `
+            <div style="
+                padding:10px;
+                margin-bottom:10px;
+                border-radius:12px;
+                background:#0f172a;
+                border:1px solid #334155;
+            ">
+                <strong>${item.locationName}</strong><br>
+                <span style="color:${color}; font-weight:bold;">
+                    مؤشر الخطر: ${item.score}%
+                </span><br>
+                <span>${item.alertLevel}</span><br>
+                <small style="color:#94a3b8;">${item.time}</small>
+            </div>
+        `;
+    }).join("");
+}
+
+function clearPredictionHistory() {
+    localStorage.removeItem("rainguard_history");
+    renderPredictionHistory();
+    showActionMessage("تم مسح سجل التوقعات", "warning");
+}
+
+// ===============================
 // تقييم دقة التوقع
 // ===============================
 function ratePrediction(isCorrect) {
@@ -410,9 +487,6 @@ function ratePrediction(isCorrect) {
     updateAccuracyBox();
 }
 
-// ===============================
-// تحديث لوحة الدقة
-// ===============================
 function updateAccuracyBox() {
     const box = document.getElementById("accuracyBox");
 
@@ -443,9 +517,6 @@ function updateAccuracyBox() {
     `;
 }
 
-// ===============================
-// مسح تقييمات الدقة
-// ===============================
 function resetAccuracy() {
     localStorage.removeItem("rainguard_accuracy");
     updateAccuracyBox();
@@ -508,6 +579,8 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
         statusText.innerText = `${best.alert_level} - ${score}%`;
 
         checkSmartAlert(score, best.alert_level, name);
+
+        savePredictionHistory(name, score, best.alert_level);
 
         adviceText.innerHTML = `
             <p>${best.advice}</p>
@@ -642,6 +715,7 @@ window.onload = function () {
     checkRain(21.4858, 39.1925, "جدة");
 
     updateAccuracyBox();
+    renderPredictionHistory();
 
     setTimeout(() => {
         startAutoRefresh();
