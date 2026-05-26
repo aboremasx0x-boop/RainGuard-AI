@@ -9,7 +9,7 @@ let lastLat = 21.4858;
 let lastLon = 39.1925;
 let lastName = "جدة";
 
-let autoRefreshInterval;
+let autoRefreshInterval = null;
 let autoRefreshEnabled = false;
 
 // ===============================
@@ -112,7 +112,8 @@ function updateRefreshStatus(extraMessage = "") {
 
     const now = new Date().toLocaleTimeString("ar-SA", {
         hour: "2-digit",
-        minute: "2-digit"
+        minute: "2-digit",
+        second: "2-digit"
     });
 
     let text = `آخر تحديث: ${now}`;
@@ -128,6 +129,20 @@ function updateRefreshStatus(extraMessage = "") {
     }
 
     refreshStatus.innerText = text;
+}
+
+// ===============================
+// تحديث يدوي الآن
+// ===============================
+function refreshNow() {
+    checkRain(
+        lastLat,
+        lastLon,
+        lastName,
+        false
+    );
+
+    updateRefreshStatus("تم طلب تحديث يدوي");
 }
 
 // ===============================
@@ -324,6 +339,12 @@ async function checkRain(
             </button>
 
             <button
+                onclick="refreshNow()"
+                style="margin-top:10px;">
+                تحديث الآن
+            </button>
+
+            <button
                 onclick="startAutoRefresh()"
                 style="margin-top:10px;">
                 تفعيل التحديث التلقائي
@@ -508,4 +529,8 @@ window.onload = function () {
         39.1925,
         "جدة"
     );
+
+    setTimeout(() => {
+        startAutoRefresh();
+    }, 3000);
 };
