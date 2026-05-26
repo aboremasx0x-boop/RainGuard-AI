@@ -531,6 +531,27 @@ function recheckHistoryItem(index) {
 }
 
 // ===============================
+// مشاركة النتيجة في واتساب
+// ===============================
+function shareWeatherWhatsApp() {
+    const riskValue = document.getElementById("riskValue")?.innerText || "--%";
+    const statusText = document.getElementById("statusText")?.innerText || "غير متوفر";
+    const refreshStatus = document.getElementById("refreshStatus")?.innerText || "";
+
+    const message =
+        `🌧 RainGuard AI\n` +
+        `الموقع: ${lastName}\n` +
+        `مؤشر المطر: ${riskValue}\n` +
+        `الحالة: ${statusText}\n` +
+        `${refreshStatus}\n\n` +
+        `رابط التطبيق:\nhttps://rain-guard-ai.vercel.app`;
+
+    const url = "https://wa.me/?text=" + encodeURIComponent(message);
+
+    window.open(url, "_blank");
+}
+
+// ===============================
 // تقييم دقة التوقع
 // ===============================
 function ratePrediction(isCorrect) {
@@ -655,6 +676,7 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
             <button onclick="refreshNow()" style="margin-top:10px;">تحديث الآن</button>
             <button onclick="startAutoRefresh()" style="margin-top:10px;">تفعيل التحديث التلقائي</button>
             <button onclick="stopAutoRefresh()" style="margin-top:10px;">إيقاف التحديث التلقائي</button>
+            <button onclick="shareWeatherWhatsApp()" style="margin-top:10px;">مشاركة النتيجة في واتساب</button>
 
             <div class="info-grid">
                 <div class="info-box"><span>درجة الحرارة</span><strong>${current.temperature}°C</strong></div>
