@@ -5,15 +5,19 @@
 
     <meta charset="UTF-8" />
 
-    <meta name="viewport"
+    <meta
+        name="viewport"
         content="width=device-width, initial-scale=1.0" />
 
     <title>RainGuard AI</title>
 
-    <link rel="stylesheet"
+    <link
+        rel="stylesheet"
         href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
-    <link rel="stylesheet" href="style.css" />
+    <link
+        rel="stylesheet"
+        href="style.css" />
 
 </head>
 
@@ -23,7 +27,9 @@
 
         <div class="header">
 
-            <h1>🌧 RainGuard AI</h1>
+            <h1>
+                🌧 RainGuard AI
+            </h1>
 
             <p>
                 منصة إنذار المطر المحلي الذكية
@@ -58,18 +64,36 @@
                 اختر مدينة أو استخدم موقعك
             </div>
 
+            <div
+                id="actionMessage"
+                style="
+                    margin-top:10px;
+                    padding:10px;
+                    border-radius:10px;
+                    background:#064e3b;
+                    color:#d1fae5;
+                    display:none;
+                ">
+            </div>
+
             <div id="adviceText"></div>
 
             <div
                 id="refreshStatus"
-                style="margin-top:10px; color:#94a3b8; font-size:14px;">
+                style="
+                    margin-top:10px;
+                    color:#94a3b8;
+                    font-size:14px;
+                ">
             </div>
 
         </div>
 
         <div class="card">
 
-            <h3>رادار المطر</h3>
+            <h3>
+                رادار المطر
+            </h3>
 
             <div id="map"></div>
 
