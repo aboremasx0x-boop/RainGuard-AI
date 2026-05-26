@@ -2,14 +2,19 @@
 <html lang="ar" dir="rtl">
 
 <head>
+
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0" />
 
     <title>RainGuard AI</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet"
+        href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
     <link rel="stylesheet" href="style.css" />
+
 </head>
 
 <body>
@@ -17,13 +22,21 @@
     <div class="container">
 
         <div class="header">
+
             <h1>🌧 RainGuard AI</h1>
-            <p>منصة إنذار المطر المحلي الذكية</p>
+
+            <p>
+                منصة إنذار المطر المحلي الذكية
+            </p>
+
         </div>
 
         <div class="search-box">
 
-            <input type="text" id="cityInput" placeholder="اكتب اسم المدينة">
+            <input
+                type="text"
+                id="cityInput"
+                placeholder="اكتب اسم المدينة" />
 
             <button onclick="detectRain()">
                 فحص المطر
@@ -37,13 +50,20 @@
 
         <div class="card">
 
-            <h2 id="cityName">جاهز للفحص</h2>
+            <h2 id="cityName">
+                جاهز للفحص
+            </h2>
 
             <div id="statusText">
                 اختر مدينة أو استخدم موقعك
             </div>
 
             <div id="adviceText"></div>
+
+            <div
+                id="refreshStatus"
+                style="margin-top:10px; color:#94a3b8; font-size:14px;">
+            </div>
 
         </div>
 
