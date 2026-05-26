@@ -140,6 +140,36 @@
 
         <div class="card">
 
+            <h3>آخر التوقعات</h3>
+
+            <p style="color:#94a3b8; line-height:1.8;">
+                يتم حفظ آخر المدن التي تم فحصها داخل جهازك.
+            </p>
+
+            <div
+                id="historyBox"
+                style="
+                    margin-top:14px;
+                    padding:14px;
+                    border-radius:14px;
+                    background:#020617;
+                    border:1px solid #334155;
+                    color:#cbd5e1;
+                    line-height:1.8;
+                ">
+                لا يوجد سجل حتى الآن.
+            </div>
+
+            <button
+                onclick="clearPredictionHistory()"
+                style="margin-top:10px;">
+                مسح سجل التوقعات
+            </button>
+
+        </div>
+
+        <div class="card">
+
             <h3>تقييم دقة التوقع</h3>
 
             <p style="color:#94a3b8; line-height:1.8;">
@@ -181,7 +211,7 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script src="app.js?v=7"></script>
+    <script src="app.js?v=8"></script>
 
     <script>
         if ("serviceWorker" in navigator) {
