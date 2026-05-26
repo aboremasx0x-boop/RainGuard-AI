@@ -1,4 +1,4 @@
-const CACHE_NAME = "rainguard-cache-v1";
+const CACHE_NAME = "rainguard-cache-v5";
 
 const urlsToCache = [
     "/",
