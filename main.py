@@ -2,12 +2,13 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
+import os
 from datetime import datetime, timedelta
 
 app = FastAPI(
     title="RainGuard AI API",
-    description="Local rain alert API using Open-Meteo with cache protection",
-    version="4.0"
+    description="Local rain alert API using Open-Meteo with OpenWeatherMap verification",
+    version="5.0"
 )
 
 app.add_middleware(
@@ -19,6 +20,8 @@ app.add_middleware(
 )
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 CACHE = {}
 CACHE_MINUTES = 10
@@ -30,6 +33,7 @@ def cache_key(lat, lon, hours):
 
 def get_cached(key):
     item = CACHE.get(key)
+
     if not item:
         return None
 
@@ -124,13 +128,157 @@ def classify(score):
     }
 
 
+async def fetch_openweather(lat, lon):
+    if not OPENWEATHER_API_KEY:
+        return {
+            "available": False,
+            "reason": "OPENWEATHER_API_KEY not configured"
+        }
+
+    params = {
+        "lat": lat,
+        "lon": lon,
+        "appid": OPENWEATHER_API_KEY,
+        "units": "metric",
+        "lang": "ar"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(OPENWEATHER_URL, params=params)
+
+        if response.status_code != 200:
+            return {
+                "available": False,
+                "reason": f"OpenWeatherMap error {response.status_code}"
+            }
+
+        data = response.json()
+
+        weather_list = data.get("weather", [])
+        main = data.get("main", {})
+        clouds = data.get("clouds", {})
+        wind = data.get("wind", {})
+        rain = data.get("rain", {})
+
+        weather_main = weather_list[0].get("main", "") if weather_list else ""
+        weather_desc = weather_list[0].get("description", "") if weather_list else ""
+
+        rain_1h = rain.get("1h", 0) or 0
+        rain_3h = rain.get("3h", 0) or 0
+        cloud_cover = clouds.get("all", 0) or 0
+        humidity = main.get("humidity", 0) or 0
+        pressure = main.get("pressure", 1013) or 1013
+        wind_speed = wind.get("speed", 0) or 0
+
+        rain_detected = (
+            "Rain" in weather_main
+            or "Thunderstorm" in weather_main
+            or rain_1h > 0
+            or rain_3h > 0
+        )
+
+        confirmation_score = 0
+
+        if rain_detected:
+            confirmation_score += 45
+
+        if cloud_cover >= 70:
+            confirmation_score += 20
+
+        if humidity >= 70:
+            confirmation_score += 15
+
+        if pressure <= 1010:
+            confirmation_score += 10
+
+        if wind_speed >= 5:
+            confirmation_score += 10
+
+        confirmation_score = min(round(confirmation_score), 100)
+
+        return {
+            "available": True,
+            "weather_main": weather_main,
+            "weather_description": weather_desc,
+            "temperature": main.get("temp", 0),
+            "humidity": humidity,
+            "pressure": pressure,
+            "cloud_cover": cloud_cover,
+            "wind_speed": wind_speed,
+            "rain_1h": rain_1h,
+            "rain_3h": rain_3h,
+            "rain_detected": rain_detected,
+            "confirmation_score": confirmation_score
+        }
+
+    except Exception as e:
+        return {
+            "available": False,
+            "reason": str(e)
+        }
+
+
+def verify_with_openweather(open_meteo_score, openweather_data):
+    if not openweather_data.get("available"):
+        return {
+            "verified": False,
+            "confidence": "Open-Meteo only",
+            "confidence_score": open_meteo_score,
+            "note": "OpenWeatherMap verification unavailable"
+        }
+
+    ow_score = openweather_data.get("confirmation_score", 0)
+    rain_detected = openweather_data.get("rain_detected", False)
+
+    if open_meteo_score >= 60 and rain_detected:
+        return {
+            "verified": True,
+            "confidence": "High confidence - confirmed by two sources",
+            "confidence_score": min(100, round((open_meteo_score + ow_score) / 2 + 10)),
+            "note": "Rain signal confirmed by OpenWeatherMap"
+        }
+
+    if open_meteo_score >= 60 and ow_score >= 50:
+        return {
+            "verified": True,
+            "confidence": "Moderate confidence - supported by second source",
+            "confidence_score": round((open_meteo_score + ow_score) / 2),
+            "note": "Weather conditions support rain possibility"
+        }
+
+    if open_meteo_score >= 60 and ow_score < 40:
+        return {
+            "verified": False,
+            "confidence": "Needs monitoring - second source did not confirm",
+            "confidence_score": round((open_meteo_score + ow_score) / 2),
+            "note": "Open-Meteo shows risk but OpenWeatherMap does not strongly confirm"
+        }
+
+    if open_meteo_score < 60 and rain_detected:
+        return {
+            "verified": True,
+            "confidence": "Radar/source conflict - monitor closely",
+            "confidence_score": max(open_meteo_score, ow_score),
+            "note": "OpenWeatherMap detected rain although Open-Meteo risk is lower"
+        }
+
+    return {
+        "verified": False,
+        "confidence": "Low confidence / low risk",
+        "confidence_score": open_meteo_score,
+        "note": "No strong rain confirmation"
+    }
+
+
 @app.get("/")
 def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "4.0",
+        "version": "5.0",
         "cache_minutes": CACHE_MINUTES,
+        "openweather_enabled": bool(OPENWEATHER_API_KEY),
         "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
     }
 
@@ -139,7 +287,8 @@ def root():
 def health():
     return {
         "status": "ok",
-        "service": "RainGuard AI"
+        "service": "RainGuard AI",
+        "openweather_enabled": bool(OPENWEATHER_API_KEY)
     }
 
 
@@ -184,58 +333,94 @@ async def rain_alert(
         "timezone": "auto"
     }
 
+    weather = None
+    open_meteo_failed = False
+
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             response = await client.get(OPEN_METEO_URL, params=params)
 
             if response.status_code == 429:
                 old_cache = CACHE.get(key)
+
                 if old_cache:
                     data = old_cache["data"]
                     data["cache_status"] = "old_cache"
-                    data["message"] = "تم استخدام آخر بيانات محفوظة بسبب كثرة الطلبات على المصدر"
+                    data["message"] = "تم استخدام آخر بيانات محفوظة بسبب كثرة الطلبات على Open-Meteo"
                     return JSONResponse(
                         content=data,
                         media_type="application/json; charset=utf-8"
                     )
 
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "error": True,
-                        "error_type": "too_many_requests",
-                        "message": "مصدر الطقس المجاني مشغول مؤقتًا بسبب كثرة الطلبات. حاول بعد دقائق.",
-                        "location_name": name,
-                        "latitude": lat,
-                        "longitude": lon
-                    },
-                    media_type="application/json; charset=utf-8"
-                )
+                open_meteo_failed = True
 
-            response.raise_for_status()
-            weather = response.json()
+            else:
+                response.raise_for_status()
+                weather = response.json()
 
-    except httpx.HTTPStatusError as e:
-        return JSONResponse(
-            status_code=502,
-            content={
-                "error": True,
-                "error_type": "weather_source_error",
-                "message": f"حدث خطأ من مصدر الطقس: {str(e)}",
-                "location_name": name
+    except Exception:
+        open_meteo_failed = True
+
+    if open_meteo_failed or weather is None:
+        openweather_data = await fetch_openweather(lat, lon)
+
+        if not openweather_data.get("available"):
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "error": True,
+                    "error_type": "all_sources_failed",
+                    "message": "تعذر جلب بيانات الطقس من المصادر المتاحة مؤقتًا",
+                    "location_name": name,
+                    "openweather": openweather_data
+                },
+                media_type="application/json; charset=utf-8"
+            )
+
+        fallback_score = openweather_data.get("confirmation_score", 0)
+        alert = classify(fallback_score)
+
+        current = {
+            "time": datetime.utcnow().isoformat() + "Z",
+            "temperature": openweather_data.get("temperature", 0),
+            "humidity": openweather_data.get("humidity", 0),
+            "dew_point": 0,
+            "rain_probability": fallback_score,
+            "precipitation_mm": openweather_data.get("rain_1h", 0),
+            "cloud_cover": openweather_data.get("cloud_cover", 0),
+            "pressure_hpa": openweather_data.get("pressure", 1013),
+            "wind_speed": openweather_data.get("wind_speed", 0),
+            "rain_score": fallback_score,
+            "alert_level": alert["level"],
+            "advice": alert["advice"]
+        }
+
+        result = {
+            "error": False,
+            "location_name": name,
+            "latitude": lat,
+            "longitude": lon,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "cache_status": "fresh",
+            "source": "OpenWeatherMap fallback",
+            "current": current,
+            "best_hour": current,
+            "next_hours": [current],
+            "daily_forecast": [],
+            "openweather": openweather_data,
+            "verification": {
+                "verified": True,
+                "confidence": "Fallback mode - OpenWeatherMap used",
+                "confidence_score": fallback_score,
+                "note": "Open-Meteo unavailable or rate limited"
             },
-            media_type="application/json; charset=utf-8"
-        )
+            "disclaimer": "Experimental local rain prediction system."
+        }
 
-    except Exception as e:
+        save_cache(key, result)
+
         return JSONResponse(
-            status_code=500,
-            content={
-                "error": True,
-                "error_type": "server_error",
-                "message": f"حدث خطأ داخلي: {str(e)}",
-                "location_name": name
-            },
+            content=result,
             media_type="application/json; charset=utf-8"
         )
 
@@ -279,6 +464,27 @@ async def rain_alert(
 
     best_hour = max(next_hours, key=lambda x: x["rain_score"])
 
+    openweather_data = None
+    verification = {
+        "verified": False,
+        "confidence": "Open-Meteo only",
+        "confidence_score": best_hour["rain_score"],
+        "note": "Second source not required"
+    }
+
+    if best_hour["rain_score"] >= 40:
+        openweather_data = await fetch_openweather(lat, lon)
+        verification = verify_with_openweather(
+            best_hour["rain_score"],
+            openweather_data
+        )
+
+        best_hour["verification"] = verification
+
+        if verification["verified"]:
+            best_hour["alert_level"] = best_hour["alert_level"] + " - VERIFIED"
+            best_hour["advice"] = best_hour["advice"] + " Confirmed by second source."
+
     d = weather.get("daily", {})
     daily_forecast = []
 
@@ -314,6 +520,8 @@ async def rain_alert(
         "next_hours": next_hours,
         "daily_forecast": daily_forecast,
         "source": "Open-Meteo Forecast API",
+        "openweather": openweather_data,
+        "verification": verification,
         "disclaimer": "Experimental local rain prediction system."
     }
 
