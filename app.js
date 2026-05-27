@@ -18,7 +18,6 @@ let lastSmartAlertLevel = "";
 // ===============================
 function showActionMessage(message, type = "success") {
     const box = document.getElementById("actionMessage");
-
     if (!box) return;
 
     let background = "#064e3b";
@@ -82,19 +81,16 @@ function updateRiskBar(score) {
 // ===============================
 function buildConfidenceHTML(data) {
     const verification = data.verification;
-
-    if (!verification) {
-        return "";
-    }
+    if (!verification) return "";
 
     const confidenceScore = Number(verification.confidence_score) || 0;
     const verified = verification.verified === true;
     const confidence = verification.confidence || "غير متوفر";
     const note = verification.note || "";
 
-    let color = "#22c55e";
-    let title = "ثقة منخفضة";
-    let icon = "⚪";
+    let color = "#ef4444";
+    let title = "غير مؤكد";
+    let icon = "❌";
 
     if (confidenceScore >= 80) {
         color = "#22c55e";
@@ -108,10 +104,6 @@ function buildConfidenceHTML(data) {
         color = "#38bdf8";
         title = "ثقة محدودة";
         icon = "🔎";
-    } else {
-        color = "#ef4444";
-        title = "غير مؤكد";
-        icon = "❌";
     }
 
     const sourceText = verified
@@ -122,7 +114,7 @@ function buildConfidenceHTML(data) {
         <div class="forecast-section">
             <h3>Smart AI Confidence Engine</h3>
 
-            <div style="
+            <div id="confidenceText" style="
                 margin-top:12px;
                 padding:16px;
                 border-radius:16px;
@@ -144,20 +136,105 @@ function buildConfidenceHTML(data) {
                     ${sourceText}
                 </div>
 
-                <div style="
-                    margin-top:8px;
-                    color:#94a3b8;
-                    font-size:15px;
-                ">
+                <div style="margin-top:8px; color:#94a3b8; font-size:15px;">
                     ${confidence}
                 </div>
 
-                <div style="
-                    margin-top:8px;
-                    color:#94a3b8;
-                    font-size:14px;
-                ">
+                <div style="margin-top:8px; color:#94a3b8; font-size:14px;">
                     ${note}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ===============================
+// Smart Radar Fusion AI
+// ===============================
+function buildRadarFusionHTML(data) {
+    const current = data.current || {};
+    const best = data.best_hour || {};
+    const verification = data.verification || {};
+
+    const rainScore = Number(best.rain_score) || 0;
+    const cloudCover = Number(current.cloud_cover) || 0;
+    const humidity = Number(current.humidity) || 0;
+    const pressure = Number(current.pressure_hpa) || 1013;
+    const windSpeed = Number(current.wind_speed) || 0;
+    const rainProbability = Number(current.rain_probability) || 0;
+    const confidenceScore = Number(verification.confidence_score) || rainScore;
+
+    let fusionScore = 0;
+
+    fusionScore += rainScore * 0.35;
+    fusionScore += confidenceScore * 0.25;
+    fusionScore += cloudCover * 0.15;
+    fusionScore += humidity * 0.10;
+    fusionScore += rainProbability * 0.10;
+
+    if (pressure <= 1008) fusionScore += 5;
+    if (windSpeed >= 15) fusionScore += 5;
+
+    fusionScore = Math.min(Math.round(fusionScore), 100);
+
+    let color = "#22c55e";
+    let title = "حالة مستقرة";
+    let icon = "🟢";
+    let movement = "لا توجد مؤشرات قوية على اقتراب المطر";
+    let eta = "غير متوقع حاليًا";
+
+    if (fusionScore >= 80) {
+        color = "#ef4444";
+        title = "مطر محتمل بقوة";
+        icon = "🔴";
+        movement = "الخلايا المطرية تبدو نشطة وقد تؤثر على الموقع";
+        eta = "خلال 1–3 ساعات تقريبًا";
+    } else if (fusionScore >= 60) {
+        color = "#f59e0b";
+        title = "مطر محتمل";
+        icon = "🟡";
+        movement = "توجد مؤشرات اقتراب أو تشكل سحب ممطرة";
+        eta = "خلال 3–6 ساعات تقريبًا";
+    } else if (fusionScore >= 40) {
+        color = "#38bdf8";
+        title = "احتمال ضعيف إلى متوسط";
+        icon = "🔵";
+        movement = "المؤشرات موجودة لكنها غير قوية";
+        eta = "يحتاج متابعة خلال الساعات القادمة";
+    }
+
+    return `
+        <div class="forecast-section">
+            <h3>Smart Radar Fusion AI</h3>
+
+            <div style="
+                margin-top:12px;
+                padding:16px;
+                border-radius:16px;
+                background:#020617;
+                border:1px solid #334155;
+                color:#cbd5e1;
+                line-height:1.9;
+            ">
+                <div style="
+                    font-size:24px;
+                    font-weight:bold;
+                    color:${color};
+                    margin-bottom:10px;
+                ">
+                    ${icon} ${title} - ${fusionScore}%
+                </div>
+
+                <div>
+                    اتجاه الحالة: ${movement}
+                </div>
+
+                <div>
+                    وقت التأثير المتوقع: ${eta}
+                </div>
+
+                <div style="margin-top:10px; color:#94a3b8; font-size:14px;">
+                    يعتمد هذا المؤشر على دمج: مؤشر المطر، السحب، الرطوبة، الضغط، الرياح، وثقة المصدر الثاني.
                 </div>
             </div>
         </div>
@@ -776,6 +853,7 @@ async function checkRain(
         const forecastHTML = buildForecastHTML(data.next_hours);
         const dailyForecastHTML = buildDailyForecastHTML(data.daily_forecast);
         const confidenceHTML = buildConfidenceHTML(data);
+        const radarFusionHTML = buildRadarFusionHTML(data);
 
         let className = "rain-low";
 
@@ -811,6 +889,7 @@ async function checkRain(
             <button onclick="shareWeatherWhatsApp()" style="margin-top:10px;">مشاركة النتيجة في واتساب</button>
 
             ${confidenceHTML}
+            ${radarFusionHTML}
 
             <div class="info-grid">
                 <div class="info-box">
