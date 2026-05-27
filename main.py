@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 app = FastAPI(
     title="RainGuard AI API",
     description="Local rain alert API using Open-Meteo with OpenWeatherMap verification",
-    version="5.0"
+    version="5.1"
 )
 
 app.add_middleware(
@@ -40,7 +40,7 @@ def get_cached(key):
     if datetime.utcnow() - item["time"] <= timedelta(minutes=CACHE_MINUTES):
         data = item["data"]
         data["cache_status"] = "cached"
-        data["message"] = "تم استخدام بيانات محفوظة مؤقتًا لتقليل الضغط على المصدر"
+        data["message"] = "تم استخدام بيانات محفوظة مؤقتًا لتقليل الضغط على مصدر الطقس"
         return data
 
     return None
@@ -106,25 +106,25 @@ def calculate_daily_score(day):
 def classify(score):
     if score >= 80:
         return {
-            "level": "HIGH RAIN ALERT",
-            "advice": "Heavy rain possible. Follow official weather warnings."
+            "level": "تحذير مطر مرتفع",
+            "advice": "احتمال هطول أمطار قوية. تابع التنبيهات الرسمية."
         }
 
     if score >= 60:
         return {
-            "level": "MODERATE ALERT",
-            "advice": "Rain chance is moderate. Monitor updates."
+            "level": "تنبيه مطر متوسط",
+            "advice": "فرصة المطر متوسطة إلى مرتفعة. يفضل متابعة التحديثات."
         }
 
     if score >= 40:
         return {
-            "level": "LOW TO MODERATE",
-            "advice": "Weak rain indicators detected."
+            "level": "احتمال مطر ضعيف إلى متوسط",
+            "advice": "توجد مؤشرات ضعيفة إلى متوسطة لاحتمال المطر."
         }
 
     return {
-        "level": "NO ALERT",
-        "advice": "Rain chance is currently low."
+        "level": "لا يوجد تنبيه مطر",
+        "advice": "فرصة المطر منخفضة حاليًا."
     }
 
 
@@ -132,7 +132,7 @@ async def fetch_openweather(lat, lon):
     if not OPENWEATHER_API_KEY:
         return {
             "available": False,
-            "reason": "OPENWEATHER_API_KEY not configured"
+            "reason": "مفتاح OpenWeatherMap غير مضاف في متغيرات البيئة"
         }
 
     params = {
@@ -150,7 +150,7 @@ async def fetch_openweather(lat, lon):
         if response.status_code != 200:
             return {
                 "available": False,
-                "reason": f"OpenWeatherMap error {response.status_code}"
+                "reason": f"خطأ من OpenWeatherMap رقم {response.status_code}"
             }
 
         data = response.json()
@@ -223,9 +223,9 @@ def verify_with_openweather(open_meteo_score, openweather_data):
     if not openweather_data.get("available"):
         return {
             "verified": False,
-            "confidence": "Open-Meteo only",
+            "confidence": "اعتماد على Open-Meteo فقط",
             "confidence_score": open_meteo_score,
-            "note": "OpenWeatherMap verification unavailable"
+            "note": "تعذر التحقق من OpenWeatherMap"
         }
 
     ow_score = openweather_data.get("confirmation_score", 0)
@@ -234,40 +234,40 @@ def verify_with_openweather(open_meteo_score, openweather_data):
     if open_meteo_score >= 60 and rain_detected:
         return {
             "verified": True,
-            "confidence": "High confidence - confirmed by two sources",
+            "confidence": "ثقة عالية - تم التأكيد من مصدرين",
             "confidence_score": min(100, round((open_meteo_score + ow_score) / 2 + 10)),
-            "note": "Rain signal confirmed by OpenWeatherMap"
+            "note": "إشارة المطر مؤكدة من OpenWeatherMap"
         }
 
     if open_meteo_score >= 60 and ow_score >= 50:
         return {
             "verified": True,
-            "confidence": "Moderate confidence - supported by second source",
+            "confidence": "ثقة متوسطة - المصدر الثاني يدعم الاحتمال",
             "confidence_score": round((open_meteo_score + ow_score) / 2),
-            "note": "Weather conditions support rain possibility"
+            "note": "الظروف الجوية تدعم احتمال المطر"
         }
 
     if open_meteo_score >= 60 and ow_score < 40:
         return {
             "verified": False,
-            "confidence": "Needs monitoring - second source did not confirm",
+            "confidence": "يحتاج متابعة - المصدر الثاني لم يؤكد",
             "confidence_score": round((open_meteo_score + ow_score) / 2),
-            "note": "Open-Meteo shows risk but OpenWeatherMap does not strongly confirm"
+            "note": "Open-Meteo يظهر خطورة، لكن OpenWeatherMap لا يؤكدها بقوة"
         }
 
     if open_meteo_score < 60 and rain_detected:
         return {
             "verified": True,
-            "confidence": "Radar/source conflict - monitor closely",
+            "confidence": "تعارض بين المصادر - تابع الحالة",
             "confidence_score": max(open_meteo_score, ow_score),
-            "note": "OpenWeatherMap detected rain although Open-Meteo risk is lower"
+            "note": "OpenWeatherMap رصد مطرًا رغم أن مؤشر Open-Meteo أقل"
         }
 
     return {
         "verified": False,
-        "confidence": "Low confidence / low risk",
+        "confidence": "ثقة منخفضة / خطر منخفض",
         "confidence_score": open_meteo_score,
-        "note": "No strong rain confirmation"
+        "note": "لا يوجد تأكيد قوي لاحتمال المطر"
     }
 
 
@@ -276,7 +276,7 @@ def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "5.0",
+        "version": "5.1",
         "cache_minutes": CACHE_MINUTES,
         "openweather_enabled": bool(OPENWEATHER_API_KEY),
         "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
@@ -402,7 +402,7 @@ async def rain_alert(
             "longitude": lon,
             "generated_at": datetime.utcnow().isoformat() + "Z",
             "cache_status": "fresh",
-            "source": "OpenWeatherMap fallback",
+            "source": "OpenWeatherMap احتياطي",
             "current": current,
             "best_hour": current,
             "next_hours": [current],
@@ -410,11 +410,11 @@ async def rain_alert(
             "openweather": openweather_data,
             "verification": {
                 "verified": True,
-                "confidence": "Fallback mode - OpenWeatherMap used",
+                "confidence": "وضع احتياطي - تم استخدام OpenWeatherMap",
                 "confidence_score": fallback_score,
-                "note": "Open-Meteo unavailable or rate limited"
+                "note": "Open-Meteo غير متاح أو وصل إلى حد الطلبات"
             },
-            "disclaimer": "Experimental local rain prediction system."
+            "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
         }
 
         save_cache(key, result)
@@ -467,9 +467,9 @@ async def rain_alert(
     openweather_data = None
     verification = {
         "verified": False,
-        "confidence": "Open-Meteo only",
+        "confidence": "اعتماد على Open-Meteo فقط",
         "confidence_score": best_hour["rain_score"],
-        "note": "Second source not required"
+        "note": "لا توجد حاجة للتحقق من مصدر ثانٍ حاليًا"
     }
 
     if best_hour["rain_score"] >= 40:
@@ -482,8 +482,8 @@ async def rain_alert(
         best_hour["verification"] = verification
 
         if verification["verified"]:
-            best_hour["alert_level"] = best_hour["alert_level"] + " - VERIFIED"
-            best_hour["advice"] = best_hour["advice"] + " Confirmed by second source."
+            best_hour["alert_level"] = best_hour["alert_level"] + " - مؤكد"
+            best_hour["advice"] = best_hour["advice"] + " تم دعم التوقع من مصدر ثانٍ."
 
     d = weather.get("daily", {})
     daily_forecast = []
@@ -522,7 +522,7 @@ async def rain_alert(
         "source": "Open-Meteo Forecast API",
         "openweather": openweather_data,
         "verification": verification,
-        "disclaimer": "Experimental local rain prediction system."
+        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
     }
 
     save_cache(key, result)
