@@ -72,11 +72,96 @@ function updateRiskBar(score) {
 
     riskBar.style.width = score + "%";
     riskBar.style.background = color;
-
     riskValue.innerText = score + "%";
     riskValue.style.color = color;
-
     riskLabel.innerText = label;
+}
+
+// ===============================
+// Smart AI Confidence Engine
+// ===============================
+function buildConfidenceHTML(data) {
+    const verification = data.verification;
+
+    if (!verification) {
+        return "";
+    }
+
+    const confidenceScore = Number(verification.confidence_score) || 0;
+    const verified = verification.verified === true;
+    const confidence = verification.confidence || "غير متوفر";
+    const note = verification.note || "";
+
+    let color = "#22c55e";
+    let title = "ثقة منخفضة";
+    let icon = "⚪";
+
+    if (confidenceScore >= 80) {
+        color = "#22c55e";
+        title = "ثقة عالية";
+        icon = "✅";
+    } else if (confidenceScore >= 60) {
+        color = "#f59e0b";
+        title = "ثقة متوسطة";
+        icon = "⚠️";
+    } else if (confidenceScore >= 40) {
+        color = "#38bdf8";
+        title = "ثقة محدودة";
+        icon = "🔎";
+    } else {
+        color = "#ef4444";
+        title = "غير مؤكد";
+        icon = "❌";
+    }
+
+    const sourceText = verified
+        ? "تم التحقق من مصدرين"
+        : "المصدر الثاني لم يؤكد المطر";
+
+    return `
+        <div class="forecast-section">
+            <h3>Smart AI Confidence Engine</h3>
+
+            <div style="
+                margin-top:12px;
+                padding:16px;
+                border-radius:16px;
+                background:#020617;
+                border:1px solid #334155;
+                color:#cbd5e1;
+                line-height:1.9;
+            ">
+                <div style="
+                    font-size:24px;
+                    font-weight:bold;
+                    color:${color};
+                    margin-bottom:10px;
+                ">
+                    ${icon} ${title} - ${confidenceScore}%
+                </div>
+
+                <div style="font-size:18px;">
+                    ${sourceText}
+                </div>
+
+                <div style="
+                    margin-top:8px;
+                    color:#94a3b8;
+                    font-size:15px;
+                ">
+                    ${confidence}
+                </div>
+
+                <div style="
+                    margin-top:8px;
+                    color:#94a3b8;
+                    font-size:14px;
+                ">
+                    ${note}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // ===============================
@@ -156,7 +241,6 @@ async function loadRainRadar() {
         const data = await response.json();
 
         if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
-            console.log("لا توجد بيانات رادار");
             return;
         }
 
@@ -191,13 +275,11 @@ function toggleRadar() {
     if (radarEnabled) {
         map.removeLayer(rainLayer);
         radarEnabled = false;
-
         showActionMessage("تم إيقاف رادار المطر", "warning");
         updateRefreshStatus("تم إيقاف الرادار");
     } else {
         rainLayer.addTo(map);
         radarEnabled = true;
-
         showActionMessage("تم تشغيل رادار المطر", "success");
         updateRefreshStatus("تم تشغيل الرادار");
     }
@@ -532,12 +614,14 @@ function shareWeatherWhatsApp() {
     const riskValue = document.getElementById("riskValue")?.innerText || "--%";
     const statusText = document.getElementById("statusText")?.innerText || "غير متوفر";
     const refreshStatus = document.getElementById("refreshStatus")?.innerText || "";
+    const confidenceText = document.getElementById("confidenceText")?.innerText || "";
 
     const message =
         `🌧 RainGuard AI\n` +
         `الموقع: ${lastName}\n` +
         `مؤشر المطر: ${riskValue}\n` +
         `الحالة: ${statusText}\n` +
+        `${confidenceText}\n` +
         `${refreshStatus}\n\n` +
         `رابط التطبيق:\nhttps://rain-guard-ai.vercel.app`;
 
@@ -691,6 +775,7 @@ async function checkRain(
 
         const forecastHTML = buildForecastHTML(data.next_hours);
         const dailyForecastHTML = buildDailyForecastHTML(data.daily_forecast);
+        const confidenceHTML = buildConfidenceHTML(data);
 
         let className = "rain-low";
 
@@ -724,6 +809,8 @@ async function checkRain(
             <button onclick="startAutoRefresh()" style="margin-top:10px;">تفعيل التحديث التلقائي</button>
             <button onclick="stopAutoRefresh()" style="margin-top:10px;">إيقاف التحديث التلقائي</button>
             <button onclick="shareWeatherWhatsApp()" style="margin-top:10px;">مشاركة النتيجة في واتساب</button>
+
+            ${confidenceHTML}
 
             <div class="info-grid">
                 <div class="info-box">
