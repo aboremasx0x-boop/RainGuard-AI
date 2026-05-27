@@ -2,17 +2,14 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI(
     title="RainGuard AI API",
-    description="Local rain alert API using live weather data",
-    version="3.0"
+    description="Local rain alert API using Open-Meteo with cache protection",
+    version="4.0"
 )
 
-# =========================
-# CORS
-# =========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,10 +20,35 @@ app.add_middleware(
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
+CACHE = {}
+CACHE_MINUTES = 10
 
-# =========================
-# Rain Score Calculation
-# =========================
+
+def cache_key(lat, lon, hours):
+    return f"{round(lat, 4)}:{round(lon, 4)}:{hours}"
+
+
+def get_cached(key):
+    item = CACHE.get(key)
+    if not item:
+        return None
+
+    if datetime.utcnow() - item["time"] <= timedelta(minutes=CACHE_MINUTES):
+        data = item["data"]
+        data["cache_status"] = "cached"
+        data["message"] = "تم استخدام بيانات محفوظة مؤقتًا لتقليل الضغط على المصدر"
+        return data
+
+    return None
+
+
+def save_cache(key, data):
+    CACHE[key] = {
+        "time": datetime.utcnow(),
+        "data": data
+    }
+
+
 def calculate_rain_score(data):
     score = 0
 
@@ -57,9 +79,6 @@ def calculate_rain_score(data):
     return min(round(score), 100)
 
 
-# =========================
-# Daily Rain Score
-# =========================
 def calculate_daily_score(day):
     score = 0
 
@@ -80,84 +99,50 @@ def calculate_daily_score(day):
     return min(round(score), 100)
 
 
-# =========================
-# Alert Classification
-# =========================
 def classify(score):
     if score >= 80:
         return {
             "level": "HIGH RAIN ALERT",
-            "advice": "Heavy rain possible. Follow weather warnings."
+            "advice": "Heavy rain possible. Follow official weather warnings."
         }
 
-    elif score >= 60:
+    if score >= 60:
         return {
             "level": "MODERATE ALERT",
             "advice": "Rain chance is moderate. Monitor updates."
         }
 
-    elif score >= 40:
+    if score >= 40:
         return {
             "level": "LOW TO MODERATE",
             "advice": "Weak rain indicators detected."
         }
 
-    else:
-        return {
-            "level": "NO ALERT",
-            "advice": "Rain chance is currently low."
-        }
+    return {
+        "level": "NO ALERT",
+        "advice": "Rain chance is currently low."
+    }
 
 
-# =========================
-# Root Endpoint
-# =========================
 @app.get("/")
 def root():
-    return JSONResponse(
-        content={
-            "name": "RainGuard AI API",
-            "status": "running",
-            "version": "3.0",
-            "features": [
-                "hourly rain alert",
-                "12-hour forecast",
-                "daily forecast"
-            ],
-            "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
-        },
-        media_type="application/json; charset=utf-8"
-    )
+    return {
+        "name": "RainGuard AI API",
+        "status": "running",
+        "version": "4.0",
+        "cache_minutes": CACHE_MINUTES,
+        "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
+    }
 
 
-# =========================
-# Health Check
-# =========================
 @app.get("/health")
 def health():
-    return JSONResponse(
-        content={"status": "ok"},
-        media_type="application/json; charset=utf-8"
-    )
+    return {
+        "status": "ok",
+        "service": "RainGuard AI"
+    }
 
 
-# =========================
-# Arabic Test
-# =========================
-@app.get("/test-ar")
-def test_ar():
-    return JSONResponse(
-        content={
-            "message": "لا يوجد إنذار",
-            "advice": "فرصة المطر ضعيفة حاليا"
-        },
-        media_type="application/json; charset=utf-8"
-    )
-
-
-# =========================
-# Main Rain Alert Endpoint
-# =========================
 @app.get("/rain-alert")
 async def rain_alert(
     lat: float = Query(...),
@@ -165,10 +150,18 @@ async def rain_alert(
     name: str = Query("Unknown Location"),
     hours: int = Query(12)
 ):
+    key = cache_key(lat, lon, hours)
+
+    cached = get_cached(key)
+    if cached:
+        return JSONResponse(
+            content=cached,
+            media_type="application/json; charset=utf-8"
+        )
+
     params = {
         "latitude": lat,
         "longitude": lon,
-
         "hourly": ",".join([
             "temperature_2m",
             "relative_humidity_2m",
@@ -179,7 +172,6 @@ async def rain_alert(
             "pressure_msl",
             "wind_speed_10m"
         ]),
-
         "daily": ",".join([
             "temperature_2m_max",
             "temperature_2m_min",
@@ -188,24 +180,71 @@ async def rain_alert(
             "rain_sum",
             "wind_speed_10m_max"
         ]),
-
         "forecast_days": 7,
         "timezone": "auto"
     }
 
-    async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.get(OPEN_METEO_URL, params=params)
-        response.raise_for_status()
-        weather = response.json()
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(OPEN_METEO_URL, params=params)
 
-    # =========================
-    # Hourly Data
-    # =========================
-    h = weather["hourly"]
+            if response.status_code == 429:
+                old_cache = CACHE.get(key)
+                if old_cache:
+                    data = old_cache["data"]
+                    data["cache_status"] = "old_cache"
+                    data["message"] = "تم استخدام آخر بيانات محفوظة بسبب كثرة الطلبات على المصدر"
+                    return JSONResponse(
+                        content=data,
+                        media_type="application/json; charset=utf-8"
+                    )
 
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": True,
+                        "error_type": "too_many_requests",
+                        "message": "مصدر الطقس المجاني مشغول مؤقتًا بسبب كثرة الطلبات. حاول بعد دقائق.",
+                        "location_name": name,
+                        "latitude": lat,
+                        "longitude": lon
+                    },
+                    media_type="application/json; charset=utf-8"
+                )
+
+            response.raise_for_status()
+            weather = response.json()
+
+    except httpx.HTTPStatusError as e:
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": True,
+                "error_type": "weather_source_error",
+                "message": f"حدث خطأ من مصدر الطقس: {str(e)}",
+                "location_name": name
+            },
+            media_type="application/json; charset=utf-8"
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": True,
+                "error_type": "server_error",
+                "message": f"حدث خطأ داخلي: {str(e)}",
+                "location_name": name
+            },
+            media_type="application/json; charset=utf-8"
+        )
+
+    h = weather.get("hourly", {})
     next_hours = []
 
-    for i in range(min(hours, len(h["time"]))):
+    count = min(hours, len(h.get("time", [])))
+
+    for i in range(count):
         row = {
             "time": h["time"][i],
             "temperature": h["temperature_2m"][i] or 0,
@@ -215,7 +254,7 @@ async def rain_alert(
             "precipitation_mm": h["precipitation"][i] or 0,
             "cloud_cover": h["cloud_cover"][i] or 0,
             "pressure_hpa": h["pressure_msl"][i] or 1013,
-            "wind_speed": h["wind_speed_10m"][i] or 0,
+            "wind_speed": h["wind_speed_10m"][i] or 0
         }
 
         score = calculate_rain_score(row)
@@ -227,16 +266,23 @@ async def rain_alert(
 
         next_hours.append(row)
 
+    if not next_hours:
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": True,
+                "message": "لم تصل بيانات كافية من مصدر الطقس",
+                "location_name": name
+            },
+            media_type="application/json; charset=utf-8"
+        )
+
     best_hour = max(next_hours, key=lambda x: x["rain_score"])
 
-    # =========================
-    # Daily Data
-    # =========================
-    d = weather["daily"]
-
+    d = weather.get("daily", {})
     daily_forecast = []
 
-    for i in range(len(d["time"])):
+    for i in range(len(d.get("time", []))):
         day = {
             "date": d["time"][i],
             "temperature_max": d["temperature_2m_max"][i] or 0,
@@ -257,20 +303,21 @@ async def rain_alert(
         daily_forecast.append(day)
 
     result = {
+        "error": False,
         "location_name": name,
         "latitude": lat,
         "longitude": lon,
         "generated_at": datetime.utcnow().isoformat() + "Z",
-
+        "cache_status": "fresh",
         "current": next_hours[0],
         "best_hour": best_hour,
         "next_hours": next_hours,
-
         "daily_forecast": daily_forecast,
-
         "source": "Open-Meteo Forecast API",
         "disclaimer": "Experimental local rain prediction system."
     }
+
+    save_cache(key, result)
 
     return JSONResponse(
         content=result,
