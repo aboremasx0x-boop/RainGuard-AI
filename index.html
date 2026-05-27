@@ -36,21 +36,29 @@
             <p>منصة إنذار المطر المحلي الذكية</p>
         </div>
 
+        <!-- البحث -->
         <div class="search-box">
+
             <input
                 type="text"
                 id="cityInput"
                 placeholder="اكتب اسم المدينة" />
 
-            <button onclick="detectRain()">
-                فحص المطر
-            </button>
+            <div class="control-grid">
 
-            <button onclick="getMyLocation()">
-                موقعي الحالي
-            </button>
+                <button onclick="detectRain()">
+                    فحص المطر
+                </button>
+
+                <button onclick="getMyLocation()">
+                    موقعي الحالي
+                </button>
+
+            </div>
+
         </div>
 
+        <!-- البطاقة الرئيسية -->
         <div class="card">
 
             <h2 id="cityName">جاهز للفحص</h2>
@@ -59,6 +67,7 @@
                 اختر مدينة أو استخدم موقعك
             </div>
 
+            <!-- مؤشر الخطر -->
             <div
                 id="riskBox"
                 style="
@@ -77,8 +86,11 @@
                         margin-bottom:8px;
                         color:#cbd5e1;
                     ">
+
                     <span>مؤشر الخطر</span>
+
                     <strong id="riskValue">--%</strong>
+
                 </div>
 
                 <div
@@ -90,6 +102,7 @@
                         overflow:hidden;
                         border:1px solid #334155;
                     ">
+
                     <div
                         id="riskBar"
                         style="
@@ -99,6 +112,7 @@
                             transition:width 0.5s ease, background 0.5s ease;
                         ">
                     </div>
+
                 </div>
 
                 <div
@@ -108,10 +122,14 @@
                         color:#94a3b8;
                         font-size:14px;
                     ">
+
                     لم يتم التحليل بعد
+
                 </div>
+
             </div>
 
+            <!-- الرسائل -->
             <div
                 id="actionMessage"
                 style="
@@ -125,8 +143,51 @@
                 ">
             </div>
 
+            <!-- أزرار التحكم -->
+            <div
+                class="card"
+                style="
+                    margin-top:18px;
+                    background:#020617;
+                    border:1px solid #334155;
+                ">
+
+                <h3>لوحة التحكم</h3>
+
+                <div class="control-grid">
+
+                    <button onclick="refreshNow()">
+                        تحديث الآن
+                    </button>
+
+                    <button onclick="toggleRadar()">
+                        تشغيل / إيقاف الرادار
+                    </button>
+
+                    <button onclick="startAutoRefresh()">
+                        تشغيل التحديث التلقائي
+                    </button>
+
+                    <button onclick="stopAutoRefresh()">
+                        إيقاف التحديث التلقائي
+                    </button>
+
+                    <button onclick="shareWeatherWhatsApp()">
+                        مشاركة واتساب
+                    </button>
+
+                    <button onclick="clearPredictionHistory()">
+                        مسح السجل
+                    </button>
+
+                </div>
+
+            </div>
+
+            <!-- النصائح ونتائج التحليل -->
             <div id="adviceText"></div>
 
+            <!-- حالة التحديث -->
             <div
                 id="refreshStatus"
                 style="
@@ -138,6 +199,7 @@
 
         </div>
 
+        <!-- سجل التوقعات -->
         <div class="card">
 
             <h3>آخر التوقعات</h3>
@@ -157,18 +219,15 @@
                     color:#cbd5e1;
                     line-height:1.8;
                 ">
-                لا يوجد سجل حتى الآن.
-            </div>
 
-            <button
-                onclick="clearPredictionHistory()"
-                style="margin-top:10px;">
-                مسح سجل التوقعات
-            </button>
+                لا يوجد سجل حتى الآن.
+
+            </div>
 
         </div>
 
-        <div class="card">
+        <!-- تقييم دقة التوقع -->
+        <div class="card" id="accuracyCard">
 
             <h3>تقييم دقة التوقع</h3>
 
@@ -176,7 +235,8 @@
                 بعد مرور وقت كافٍ، قيّم هل كان توقع المطر صحيحًا في موقعك.
             </p>
 
-            <div class="info-grid">
+            <div class="control-grid">
+
                 <button onclick="ratePrediction(true)">
                     نعم، التوقع صحيح
                 </button>
@@ -184,6 +244,7 @@
                 <button onclick="ratePrediction(false)">
                     لا، التوقع غير صحيح
                 </button>
+
             </div>
 
             <div
@@ -197,21 +258,27 @@
                     color:#cbd5e1;
                     line-height:1.8;
                 ">
+
                 لم يتم تسجيل تقييمات بعد.
+
             </div>
 
         </div>
 
+        <!-- رادار المطر -->
         <div class="card">
+
             <h3>رادار المطر</h3>
+
             <div id="map"></div>
+
         </div>
 
     </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=16"></script>
 
     <script>
         if ("serviceWorker" in navigator) {
