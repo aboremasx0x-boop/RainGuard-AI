@@ -220,7 +220,7 @@ function updateRefreshStatus(extraMessage = "") {
     let text = `آخر تحديث: ${now}`;
 
     if (autoRefreshEnabled) {
-        text += " | التحديث التلقائي: مفعل كل 10 دقائق";
+        text += " | التحديث التلقائي: مفعل كل 30 دقيقة";
     } else {
         text += " | التحديث التلقائي: غير مفعل";
     }
@@ -247,9 +247,9 @@ function startAutoRefresh() {
 
     autoRefreshInterval = setInterval(() => {
         checkRain(lastLat, lastLon, lastName, true);
-    }, 10 * 60 * 1000);
+    }, 30 * 60 * 1000);
 
-    showActionMessage("تم تفعيل التحديث التلقائي كل 10 دقائق", "success");
+    showActionMessage("تم تفعيل التحديث التلقائي كل 30 دقيقة", "success");
     updateRefreshStatus("تم تفعيل التحديث التلقائي");
 }
 
@@ -500,9 +500,6 @@ function clearPredictionHistory() {
     showActionMessage("تم مسح سجل التوقعات", "warning");
 }
 
-// ===============================
-// إعادة فحص من السجل
-// ===============================
 function recheckHistoryItem(index) {
     const key = "rainguard_history";
     const saved = JSON.parse(localStorage.getItem(key)) || [];
