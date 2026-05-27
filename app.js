@@ -220,7 +220,7 @@ function updateRefreshStatus(extraMessage = "") {
     let text = `آخر تحديث: ${now}`;
 
     if (autoRefreshEnabled) {
-        text += " | التحديث التلقائي: مفعل كل 10 دقائق";
+        text += " | التحديث التلقائي: مفعل كل 30 دقيقة";
     } else {
         text += " | التحديث التلقائي: غير مفعل";
     }
@@ -247,9 +247,9 @@ function startAutoRefresh() {
 
     autoRefreshInterval = setInterval(() => {
         checkRain(lastLat, lastLon, lastName, true);
-    }, 10 * 60 * 1000);
+    }, 30 * 60 * 1000);
 
-    showActionMessage("تم تفعيل التحديث التلقائي كل 10 دقائق", "success");
+    showActionMessage("تم تفعيل التحديث التلقائي كل 30 دقيقة", "success");
     updateRefreshStatus("تم تفعيل التحديث التلقائي");
 }
 
@@ -448,7 +448,6 @@ function renderPredictionHistory() {
                 background:#0f172a;
                 border:1px solid #334155;
             ">
-
                 <strong style="font-size:22px; color:white;">
                     ${item.locationName}
                 </strong>
@@ -488,7 +487,6 @@ function renderPredictionHistory() {
                     ">
                     إعادة الفحص
                 </button>
-
             </div>
         `;
     }).join("");
@@ -500,9 +498,6 @@ function clearPredictionHistory() {
     showActionMessage("تم مسح سجل التوقعات", "warning");
 }
 
-// ===============================
-// إعادة فحص من السجل
-// ===============================
 function recheckHistoryItem(index) {
     const key = "rainguard_history";
     const saved = JSON.parse(localStorage.getItem(key)) || [];
@@ -612,9 +607,15 @@ function resetAccuracy() {
 }
 
 // ===============================
-// تحليل المطر
+// تحليل المطر مع Retry
 // ===============================
-async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
+async function checkRain(
+    lat,
+    lon,
+    name = "موقع محدد",
+    silent = false,
+    retryCount = 0
+) {
     const cityName = document.getElementById("cityName");
     const statusText = document.getElementById("statusText");
     const adviceText = document.getElementById("adviceText");
@@ -634,18 +635,58 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
     lastName = name;
 
     try {
-        const url = `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
+        const url =
+            `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
 
         const response = await fetch(url);
 
         if (!response.ok) {
+            if (retryCount < 1) {
+                showActionMessage(
+                    "الخادم يستجيب ببطء... جاري إعادة المحاولة",
+                    "warning"
+                );
+
+                await new Promise(resolve => setTimeout(resolve, 2500));
+
+                return checkRain(
+                    lat,
+                    lon,
+                    name,
+                    silent,
+                    retryCount + 1
+                );
+            }
+
             throw new Error("فشل الاتصال بالخادم");
         }
 
         const data = await response.json();
 
+        if (data.error) {
+            if (retryCount < 1) {
+                showActionMessage(
+                    "جاري إعادة المحاولة للحصول على البيانات",
+                    "warning"
+                );
+
+                await new Promise(resolve => setTimeout(resolve, 2500));
+
+                return checkRain(
+                    lat,
+                    lon,
+                    name,
+                    silent,
+                    retryCount + 1
+                );
+            }
+
+            throw new Error(data.message || "فشل جلب البيانات");
+        }
+
         const current = data.current;
         const best = data.best_hour;
+
         const score = Number(best.rain_score) || 0;
 
         const forecastHTML = buildForecastHTML(data.next_hours);
@@ -667,7 +708,13 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
 
         checkSmartAlert(score, best.alert_level, name);
 
-        savePredictionHistory(name, score, best.alert_level, lat, lon);
+        savePredictionHistory(
+            name,
+            score,
+            best.alert_level,
+            lat,
+            lon
+        );
 
         adviceText.innerHTML = `
             <p>${best.advice}</p>
@@ -679,12 +726,35 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
             <button onclick="shareWeatherWhatsApp()" style="margin-top:10px;">مشاركة النتيجة في واتساب</button>
 
             <div class="info-grid">
-                <div class="info-box"><span>درجة الحرارة</span><strong>${current.temperature}°C</strong></div>
-                <div class="info-box"><span>الرطوبة</span><strong>${current.humidity}%</strong></div>
-                <div class="info-box"><span>السحب</span><strong>${current.cloud_cover}%</strong></div>
-                <div class="info-box"><span>احتمال المطر</span><strong>${current.rain_probability}%</strong></div>
-                <div class="info-box"><span>الضغط</span><strong>${current.pressure_hpa}</strong></div>
-                <div class="info-box"><span>الرياح</span><strong>${current.wind_speed}</strong></div>
+                <div class="info-box">
+                    <span>درجة الحرارة</span>
+                    <strong>${current.temperature}°C</strong>
+                </div>
+
+                <div class="info-box">
+                    <span>الرطوبة</span>
+                    <strong>${current.humidity}%</strong>
+                </div>
+
+                <div class="info-box">
+                    <span>السحب</span>
+                    <strong>${current.cloud_cover}%</strong>
+                </div>
+
+                <div class="info-box">
+                    <span>احتمال المطر</span>
+                    <strong>${current.rain_probability}%</strong>
+                </div>
+
+                <div class="info-box">
+                    <span>الضغط</span>
+                    <strong>${current.pressure_hpa}</strong>
+                </div>
+
+                <div class="info-box">
+                    <span>الرياح</span>
+                    <strong>${current.wind_speed}</strong>
+                </div>
             </div>
 
             ${forecastHTML}
@@ -700,15 +770,32 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
         updateRefreshStatus("تم تحديث البيانات");
 
     } catch (error) {
-        statusText.className = "rain-high";
-        statusText.innerText = "حدث خطأ";
-
-        adviceText.innerHTML = `تعذر جلب البيانات`;
-
-        showActionMessage("فشل تحديث البيانات", "danger");
-        updateRefreshStatus("فشل التحديث");
-
         console.error(error);
+
+        statusText.className = "rain-high";
+        statusText.innerText = "تعذر الاتصال";
+
+        adviceText.innerHTML = `
+            <div style="
+                color:#fecaca;
+                background:#7f1d1d;
+                padding:16px;
+                border-radius:16px;
+                margin-top:15px;
+                line-height:1.8;
+            ">
+                تعذر جلب البيانات مؤقتًا.<br>
+                قد يكون مصدر الطقس مشغولًا أو الخادم يستيقظ الآن.<br><br>
+                حاول مرة أخرى بعد دقيقة.
+            </div>
+        `;
+
+        showActionMessage(
+            "فشل جلب البيانات بعد إعادة المحاولة",
+            "danger"
+        );
+
+        updateRefreshStatus("فشل التحديث");
     }
 }
 
