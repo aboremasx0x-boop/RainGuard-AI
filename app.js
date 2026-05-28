@@ -1,5 +1,6 @@
 const API_BASE_URL = "https://rainguard-ai.onrender.com";
 
+const OFFLINE_CACHE_KEY = "rainguard_last_success_data";
 let map;
 let marker;
 let rainLayer;
@@ -143,6 +144,128 @@ function showStormPulse(message, type = "warning") {
     if (navigator.vibrate) {
         navigator.vibrate([200, 120, 200]);
     }
+}
+
+function saveLastSuccessfulWeather(data, lat, lon, name) {
+    if (!data || data.error) return;
+
+    const item = {
+        data,
+        lat,
+        lon,
+        name,
+        savedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(item));
+}
+
+function getLastSuccessfulWeather() {
+    try {
+        return JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY));
+    } catch {
+        return null;
+    }
+}
+
+function buildOfflineEmergencyHTML(saved) {
+    if (!saved || !saved.data) return "";
+
+    const best = saved.data.best_hour || {};
+    const current = saved.data.current || {};
+    const savedTime = new Date(saved.savedAt).toLocaleString("ar-SA");
+
+    return `
+        <div class="forecast-section">
+            <h3>Offline Emergency Weather Mode</h3>
+
+            <div style="
+                margin-top:12px;
+                padding:16px;
+                border-radius:16px;
+                background:#451a03;
+                border:1px solid #f59e0b;
+                color:#fde68a;
+                line-height:1.9;
+            ">
+                <div style="
+                    font-size:24px;
+                    font-weight:bold;
+                    color:#f59e0b;
+                    margin-bottom:10px;
+                ">
+                    ⚠️ وضع الطوارئ بدون اتصال
+                </div>
+
+                <div>
+                    يتم عرض آخر حالة محفوظة بنجاح.
+                </div>
+
+                <div>
+                    الموقع: ${saved.name || saved.data.location_name || "غير معروف"}
+                </div>
+
+                <div>
+                    آخر مؤشر مطر محفوظ: ${best.rain_score ?? "--"}%
+                </div>
+
+                <div>
+                    الحالة السابقة: ${best.alert_level || "غير متوفر"}
+                </div>
+
+                <div>
+                    الحرارة السابقة: ${current.temperature ?? "--"}°C
+                </div>
+
+                <div>
+                    الرطوبة السابقة: ${current.humidity ?? "--"}%
+                </div>
+
+                <div style="margin-top:8px;color:#fcd34d;">
+                    وقت الحفظ: ${savedTime}
+                </div>
+
+                <div style="margin-top:10px;color:#fde68a;font-size:14px;">
+                    هذه بيانات قديمة للاسترشاد فقط، ولا تغني عن التنبيهات الرسمية.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function readOfflineEmergencyWeather() {
+    const saved = getLastSuccessfulWeather();
+
+    if (!saved) {
+        showActionMessage("لا توجد بيانات محفوظة للطوارئ", "warning");
+        return;
+    }
+
+    const data = saved.data;
+    const current = data.current || {};
+    const best = data.best_hour || current;
+
+    const score = Number(best.rain_score) || 0;
+
+    document.getElementById("cityName").innerText =
+        saved.name || data.location_name || "آخر موقع محفوظ";
+
+    document.getElementById("statusText").className =
+        score >= 80 ? "rain-high" : score >= 60 ? "rain-medium" : "rain-low";
+
+    document.getElementById("statusText").innerText =
+        `بيانات محفوظة - ${best.alert_level || ""} - ${score}%`;
+
+    updateRiskBar(score);
+    updateLightningStormMode(score);
+
+    document.getElementById("adviceText").innerHTML = `
+        ${buildOfflineEmergencyHTML(saved)}
+        ${buildForecastHTML(data.next_hours)}
+        ${buildDailyForecastHTML(data.daily_forecast)}
+    `;
+
+    showActionMessage("تم عرض آخر حالة محفوظة", "warning");
 }
 
 // ===============================
