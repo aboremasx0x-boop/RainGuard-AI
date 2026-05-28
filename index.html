@@ -3,15 +3,28 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0" />
 
     <title>RainGuard AI</title>
 
-    <meta name="theme-color" content="#2563eb" />
+    <meta
+        name="theme-color"
+        content="#2563eb" />
 
-    <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=24" />
+    <link
+        rel="manifest"
+        href="manifest.json" />
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <link
+        rel="stylesheet"
+        href="style.css?v=27" />
 </head>
 
 <body>
@@ -31,11 +44,25 @@
                 placeholder="اكتب اسم المدينة" />
 
             <div class="control-grid">
-                <button onclick="detectRain()">فحص المطر</button>
-                <button onclick="getMyLocation()">موقعي الحالي</button>
+
+                <button onclick="detectRain()">
+                    فحص المطر
+                </button>
+
+                <button onclick="getMyLocation()">
+                    موقعي الحالي
+                </button>
+
             </div>
 
-            <div class="card" style="margin-top:16px;background:#020617;border:1px solid #334155;">
+            <div
+                class="card"
+                style="
+                    margin-top:16px;
+                    background:#020617;
+                    border:1px solid #334155;
+                ">
+
                 <h3>🎤 AI Weather Voice Assistant</h3>
 
                 <p style="color:#94a3b8;line-height:1.8;">
@@ -43,72 +70,181 @@
                 </p>
 
                 <div class="control-grid">
-                    <button onclick="startVoiceAssistant()" style="background:linear-gradient(135deg,#dc2626,#7f1d1d);">
+
+                    <button
+                        onclick="startVoiceAssistant()"
+                        style="
+                            background:linear-gradient(135deg,#dc2626,#7f1d1d);
+                        ">
                         🎤 تشغيل المساعد الصوتي
                     </button>
 
-                    <button onclick="speakWeatherSummary()" style="background:linear-gradient(135deg,#0284c7,#0f172a);">
+                    <button
+                        onclick="speakWeatherSummary()"
+                        style="
+                            background:linear-gradient(135deg,#0284c7,#0f172a);
+                        ">
                         🔊 قراءة النتيجة
                     </button>
+
                 </div>
 
-                <div id="voiceStatus" style="margin-top:14px;padding:12px;border-radius:14px;background:#0f172a;border:1px solid #334155;color:#cbd5e1;line-height:1.8;">
+                <div
+                    id="voiceStatus"
+                    style="
+                        margin-top:14px;
+                        padding:12px;
+                        border-radius:14px;
+                        background:#0f172a;
+                        border:1px solid #334155;
+                        color:#cbd5e1;
+                        line-height:1.8;
+                    ">
                     المساعد الصوتي جاهز.
                 </div>
+
             </div>
 
         </div>
 
         <div class="card">
 
-            <h2 id="cityName">جاهز للفحص</h2>
+            <h2 id="cityName">
+                جاهز للفحص
+            </h2>
 
             <div id="statusText">
                 اختر مدينة أو استخدم موقعك
             </div>
 
-            <div id="riskBox" style="margin-top:18px;padding:14px;border-radius:14px;background:#020617;border:1px solid #334155;">
+            <div
+                id="riskBox"
+                style="
+                    margin-top:18px;
+                    padding:14px;
+                    border-radius:14px;
+                    background:#020617;
+                    border:1px solid #334155;
+                ">
 
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:#cbd5e1;">
+                <div
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        margin-bottom:8px;
+                        color:#cbd5e1;
+                    ">
+
                     <span>مؤشر الخطر</span>
                     <strong id="riskValue">--%</strong>
+
                 </div>
 
-                <div style="width:100%;height:18px;background:#0f172a;border-radius:999px;overflow:hidden;border:1px solid #334155;">
-                    <div id="riskBar" style="height:100%;width:0%;background:#22c55e;transition:width 0.5s ease, background 0.5s ease;"></div>
+                <div
+                    style="
+                        width:100%;
+                        height:18px;
+                        background:#0f172a;
+                        border-radius:999px;
+                        overflow:hidden;
+                        border:1px solid #334155;
+                    ">
+
+                    <div
+                        id="riskBar"
+                        style="
+                            height:100%;
+                            width:0%;
+                            background:#22c55e;
+                            transition:width 0.5s ease, background 0.5s ease;
+                        ">
+                    </div>
+
                 </div>
 
-                <div id="riskLabel" style="margin-top:8px;color:#94a3b8;font-size:14px;">
+                <div
+                    id="riskLabel"
+                    style="
+                        margin-top:8px;
+                        color:#94a3b8;
+                        font-size:14px;
+                    ">
                     لم يتم التحليل بعد
                 </div>
 
             </div>
 
-            <div id="actionMessage" style="margin-top:10px;padding:10px;border-radius:10px;background:#064e3b;color:#d1fae5;display:block;min-height:24px;"></div>
+            <div
+                id="actionMessage"
+                style="
+                    margin-top:10px;
+                    padding:10px;
+                    border-radius:10px;
+                    background:#064e3b;
+                    color:#d1fae5;
+                    display:block;
+                    min-height:24px;
+                ">
+            </div>
 
-            <div class="card" style="margin-top:18px;background:#020617;border:1px solid #334155;">
+            <div
+                class="card"
+                style="
+                    margin-top:18px;
+                    background:#020617;
+                    border:1px solid #334155;
+                ">
 
                 <h3>لوحة التحكم</h3>
 
                 <div class="control-grid">
-                    <button onclick="refreshNow()">تحديث الآن</button>
-                    <button onclick="toggleRadar()">تشغيل / إيقاف الرادار</button>
-                    <button onclick="toggleHeatmap()">تشغيل / إيقاف الخريطة الحرارية</button>
-                    <button onclick="startAutoRefresh()">تشغيل التحديث الذكي</button>
-                    <button onclick="stopAutoRefresh()">إيقاف التحديث الذكي</button>
-                    <button onclick="shareWeatherWhatsApp()">مشاركة واتساب</button>
-                    <button onclick="clearPredictionHistory()">مسح السجل</button>
+
+                    <button onclick="refreshNow()">
+                        تحديث الآن
+                    </button>
+
+                    <button onclick="toggleRadar()">
+                        تشغيل / إيقاف الرادار
+                    </button>
+
+                    <button onclick="toggleHeatmap()">
+                        تشغيل / إيقاف الخريطة الحرارية
+                    </button>
+
+                    <button onclick="startAutoRefresh()">
+                        تشغيل التحديث الذكي
+                    </button>
+
+                    <button onclick="stopAutoRefresh()">
+                        إيقاف التحديث الذكي
+                    </button>
+
+                    <button onclick="shareWeatherWhatsApp()">
+                        مشاركة واتساب
+                    </button>
+
+                    <button onclick="clearPredictionHistory()">
+                        مسح السجل
+                    </button>
+
                 </div>
 
             </div>
 
             <div id="adviceText"></div>
 
-            <div id="refreshStatus" style="margin-top:10px;color:#94a3b8;font-size:14px;"></div>
+            <div
+                id="refreshStatus"
+                style="
+                    margin-top:10px;
+                    color:#94a3b8;
+                    font-size:14px;
+                ">
+            </div>
 
         </div>
 
-        <!-- AI Multi-City Rain Monitor -->
         <div class="card">
 
             <h3>🌍 AI Multi-City Rain Monitor</h3>
@@ -118,6 +254,7 @@
             </p>
 
             <div class="control-grid">
+
                 <button onclick="updateMultiCityMonitor()">
                     تحديث مراقبة المدن
                 </button>
@@ -125,13 +262,30 @@
                 <button onclick="toggleMultiCityAutoRefresh()">
                     تشغيل / إيقاف التحديث التلقائي للمدن
                 </button>
+
             </div>
 
-            <div id="multiCityStatus" style="margin-top:12px;color:#94a3b8;font-size:14px;">
+            <div
+                id="multiCityStatus"
+                style="
+                    margin-top:12px;
+                    color:#94a3b8;
+                    font-size:14px;
+                ">
                 جاهز لمراقبة المدن.
             </div>
 
-            <div id="multiCityMonitorBox" style="margin-top:14px;padding:14px;border-radius:14px;background:#020617;border:1px solid #334155;color:#cbd5e1;line-height:1.8;">
+            <div
+                id="multiCityMonitorBox"
+                style="
+                    margin-top:14px;
+                    padding:14px;
+                    border-radius:14px;
+                    background:#020617;
+                    border:1px solid #334155;
+                    color:#cbd5e1;
+                    line-height:1.8;
+                ">
                 لم يتم تحديث المدن بعد.
             </div>
 
@@ -145,7 +299,17 @@
                 يتم حفظ آخر المدن التي تم فحصها داخل جهازك.
             </p>
 
-            <div id="historyBox" style="margin-top:14px;padding:14px;border-radius:14px;background:#020617;border:1px solid #334155;color:#cbd5e1;line-height:1.8;">
+            <div
+                id="historyBox"
+                style="
+                    margin-top:14px;
+                    padding:14px;
+                    border-radius:14px;
+                    background:#020617;
+                    border:1px solid #334155;
+                    color:#cbd5e1;
+                    line-height:1.8;
+                ">
                 لا يوجد سجل حتى الآن.
             </div>
 
@@ -160,11 +324,28 @@
             </p>
 
             <div class="control-grid">
-                <button onclick="ratePrediction(true)">نعم، التوقع صحيح</button>
-                <button onclick="ratePrediction(false)">لا، التوقع غير صحيح</button>
+
+                <button onclick="ratePrediction(true)">
+                    نعم، التوقع صحيح
+                </button>
+
+                <button onclick="ratePrediction(false)">
+                    لا، التوقع غير صحيح
+                </button>
+
             </div>
 
-            <div id="accuracyBox" style="margin-top:14px;padding:14px;border-radius:14px;background:#020617;border:1px solid #334155;color:#cbd5e1;line-height:1.8;">
+            <div
+                id="accuracyBox"
+                style="
+                    margin-top:14px;
+                    padding:14px;
+                    border-radius:14px;
+                    background:#020617;
+                    border:1px solid #334155;
+                    color:#cbd5e1;
+                    line-height:1.8;
+                ">
                 لم يتم تسجيل تقييمات بعد.
             </div>
 
@@ -174,7 +355,15 @@
 
             <h3>رادار المطر + AI Heatmap</h3>
 
-            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;color:#cbd5e1;font-size:14px;">
+            <div
+                style="
+                    display:flex;
+                    gap:12px;
+                    flex-wrap:wrap;
+                    margin-bottom:14px;
+                    color:#cbd5e1;
+                    font-size:14px;
+                ">
 
                 <div style="display:flex;align-items:center;gap:6px;">
                     <div style="width:16px;height:16px;border-radius:50%;background:#22c55e;"></div>
@@ -206,7 +395,7 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script src="app.js?v=24"></script>
+    <script src="app.js?v=25"></script>
 
     <script>
         let recognition;
@@ -219,7 +408,8 @@
                 window.webkitSpeechRecognition;
 
             if (!SpeechRecognition) {
-                voiceStatus.innerText = "المتصفح لا يدعم المساعد الصوتي.";
+                voiceStatus.innerText =
+                    "المتصفح لا يدعم المساعد الصوتي.";
                 return;
             }
 
@@ -228,39 +418,56 @@
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
-            voiceStatus.innerText = "🎤 جاري الاستماع...";
+            voiceStatus.innerText =
+                "🎤 جاري الاستماع...";
+
             recognition.start();
 
             recognition.onresult = function (event) {
-                const transcript = event.results[0][0].transcript;
+                const transcript =
+                    event.results[0][0].transcript;
 
-                document.getElementById("cityInput").value = transcript;
+                document.getElementById("cityInput").value =
+                    transcript;
 
-                voiceStatus.innerText = `تم التعرف على: ${transcript}`;
+                voiceStatus.innerText =
+                    `تم التعرف على: ${transcript}`;
 
                 detectRain();
             };
 
             recognition.onerror = function () {
-                voiceStatus.innerText = "حدث خطأ أثناء التعرف على الصوت.";
+                voiceStatus.innerText =
+                    "حدث خطأ أثناء التعرف على الصوت.";
             };
 
             recognition.onend = function () {
                 setTimeout(() => {
-                    voiceStatus.innerText = "المساعد الصوتي جاهز.";
+                    voiceStatus.innerText =
+                        "المساعد الصوتي جاهز.";
                 }, 4000);
             };
         }
 
         function speakWeatherSummary() {
-            const city = document.getElementById("cityName")?.innerText || "المدينة";
-            const status = document.getElementById("statusText")?.innerText || "";
-            const risk = document.getElementById("riskValue")?.innerText || "";
+            const city =
+                document.getElementById("cityName")?.innerText ||
+                "المدينة";
+
+            const status =
+                document.getElementById("statusText")?.innerText ||
+                "";
+
+            const risk =
+                document.getElementById("riskValue")?.innerText ||
+                "";
 
             const text =
                 `حالة المطر في ${city}. ${status}. مؤشر الخطر ${risk}`;
 
-            const speech = new SpeechSynthesisUtterance(text);
+            const speech =
+                new SpeechSynthesisUtterance(text);
+
             speech.lang = "ar-SA";
             speech.rate = 1;
             speech.pitch = 1;
@@ -273,9 +480,16 @@
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
                 navigator.serviceWorker
-                    .register("/service-worker.js?v=24")
-                    .then(() => console.log("Service Worker Registered"))
-                    .catch((error) => console.log("Service Worker Error:", error));
+                    .register("/service-worker.js?v=27")
+                    .then(() =>
+                        console.log("Service Worker Registered")
+                    )
+                    .catch((error) =>
+                        console.log(
+                            "Service Worker Error:",
+                            error
+                        )
+                    );
             });
         }
     </script>
