@@ -13,6 +13,9 @@ let autoRefreshInterval = null;
 let autoRefreshEnabled = false;
 let lastSmartAlertLevel = "";
 
+let adaptiveRefreshMinutes = 30;
+let lastRainScore = 0;
+
 // ===============================
 // رسالة واضحة داخل الواجهة
 // ===============================
@@ -41,6 +44,47 @@ function showActionMessage(message, type = "success") {
     setTimeout(() => {
         box.style.display = "none";
     }, 5000);
+}
+
+// ===============================
+// Adaptive Smart Refresh AI
+// ===============================
+function getAdaptiveRefreshMinutes(score) {
+    score = Number(score) || 0;
+
+    if (score >= 80) {
+        return 5;
+    }
+
+    if (score >= 60) {
+        return 10;
+    }
+
+    return 30;
+}
+
+function applyAdaptiveRefresh(score) {
+    lastRainScore = Number(score) || 0;
+
+    const newMinutes = getAdaptiveRefreshMinutes(lastRainScore);
+
+    if (newMinutes === adaptiveRefreshMinutes && autoRefreshEnabled) {
+        return;
+    }
+
+    adaptiveRefreshMinutes = newMinutes;
+
+    if (autoRefreshEnabled) {
+        clearInterval(autoRefreshInterval);
+
+        autoRefreshInterval = setInterval(() => {
+            checkRain(lastLat, lastLon, lastName, true);
+        }, adaptiveRefreshMinutes * 60 * 1000);
+
+        updateRefreshStatus(
+            `تم ضبط التحديث الذكي كل ${adaptiveRefreshMinutes} دقائق`
+        );
+    }
 }
 
 // ===============================
@@ -379,9 +423,9 @@ function updateRefreshStatus(extraMessage = "") {
     let text = `آخر تحديث: ${now}`;
 
     if (autoRefreshEnabled) {
-        text += " | التحديث التلقائي: مفعل كل 30 دقيقة";
+        text += ` | التحديث الذكي: مفعل كل ${adaptiveRefreshMinutes} دقائق`;
     } else {
-        text += " | التحديث التلقائي: غير مفعل";
+        text += " | التحديث الذكي: غير مفعل";
     }
 
     if (extraMessage) {
@@ -402,14 +446,20 @@ function startAutoRefresh() {
         clearInterval(autoRefreshInterval);
     }
 
+    adaptiveRefreshMinutes = getAdaptiveRefreshMinutes(lastRainScore);
+
     autoRefreshEnabled = true;
 
     autoRefreshInterval = setInterval(() => {
         checkRain(lastLat, lastLon, lastName, true);
-    }, 30 * 60 * 1000);
+    }, adaptiveRefreshMinutes * 60 * 1000);
 
-    showActionMessage("تم تفعيل التحديث التلقائي كل 30 دقيقة", "success");
-    updateRefreshStatus("تم تفعيل التحديث التلقائي");
+    showActionMessage(
+        `تم تفعيل التحديث الذكي كل ${adaptiveRefreshMinutes} دقائق`,
+        "success"
+    );
+
+    updateRefreshStatus("تم تفعيل التحديث الذكي");
 }
 
 function stopAutoRefresh() {
@@ -420,8 +470,8 @@ function stopAutoRefresh() {
     autoRefreshInterval = null;
     autoRefreshEnabled = false;
 
-    showActionMessage("تم إيقاف التحديث التلقائي", "warning");
-    updateRefreshStatus("تم إيقاف التحديث التلقائي");
+    showActionMessage("تم إيقاف التحديث الذكي", "warning");
+    updateRefreshStatus("تم إيقاف التحديث الذكي");
 }
 
 // ===============================
@@ -865,6 +915,7 @@ async function checkRain(
 
         applyAlertCardColor(score);
         updateRiskBar(score);
+        applyAdaptiveRefresh(score);
 
         statusText.className = className;
         statusText.innerText = `${best.alert_level} - ${score}%`;
@@ -881,12 +932,6 @@ async function checkRain(
 
         adviceText.innerHTML = `
             <p>${best.advice}</p>
-
-            <button onclick="toggleRadar()" style="margin-top:10px;">تشغيل / إيقاف الرادار</button>
-            <button onclick="refreshNow()" style="margin-top:10px;">تحديث الآن</button>
-            <button onclick="startAutoRefresh()" style="margin-top:10px;">تفعيل التحديث التلقائي</button>
-            <button onclick="stopAutoRefresh()" style="margin-top:10px;">إيقاف التحديث التلقائي</button>
-            <button onclick="shareWeatherWhatsApp()" style="margin-top:10px;">مشاركة النتيجة في واتساب</button>
 
             ${confidenceHTML}
             ${radarFusionHTML}
