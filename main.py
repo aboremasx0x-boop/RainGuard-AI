@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 app = FastAPI(
     title="RainGuard AI API",
     description="Local rain alert API using Open-Meteo with OpenWeatherMap verification",
-    version="5.1"
+    version="5.2"
 )
 
 app.add_middleware(
@@ -40,7 +40,6 @@ def get_cached(key):
     if datetime.utcnow() - item["time"] <= timedelta(minutes=CACHE_MINUTES):
         data = item["data"]
         data["cache_status"] = "cached"
-        data["message"] = "تم استخدام بيانات محفوظة مؤقتًا لتقليل الضغط على مصدر الطقس"
         return data
 
     return None
@@ -113,13 +112,13 @@ def classify(score):
     if score >= 60:
         return {
             "level": "تنبيه مطر متوسط",
-            "advice": "فرصة المطر متوسطة إلى مرتفعة. يفضل متابعة التحديثات."
+            "advice": "فرصة المطر متوسطة إلى مرتفعة."
         }
 
     if score >= 40:
         return {
             "level": "احتمال مطر ضعيف إلى متوسط",
-            "advice": "توجد مؤشرات ضعيفة إلى متوسطة لاحتمال المطر."
+            "advice": "توجد مؤشرات متوسطة لاحتمال المطر."
         }
 
     return {
@@ -131,8 +130,7 @@ def classify(score):
 async def fetch_openweather(lat, lon):
     if not OPENWEATHER_API_KEY:
         return {
-            "available": False,
-            "reason": "مفتاح OpenWeatherMap غير مضاف في متغيرات البيئة"
+            "available": False
         }
 
     params = {
@@ -149,8 +147,7 @@ async def fetch_openweather(lat, lon):
 
         if response.status_code != 200:
             return {
-                "available": False,
-                "reason": f"خطأ من OpenWeatherMap رقم {response.status_code}"
+                "available": False
             }
 
         data = response.json()
@@ -162,14 +159,9 @@ async def fetch_openweather(lat, lon):
         rain = data.get("rain", {})
 
         weather_main = weather_list[0].get("main", "") if weather_list else ""
-        weather_desc = weather_list[0].get("description", "") if weather_list else ""
 
         rain_1h = rain.get("1h", 0) or 0
         rain_3h = rain.get("3h", 0) or 0
-        cloud_cover = clouds.get("all", 0) or 0
-        humidity = main.get("humidity", 0) or 0
-        pressure = main.get("pressure", 1013) or 1013
-        wind_speed = wind.get("speed", 0) or 0
 
         rain_detected = (
             "Rain" in weather_main
@@ -183,39 +175,29 @@ async def fetch_openweather(lat, lon):
         if rain_detected:
             confirmation_score += 45
 
-        if cloud_cover >= 70:
+        if clouds.get("all", 0) >= 70:
             confirmation_score += 20
 
-        if humidity >= 70:
+        if main.get("humidity", 0) >= 70:
             confirmation_score += 15
 
-        if pressure <= 1010:
+        if main.get("pressure", 1013) <= 1010:
             confirmation_score += 10
 
-        if wind_speed >= 5:
+        if wind.get("speed", 0) >= 5:
             confirmation_score += 10
 
         confirmation_score = min(round(confirmation_score), 100)
 
         return {
             "available": True,
-            "weather_main": weather_main,
-            "weather_description": weather_desc,
-            "temperature": main.get("temp", 0),
-            "humidity": humidity,
-            "pressure": pressure,
-            "cloud_cover": cloud_cover,
-            "wind_speed": wind_speed,
-            "rain_1h": rain_1h,
-            "rain_3h": rain_3h,
             "rain_detected": rain_detected,
             "confirmation_score": confirmation_score
         }
 
-    except Exception as e:
+    except Exception:
         return {
-            "available": False,
-            "reason": str(e)
+            "available": False
         }
 
 
@@ -239,35 +221,11 @@ def verify_with_openweather(open_meteo_score, openweather_data):
             "note": "إشارة المطر مؤكدة من OpenWeatherMap"
         }
 
-    if open_meteo_score >= 60 and ow_score >= 50:
-        return {
-            "verified": True,
-            "confidence": "ثقة متوسطة - المصدر الثاني يدعم الاحتمال",
-            "confidence_score": round((open_meteo_score + ow_score) / 2),
-            "note": "الظروف الجوية تدعم احتمال المطر"
-        }
-
-    if open_meteo_score >= 60 and ow_score < 40:
-        return {
-            "verified": False,
-            "confidence": "يحتاج متابعة - المصدر الثاني لم يؤكد",
-            "confidence_score": round((open_meteo_score + ow_score) / 2),
-            "note": "Open-Meteo يظهر خطورة، لكن OpenWeatherMap لا يؤكدها بقوة"
-        }
-
-    if open_meteo_score < 60 and rain_detected:
-        return {
-            "verified": True,
-            "confidence": "تعارض بين المصادر - تابع الحالة",
-            "confidence_score": max(open_meteo_score, ow_score),
-            "note": "OpenWeatherMap رصد مطرًا رغم أن مؤشر Open-Meteo أقل"
-        }
-
     return {
         "verified": False,
-        "confidence": "ثقة منخفضة / خطر منخفض",
-        "confidence_score": open_meteo_score,
-        "note": "لا يوجد تأكيد قوي لاحتمال المطر"
+        "confidence": "ثقة منخفضة",
+        "confidence_score": round((open_meteo_score + ow_score) / 2),
+        "note": "لا يوجد تأكيد قوي"
     }
 
 
@@ -276,18 +234,7 @@ def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "5.1",
-        "cache_minutes": CACHE_MINUTES,
-        "openweather_enabled": bool(OPENWEATHER_API_KEY),
-        "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
-    }
-
-
-@app.get("/health")
-def health():
-    return {
-        "status": "ok",
-        "service": "RainGuard AI",
+        "version": "5.2",
         "openweather_enabled": bool(OPENWEATHER_API_KEY)
     }
 
@@ -303,10 +250,7 @@ async def rain_alert(
 
     cached = get_cached(key)
     if cached:
-        return JSONResponse(
-            content=cached,
-            media_type="application/json; charset=utf-8"
-        )
+        return JSONResponse(content=cached)
 
     params = {
         "latitude": lat,
@@ -333,103 +277,39 @@ async def rain_alert(
         "timezone": "auto"
     }
 
-    weather = None
-    open_meteo_failed = False
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(OPEN_METEO_URL, params=params)
 
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.get(OPEN_METEO_URL, params=params)
-
-            if response.status_code == 429:
-                old_cache = CACHE.get(key)
-
-                if old_cache:
-                    data = old_cache["data"]
-                    data["cache_status"] = "old_cache"
-                    data["message"] = "تم استخدام آخر بيانات محفوظة بسبب كثرة الطلبات على Open-Meteo"
-                    return JSONResponse(
-                        content=data,
-                        media_type="application/json; charset=utf-8"
-                    )
-
-                open_meteo_failed = True
-
-            else:
-                response.raise_for_status()
-                weather = response.json()
-
-    except Exception:
-        open_meteo_failed = True
-
-    if open_meteo_failed or weather is None:
-        openweather_data = await fetch_openweather(lat, lon)
-
-        if not openweather_data.get("available"):
-            return JSONResponse(
-                status_code=502,
-                content={
-                    "error": True,
-                    "error_type": "all_sources_failed",
-                    "message": "تعذر جلب بيانات الطقس من المصادر المتاحة مؤقتًا",
-                    "location_name": name,
-                    "openweather": openweather_data
-                },
-                media_type="application/json; charset=utf-8"
-            )
-
-        fallback_score = openweather_data.get("confirmation_score", 0)
-        alert = classify(fallback_score)
-
-        current = {
-            "time": datetime.utcnow().isoformat() + "Z",
-            "temperature": openweather_data.get("temperature", 0),
-            "humidity": openweather_data.get("humidity", 0),
-            "dew_point": 0,
-            "rain_probability": fallback_score,
-            "precipitation_mm": openweather_data.get("rain_1h", 0),
-            "cloud_cover": openweather_data.get("cloud_cover", 0),
-            "pressure_hpa": openweather_data.get("pressure", 1013),
-            "wind_speed": openweather_data.get("wind_speed", 0),
-            "rain_score": fallback_score,
-            "alert_level": alert["level"],
-            "advice": alert["advice"]
-        }
-
-        result = {
-            "error": False,
-            "location_name": name,
-            "latitude": lat,
-            "longitude": lon,
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-            "cache_status": "fresh",
-            "source": "OpenWeatherMap احتياطي",
-            "current": current,
-            "best_hour": current,
-            "next_hours": [current],
-            "daily_forecast": [],
-            "openweather": openweather_data,
-            "verification": {
-                "verified": True,
-                "confidence": "وضع احتياطي - تم استخدام OpenWeatherMap",
-                "confidence_score": fallback_score,
-                "note": "Open-Meteo غير متاح أو وصل إلى حد الطلبات"
-            },
-            "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
-        }
-
-        save_cache(key, result)
-
-        return JSONResponse(
-            content=result,
-            media_type="application/json; charset=utf-8"
-        )
+    weather = response.json()
 
     h = weather.get("hourly", {})
+
+    all_times = h.get("time", [])
+
+    current_time = datetime.now()
+
+    start_index = 0
+
+    # ===============================
+    # تحديد أقرب ساعة حالية
+    # ===============================
+    for i, time_str in enumerate(all_times):
+        try:
+            forecast_time = datetime.fromisoformat(time_str)
+
+            if forecast_time >= current_time:
+                start_index = i
+                break
+
+        except Exception:
+            continue
+
     next_hours = []
 
-    count = min(hours, len(h.get("time", [])))
+    end_index = min(start_index + hours, len(all_times))
 
-    for i in range(count):
+    for i in range(start_index, end_index):
+
         row = {
             "time": h["time"][i],
             "temperature": h["temperature_2m"][i] or 0,
@@ -451,39 +331,24 @@ async def rain_alert(
 
         next_hours.append(row)
 
-    if not next_hours:
-        return JSONResponse(
-            status_code=502,
-            content={
-                "error": True,
-                "message": "لم تصل بيانات كافية من مصدر الطقس",
-                "location_name": name
-            },
-            media_type="application/json; charset=utf-8"
-        )
-
     best_hour = max(next_hours, key=lambda x: x["rain_score"])
 
-    openweather_data = None
     verification = {
         "verified": False,
         "confidence": "اعتماد على Open-Meteo فقط",
         "confidence_score": best_hour["rain_score"],
-        "note": "لا توجد حاجة للتحقق من مصدر ثانٍ حاليًا"
+        "note": "لا توجد حاجة للتحقق"
     }
+
+    openweather_data = None
 
     if best_hour["rain_score"] >= 40:
         openweather_data = await fetch_openweather(lat, lon)
+
         verification = verify_with_openweather(
             best_hour["rain_score"],
             openweather_data
         )
-
-        best_hour["verification"] = verification
-
-        if verification["verified"]:
-            best_hour["alert_level"] = best_hour["alert_level"] + " - مؤكد"
-            best_hour["advice"] = best_hour["advice"] + " تم دعم التوقع من مصدر ثانٍ."
 
     d = weather.get("daily", {})
     daily_forecast = []
@@ -519,15 +384,11 @@ async def rain_alert(
         "best_hour": best_hour,
         "next_hours": next_hours,
         "daily_forecast": daily_forecast,
-        "source": "Open-Meteo Forecast API",
-        "openweather": openweather_data,
         "verification": verification,
-        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
+        "source": "Open-Meteo Forecast API",
+        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر."
     }
 
     save_cache(key, result)
 
-    return JSONResponse(
-        content=result,
-        media_type="application/json; charset=utf-8"
-    )
+    return JSONResponse(content=result)
