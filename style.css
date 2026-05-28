@@ -5,99 +5,132 @@
 body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Arial, sans-serif;
+    color: #f8fafc;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
     background:
         radial-gradient(circle at top right, rgba(37, 99, 235, 0.28), transparent 35%),
         radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.18), transparent 40%),
         linear-gradient(135deg, #020617, #0f172a 55%, #111827);
-    color: #f8fafc;
-    min-height: 100vh;
 }
 
+/* ===============================
+   Dynamic Weather Background
+================================= */
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(
+            rgba(255,255,255,0.08) 1px,
+            transparent 1px
+        );
+    background-size: 3px 28px;
+    animation: rainMove 0.7s linear infinite;
+    opacity: 0.18;
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 25%),
+        radial-gradient(circle at 70% 30%, rgba(255,255,255,0.05), transparent 30%),
+        radial-gradient(circle at 50% 70%, rgba(255,255,255,0.06), transparent 35%);
+    animation: cloudMove 18s linear infinite;
+    opacity: 0.5;
+}
+
+@keyframes rainMove {
+    from {
+        transform: translateY(-40px);
+    }
+
+    to {
+        transform: translateY(40px);
+    }
+}
+
+@keyframes cloudMove {
+    0% {
+        transform: translateX(-40px);
+    }
+
+    50% {
+        transform: translateX(30px);
+    }
+
+    100% {
+        transform: translateX(-40px);
+    }
+}
+
+/* ===============================
+   Layout
+================================= */
+
 .container {
-    width: min(1100px, 94%);
+    width: min(1150px, 94%);
     margin: auto;
     padding: 24px 0 40px;
+    position: relative;
+    z-index: 2;
 }
 
 .header {
     text-align: center;
-    padding: 28px 18px;
+    padding: 30px 20px;
     margin-bottom: 20px;
-    border-radius: 28px;
+    border-radius: 30px;
     background: rgba(15, 23, 42, 0.72);
     border: 1px solid rgba(148, 163, 184, 0.22);
-    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(18px);
+    box-shadow:
+        0 22px 60px rgba(0, 0, 0, 0.38),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    backdrop-filter: blur(20px);
 }
 
 .header h1 {
     margin: 0;
-    font-size: clamp(32px, 6vw, 54px);
+    font-size: clamp(34px, 6vw, 58px);
     letter-spacing: 0.5px;
+    text-shadow: 0 6px 25px rgba(37,99,235,0.45);
 }
 
 .header p {
     color: #cbd5e1;
-    margin: 10px 0 0;
+    margin-top: 10px;
     font-size: 17px;
 }
+
+/* ===============================
+   Cards
+================================= */
 
 .search-box,
 .card {
     background: rgba(15, 23, 42, 0.76);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 26px;
     padding: 18px;
     margin-bottom: 18px;
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+    box-shadow:
+        0 18px 50px rgba(0, 0, 0, 0.32),
+        inset 0 1px 0 rgba(255,255,255,0.04);
     backdrop-filter: blur(18px);
+    transition: transform 0.25s ease, border 0.25s ease;
 }
 
-input {
-    width: 100%;
-    padding: 15px 16px;
-    border-radius: 16px;
-    border: 1px solid #334155;
-    background: #020617;
-    color: #f8fafc;
-    font-size: 17px;
-    outline: none;
-    margin-bottom: 12px;
-}
-
-input:focus {
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
-}
-
-button {
-    border: 0;
-    border-radius: 15px;
-    padding: 13px 15px;
-    color: white;
-    background: linear-gradient(135deg, #2563eb, #0284c7);
-    font-size: 15px;
-    font-weight: 800;
-    cursor: pointer;
-    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
-    transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
-}
-
-button:hover {
+.card:hover,
+.search-box:hover {
     transform: translateY(-2px);
-    filter: brightness(1.08);
-    box-shadow: 0 16px 32px rgba(37, 99, 235, 0.38);
-}
-
-button:active {
-    transform: translateY(0);
-}
-
-.control-grid,
-.info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    border-color: rgba(56, 189, 248, 0.35);
 }
 
 h2,
@@ -106,45 +139,99 @@ h3 {
 }
 
 #cityName {
-    font-size: 30px;
-    margin-bottom: 8px;
+    font-size: 32px;
+    margin-bottom: 10px;
 }
 
 #statusText {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 900;
     margin: 12px 0;
 }
 
-#riskBox,
-#historyBox,
-#accuracyBox {
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-}
+/* ===============================
+   Inputs
+================================= */
 
-#actionMessage {
-    font-weight: 800;
-}
-
-#refreshStatus {
-    padding: 10px 2px;
-}
-
-#map {
+input {
     width: 100%;
-    height: 430px;
-    border-radius: 22px;
-    overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+    padding: 15px 16px;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    background: rgba(2, 6, 23, 0.9);
+    color: #f8fafc;
+    font-size: 17px;
+    outline: none;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
 }
+
+input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 4px rgba(56,189,248,0.16);
+}
+
+/* ===============================
+   Buttons
+================================= */
+
+button {
+    border: 0;
+    border-radius: 16px;
+    padding: 13px 15px;
+    color: white;
+    background: linear-gradient(135deg, #2563eb, #0284c7);
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow:
+        0 10px 24px rgba(37,99,235,0.32),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+    transition:
+        transform 0.18s ease,
+        filter 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+    box-shadow:
+        0 16px 32px rgba(37,99,235,0.42),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* ===============================
+   Grid
+================================= */
+
+.control-grid,
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+/* ===============================
+   Info Boxes
+================================= */
 
 .info-box {
     background: rgba(2, 6, 23, 0.78);
-    border: 1px solid rgba(51, 65, 85, 0.9);
+    border: 1px solid rgba(51, 65, 85, 0.92);
     border-radius: 18px;
     padding: 14px;
     min-height: 92px;
+    transition: all 0.2s ease;
+}
+
+.info-box:hover {
+    border-color: rgba(56,189,248,0.35);
+    transform: translateY(-1px);
 }
 
 .info-box span {
@@ -159,9 +246,33 @@ h3 {
     font-size: 24px;
 }
 
+/* ===============================
+   Sections
+================================= */
+
 .forecast-section {
-    margin-top: 18px;
+    margin-top: 20px;
 }
+
+#riskBox,
+#historyBox,
+#accuracyBox {
+    box-shadow:
+        inset 0 0 0 1px rgba(148,163,184,0.08);
+}
+
+#actionMessage {
+    font-weight: 800;
+}
+
+#refreshStatus {
+    padding: 10px 2px;
+    color: #94a3b8;
+}
+
+/* ===============================
+   Rain Levels
+================================= */
 
 .rain-low {
     color: #22c55e !important;
@@ -175,23 +286,67 @@ h3 {
     color: #ef4444 !important;
 }
 
+/* ===============================
+   Alert Cards
+================================= */
+
 .alert-green {
-    border-color: rgba(34, 197, 94, 0.55) !important;
+    border-color: rgba(34,197,94,0.55) !important;
+    box-shadow:
+        0 0 22px rgba(34,197,94,0.15);
 }
 
 .alert-yellow {
-    border-color: rgba(245, 158, 11, 0.65) !important;
+    border-color: rgba(245,158,11,0.65) !important;
+    box-shadow:
+        0 0 24px rgba(245,158,11,0.18);
 }
 
 .alert-red {
-    border-color: rgba(239, 68, 68, 0.7) !important;
+    border-color: rgba(239,68,68,0.75) !important;
+    box-shadow:
+        0 0 28px rgba(239,68,68,0.22);
+    animation: dangerPulse 1.6s infinite;
+}
+
+@keyframes dangerPulse {
+    0% {
+        box-shadow: 0 0 12px rgba(239,68,68,0.15);
+    }
+
+    50% {
+        box-shadow: 0 0 34px rgba(239,68,68,0.38);
+    }
+
+    100% {
+        box-shadow: 0 0 12px rgba(239,68,68,0.15);
+    }
+}
+
+/* ===============================
+   Map
+================================= */
+
+#map {
+    width: 100%;
+    height: 440px;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid rgba(148,163,184,0.22);
+    box-shadow:
+        0 20px 45px rgba(0,0,0,0.35);
 }
 
 .leaflet-control-attribution {
     font-size: 10px;
 }
 
+/* ===============================
+   Mobile
+================================= */
+
 @media (max-width: 700px) {
+
     .container {
         width: 94%;
         padding-top: 14px;
@@ -215,5 +370,13 @@ h3 {
 
     button {
         width: 100%;
+    }
+
+    #cityName {
+        font-size: 28px;
+    }
+
+    #statusText {
+        font-size: 21px;
     }
 }
