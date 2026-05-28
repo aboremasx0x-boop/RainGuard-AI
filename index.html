@@ -22,10 +22,10 @@
         rel="stylesheet"
         href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
-    <!-- كسر كاش الـ CSS -->
+    <!-- كسر كاش CSS -->
     <link
         rel="stylesheet"
-        href="style.css?v=20" />
+        href="style.css?v=22" />
 </head>
 
 <body>
@@ -34,8 +34,13 @@
 
         <!-- Header -->
         <div class="header">
+
             <h1>🌧 RainGuard AI</h1>
-            <p>منصة إنذار المطر المحلي الذكية</p>
+
+            <p>
+                منصة إنذار المطر المحلي الذكية
+            </p>
+
         </div>
 
         <!-- Search -->
@@ -58,18 +63,80 @@
 
             </div>
 
+            <!-- AI Voice Assistant -->
+            <div
+                class="card"
+                style="
+                    margin-top:16px;
+                    background:#020617;
+                    border:1px solid #334155;
+                ">
+
+                <h3>🎤 AI Weather Voice Assistant</h3>
+
+                <p style="
+                    color:#94a3b8;
+                    line-height:1.8;
+                ">
+                    اضغط الميكروفون وتحدث باسم المدينة.
+                </p>
+
+                <div class="control-grid">
+
+                    <button
+                        onclick="startVoiceAssistant()"
+                        style="
+                            background:linear-gradient(135deg,#dc2626,#7f1d1d);
+                        ">
+
+                        🎤 تشغيل المساعد الصوتي
+
+                    </button>
+
+                    <button
+                        onclick="speakWeatherSummary()"
+                        style="
+                            background:linear-gradient(135deg,#0284c7,#0f172a);
+                        ">
+
+                        🔊 قراءة النتيجة
+
+                    </button>
+
+                </div>
+
+                <div
+                    id="voiceStatus"
+                    style="
+                        margin-top:14px;
+                        padding:12px;
+                        border-radius:14px;
+                        background:#0f172a;
+                        border:1px solid #334155;
+                        color:#cbd5e1;
+                        line-height:1.8;
+                    ">
+
+                    المساعد الصوتي جاهز.
+
+                </div>
+
+            </div>
+
         </div>
 
-        <!-- Main Card -->
+        <!-- Main Weather -->
         <div class="card">
 
-            <h2 id="cityName">جاهز للفحص</h2>
+            <h2 id="cityName">
+                جاهز للفحص
+            </h2>
 
             <div id="statusText">
                 اختر مدينة أو استخدم موقعك
             </div>
 
-            <!-- Risk Bar -->
+            <!-- Risk -->
             <div
                 id="riskBox"
                 style="
@@ -131,7 +198,7 @@
 
             </div>
 
-            <!-- Messages -->
+            <!-- Action Message -->
             <div
                 id="actionMessage"
                 style="
@@ -145,7 +212,7 @@
                 ">
             </div>
 
-            <!-- Control Panel -->
+            <!-- Controls -->
             <div
                 class="card"
                 style="
@@ -186,10 +253,10 @@
 
             </div>
 
-            <!-- Analysis -->
+            <!-- Weather Analysis -->
             <div id="adviceText"></div>
 
-            <!-- Refresh Status -->
+            <!-- Refresh -->
             <div
                 id="refreshStatus"
                 style="
@@ -206,7 +273,10 @@
 
             <h3>آخر التوقعات</h3>
 
-            <p style="color:#94a3b8; line-height:1.8;">
+            <p style="
+                color:#94a3b8;
+                line-height:1.8;
+            ">
                 يتم حفظ آخر المدن التي تم فحصها داخل جهازك.
             </p>
 
@@ -229,11 +299,14 @@
         </div>
 
         <!-- Accuracy -->
-        <div class="card" id="accuracyCard">
+        <div class="card">
 
             <h3>تقييم دقة التوقع</h3>
 
-            <p style="color:#94a3b8; line-height:1.8;">
+            <p style="
+                color:#94a3b8;
+                line-height:1.8;
+            ">
                 بعد مرور وقت كافٍ، قيّم هل كان توقع المطر صحيحًا في موقعك.
             </p>
 
@@ -281,17 +354,125 @@
     <!-- Leaflet -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <!-- كسر كاش app.js -->
-    <script src="app.js?v=19"></script>
+    <!-- App -->
+    <script src="app.js?v=22"></script>
+
+    <!-- Voice Assistant -->
+    <script>
+
+        let recognition;
+
+        function startVoiceAssistant() {
+
+            const voiceStatus =
+                document.getElementById("voiceStatus");
+
+            const SpeechRecognition =
+                window.SpeechRecognition ||
+                window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+
+                voiceStatus.innerText =
+                    "المتصفح لا يدعم المساعد الصوتي.";
+
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+
+            recognition.lang = "ar-SA";
+
+            recognition.interimResults = false;
+
+            recognition.maxAlternatives = 1;
+
+            voiceStatus.innerText =
+                "🎤 جاري الاستماع...";
+
+            recognition.start();
+
+            recognition.onresult = function (event) {
+
+                const transcript =
+                    event.results[0][0].transcript;
+
+                document.getElementById("cityInput").value =
+                    transcript;
+
+                voiceStatus.innerText =
+                    `تم التعرف على: ${transcript}`;
+
+                detectRain();
+            };
+
+            recognition.onerror = function () {
+
+                voiceStatus.innerText =
+                    "حدث خطأ أثناء التعرف على الصوت.";
+            };
+
+            recognition.onend = function () {
+
+                setTimeout(() => {
+
+                    voiceStatus.innerText =
+                        "المساعد الصوتي جاهز.";
+
+                }, 4000);
+            };
+        }
+
+        function speakWeatherSummary() {
+
+            const city =
+                document.getElementById("cityName")?.innerText ||
+                "المدينة";
+
+            const status =
+                document.getElementById("statusText")?.innerText ||
+                "";
+
+            const risk =
+                document.getElementById("riskValue")?.innerText ||
+                "";
+
+            const text =
+                `حالة المطر في ${city}.
+                ${status}.
+                مؤشر الخطر ${risk}`;
+
+            const speech =
+                new SpeechSynthesisUtterance(text);
+
+            speech.lang = "ar-SA";
+            speech.rate = 1;
+            speech.pitch = 1;
+
+            window.speechSynthesis.speak(speech);
+        }
+
+    </script>
 
     <!-- Service Worker -->
     <script>
         if ("serviceWorker" in navigator) {
+
             window.addEventListener("load", () => {
+
                 navigator.serviceWorker
-                    .register("/service-worker.js?v=20")
-                    .then(() => console.log("Service Worker Registered"))
-                    .catch((error) => console.log("Service Worker Error:", error));
+                    .register("/service-worker.js?v=22")
+
+                    .then(() =>
+                        console.log("Service Worker Registered")
+                    )
+
+                    .catch((error) =>
+                        console.log(
+                            "Service Worker Error:",
+                            error
+                        )
+                    );
             });
         }
     </script>
