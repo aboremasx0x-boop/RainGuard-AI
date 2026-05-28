@@ -1859,8 +1859,40 @@ async function checkRain(
 
         updateRefreshStatus("تم تحديث البيانات");
 
-    } catch (error) {
+        } catch (error) {
         console.error(error);
+
+        const saved = getLastSuccessfulWeather();
+
+        if (saved && saved.data) {
+            const data = saved.data;
+            const current = data.current || {};
+            const best = data.best_hour || current;
+            const score = Number(best.rain_score) || 0;
+
+            statusText.className =
+                score >= 80 ? "rain-high" : score >= 60 ? "rain-medium" : "rain-low";
+
+            statusText.innerText =
+                `وضع الطوارئ - آخر بيانات محفوظة - ${score}%`;
+
+            updateRiskBar(score);
+            updateLightningStormMode(score);
+
+            adviceText.innerHTML = `
+                ${buildOfflineEmergencyHTML(saved)}
+                ${buildForecastHTML(data.next_hours)}
+                ${buildDailyForecastHTML(data.daily_forecast)}
+            `;
+
+            showActionMessage(
+                "تعذر الاتصال، تم تشغيل وضع الطوارئ وعرض آخر بيانات محفوظة",
+                "warning"
+            );
+
+            updateRefreshStatus("Offline Emergency Mode");
+            return;
+        }
 
         statusText.className = "rain-high";
         statusText.innerText = "تعذر الاتصال";
@@ -1874,20 +1906,14 @@ async function checkRain(
                 margin-top:15px;
                 line-height:1.8;
             ">
-                تعذر جلب البيانات مؤقتًا.<br>
-                قد يكون مصدر الطقس مشغولًا أو الخادم يستيقظ الآن.<br><br>
+                تعذر جلب البيانات ولا توجد بيانات محفوظة للطوارئ.<br>
                 حاول مرة أخرى بعد دقيقة.
             </div>
         `;
 
-        showActionMessage(
-            "فشل جلب البيانات",
-            "danger"
-        );
-
+        showActionMessage("فشل جلب البيانات", "danger");
         updateRefreshStatus("فشل التحديث");
     }
-}
 
 // ===============================
 // Location
