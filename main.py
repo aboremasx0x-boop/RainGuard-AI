@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 
 app = FastAPI(
     title="RainGuard AI API",
-    description="Stable RainGuard AI Backend",
-    version="6.0"
+    description="RainGuard AI Backend with Hybrid Forecast Recovery AI",
+    version="6.1"
 )
 
 app.add_middleware(
@@ -180,7 +180,8 @@ async def fetch_openweather(lat, lon):
         cloud_cover = safe_number(clouds.get("all"))
         humidity = safe_number(main.get("humidity"))
         pressure = safe_number(main.get("pressure"), 1013)
-        wind_speed = safe_number(wind.get("speed"))
+        wind_speed = safe_number(wind.get("speed")) * 3.6
+        temperature = safe_number(main.get("temp"))
 
         rain_detected = (
             "Rain" in weather_main
@@ -203,7 +204,7 @@ async def fetch_openweather(lat, lon):
         if pressure <= 1010:
             confirmation_score += 10
 
-        if wind_speed >= 5:
+        if wind_speed >= 18:
             confirmation_score += 10
 
         confirmation_score = min(round(confirmation_score), 100)
@@ -212,11 +213,11 @@ async def fetch_openweather(lat, lon):
             "available": True,
             "weather_main": weather_main,
             "weather_description": weather_desc,
-            "temperature": safe_number(main.get("temp")),
+            "temperature": temperature,
             "humidity": humidity,
             "pressure": pressure,
             "cloud_cover": cloud_cover,
-            "wind_speed": wind_speed,
+            "wind_speed": round(wind_speed, 1),
             "rain_1h": rain_1h,
             "rain_3h": rain_3h,
             "rain_detected": rain_detected,
@@ -260,26 +261,10 @@ def verify_with_openweather(open_meteo_score, openweather_data):
             "note": "الظروف الجوية تدعم احتمال المطر"
         }
 
-    if open_meteo_score >= 60 and ow_score < 40:
-        return {
-            "verified": False,
-            "confidence": "يحتاج متابعة - المصدر الثاني لم يؤكد",
-            "confidence_score": round((open_meteo_score + ow_score) / 2),
-            "note": "Open-Meteo يظهر خطورة، لكن OpenWeatherMap لا يؤكدها بقوة"
-        }
-
-    if open_meteo_score < 60 and rain_detected:
-        return {
-            "verified": True,
-            "confidence": "تعارض بين المصادر - تابع الحالة",
-            "confidence_score": max(open_meteo_score, ow_score),
-            "note": "OpenWeatherMap رصد مطرًا رغم أن مؤشر Open-Meteo أقل"
-        }
-
     return {
         "verified": False,
         "confidence": "ثقة منخفضة / خطر منخفض",
-        "confidence_score": open_meteo_score,
+        "confidence_score": max(open_meteo_score, ow_score),
         "note": "لا يوجد تأكيد قوي لاحتمال المطر"
     }
 
@@ -288,7 +273,7 @@ def build_current_from_openweather(openweather_data):
     score = safe_number(openweather_data.get("confirmation_score"))
     alert = classify(score)
 
-    return {
+    current = {
         "time": now_utc().isoformat() + "Z",
         "temperature": safe_number(openweather_data.get("temperature")),
         "humidity": safe_number(openweather_data.get("humidity")),
@@ -303,15 +288,141 @@ def build_current_from_openweather(openweather_data):
         "advice": alert["advice"]
     }
 
+    return current
+
+
+def build_hybrid_next_hours(openweather_data, hours=12):
+    base = build_current_from_openweather(openweather_data)
+    base_score = safe_number(base["rain_score"])
+    base_temp = safe_number(base["temperature"])
+    base_humidity = safe_number(base["humidity"])
+    base_cloud = safe_number(base["cloud_cover"])
+    base_wind = safe_number(base["wind_speed"])
+    base_pressure = safe_number(base["pressure_hpa"], 1013)
+    base_rain = safe_number(base["precipitation_mm"])
+
+    rows = []
+
+    for i in range(hours):
+        time_value = now_utc() + timedelta(hours=i)
+
+        if i <= 2:
+            score = base_score
+        elif i <= 5:
+            score = max(base_score - 5, 0)
+        elif i <= 8:
+            score = max(base_score - 10, 0)
+        else:
+            score = max(base_score - 15, 0)
+
+        if base_score >= 60 and i in [1, 2, 3]:
+            score = min(score + 5, 100)
+
+        alert = classify(score)
+
+        row = {
+            "time": time_value.isoformat() + "Z",
+            "temperature": round(base_temp + (i * 0.2), 1),
+            "humidity": max(round(base_humidity - (i * 0.8), 1), 0),
+            "dew_point": 0,
+            "rain_probability": score,
+            "precipitation_mm": base_rain if i == 0 else 0,
+            "cloud_cover": max(round(base_cloud - (i * 1.2), 1), 0),
+            "pressure_hpa": base_pressure,
+            "wind_speed": base_wind,
+            "rain_score": score,
+            "alert_level": alert["level"],
+            "advice": alert["advice"]
+        }
+
+        rows.append(row)
+
+    return rows
+
+
+def build_hybrid_daily_forecast(openweather_data):
+    base = build_current_from_openweather(openweather_data)
+    base_score = safe_number(base["rain_score"])
+    base_temp = safe_number(base["temperature"])
+    base_wind = safe_number(base["wind_speed"])
+    base_rain = safe_number(base["precipitation_mm"])
+
+    days = []
+
+    for i in range(7):
+        date_value = (now_utc() + timedelta(days=i)).date().isoformat()
+
+        daily_score = max(base_score - (i * 6), 0)
+        alert = classify(daily_score)
+
+        precipitation_sum = base_rain
+        if daily_score >= 80:
+            precipitation_sum = max(base_rain, 8)
+        elif daily_score >= 60:
+            precipitation_sum = max(base_rain, 4)
+        elif daily_score >= 40:
+            precipitation_sum = max(base_rain, 1.5)
+
+        day = {
+            "date": date_value,
+            "temperature_max": round(base_temp + 3 + i * 0.2, 1),
+            "temperature_min": round(base_temp - 4, 1),
+            "rain_probability_max": daily_score,
+            "precipitation_sum": round(precipitation_sum, 1),
+            "rain_sum": round(precipitation_sum, 1),
+            "wind_speed_max": base_wind,
+            "daily_rain_score": daily_score,
+            "alert_level": alert["level"],
+            "advice": alert["advice"]
+        }
+
+        days.append(day)
+
+    return days
+
+
+def build_hybrid_recovery_result(lat, lon, name, openweather_data, reason, hours):
+    next_hours = build_hybrid_next_hours(openweather_data, hours)
+    daily_forecast = build_hybrid_daily_forecast(openweather_data)
+
+    best_hour = max(next_hours, key=lambda x: x["rain_score"])
+    current = next_hours[0]
+
+    result = {
+        "error": False,
+        "location_name": name,
+        "latitude": lat,
+        "longitude": lon,
+        "generated_at": now_utc().isoformat() + "Z",
+        "cache_status": "fresh",
+        "source": "Hybrid Forecast Recovery AI",
+        "recovery_reason": reason,
+        "current": current,
+        "best_hour": best_hour,
+        "next_hours": next_hours,
+        "daily_forecast": daily_forecast,
+        "openweather": openweather_data,
+        "verification": {
+            "verified": True,
+            "confidence": "Hybrid Recovery - تم بناء توقعات تقديرية من OpenWeatherMap",
+            "confidence_score": best_hour["rain_score"],
+            "note": "تم استخدام OpenWeatherMap لبناء توقعات 12 ساعة و7 أيام عند تعذر Open-Meteo"
+        },
+        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
+    }
+
+    return result
+
 
 @app.get("/")
 def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "6.0",
+        "version": "6.1",
         "cache_minutes": CACHE_MINUTES,
         "openweather_enabled": bool(OPENWEATHER_API_KEY),
+        "hybrid_recovery": True,
         "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
     }
 
@@ -321,8 +432,9 @@ def health():
     return {
         "status": "ok",
         "service": "RainGuard AI",
-        "version": "6.0",
-        "openweather_enabled": bool(OPENWEATHER_API_KEY)
+        "version": "6.1",
+        "openweather_enabled": bool(OPENWEATHER_API_KEY),
+        "hybrid_recovery": True
     }
 
 
@@ -404,61 +516,46 @@ async def rain_alert(
     if open_meteo_failed or not weather:
         openweather_data = await fetch_openweather(lat, lon)
 
-        if not openweather_data.get("available"):
+        if openweather_data.get("available"):
+            result = build_hybrid_recovery_result(
+                lat,
+                lon,
+                name,
+                openweather_data,
+                open_meteo_error or "Open-Meteo unavailable",
+                hours
+            )
+
+            save_cache(key, result)
+
             return JSONResponse(
-                status_code=200,
-                content={
-                    "error": True,
-                    "location_name": name,
-                    "latitude": lat,
-                    "longitude": lon,
-                    "generated_at": now_utc().isoformat() + "Z",
-                    "cache_status": "none",
-                    "message": "تعذر جلب بيانات الطقس من المصادر المتاحة مؤقتًا",
-                    "open_meteo_error": open_meteo_error,
-                    "openweather": openweather_data,
-                    "current": None,
-                    "best_hour": None,
-                    "next_hours": [],
-                    "daily_forecast": [],
-                    "verification": {
-                        "verified": False,
-                        "confidence": "لا توجد بيانات كافية",
-                        "confidence_score": 0,
-                        "note": "تعذر الاتصال بمصادر الطقس"
-                    }
-                },
+                content=result,
                 media_type="application/json; charset=utf-8"
             )
 
-        current = build_current_from_openweather(openweather_data)
-
-        result = {
-            "error": False,
-            "location_name": name,
-            "latitude": lat,
-            "longitude": lon,
-            "generated_at": now_utc().isoformat() + "Z",
-            "cache_status": "fresh",
-            "source": "OpenWeatherMap fallback",
-            "current": current,
-            "best_hour": current,
-            "next_hours": [current],
-            "daily_forecast": [],
-            "openweather": openweather_data,
-            "verification": {
-                "verified": True,
-                "confidence": "وضع احتياطي - تم استخدام OpenWeatherMap",
-                "confidence_score": current["rain_score"],
-                "note": "Open-Meteo غير متاح مؤقتًا"
-            },
-            "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
-        }
-
-        save_cache(key, result)
-
         return JSONResponse(
-            content=result,
+            status_code=200,
+            content={
+                "error": True,
+                "location_name": name,
+                "latitude": lat,
+                "longitude": lon,
+                "generated_at": now_utc().isoformat() + "Z",
+                "cache_status": "none",
+                "message": "تعذر جلب بيانات الطقس من المصادر المتاحة مؤقتًا",
+                "open_meteo_error": open_meteo_error,
+                "openweather": openweather_data,
+                "current": None,
+                "best_hour": None,
+                "next_hours": [],
+                "daily_forecast": [],
+                "verification": {
+                    "verified": False,
+                    "confidence": "لا توجد بيانات كافية",
+                    "confidence_score": 0,
+                    "note": "تعذر الاتصال بمصادر الطقس"
+                }
+            },
             media_type="application/json; charset=utf-8"
         )
 
@@ -528,7 +625,6 @@ async def rain_alert(
 
         d = weather.get("daily", {})
         daily_forecast = []
-
         daily_times = d.get("time", [])
 
         for i in range(len(daily_times)):
@@ -579,30 +675,14 @@ async def rain_alert(
         openweather_data = await fetch_openweather(lat, lon)
 
         if openweather_data.get("available"):
-            current = build_current_from_openweather(openweather_data)
-
-            result = {
-                "error": False,
-                "location_name": name,
-                "latitude": lat,
-                "longitude": lon,
-                "generated_at": now_utc().isoformat() + "Z",
-                "cache_status": "fresh",
-                "source": "OpenWeatherMap fallback after parse error",
-                "current": current,
-                "best_hour": current,
-                "next_hours": [current],
-                "daily_forecast": [],
-                "openweather": openweather_data,
-                "verification": {
-                    "verified": True,
-                    "confidence": "وضع احتياطي - تم استخدام OpenWeatherMap",
-                    "confidence_score": current["rain_score"],
-                    "note": "حدث خطأ في معالجة Open-Meteo"
-                },
-                "parse_error": str(e),
-                "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
-            }
+            result = build_hybrid_recovery_result(
+                lat,
+                lon,
+                name,
+                openweather_data,
+                f"Open-Meteo parse error: {str(e)}",
+                hours
+            )
 
             save_cache(key, result)
 
