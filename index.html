@@ -224,6 +224,10 @@
                         مشاركة واتساب
                     </button>
 
+                    <button onclick="readOfflineEmergencyWeather()">
+                        عرض آخر حالة محفوظة
+                    </button>
+
                     <button onclick="clearPredictionHistory()">
                         مسح السجل
                     </button>
@@ -395,7 +399,7 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=29"></script>
 
     <script>
         let recognition;
@@ -480,7 +484,7 @@
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
                 navigator.serviceWorker
-                    .register("/service-worker.js?v=27")
+                    .register("/service-worker.js?v=29")
                     .then(() =>
                         console.log("Service Worker Registered")
                     )
