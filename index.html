@@ -18,14 +18,15 @@
         rel="manifest"
         href="manifest.json" />
 
+    <!-- Leaflet -->
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
-    <!-- كسر كاش CSS -->
+    <!-- CSS -->
     <link
         rel="stylesheet"
-        href="style.css?v=22" />
+        href="style.css?v=23" />
 </head>
 
 <body>
@@ -63,7 +64,7 @@
 
             </div>
 
-            <!-- AI Voice Assistant -->
+            <!-- Voice Assistant -->
             <div
                 class="card"
                 style="
@@ -125,7 +126,7 @@
 
         </div>
 
-        <!-- Main Weather -->
+        <!-- Main Card -->
         <div class="card">
 
             <h2 id="cityName">
@@ -212,7 +213,7 @@
                 ">
             </div>
 
-            <!-- Controls -->
+            <!-- Control Panel -->
             <div
                 class="card"
                 style="
@@ -231,6 +232,11 @@
 
                     <button onclick="toggleRadar()">
                         تشغيل / إيقاف الرادار
+                    </button>
+
+                    <!-- Heatmap Button -->
+                    <button onclick="toggleHeatmap()">
+                        تشغيل / إيقاف الخريطة الحرارية
                     </button>
 
                     <button onclick="startAutoRefresh()">
@@ -256,7 +262,7 @@
             <!-- Weather Analysis -->
             <div id="adviceText"></div>
 
-            <!-- Refresh -->
+            <!-- Refresh Status -->
             <div
                 id="refreshStatus"
                 style="
@@ -343,7 +349,59 @@
         <!-- Radar -->
         <div class="card">
 
-            <h3>رادار المطر</h3>
+            <h3>رادار المطر + AI Heatmap</h3>
+
+            <!-- Heatmap Legend -->
+            <div style="
+                display:flex;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:14px;
+                color:#cbd5e1;
+                font-size:14px;
+            ">
+
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="
+                        width:16px;
+                        height:16px;
+                        border-radius:50%;
+                        background:#22c55e;
+                    "></div>
+                    منخفض
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="
+                        width:16px;
+                        height:16px;
+                        border-radius:50%;
+                        background:#38bdf8;
+                    "></div>
+                    متوسط
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="
+                        width:16px;
+                        height:16px;
+                        border-radius:50%;
+                        background:#f59e0b;
+                    "></div>
+                    مرتفع
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="
+                        width:16px;
+                        height:16px;
+                        border-radius:50%;
+                        background:#ef4444;
+                    "></div>
+                    خطر شديد
+                </div>
+
+            </div>
 
             <div id="map"></div>
 
@@ -355,7 +413,7 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     <!-- App -->
-    <script src="app.js?v=22"></script>
+    <script src="app.js?v=23"></script>
 
     <!-- Voice Assistant -->
     <script>
@@ -382,9 +440,7 @@
             recognition = new SpeechRecognition();
 
             recognition.lang = "ar-SA";
-
             recognition.interimResults = false;
-
             recognition.maxAlternatives = 1;
 
             voiceStatus.innerText =
@@ -461,7 +517,7 @@
             window.addEventListener("load", () => {
 
                 navigator.serviceWorker
-                    .register("/service-worker.js?v=22")
+                    .register("/service-worker.js?v=23")
 
                     .then(() =>
                         console.log("Service Worker Registered")
