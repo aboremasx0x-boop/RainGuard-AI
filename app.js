@@ -1761,6 +1761,7 @@ async function checkRain(
         }
 
         const data = await response.json();
+        saveLastSuccessfulWeather(data, lat, lon, name);
 
         if (data.error) {
             throw new Error(data.message || "فشل جلب البيانات");
