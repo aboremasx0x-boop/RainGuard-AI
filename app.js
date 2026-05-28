@@ -1914,7 +1914,7 @@ async function checkRain(
         showActionMessage("فشل جلب البيانات", "danger");
         updateRefreshStatus("فشل التحديث");
     }
-
+}
 // ===============================
 // Location
 // ===============================
