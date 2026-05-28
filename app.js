@@ -57,6 +57,20 @@ const monitoredCities = [
 ];
 
 // ===============================
+// مدن ذات قابلية أعلى للسيول
+// ===============================
+const floodSensitiveCities = [
+    "مكة",
+    "الطائف",
+    "أبها",
+    "الباحة",
+    "جازان",
+    "نجران",
+    "تبوك",
+    "المدينة"
+];
+
+// ===============================
 // رسالة واضحة داخل الواجهة
 // ===============================
 function showActionMessage(message, type = "success") {
@@ -475,6 +489,114 @@ function buildRainArrivalTrackerHTML(data) {
 }
 
 // ===============================
+// AI Flood Risk Index
+// ===============================
+function buildFloodRiskHTML(data, locationName) {
+    const current = data.current || {};
+    const best = data.best_hour || {};
+    const daily = Array.isArray(data.daily_forecast) ? data.daily_forecast[0] || {} : {};
+
+    const rainScore = Number(best.rain_score) || 0;
+    const rainProbability = Number(current.rain_probability) || 0;
+    const humidity = Number(current.humidity) || 0;
+    const cloudCover = Number(current.cloud_cover) || 0;
+    const windSpeed = Number(current.wind_speed) || 0;
+    const precipitationNow = Number(current.precipitation_mm) || 0;
+    const dailyRain = Number(daily.precipitation_sum) || 0;
+
+    const cityName = locationName || data.location_name || lastName || "";
+
+    let floodScore = 0;
+
+    floodScore += rainScore * 0.30;
+    floodScore += rainProbability * 0.18;
+    floodScore += humidity * 0.12;
+    floodScore += cloudCover * 0.10;
+    floodScore += Math.min(dailyRain * 4, 18);
+    floodScore += Math.min(precipitationNow * 15, 12);
+
+    if (windSpeed >= 25) floodScore += 5;
+    if (windSpeed >= 40) floodScore += 8;
+
+    const isSensitiveCity = floodSensitiveCities.some(city =>
+        cityName.includes(city)
+    );
+
+    if (isSensitiveCity) {
+        floodScore += 10;
+    }
+
+    floodScore = Math.min(Math.round(floodScore), 100);
+
+    let color = "#22c55e";
+    let icon = "🟢";
+    let title = "خطر سيول منخفض";
+    let recommendation = "لا توجد مؤشرات قوية على تجمعات مياه أو سيول.";
+    let action = "المتابعة الدورية كافية.";
+
+    if (floodScore >= 80) {
+        color = "#ef4444";
+        icon = "🔴";
+        title = "خطر سيول مرتفع";
+        recommendation = "مؤشرات قوية لاحتمال تجمعات مياه أو جريان سيول.";
+        action = "تجنب الأودية والأنفاق والمناطق المنخفضة، وتابع التنبيهات الرسمية.";
+    } else if (floodScore >= 60) {
+        color = "#f59e0b";
+        icon = "🟠";
+        title = "خطر سيول متوسط";
+        recommendation = "توجد مؤشرات متوسطة لاحتمال تجمعات مياه.";
+        action = "راقب الحالة وتجنب مجاري السيول عند هطول المطر.";
+    } else if (floodScore >= 40) {
+        color = "#38bdf8";
+        icon = "🔵";
+        title = "احتمال تجمعات مياه محدود";
+        recommendation = "المؤشرات موجودة لكنها ليست قوية.";
+        action = "تابع التحديثات خاصة في المناطق المنخفضة.";
+    }
+
+    return `
+        <div class="forecast-section">
+            <h3>AI Flood Risk Index</h3>
+
+            <div style="
+                margin-top:12px;
+                padding:16px;
+                border-radius:16px;
+                background:#020617;
+                border:1px solid #334155;
+                color:#cbd5e1;
+                line-height:1.9;
+            ">
+                <div style="
+                    font-size:24px;
+                    font-weight:bold;
+                    color:${color};
+                    margin-bottom:10px;
+                ">
+                    ${icon} ${title} - ${floodScore}%
+                </div>
+
+                <div>
+                    ${recommendation}
+                </div>
+
+                <div style="margin-top:8px;">
+                    الإجراء المقترح: ${action}
+                </div>
+
+                <div style="
+                    margin-top:10px;
+                    color:#94a3b8;
+                    font-size:14px;
+                ">
+                    يعتمد المؤشر على: شدة المطر، احتمال المطر، الرطوبة، السحب، الرياح، كمية المطر اليومية، وحساسية المدينة للسيول.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ===============================
 // AI Rain Heatmap System
 // ===============================
 async function updateRainHeatmap() {
@@ -602,9 +724,6 @@ function getCityRiskLabel(score) {
     return "منخفض";
 }
 
-// ===============================
-// عرض مراقبة المدن
-// ===============================
 function renderMultiCityMonitor(results) {
     const box = document.getElementById("multiCityMonitorBox");
 
@@ -713,9 +832,6 @@ function renderMultiCityMonitor(results) {
     }).join("");
 }
 
-// ===============================
-// تحديث مراقبة المدن
-// ===============================
 async function updateMultiCityMonitor() {
     const box = document.getElementById("multiCityMonitorBox");
     const status = document.getElementById("multiCityStatus");
@@ -790,9 +906,6 @@ async function updateMultiCityMonitor() {
     );
 }
 
-// ===============================
-// تشغيل / إيقاف تحديث مراقبة المدن
-// ===============================
 function toggleMultiCityAutoRefresh() {
     const status = document.getElementById("multiCityStatus");
 
@@ -1467,6 +1580,7 @@ async function checkRain(
         const confidenceHTML = buildConfidenceHTML(data);
         const radarFusionHTML = buildRadarFusionHTML(data);
         const arrivalTrackerHTML = buildRainArrivalTrackerHTML(data);
+        const floodRiskHTML = buildFloodRiskHTML(data, name);
 
         let className = "rain-low";
 
@@ -1500,6 +1614,7 @@ async function checkRain(
             ${confidenceHTML}
             ${radarFusionHTML}
             ${arrivalTrackerHTML}
+            ${floodRiskHTML}
 
             <div class="info-grid">
                 <div class="info-box"><span>درجة الحرارة</span><strong>${current.temperature}°C</strong></div>
