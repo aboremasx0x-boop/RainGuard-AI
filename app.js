@@ -52,13 +52,8 @@ function showActionMessage(message, type = "success") {
 function getAdaptiveRefreshMinutes(score) {
     score = Number(score) || 0;
 
-    if (score >= 80) {
-        return 5;
-    }
-
-    if (score >= 60) {
-        return 10;
-    }
+    if (score >= 80) return 5;
+    if (score >= 60) return 10;
 
     return 30;
 }
@@ -192,6 +187,7 @@ function buildConfidenceHTML(data) {
     `;
 }
 
+
 // ===============================
 // Smart Radar Fusion AI
 // ===============================
@@ -279,6 +275,112 @@ function buildRadarFusionHTML(data) {
 
                 <div style="margin-top:10px; color:#94a3b8; font-size:14px;">
                     يعتمد هذا المؤشر على دمج: مؤشر المطر، السحب، الرطوبة، الضغط، الرياح، وثقة المصدر الثاني.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ===============================
+// Smart Rain Arrival Tracker AI
+// ===============================
+function buildRainArrivalTrackerHTML(data) {
+    const current = data.current || {};
+    const nextHours = data.next_hours || [];
+    const best = data.best_hour || {};
+
+    const currentScore = Number(current.rain_score) || 0;
+    const bestScore = Number(best.rain_score) || 0;
+
+    let nextHigherIndex = -1;
+    let peakIndex = -1;
+    let peakScore = 0;
+
+    nextHours.forEach((hour, index) => {
+        const score = Number(hour.rain_score) || 0;
+
+        if (score > peakScore) {
+            peakScore = score;
+            peakIndex = index;
+        }
+
+        if (nextHigherIndex === -1 && score >= Math.max(40, currentScore + 10)) {
+            nextHigherIndex = index;
+        }
+    });
+
+    let direction = "مستقرة";
+    let icon = "🟢";
+    let color = "#22c55e";
+    let arrivalText = "لا يوجد اقتراب واضح للمطر حاليًا";
+    let recommendation = "تابع التحديثات الدورية فقط.";
+
+    if (peakScore >= 80) {
+        direction = "اقتراب قوي";
+        icon = "🔴";
+        color = "#ef4444";
+        recommendation = "يفضل تجنب الخروج ومتابعة التنبيهات الرسمية.";
+    } else if (peakScore >= 60) {
+        direction = "اقتراب محتمل";
+        icon = "🟡";
+        color = "#f59e0b";
+        recommendation = "راقب الحالة خلال الساعات القادمة.";
+    } else if (peakScore >= 40) {
+        direction = "مؤشرات مبكرة";
+        icon = "🔵";
+        color = "#38bdf8";
+        recommendation = "احتمال ضعيف إلى متوسط، يحتاج متابعة.";
+    }
+
+    if (nextHigherIndex > 0) {
+        const hoursAway = nextHigherIndex;
+        arrivalText = `المؤشرات قد ترتفع خلال ${hoursAway} ساعة تقريبًا`;
+    } else if (peakIndex > 0) {
+        arrivalText = `أعلى فرصة مطر متوقعة بعد ${peakIndex} ساعة تقريبًا`;
+    } else if (peakScore >= 40) {
+        arrivalText = "الفرصة الحالية قائمة وقد تتغير سريعًا";
+    }
+
+    const peakTime = best.time
+        ? best.time.substring(11, 16)
+        : "غير متوفر";
+
+    return `
+        <div class="forecast-section">
+            <h3>Smart Rain Arrival Tracker AI</h3>
+
+            <div style="
+                margin-top:12px;
+                padding:16px;
+                border-radius:16px;
+                background:#020617;
+                border:1px solid #334155;
+                color:#cbd5e1;
+                line-height:1.9;
+            ">
+                <div style="
+                    font-size:24px;
+                    font-weight:bold;
+                    color:${color};
+                    margin-bottom:10px;
+                ">
+                    ${icon} ${direction}
+                </div>
+
+                <div>
+                    ${arrivalText}
+                </div>
+
+                <div>
+                    أعلى مؤشر متوقع: ${peakScore}% عند الساعة ${peakTime}
+                </div>
+
+                <div style="
+                    margin-top:10px;
+                    color:#94a3b8;
+                    font-size:14px;
+                ">
+                    التوصية: ${recommendation}
                 </div>
             </div>
         </div>
@@ -447,7 +549,6 @@ function startAutoRefresh() {
     }
 
     adaptiveRefreshMinutes = getAdaptiveRefreshMinutes(lastRainScore);
-
     autoRefreshEnabled = true;
 
     autoRefreshInterval = setInterval(() => {
@@ -904,6 +1005,7 @@ async function checkRain(
         const dailyForecastHTML = buildDailyForecastHTML(data.daily_forecast);
         const confidenceHTML = buildConfidenceHTML(data);
         const radarFusionHTML = buildRadarFusionHTML(data);
+        const arrivalTrackerHTML = buildRainArrivalTrackerHTML(data);
 
         let className = "rain-low";
 
@@ -935,6 +1037,7 @@ async function checkRain(
 
             ${confidenceHTML}
             ${radarFusionHTML}
+            ${arrivalTrackerHTML}
 
             <div class="info-grid">
                 <div class="info-box">
