@@ -5,7 +5,7 @@ import httpx
 import os
 from datetime import datetime, timedelta
 
-app = FastAPI(title="RainGuard AI API", version="6.2")
+app = FastAPI(title="RainGuard AI API", version="6.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,8 +94,6 @@ def classify(score):
 
 
 def calculate_rain_score(row):
-    score = 0
-
     humidity = safe_number(row.get("humidity"))
     rain_probability = safe_number(row.get("rain_probability"))
     cloud_cover = safe_number(row.get("cloud_cover"))
@@ -104,6 +102,7 @@ def calculate_rain_score(row):
     pressure = safe_number(row.get("pressure_hpa"), 1013)
     wind_speed = safe_number(row.get("wind_speed"))
 
+    score = 0
     score += rain_probability * 0.45
     score += humidity * 0.13
     score += cloud_cover * 0.15
@@ -336,35 +335,61 @@ def verify_with_openweather(open_meteo_score, openweather_data):
     if not openweather_data or not openweather_data.get("available"):
         return {
             "verified": False,
-            "confidence": "اعتماد على Open-Meteo فقط",
+            "confidence": "تعذر التحقق من OpenWeatherMap",
             "confidence_score": open_meteo_score,
-            "note": "تعذر التحقق من OpenWeatherMap"
+            "note": openweather_data.get("reason", "OpenWeatherMap غير متاح") if openweather_data else "OpenWeatherMap غير متاح"
         }
 
     ow_score = safe_number(openweather_data.get("confirmation_score"))
     rain_detected = openweather_data.get("rain_detected", False)
 
+    combined = round((open_meteo_score * 0.60) + (ow_score * 0.40))
+
     if open_meteo_score >= 60 and rain_detected:
         return {
             "verified": True,
             "confidence": "ثقة عالية - تم التأكيد من مصدرين",
-            "confidence_score": min(100, round((open_meteo_score + ow_score) / 2 + 10)),
+            "confidence_score": min(100, combined + 10),
             "note": "إشارة المطر مؤكدة من OpenWeatherMap"
         }
 
-    if open_meteo_score >= 60 and ow_score >= 50:
+    if open_meteo_score >= 40 and ow_score >= 40:
         return {
             "verified": True,
             "confidence": "ثقة متوسطة - المصدر الثاني يدعم الاحتمال",
-            "confidence_score": round((open_meteo_score + ow_score) / 2),
+            "confidence_score": combined,
             "note": "الظروف الجوية تدعم احتمال المطر"
+        }
+
+    if open_meteo_score < 40 and ow_score < 40:
+        return {
+            "verified": True,
+            "confidence": "ثقة منخفضة متوافقة - كلا المصدرين يشيران إلى خطر منخفض",
+            "confidence_score": combined,
+            "note": "Open-Meteo و OpenWeatherMap متوافقان على انخفاض فرصة المطر"
+        }
+
+    if open_meteo_score >= 40 and ow_score < 30:
+        return {
+            "verified": False,
+            "confidence": "تباين بين المصادر - يحتاج متابعة",
+            "confidence_score": combined,
+            "note": "Open-Meteo أعلى من OpenWeatherMap"
+        }
+
+    if open_meteo_score < 40 and ow_score >= 40:
+        return {
+            "verified": True,
+            "confidence": "OpenWeatherMap يرصد مؤشرات أعلى من Open-Meteo",
+            "confidence_score": max(open_meteo_score, ow_score),
+            "note": "يوجد اختلاف بين المصدرين، يفضل متابعة الحالة"
         }
 
     return {
         "verified": False,
-        "confidence": "ثقة منخفضة / خطر منخفض",
-        "confidence_score": max(open_meteo_score, ow_score),
-        "note": "لا يوجد تأكيد قوي لاحتمال المطر"
+        "confidence": "ثقة محدودة",
+        "confidence_score": combined,
+        "note": "لا يوجد توافق قوي بين المصادر"
     }
 
 
@@ -505,7 +530,7 @@ def build_hybrid_recovery_result(lat, lon, name, openweather_data, reason, hours
     }
 
 
-def build_open_meteo_result(lat, lon, name, weather, hours):
+async def build_open_meteo_result(lat, lon, name, weather, hours):
     h = weather.get("hourly", {})
     all_times = h.get("time", [])
 
@@ -554,16 +579,13 @@ def build_open_meteo_result(lat, lon, name, weather, hours):
 
     best_hour = max(next_hours, key=lambda x: x["rain_score"])
 
-    openweather_data = None
-    verification = {
-        "verified": False,
-        "confidence": "اعتماد على Open-Meteo فقط",
-        "confidence_score": best_hour["rain_score"],
-        "note": "لا توجد حاجة للتحقق من مصدر ثانٍ حاليًا"
-    }
+    # ✅ التعديل المهم: OpenWeatherMap يعمل دائمًا
+    openweather_data = await fetch_openweather(lat, lon)
 
-    if best_hour["rain_score"] >= 40:
-        openweather_data = None
+    verification = verify_with_openweather(
+        best_hour["rain_score"],
+        openweather_data
+    )
 
     d = weather.get("daily", {})
     daily_forecast = []
@@ -624,7 +646,7 @@ def get_load_balancer_status():
         "open_meteo_failures": SOURCE_STATE.get("open_meteo_failures", 0),
         "openweather_enabled": bool(OPENWEATHER_API_KEY),
         "openweather_failures": SOURCE_STATE.get("openweather_failures", 0),
-        "strategy": "Open-Meteo primary, OpenWeatherMap recovery, cooldown after 429"
+        "strategy": "Open-Meteo primary, OpenWeatherMap always verification, recovery after 429"
     }
 
 
@@ -633,10 +655,11 @@ def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "6.2",
+        "version": "6.3",
         "cache_minutes": CACHE_MINUTES,
         "smart_api_load_balancer": True,
         "hybrid_recovery": True,
+        "openweather_always_verify": True,
         "load_balancer": get_load_balancer_status(),
         "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
     }
@@ -647,7 +670,8 @@ def health():
     return {
         "status": "ok",
         "service": "RainGuard AI",
-        "version": "6.2",
+        "version": "6.3",
+        "openweather_always_verify": True,
         "load_balancer": get_load_balancer_status()
     }
 
@@ -673,7 +697,7 @@ async def rain_alert(
 
     if open_meteo_result["ok"]:
         try:
-            result = build_open_meteo_result(
+            result = await build_open_meteo_result(
                 lat,
                 lon,
                 name,
