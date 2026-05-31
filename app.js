@@ -649,15 +649,18 @@ async function runSmartMultiCityBackgroundCheck() {
     }
 
     if (results.length === 0) {
-        updateBackgroundMonitorStatus(
-            "تعذر فحص المدن الذكية"
-        );
+        updateBackgroundMonitorStatus("تعذر فحص المدن الذكية");
+        renderSmartMultiCityTopPanel([]);
         return;
     }
 
     results.sort((a, b) => b.score - a.score);
 
-    const topCity = results[0];
+    const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
+    const topCity = topCities[0];
+
+    renderSmartMultiCityTopPanel(results);
+    saveSmartMultiCityHistory(topCities);
 
     updateBackgroundMonitorStatus(
         `أعلى مدينة: ${topCity.name} ${topCity.score}%`
