@@ -5,6 +5,11 @@ const OFFLINE_CACHE_KEY = "rainguard_last_success_data";
 const NOTIFICATION_ENABLED_KEY = "rainguard_notifications_enabled";
 const NOTIFICATION_LAST_ALERT_KEY = "rainguard_last_notification_time";
 const NOTIFICATION_COOLDOWN_MINUTES = 30;
+const BACKGROUND_MONITOR_KEY = "rainguard_background_monitor_enabled";
+const BACKGROUND_MONITOR_INTERVAL_MINUTES = 10;
+
+let backgroundMonitorInterval = null;
+let backgroundMonitorEnabled = false;
 
 let map;
 let marker;
