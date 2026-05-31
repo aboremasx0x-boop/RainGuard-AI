@@ -316,6 +316,23 @@
     ">
     لم يتم تشغيل التوقع المبكر بعد.
 </div>
+<div class="card" style="margin-top:18px;">
+    <h3>Smart Flood Prediction Engine V6</h3>
+
+    <p style="color:#94a3b8;line-height:1.8;">
+        يحسب خطر السيول بناءً على مؤشر المطر الحالي، توقع 24–72 ساعة، وحساسية المدينة للسيول.
+    </p>
+
+    <div
+        id="floodPredictionBox"
+        style="
+            margin-top:12px;
+            color:#cbd5e1;
+            line-height:1.8;
+        ">
+        لم يتم تشغيل مؤشر السيول بعد.
+    </div>
+</div>                
 
     <button onclick="runSmartMultiCityBackgroundCheck()">
         تحديث مراقبة المدن الآن
@@ -470,7 +487,7 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script src="app.js?v=42"></script>
+    <script src="app.js?v=43"></script>
 
     <script>
         let recognition;
