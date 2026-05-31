@@ -998,27 +998,7 @@ function saveEarlyMultiCityAlert(cityName, score) {
     );
 }
 
-function sendEarlyMultiCityAlert(city) {
 
-    console.log("STEP 1");
-
-    if (!city) return;
-
-    const nowScore = Number(city.score) || 0;
-    const score24 = Number(city.forecast24Score) || 0;
-    const score72 = Number(city.forecast72Score) || 0;
-
-    const earlyScore = Math.max(score24, score72);
-
-    console.log("STEP 2", earlyScore);
-
-    sendRainNotification(
-        "اختبار V5",
-        "وصلنا داخل الدالة"
-    );
-
-    console.log("STEP 3");
-}
 
 function renderSmartMultiCityForecastPanel(results) {
     const box = document.getElementById("smartMultiCityForecastBox");
