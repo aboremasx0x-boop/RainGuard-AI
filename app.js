@@ -611,6 +611,10 @@ function sendEarlyMultiCityAlert(city) {
     const score72 = Number(city.forecast72Score) || 0;
 
     const earlyScore = Math.max(score24, score72);
+    const peakTime =
+    city.peakHour?.time
+        ? city.peakHour.time.replace("T", " ")
+        : "غير محدد";
 
     if (earlyScore < 40) return;
     if (nowScore >= earlyScore) return;
@@ -635,9 +639,10 @@ function sendEarlyMultiCityAlert(city) {
         `المدينة: ${city.name}\n` +
         `الآن: ${nowScore}%\n` +
         `خلال 24 ساعة: ${score24}%\n` +
-        `خلال 72 ساعة: ${score72}%\n` +
-        `${levelText}\n` +
-        advice
+        "خلال 72 ساعة: " + score72 + "%\n" +
+        "التوقيت: " + peakTime + "\n" +
+         levelText + "\n" +
+         advice
     );
 
     saveEarlyMultiCityAlert(city.name, earlyScore);
