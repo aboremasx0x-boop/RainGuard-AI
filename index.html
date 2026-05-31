@@ -29,464 +29,89 @@
 
 <body>
 
-    <div class="container">
+    <div class="pro-dashboard">
 
-        <div class="header">
-            <h1>🌧 RainGuard AI</h1>
-            <p>منصة إنذار المطر المحلي الذكية</p>
+    <header class="pro-header">
+        <div>
+            <h1>RainGuard AI</h1>
+            <p>منصة ذكية لمراقبة المطر والسيول والتنبؤ بالخطر</p>
         </div>
 
-        <div class="search-box">
+        <div class="status-pill">
+            <span></span>
+            النظام يعمل
+        </div>
+    </header>
 
-            <input
-                type="text"
-                id="cityInput"
-                placeholder="اكتب اسم المدينة" />
-
-            <div class="control-grid">
-
-                <button onclick="detectRain()">
-                    فحص المطر
-                </button>
-
-                <button onclick="getMyLocation()">
-                    موقعي الحالي
-                </button>
-
-            </div>
-
-            <div
-                class="card"
-                style="
-                    margin-top:16px;
-                    background:#020617;
-                    border:1px solid #334155;
-                ">
-
-                <h3>🎤 AI Weather Voice Assistant</h3>
-
-                <p style="color:#94a3b8;line-height:1.8;">
-                    اضغط الميكروفون وتحدث باسم المدينة.
-                </p>
-
-                <div class="control-grid">
-
-                    <button
-                        onclick="startVoiceAssistant()"
-                        style="
-                            background:linear-gradient(135deg,#dc2626,#7f1d1d);
-                        ">
-                        🎤 تشغيل المساعد الصوتي
-                    </button>
-
-                    <button
-                        onclick="speakWeatherSummary()"
-                        style="
-                            background:linear-gradient(135deg,#0284c7,#0f172a);
-                        ">
-                        🔊 قراءة النتيجة
-                    </button>
-
-                </div>
-
-                <div
-                    id="voiceStatus"
-                    style="
-                        margin-top:14px;
-                        padding:12px;
-                        border-radius:14px;
-                        background:#0f172a;
-                        border:1px solid #334155;
-                        color:#cbd5e1;
-                        line-height:1.8;
-                    ">
-                    المساعد الصوتي جاهز.
-                </div>
-
-            </div>
-
+    <section class="risk-hero">
+        <div>
+            <p class="section-label">أعلى خطر حالياً</p>
+            <h2 id="topRiskCity">جاري التحديث...</h2>
+            <p id="topRiskDetails">يتم تحليل المدن والبيانات المناخية.</p>
         </div>
 
-        <div class="card">
-
-            <h2 id="cityName">
-                جاهز للفحص
-            </h2>
-
-            <div id="statusText">
-                اختر مدينة أو استخدم موقعك
-            </div>
-
-            <div
-                id="riskBox"
-                style="
-                    margin-top:18px;
-                    padding:14px;
-                    border-radius:14px;
-                    background:#020617;
-                    border:1px solid #334155;
-                ">
-
-                <div
-                    style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        margin-bottom:8px;
-                        color:#cbd5e1;
-                    ">
-
-                    <span>مؤشر الخطر</span>
-                    <strong id="riskValue">--%</strong>
-
-                </div>
-
-                <div
-                    style="
-                        width:100%;
-                        height:18px;
-                        background:#0f172a;
-                        border-radius:999px;
-                        overflow:hidden;
-                        border:1px solid #334155;
-                    ">
-
-                    <div
-                        id="riskBar"
-                        style="
-                            height:100%;
-                            width:0%;
-                            background:#22c55e;
-                            transition:width 0.5s ease, background 0.5s ease;
-                        ">
-                    </div>
-
-                </div>
-
-                <div
-                    id="riskLabel"
-                    style="
-                        margin-top:8px;
-                        color:#94a3b8;
-                        font-size:14px;
-                    ">
-                    لم يتم التحليل بعد
-                </div>
-
-            </div>
-
-            <div
-                id="actionMessage"
-                style="
-                    margin-top:10px;
-                    padding:10px;
-                    border-radius:10px;
-                    background:#064e3b;
-                    color:#d1fae5;
-                    display:block;
-                    min-height:24px;
-                ">
-            </div>
-
-            <div
-                class="card"
-                style="
-                    margin-top:18px;
-                    background:#020617;
-                    border:1px solid #334155;
-                ">
-
-                <h3>لوحة التحكم</h3>
-
-                <div class="control-grid">
-
-                    <button onclick="refreshNow()">
-                        تحديث الآن
-                    </button>
-
-                    <button onclick="toggleRadar()">
-                        تشغيل / إيقاف الرادار
-                    </button>
-
-                    <button onclick="toggleHeatmap()">
-                        تشغيل / إيقاف الخريطة الحرارية
-                    </button>
-
-                    <button onclick="startAutoRefresh()">
-                        تشغيل التحديث الذكي
-                    </button>
-
-                    <button onclick="stopAutoRefresh()">
-                        إيقاف التحديث الذكي
-                    </button>
-
-                    <button onclick="shareWeatherWhatsApp()">
-                        مشاركة واتساب
-                    </button>
-                    <button onclick="enableRainNotifications()">
-                      تفعيل تنبيهات المطر
-                     </button>
-                    <button onclick="toggleBackgroundRainMonitoring()">
-                        تشغيل / إيقاف المراقبة الخلفية
-                    </button>
-                    <button onclick="toggleSmartMultiCityMonitoring()">
-                        تشغيل / إيقاف مراقبة المدن الذكية
-                    </button>
-
-                    <button onclick="readOfflineEmergencyWeather()">
-                        عرض آخر حالة محفوظة
-                    </button>
-
-                    <button onclick="clearPredictionHistory()">
-                        مسح السجل
-                    </button>
-
-                </div>
-
-            </div>
-
-            <div id="adviceText"></div>
-
-            <div
-                id="refreshStatus"
-                style="
-                    margin-top:10px;
-                    color:#94a3b8;
-                    font-size:14px;
-                ">
-            </div>
-
+        <div class="risk-score">
+            <span id="topRiskScore">--%</span>
+            <small>مؤشر الخطر</small>
         </div>
+    </section>
 
-        <div class="card">
+    <section class="quick-actions">
+        <button onclick="refreshNow()">تحديث الآن</button>
+        <button onclick="runSmartMultiCityBackgroundCheck()">تحليل المدن</button>
+        <button onclick="toggleFloodRiskMap()">خريطة السيول</button>
+        <button onclick="enableRainNotifications()">تفعيل التنبيهات</button>
+    </section>
 
-            <h3>🌍 AI Multi-City Rain Monitor</h3>
+    <section class="tabs">
+        <button class="tab-btn active" onclick="showTab('mapTab', this)">الخريطة</button>
+        <button class="tab-btn" onclick="showTab('floodTab', this)">السيول</button>
+        <button class="tab-btn" onclick="showTab('forecastTab', this)">توقع 72 ساعة</button>
+        <button class="tab-btn" onclick="showTab('detailsTab', this)">التفاصيل</button>
+    </section>
 
-            <p style="color:#94a3b8;line-height:1.8;">
-                مراقبة عدة مدن وترتيبها تلقائيًا حسب مؤشر خطورة المطر.
-            </p>
-
-            <div class="control-grid">
-
-                <button onclick="updateMultiCityMonitor()">
-                    تحديث مراقبة المدن
-                </button>
-
-                <button onclick="toggleMultiCityAutoRefresh()">
-                    تشغيل / إيقاف التحديث التلقائي للمدن
-                </button>
-
-            </div>
-            <div
-    id="backgroundMonitorStatus"
-    style="
-        margin-top:12px;
-        color:#94a3b8;
-        font-size:14px;
-        line-height:1.8;
-    ">
-    المراقبة الخلفية: متوقفة
-</div>
-            <div class="card" style="margin-top:18px;">
-    <h3>Smart Multi-City Monitoring V3</h3>
-
-    <p style="color:#94a3b8;line-height:1.8;">
-        يعرض أعلى 5 مدن خطراً حسب مؤشر المطر، ويرسل تنبيهاً للمدينة الأخطر فقط.
-    </p>
-
-    <div
-        id="smartMultiCityTopBox"
-        style="
-            margin-top:12px;
-            color:#cbd5e1;
-            line-height:1.8;
-        ">
-        لم يتم تشغيل مراقبة المدن بعد.
-    </div>
-                <h4 style="margin-top:18px;">
-    توقع مبكر 24–72 ساعة
-</h4>
-
-<div
-    id="smartMultiCityForecastBox"
-    style="
-        margin-top:12px;
-        color:#cbd5e1;
-        line-height:1.8;
-    ">
-    لم يتم تشغيل التوقع المبكر بعد.
-</div>
-<div class="card" style="margin-top:18px;">
-    <h3>Smart Flood Prediction Engine V6</h3>
-
-    <p style="color:#94a3b8;line-height:1.8;">
-        يحسب خطر السيول بناءً على مؤشر المطر الحالي، توقع 24–72 ساعة، وحساسية المدينة للسيول.
-    </p>
-
-    <div
-        id="floodPredictionBox"
-        style="
-            margin-top:12px;
-            color:#cbd5e1;
-            line-height:1.8;
-        ">
-        لم يتم تشغيل مؤشر السيول بعد.
-    </div>
-</div>                
-                
-    <button onclick="toggleFloodRiskMap()">
-    تشغيل / إيقاف خريطة السيول
-</button>
-    <button onclick="runSmartMultiCityBackgroundCheck()">
-        تحديث مراقبة المدن الآن
-    </button>
-
-    <button onclick="clearSmartMultiCityHistory()">
-        مسح سجل مراقبة المدن
-    </button>
-
-    <h4 style="margin-top:18px;">
-        سجل مراقبة المدن الذكية
-    </h4>
-
-    <div
-        id="smartMultiCityHistoryBox"
-        style="
-            margin-top:12px;
-            color:#cbd5e1;
-            line-height:1.8;
-        ">
-        لا يوجد سجل حتى الآن.
-    </div>
-</div>
-
-            <div
-                id="multiCityStatus"
-                style="
-                    margin-top:12px;
-                    color:#94a3b8;
-                    font-size:14px;
-                ">
-                جاهز لمراقبة المدن.
-            </div>
-
-            <div
-                id="multiCityMonitorBox"
-                style="
-                    margin-top:14px;
-                    padding:14px;
-                    border-radius:14px;
-                    background:#020617;
-                    border:1px solid #334155;
-                    color:#cbd5e1;
-                    line-height:1.8;
-                ">
-                لم يتم تحديث المدن بعد.
-            </div>
-
-        </div>
-
-        <div class="card">
-
-            <h3>آخر التوقعات</h3>
-
-            <p style="color:#94a3b8;line-height:1.8;">
-                يتم حفظ آخر المدن التي تم فحصها داخل جهازك.
-            </p>
-
-            <div
-                id="historyBox"
-                style="
-                    margin-top:14px;
-                    padding:14px;
-                    border-radius:14px;
-                    background:#020617;
-                    border:1px solid #334155;
-                    color:#cbd5e1;
-                    line-height:1.8;
-                ">
-                لا يوجد سجل حتى الآن.
-            </div>
-
-        </div>
-
-        <div class="card">
-
-            <h3>تقييم دقة التوقع</h3>
-
-            <p style="color:#94a3b8;line-height:1.8;">
-                بعد مرور وقت كافٍ، قيّم هل كان توقع المطر صحيحًا في موقعك.
-            </p>
-
-            <div class="control-grid">
-
-                <button onclick="ratePrediction(true)">
-                    نعم، التوقع صحيح
-                </button>
-
-                <button onclick="ratePrediction(false)">
-                    لا، التوقع غير صحيح
-                </button>
-
-            </div>
-
-            <div
-                id="accuracyBox"
-                style="
-                    margin-top:14px;
-                    padding:14px;
-                    border-radius:14px;
-                    background:#020617;
-                    border:1px solid #334155;
-                    color:#cbd5e1;
-                    line-height:1.8;
-                ">
-                لم يتم تسجيل تقييمات بعد.
-            </div>
-
-        </div>
-
-        <div class="card">
-
-            <h3>رادار المطر + AI Heatmap</h3>
-
-            <div
-                style="
-                    display:flex;
-                    gap:12px;
-                    flex-wrap:wrap;
-                    margin-bottom:14px;
-                    color:#cbd5e1;
-                    font-size:14px;
-                ">
-
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="width:16px;height:16px;border-radius:50%;background:#22c55e;"></div>
-                    منخفض
-                </div>
-
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="width:16px;height:16px;border-radius:50%;background:#38bdf8;"></div>
-                    متوسط
-                </div>
-
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="width:16px;height:16px;border-radius:50%;background:#f59e0b;"></div>
-                    مرتفع
-                </div>
-
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="width:16px;height:16px;border-radius:50%;background:#ef4444;"></div>
-                    خطر شديد
-                </div>
-
-            </div>
-
+    <section id="mapTab" class="tab-content active">
+        <div class="card pro-map-card">
+            <h3>الخريطة الذكية</h3>
             <div id="map"></div>
-
         </div>
+    </section>
 
-    </div>
+    <section id="floodTab" class="tab-content">
+        <div class="card">
+            <h3>Smart Flood Prediction Engine V9</h3>
+            <div id="floodPredictionBox">
+                لم يتم تشغيل مؤشر السيول بعد.
+            </div>
+        </div>
+    </section>
+
+    <section id="forecastTab" class="tab-content">
+        <div class="card">
+            <h3>توقع مبكر 24–72 ساعة</h3>
+            <div id="smartMultiCityForecastBox">
+                لم يتم تشغيل التوقع المبكر بعد.
+            </div>
+        </div>
+    </section>
+
+    <section id="detailsTab" class="tab-content">
+        <div class="card">
+            <h3>تفاصيل المدن</h3>
+
+            <div id="smartMultiCityTopBox">
+                لم يتم تشغيل مراقبة المدن بعد.
+            </div>
+
+            <hr>
+
+            <div id="backgroundMonitorStatus">
+                المراقبة الخلفية: متوقفة
+            </div>
+        </div>
+    </section>
+
+</div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
