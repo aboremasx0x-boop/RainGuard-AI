@@ -1272,30 +1272,30 @@ async function runSmartMultiCityBackgroundCheck() {
         return;
     }
 
-    results.sort((a, b) => {
+results.sort((a, b) => {
+    const aScore = Number(a.score) || 0;
+    const bScore = Number(b.score) || 0;
 
-    const aFloodRisk =
-        calculateCityFloodRisk(a);
+    if (bScore !== aScore) {
+        return bScore - aScore;
+    }
 
-    const bFloodRisk =
-        calculateCityFloodRisk(b);
+    const aForecast72 = Number(a.forecast72Score) || 0;
+    const bForecast72 = Number(b.forecast72Score) || 0;
 
-    if (bFloodRisk !== aFloodRisk)
+    if (bForecast72 !== aForecast72) {
+        return bForecast72 - aForecast72;
+    }
+
+    const aFloodRisk = Number(a.floodRiskScore) || 0;
+    const bFloodRisk = Number(b.floodRiskScore) || 0;
+
+    if (bFloodRisk !== aFloodRisk) {
         return bFloodRisk - aFloodRisk;
+    }
 
-    if (b.forecast72Score !== a.forecast72Score)
-        return b.forecast72Score - a.forecast72Score;
-
-    if (b.score !== a.score)
-        return b.score - a.score;
-
-    return a.name.localeCompare(
-        b.name,
-        "ar"
-    );
-
+    return a.name.localeCompare(b.name, "ar");
 });
-
     const highestFloodCity = results[0];
 
 console.log(
