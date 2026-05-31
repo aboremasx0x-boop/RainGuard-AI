@@ -1041,21 +1041,36 @@ async function runSmartMultiCityBackgroundCheck() {
     }
 
     results.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
 
-        const aSensitive = floodSensitiveCities.some(city =>
-            a.name.includes(city)
-        );
+    const aFloodRisk =
+        calculateCityFloodRisk(a);
 
-        const bSensitive = floodSensitiveCities.some(city =>
-            b.name.includes(city)
-        );
+    const bFloodRisk =
+        calculateCityFloodRisk(b);
 
-        if (aSensitive && !bSensitive) return -1;
-        if (!aSensitive && bSensitive) return 1;
+    if (bFloodRisk !== aFloodRisk)
+        return bFloodRisk - aFloodRisk;
 
-        return a.name.localeCompare(b.name, "ar");
-    });
+    if (b.forecast72Score !== a.forecast72Score)
+        return b.forecast72Score - a.forecast72Score;
+
+    if (b.score !== a.score)
+        return b.score - a.score;
+
+    return a.name.localeCompare(
+        b.name,
+        "ar"
+    );
+
+});
+
+    const highestFloodCity = results[0];
+
+console.log(
+    "أعلى خطر سيول:",
+    highestFloodCity.name,
+    calculateCityFloodRisk(highestFloodCity) + "%"
+);
 
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
     const topCityNow = topCities[0];
