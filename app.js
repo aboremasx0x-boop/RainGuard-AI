@@ -614,7 +614,7 @@ async function runSmartMultiCityBackgroundCheck() {
     for (const city of smartMultiCityMonitorList) {
         try {
             const url =
-                `${API_BASE_URL}/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=12`;
+                `${API_BASE_URL}/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=${SMART_MULTI_CITY_FORECAST_HOURS}`;
 
             const response = await fetch(url);
 
@@ -626,22 +626,36 @@ async function runSmartMultiCityBackgroundCheck() {
 
             const best = data.best_hour || data.current || {};
             const current = data.current || {};
+            const nextHours = Array.isArray(data.next_hours)
+                ? data.next_hours
+                : [];
 
             const score =
                 Number(best.rain_score) ||
                 Number(current.rain_score) ||
                 0;
 
+            const forecast24Score = getMaxScoreByRange(nextHours, 24);
+            const forecast72Score = getMaxScoreByRange(nextHours, 72);
+            const peakHour = getPeakHourByRange(nextHours, 72);
+
             const alertLevel =
                 best.alert_level ||
                 current.alert_level ||
                 "تنبيه مطر";
+
+            const forecastTiming =
+                classifyForecastTiming(score, forecast24Score, forecast72Score);
 
             results.push({
                 name: city.name,
                 lat: city.lat,
                 lon: city.lon,
                 score,
+                forecast24Score,
+                forecast72Score,
+                peakHour,
+                forecastTiming,
                 alertLevel,
                 source: data.source || "Unknown"
             });
@@ -654,39 +668,46 @@ async function runSmartMultiCityBackgroundCheck() {
     if (results.length === 0) {
         updateBackgroundMonitorStatus("تعذر فحص المدن الذكية");
         renderSmartMultiCityTopPanel([]);
+        renderSmartMultiCityForecastPanel([]);
         return;
     }
 
-   results.sort((a, b) => {
-    if (b.score !== a.score) {
-        return b.score - a.score;
-    }
+    results.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
 
-    const aSensitive = floodSensitiveCities.some(city =>
-        a.name.includes(city)
-    );
+        const aSensitive = floodSensitiveCities.some(city =>
+            a.name.includes(city)
+        );
 
-    const bSensitive = floodSensitiveCities.some(city =>
-        b.name.includes(city)
-    );
+        const bSensitive = floodSensitiveCities.some(city =>
+            b.name.includes(city)
+        );
 
-    if (aSensitive && !bSensitive) return -1;
-    if (!aSensitive && bSensitive) return 1;
+        if (aSensitive && !bSensitive) return -1;
+        if (!aSensitive && bSensitive) return 1;
 
-    return a.name.localeCompare(b.name, "ar");
-});
+        return a.name.localeCompare(b.name, "ar");
+    });
 
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
-    const topCity = topCities[0];
+    const topCityNow = topCities[0];
+
+    const forecastRanked = [...results].sort((a, b) =>
+        b.forecast72Score - a.forecast72Score
+    );
+
+    const topForecastCity = forecastRanked[0];
 
     renderSmartMultiCityTopPanel(results);
+    renderSmartMultiCityForecastPanel(results);
     saveSmartMultiCityHistory(topCities);
 
     updateBackgroundMonitorStatus(
-        `أعلى مدينة: ${topCity.name} ${topCity.score}%`
+        `الآن: ${topCityNow.name} ${topCityNow.score}% | 72 ساعة: ${topForecastCity.name} ${topForecastCity.forecast72Score}%`
     );
 
-    sendSmartMultiCityAlert(topCity);
+    sendSmartMultiCityAlert(topCityNow);
+    sendEarlyMultiCityAlert(topForecastCity);
 }
 
 function saveSmartMultiCityHistory(topCities) {
