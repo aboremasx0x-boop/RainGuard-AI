@@ -674,6 +674,176 @@ function sendEarlyMultiCityAlert(city) {
         earlyScore
     );
 }
+
+function calculateCityFloodRisk(city) {
+    if (!city) return 0;
+
+    const rainScore = Number(city.score) || 0;
+    const forecast24 = Number(city.forecast24Score) || 0;
+    const forecast72 = Number(city.forecast72Score) || 0;
+    const cityWeight = floodCityWeights[city.name] || 0;
+
+    let floodRisk = 0;
+
+    floodRisk += rainScore * 0.35;
+    floodRisk += forecast24 * 0.25;
+    floodRisk += forecast72 * 0.25;
+    floodRisk += cityWeight;
+
+    return Math.min(Math.round(floodRisk), 100);
+}
+
+function getFloodRiskLabel(score) {
+    score = Number(score) || 0;
+
+    if (score >= 80) return "خطر سيول مرتفع";
+    if (score >= 60) return "خطر سيول متوسط";
+    if (score >= 40) return "قابلية تجمع مياه";
+    return "خطر منخفض";
+}
+
+function getFloodRiskIcon(score) {
+    score = Number(score) || 0;
+
+    if (score >= 80) return "🔴";
+    if (score >= 60) return "🟠";
+    if (score >= 40) return "🔵";
+    return "🟢";
+}
+
+function canSendFloodPredictionAlert(cityName, score) {
+    const saved = JSON.parse(
+        localStorage.getItem(FLOOD_PREDICTION_ALERT_KEY) || "null"
+    );
+
+    if (!saved) return true;
+
+    const cooldown = 6 * 60 * 60 * 1000;
+    const elapsed = Date.now() - Number(saved.time || 0);
+
+    if (elapsed > cooldown) return true;
+
+    if (
+        saved.cityName !== cityName &&
+        score >= Number(saved.score || 0) + 10
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+function saveFloodPredictionAlert(cityName, score) {
+    localStorage.setItem(
+        FLOOD_PREDICTION_ALERT_KEY,
+        JSON.stringify({
+            cityName,
+            score,
+            time: Date.now()
+        })
+    );
+}
+
+function sendFloodPredictionAlert(city) {
+    if (!city) return;
+
+    const floodScore = Number(city.floodRiskScore) || 0;
+
+    if (floodScore < FLOOD_RISK_MIN_ALERT_SCORE) return;
+    if (!canSendFloodPredictionAlert(city.name, floodScore)) return;
+
+    const title =
+        floodScore >= 80
+            ? "تحذير سيول مرتفع"
+            : "تنبيه سيول متوسط";
+
+    const label = getFloodRiskLabel(floodScore);
+
+    sendRainNotification(
+        title,
+        `المدينة: ${city.name}\n` +
+        `مؤشر السيول: ${floodScore}%\n` +
+        `مؤشر المطر الآن: ${city.score}%\n` +
+        `خلال 24 ساعة: ${city.forecast24Score}%\n` +
+        `خلال 72 ساعة: ${city.forecast72Score}%\n` +
+        `${label}\n` +
+        `تجنب الأودية والأنفاق والمناطق المنخفضة عند هطول المطر.`
+    );
+
+    saveFloodPredictionAlert(city.name, floodScore);
+}
+
+function renderFloodPredictionPanel(results) {
+    const box = document.getElementById("floodPredictionBox");
+    if (!box) return;
+
+    if (!results || results.length === 0) {
+        box.innerHTML = "لا توجد بيانات سيول حالياً.";
+        return;
+    }
+
+    const ranked = [...results]
+        .filter(city => city.floodRiskScore !== undefined)
+        .sort((a, b) => b.floodRiskScore - a.floodRiskScore)
+        .slice(0, 5);
+
+    box.innerHTML = ranked.map((city, index) => {
+        const floodScore = Number(city.floodRiskScore) || 0;
+        const icon = getFloodRiskIcon(floodScore);
+        const label = getFloodRiskLabel(floodScore);
+
+        let color = "#22c55e";
+
+        if (floodScore >= 80) {
+            color = "#ef4444";
+        } else if (floodScore >= 60) {
+            color = "#f59e0b";
+        } else if (floodScore >= 40) {
+            color = "#38bdf8";
+        }
+
+        return `
+            <div style="
+                padding:14px;
+                margin-bottom:12px;
+                border-radius:16px;
+                background:#0f172a;
+                border:1px solid #334155;
+            ">
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                ">
+                    <strong style="font-size:18px;">
+                        ${index + 1}. ${icon} ${city.name}
+                    </strong>
+
+                    <strong style="
+                        color:${color};
+                        font-size:22px;
+                    ">
+                        ${floodScore}%
+                    </strong>
+                </div>
+
+                <div style="
+                    margin-top:8px;
+                    color:#cbd5e1;
+                    font-size:14px;
+                    line-height:1.8;
+                ">
+                    التصنيف: ${label}<br>
+                    مؤشر المطر الآن: ${city.score}%<br>
+                    توقع 24 ساعة: ${city.forecast24Score}%<br>
+                    توقع 72 ساعة: ${city.forecast72Score}%<br>
+                    وزن حساسية المدينة: ${floodCityWeights[city.name] || 0}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
 async function runSmartMultiCityBackgroundCheck() {
     if (!isSmartMultiCityEnabled()) return;
     if (!isBackgroundMonitorEnabled()) return;
