@@ -21,7 +21,11 @@ const smartMultiCityMonitorList = [
     { name: "الطائف", lat: 21.2703, lon: 40.4158 },
     { name: "المدينة", lat: 24.5247, lon: 39.5692 },
     { name: "أبها", lat: 18.2164, lon: 42.5053 },
-    { name: "الباحة", lat: 20.0129, lon: 41.4677 }
+    { name: "الباحة", lat: 20.0129, lon: 41.4677 },
+    { name: "جازان", lat: 16.8892, lon: 42.5511 },
+    { name: "نجران", lat: 17.5656, lon: 44.2289 },
+    { name: "تبوك", lat: 28.3998, lon: 36.5715 },
+    { name: "الرياض", lat: 24.7136, lon: 46.6753 }
 ];
 
 let map;
