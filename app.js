@@ -40,6 +40,12 @@ const FLOOD_RISK_HIGH_SCORE = 80;
 const FLOOD_RISK_MEDIUM_SCORE = 60;
 const FLOOD_RISK_WATCH_SCORE = 40;
 
+const FLOOD_ALERT_WATCH_SCORE = 40;
+const FLOOD_ALERT_HIGH_SCORE = 60;
+const FLOOD_ALERT_EXTREME_SCORE = 80;
+const FLOOD_ALERT_COOLDOWN_MINUTES = 180;
+const FLOOD_ALERT_LAST_KEY = "rainguard_v82_flood_alert";
+
 let floodMapLayer = [];
 let floodMapEnabled = true;
 
