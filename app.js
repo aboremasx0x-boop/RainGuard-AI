@@ -445,6 +445,7 @@ async function runBackgroundRainCheck() {
         );
 
         updateBackgroundMonitorStatus(`مؤشر المطر ${score}%`);
+        await runSmartMultiCityBackgroundCheck();
 
     } catch (error) {
         console.error(error);
