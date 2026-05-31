@@ -287,6 +287,45 @@
     ">
     المراقبة الخلفية: متوقفة
 </div>
+            <div class="card" style="margin-top:18px;">
+    <h3>Smart Multi-City Monitoring V3</h3>
+
+    <p style="color:#94a3b8;line-height:1.8;">
+        يعرض أعلى 5 مدن خطراً حسب مؤشر المطر، ويرسل تنبيهاً للمدينة الأخطر فقط.
+    </p>
+
+    <div
+        id="smartMultiCityTopBox"
+        style="
+            margin-top:12px;
+            color:#cbd5e1;
+            line-height:1.8;
+        ">
+        لم يتم تشغيل مراقبة المدن بعد.
+    </div>
+
+    <button onclick="runSmartMultiCityBackgroundCheck()">
+        تحديث مراقبة المدن الآن
+    </button>
+
+    <button onclick="clearSmartMultiCityHistory()">
+        مسح سجل مراقبة المدن
+    </button>
+
+    <h4 style="margin-top:18px;">
+        سجل مراقبة المدن الذكية
+    </h4>
+
+    <div
+        id="smartMultiCityHistoryBox"
+        style="
+            margin-top:12px;
+            color:#cbd5e1;
+            line-height:1.8;
+        ">
+        لا يوجد سجل حتى الآن.
+    </div>
+</div>
 
             <div
                 id="multiCityStatus"
@@ -418,7 +457,7 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script src="app.js?v=36"></script>
+    <script src="app.js?v=37"></script>
 
     <script>
         let recognition;
