@@ -375,6 +375,115 @@ function checkPushRainAlert(score, locationName, alertLevel) {
         );
     }
 }
+function isBackgroundMonitorEnabled() {
+    return localStorage.getItem(BACKGROUND_MONITOR_KEY) === "true";
+}
+
+function updateBackgroundMonitorStatus(message = "") {
+    const box = document.getElementById("backgroundMonitorStatus");
+    if (!box) return;
+
+    const state = isBackgroundMonitorEnabled()
+        ? "مفعلة"
+        : "متوقفة";
+
+    const now = new Date().toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    box.innerText = `المراقبة الخلفية: ${state} | آخر فحص: ${now}${message ? " | " + message : ""}`;
+}
+
+async function runBackgroundRainCheck() {
+    if (!isBackgroundMonitorEnabled()) return;
+
+    try {
+        const url =
+            `${API_BASE_URL}/rain-alert?lat=${lastLat}&lon=${lastLon}&name=${encodeURIComponent(lastName)}&hours=12`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            updateBackgroundMonitorStatus("تعذر الاتصال");
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            updateBackgroundMonitorStatus("تعذر قراءة البيانات");
+            return;
+        }
+
+        const best = data.best_hour || data.current || {};
+        const score = Number(best.rain_score) || 0;
+        const alertLevel = best.alert_level || "تنبيه مطر";
+        const locationName = data.location_name || lastName || "موقعك";
+
+        checkPushRainAlert(
+            score,
+            locationName,
+            alertLevel
+        );
+
+        saveLastSuccessfulWeather(
+            data,
+            lastLat,
+            lastLon,
+            locationName
+        );
+
+        updateBackgroundMonitorStatus(`مؤشر المطر ${score}%`);
+
+    } catch (error) {
+        console.error(error);
+        updateBackgroundMonitorStatus("خطأ أثناء الفحص");
+    }
+}
+
+function startBackgroundRainMonitoring() {
+    localStorage.setItem(BACKGROUND_MONITOR_KEY, "true");
+    backgroundMonitorEnabled = true;
+
+    if (backgroundMonitorInterval) {
+        clearInterval(backgroundMonitorInterval);
+    }
+
+    runBackgroundRainCheck();
+
+    backgroundMonitorInterval = setInterval(() => {
+        runBackgroundRainCheck();
+    }, BACKGROUND_MONITOR_INTERVAL_MINUTES * 60 * 1000);
+
+    showActionMessage(
+        `تم تشغيل المراقبة الخلفية كل ${BACKGROUND_MONITOR_INTERVAL_MINUTES} دقائق`,
+        "success"
+    );
+
+    updateBackgroundMonitorStatus("تم التشغيل");
+}
+
+function stopBackgroundRainMonitoring() {
+    localStorage.setItem(BACKGROUND_MONITOR_KEY, "false");
+    backgroundMonitorEnabled = false;
+
+    if (backgroundMonitorInterval) {
+        clearInterval(backgroundMonitorInterval);
+        backgroundMonitorInterval = null;
+    }
+
+    showActionMessage("تم إيقاف المراقبة الخلفية", "warning");
+    updateBackgroundMonitorStatus("تم الإيقاف");
+}
+
+function toggleBackgroundRainMonitoring() {
+    if (isBackgroundMonitorEnabled()) {
+        stopBackgroundRainMonitoring();
+    } else {
+        startBackgroundRainMonitoring();
+    }
+}
 
 // ===============================
 // Adaptive Smart Refresh AI
