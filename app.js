@@ -19,6 +19,22 @@ const SMART_MULTI_CITY_TOP_LIMIT = 5;
 const SMART_MULTI_CITY_FORECAST_HOURS = 72;
 const SMART_MULTI_CITY_EARLY_ALERT_KEY = "rainguard_smart_multicity_early_alert";
 const SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE = 60;
+const FLOOD_PREDICTION_ALERT_KEY = "rainguard_flood_prediction_alert";
+const FLOOD_RISK_MIN_ALERT_SCORE = 60;
+
+const floodCityWeights = {
+    "جدة": 25,
+    "مكة": 30,
+    "الطائف": 25,
+    "المدينة": 15,
+    "أبها": 25,
+    "الباحة": 25,
+    "جازان": 25,
+    "نجران": 20,
+    "تبوك": 20,
+    "الدمام": 15,
+    "الرياض": 10
+};
 
 const smartMultiCityMonitorList = [
     { name: "جدة", lat: 21.5433, lon: 39.1728 },
