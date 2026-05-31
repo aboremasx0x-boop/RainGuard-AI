@@ -989,22 +989,25 @@ function saveEarlyMultiCityAlert(cityName, score) {
 }
 
 function sendEarlyMultiCityAlert(city) {
+
+    console.log("STEP 1");
+
     if (!city) return;
 
-    const score = Number(city.forecast72Score) || 0;
+    const nowScore = Number(city.score) || 0;
+    const score24 = Number(city.forecast24Score) || 0;
+    const score72 = Number(city.forecast72Score) || 0;
 
-    if (score < SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE) return;
-    if (!canSendEarlyMultiCityAlert(city.name, score)) return;
+    const earlyScore = Math.max(score24, score72);
+
+    console.log("STEP 2", earlyScore);
 
     sendRainNotification(
-        "تنبيه مبكر لاحتمال المطر",
-        `المدينة: ${city.name}\n` +
-        `أعلى مؤشر متوقع خلال 72 ساعة: ${score}%\n` +
-        `التوقيت: ${city.forecastTiming}\n` +
-        `تابع الحالة والتنبيهات الرسمية.`
+        "اختبار V5",
+        "وصلنا داخل الدالة"
     );
 
-    saveEarlyMultiCityAlert(city.name, score);
+    console.log("STEP 3");
 }
 
 function renderSmartMultiCityForecastPanel(results) {
