@@ -16,6 +16,9 @@ const SMART_MULTI_CITY_ALERT_COOLDOWN_MINUTES = 45;
 const SMART_MULTI_CITY_MIN_ALERT_SCORE = 60;
 const SMART_MULTI_CITY_HISTORY_KEY = "rainguard_smart_multicity_history";
 const SMART_MULTI_CITY_TOP_LIMIT = 5;
+const SMART_MULTI_CITY_FORECAST_HOURS = 72;
+const SMART_MULTI_CITY_EARLY_ALERT_KEY = "rainguard_smart_multicity_early_alert";
+const SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE = 60;
 
 const smartMultiCityMonitorList = [
     { name: "جدة", lat: 21.5433, lon: 39.1728 },
