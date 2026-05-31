@@ -847,3 +847,50 @@ hr {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+.forecast-inline-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.forecast-inline-section .forecast-section {
+    margin-top: 0;
+}
+
+.forecast-inline-section .forecast-section h3 {
+    display: none;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(110px, 1fr));
+    gap: 12px;
+}
+
+.info-box {
+    background: rgba(2, 6, 23, 0.78);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 18px;
+    padding: 14px;
+    text-align: center;
+    color: #e2e8f0;
+}
+
+.info-box span {
+    display: block;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.info-box strong {
+    display: block;
+    font-size: 22px;
+}
+
+@media (max-width: 900px) {
+    .info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
