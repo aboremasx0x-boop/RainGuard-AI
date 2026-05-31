@@ -945,6 +945,7 @@ async function runSmartMultiCityBackgroundCheck() {
 
     renderSmartMultiCityTopPanel(results);
     renderSmartMultiCityForecastPanel(results);
+    renderFloodPredictionPanel(results);
     saveSmartMultiCityHistory(topCities);
 
     updateBackgroundMonitorStatus(
