@@ -495,6 +495,85 @@ function toggleBackgroundRainMonitoring() {
     }
 }
 
+function isSmartMultiCityEnabled() {
+    return localStorage.getItem(SMART_MULTI_CITY_KEY) === "true";
+}
+
+function toggleSmartMultiCityMonitoring() {
+    const enabled = !isSmartMultiCityEnabled();
+
+    localStorage.setItem(
+        SMART_MULTI_CITY_KEY,
+        enabled ? "true" : "false"
+    );
+
+    showActionMessage(
+        enabled
+            ? "تم تشغيل مراقبة المدن الذكية"
+            : "تم إيقاف مراقبة المدن الذكية",
+        enabled ? "success" : "warning"
+    );
+
+    updateBackgroundMonitorStatus(
+        enabled
+            ? "مراقبة المدن الذكية مفعلة"
+            : "مراقبة المدن الذكية متوقفة"
+    );
+}
+
+async function runSmartMultiCityBackgroundCheck() {
+    if (!isSmartMultiCityEnabled()) return;
+    if (!isBackgroundMonitorEnabled()) return;
+
+    const results = [];
+
+    for (const city of smartMultiCityMonitorList) {
+        try {
+            const url =
+                `${API_BASE_URL}/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=12`;
+
+            const response = await fetch(url);
+
+            if (!response.ok) continue;
+
+            const data = await response.json();
+
+            if (data.error) continue;
+
+            const best = data.best_hour || data.current || {};
+            const score = Number(best.rain_score) || 0;
+            const alertLevel = best.alert_level || "تنبيه مطر";
+
+            results.push({
+                name: city.name,
+                score,
+                alertLevel
+            });
+
+            if (score >= 60) {
+                checkPushRainAlert(
+                    score,
+                    city.name,
+                    alertLevel
+                );
+            }
+
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    if (results.length > 0) {
+        results.sort((a, b) => b.score - a.score);
+
+        const top = results[0];
+
+        updateBackgroundMonitorStatus(
+            `أعلى مدينة: ${top.name} ${top.score}%`
+        );
+    }
+}
+
 // ===============================
 // Adaptive Smart Refresh AI
 // ===============================
