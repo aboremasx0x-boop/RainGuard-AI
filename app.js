@@ -665,6 +665,179 @@ async function runSmartMultiCityBackgroundCheck() {
 
     sendSmartMultiCityAlert(topCity);
 }
+
+function saveSmartMultiCityHistory(topCities) {
+    const saved =
+        JSON.parse(localStorage.getItem(SMART_MULTI_CITY_HISTORY_KEY)) || [];
+
+    const now = new Date().toLocaleString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "numeric",
+        month: "short"
+    });
+
+    const item = {
+        time: now,
+        cities: topCities.map(city => ({
+            name: city.name,
+            score: city.score,
+            alertLevel: city.alertLevel,
+            source: city.source || "Unknown"
+        }))
+    };
+
+    saved.unshift(item);
+
+    localStorage.setItem(
+        SMART_MULTI_CITY_HISTORY_KEY,
+        JSON.stringify(saved.slice(0, 20))
+    );
+
+    renderSmartMultiCityHistory();
+}
+
+function renderSmartMultiCityHistory() {
+    const box = document.getElementById("smartMultiCityHistoryBox");
+    if (!box) return;
+
+    const saved =
+        JSON.parse(localStorage.getItem(SMART_MULTI_CITY_HISTORY_KEY)) || [];
+
+    if (saved.length === 0) {
+        box.innerHTML = "لا يوجد سجل مراقبة مدن حتى الآن.";
+        return;
+    }
+
+    box.innerHTML = saved.slice(0, 5).map(item => {
+        const rows = item.cities.map(city => {
+            let color = "#22c55e";
+            let icon = "🟢";
+
+            if (city.score >= 80) {
+                color = "#ef4444";
+                icon = "🔴";
+            } else if (city.score >= 60) {
+                color = "#f59e0b";
+                icon = "🟠";
+            } else if (city.score >= 40) {
+                color = "#38bdf8";
+                icon = "🔵";
+            }
+
+            return `
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    padding:8px 0;
+                    border-bottom:1px solid #1e293b;
+                ">
+                    <span>${icon} ${city.name}</span>
+                    <strong style="color:${color};">${city.score}%</strong>
+                </div>
+            `;
+        }).join("");
+
+        return `
+            <div style="
+                margin-bottom:14px;
+                padding:14px;
+                border-radius:16px;
+                background:#020617;
+                border:1px solid #334155;
+            ">
+                <div style="
+                    color:#94a3b8;
+                    margin-bottom:8px;
+                    font-size:14px;
+                ">
+                    ${item.time}
+                </div>
+
+                ${rows}
+            </div>
+        `;
+    }).join("");
+}
+
+function clearSmartMultiCityHistory() {
+    localStorage.removeItem(SMART_MULTI_CITY_HISTORY_KEY);
+    renderSmartMultiCityHistory();
+    showActionMessage("تم مسح سجل مراقبة المدن الذكية", "warning");
+}
+
+function renderSmartMultiCityTopPanel(results) {
+    const box = document.getElementById("smartMultiCityTopBox");
+    if (!box) return;
+
+    if (!results || results.length === 0) {
+        box.innerHTML = "لا توجد بيانات مدن حالياً.";
+        return;
+    }
+
+    const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
+
+    box.innerHTML = topCities.map((city, index) => {
+        let color = "#22c55e";
+        let icon = "🟢";
+        let label = "منخفض";
+
+        if (city.score >= 80) {
+            color = "#ef4444";
+            icon = "🔴";
+            label = "مرتفع";
+        } else if (city.score >= 60) {
+            color = "#f59e0b";
+            icon = "🟠";
+            label = "متوسط";
+        } else if (city.score >= 40) {
+            color = "#38bdf8";
+            icon = "🔵";
+            label = "محدود";
+        }
+
+        return `
+            <div style="
+                padding:14px;
+                margin-bottom:12px;
+                border-radius:16px;
+                background:#0f172a;
+                border:1px solid #334155;
+            ">
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                ">
+                    <strong style="font-size:18px;">
+                        ${index + 1}. ${icon} ${city.name}
+                    </strong>
+
+                    <strong style="
+                        color:${color};
+                        font-size:22px;
+                    ">
+                        ${city.score}%
+                    </strong>
+                </div>
+
+                <div style="
+                    margin-top:8px;
+                    color:#cbd5e1;
+                    font-size:14px;
+                    line-height:1.7;
+                ">
+                    مستوى الخطر: ${label}<br>
+                    الحالة: ${city.alertLevel || "غير متوفر"}<br>
+                    المصدر: ${city.source || "Unknown"}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
 // ===============================
 // Adaptive Smart Refresh AI
 // ===============================
