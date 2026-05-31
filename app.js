@@ -1892,6 +1892,7 @@ async function checkRain(
         statusText.innerText = `${best.alert_level} - ${score}%`;
 
         checkSmartAlert(score, best.alert_level, name);
+        checkPushRainAlert(score, name, best.alert_level);
 
         savePredictionHistory(
             name,
