@@ -66,6 +66,29 @@
                 </section>
             </div>
         </section>
+        <div class="dashboard-row">
+
+    <div class="pro-card map-section">
+        <div class="card-title">
+            <h3>الخريطة التفاعلية - رادار المطر والسيول</h3>
+            <button onclick="runSmartMultiCityBackgroundCheck()">تحديث الخريطة</button>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <div class="pro-card danger-cities-section">
+        <div class="card-title">
+            <h3>أعلى المدن خطراً الآن</h3>
+            <button onclick="runSmartMultiCityBackgroundCheck()">تحليل</button>
+        </div>
+
+        <div id="smartMultiCityTopBox">
+            لم يتم تشغيل مراقبة المدن بعد.
+        </div>
+    </div>
+
+</div>
 
         <section class="rg-panel" id="mapPanel">
             <section class="rg-card rg-map-card"><div class="rg-card-title"><h2>الخريطة التفاعلية - رادار المطر والسيول</h2><div class="rg-layer-legend"><span><i class="green"></i> منخفض</span><span><i class="blue"></i> متوسط</span><span><i class="orange"></i> مرتفع</span><span><i class="red"></i> خطر شديد</span></div></div><div class="rg-map-tools"><button onclick="toggleRadar()">الرادار</button><button onclick="toggleFloodRiskMap()">خطر السيول</button><button onclick="toggleHeatmap()">الخريطة الحرارية</button><button onclick="runSmartMultiCityBackgroundCheck()">تحديث الخريطة</button></div><div id="map"></div></section>
