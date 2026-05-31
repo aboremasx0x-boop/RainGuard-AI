@@ -887,17 +887,23 @@ async function runSmartMultiCityBackgroundCheck() {
                 classifyForecastTiming(score, forecast24Score, forecast72Score);
 
             results.push({
-                name: city.name,
-                lat: city.lat,
-                lon: city.lon,
-                score,
-                forecast24Score,
-                forecast72Score,
-                peakHour,
-                forecastTiming,
-                alertLevel,
-                source: data.source || "Unknown"
-            });
+    name: city.name,
+    lat: city.lat,
+    lon: city.lon,
+    score,
+    forecast24Score,
+    forecast72Score,
+    floodRiskScore: calculateCityFloodRisk({
+        name: city.name,
+        score,
+        forecast24Score,
+        forecast72Score
+    }),
+    peakHour,
+    forecastTiming,
+    alertLevel,
+    source: data.source || "Unknown"
+});
 
         } catch (error) {
             console.error(error);
