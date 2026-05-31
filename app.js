@@ -788,7 +788,21 @@ function renderFloodPredictionPanel(results) {
 
     const ranked = [...results]
         .filter(city => city.floodRiskScore !== undefined)
-        .sort((a, b) => b.floodRiskScore - a.floodRiskScore)
+        .sort((a, b) => {
+            if (b.floodRiskScore !== a.floodRiskScore) {
+                return b.floodRiskScore - a.floodRiskScore;
+            }
+
+            if (b.forecast72Score !== a.forecast72Score) {
+                return b.forecast72Score - a.forecast72Score;
+            }
+
+            if (b.forecast24Score !== a.forecast24Score) {
+                return b.forecast24Score - a.forecast24Score;
+            }
+
+            return b.score - a.score;
+        })
         .slice(0, 5);
 
     box.innerHTML = ranked.map((city, index) => {
@@ -797,13 +811,17 @@ function renderFloodPredictionPanel(results) {
         const label = getFloodRiskLabel(floodScore);
 
         let color = "#22c55e";
+        let action = "المتابعة الدورية كافية.";
 
-        if (floodScore >= 80) {
+        if (floodScore >= FLOOD_RISK_HIGH_SCORE) {
             color = "#ef4444";
-        } else if (floodScore >= 60) {
+            action = "تجنب الأودية والأنفاق والمناطق المنخفضة فوراً.";
+        } else if (floodScore >= FLOOD_RISK_MEDIUM_SCORE) {
             color = "#f59e0b";
-        } else if (floodScore >= 40) {
+            action = "راقب الحالة وتجنب مجاري السيول عند هطول المطر.";
+        } else if (floodScore >= FLOOD_RISK_WATCH_SCORE) {
             color = "#38bdf8";
+            action = "احتمال تجمعات مياه محدود، تابع التحديثات.";
         }
 
         return `
@@ -842,7 +860,8 @@ function renderFloodPredictionPanel(results) {
                     مؤشر المطر الآن: ${city.score}%<br>
                     توقع 24 ساعة: ${city.forecast24Score}%<br>
                     توقع 72 ساعة: ${city.forecast72Score}%<br>
-                    وزن حساسية المدينة: ${floodCityWeights[city.name] || 0}
+                    وزن حساسية المدينة: ${floodCityWeights[city.name] || 0}<br>
+                    الإجراء المقترح: ${action}
                 </div>
             </div>
         `;
