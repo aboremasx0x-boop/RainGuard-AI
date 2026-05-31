@@ -977,9 +977,23 @@ async function runSmartMultiCityBackgroundCheck() {
 
     sendSmartMultiCityAlert(topCityNow);
     sendEarlyMultiCityAlert(topForecastCity);
-    const floodRanked = [...results].sort((a, b) =>
-    b.floodRiskScore - a.floodRiskScore
-);
+    const floodRanked = [...results]
+    .filter(city => city.floodRiskScore !== undefined)
+    .sort((a, b) => {
+        if (b.floodRiskScore !== a.floodRiskScore) {
+            return b.floodRiskScore - a.floodRiskScore;
+        }
+
+        if (b.forecast72Score !== a.forecast72Score) {
+            return b.forecast72Score - a.forecast72Score;
+        }
+
+        if (b.forecast24Score !== a.forecast24Score) {
+            return b.forecast24Score - a.forecast24Score;
+        }
+
+        return b.score - a.score;
+    });
 
 sendFloodPredictionAlert(floodRanked[0]);
 }
