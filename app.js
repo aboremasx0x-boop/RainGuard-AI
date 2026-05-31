@@ -284,7 +284,14 @@ async function enableRainNotifications() {
 
     if (Notification.permission === "granted") {
         localStorage.setItem(NOTIFICATION_ENABLED_KEY, "true");
-        showActionMessage("تنبيهات المطر مفعلة بالفعل", "success");
+
+        showActionMessage("تم تفعيل تنبيهات المطر", "success");
+
+        new Notification("RainGuard AI", {
+            body: "تنبيهات المطر مفعلة الآن بنجاح.",
+            icon: "icon-192.png"
+        });
+
         return;
     }
 
@@ -297,6 +304,7 @@ async function enableRainNotifications() {
 
     if (permission === "granted") {
         localStorage.setItem(NOTIFICATION_ENABLED_KEY, "true");
+
         showActionMessage("تم تفعيل تنبيهات المطر", "success");
 
         new Notification("RainGuard AI", {
