@@ -583,26 +583,64 @@ function sendSmartMultiCityAlert(city) {
     const score = Number(city.score) || 0;
 
     if (score < SMART_MULTI_CITY_MIN_ALERT_SCORE) return;
-
     if (!canSendSmartMultiCityAlert(city.name, score)) return;
 
     let title = "تنبيه مطر في إحدى المدن";
     let body =
         `المدينة: ${city.name}\n` +
-        `مؤشر المطر: ${score}%\n` +
+        `مؤشر المطر الحالي: ${score}%\n` +
         `${city.alertLevel || "تابع الحالة."}`;
 
     if (score >= 80) {
         title = "تحذير مطر مرتفع في " + city.name;
         body =
-            `مؤشر المطر وصل إلى ${score}%\n` +
+            `مؤشر المطر الحالي وصل إلى ${score}%\n` +
             `${city.alertLevel || "تحذير مطر مرتفع"}\n` +
             `ينصح بمتابعة الحالة والتنبيهات الرسمية.`;
     }
 
     sendRainNotification(title, body);
-
     saveLastSmartMultiCityAlert(city.name, score);
+}
+
+function sendEarlyMultiCityAlert(city) {
+    if (!city) return;
+
+    const nowScore = Number(city.score) || 0;
+    const score24 = Number(city.forecast24Score) || 0;
+    const score72 = Number(city.forecast72Score) || 0;
+
+    const earlyScore = Math.max(score24, score72);
+
+    if (earlyScore < 40) return;
+    if (nowScore >= earlyScore) return;
+    if (!canSendEarlyMultiCityAlert(city.name, earlyScore)) return;
+
+    let title = "تنبيه مبكر لاحتمال المطر";
+    let levelText = "تنبيه أصفر";
+    let advice = "تابع الحالة خلال الأيام القادمة.";
+
+    if (earlyScore >= 80) {
+        title = "تحذير مبكر مرتفع";
+        levelText = "تنبيه أحمر";
+        advice = "ينصح بالاستعداد ومتابعة التنبيهات الرسمية.";
+    } else if (earlyScore >= 60) {
+        title = "تنبيه مبكر متوسط";
+        levelText = "تنبيه برتقالي";
+        advice = "احتمال ارتفاع فرصة المطر خلال 24–72 ساعة.";
+    }
+
+    sendRainNotification(
+        title,
+        `المدينة: ${city.name}\n` +
+        `الآن: ${nowScore}%\n` +
+        `خلال 24 ساعة: ${score24}%\n` +
+        `خلال 72 ساعة: ${score72}%\n` +
+        `${levelText}\n` +
+        advice
+    );
+
+    saveEarlyMultiCityAlert(city.name, earlyScore);
 }
 
 async function runSmartMultiCityBackgroundCheck() {
