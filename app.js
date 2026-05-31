@@ -871,6 +871,102 @@ function renderFloodPredictionPanel(results) {
         `;
     }).join("");
 }
+
+function getFloodMapColor(score) {
+    score = Number(score) || 0;
+
+    if (score >= 80) return "#ef4444";
+    if (score >= 60) return "#f59e0b";
+    if (score >= 40) return "#38bdf8";
+    return "#22c55e";
+}
+
+function getFloodMapRadius(score) {
+    score = Number(score) || 0;
+
+    if (score >= 80) return 42000;
+    if (score >= 60) return 34000;
+    if (score >= 40) return 26000;
+    return 16000;
+}
+
+function clearFloodMapLayer() {
+    if (!map || !floodMapLayer) return;
+
+    floodMapLayer.forEach(layer => {
+        map.removeLayer(layer);
+    });
+
+    floodMapLayer = [];
+}
+
+function updateFloodRiskMap(results) {
+    if (!map) return;
+    if (!results || results.length === 0) return;
+
+    clearFloodMapLayer();
+
+    results.forEach(city => {
+        const floodScore = Number(city.floodRiskScore) || 0;
+        const color = getFloodMapColor(floodScore);
+        const radius = getFloodMapRadius(floodScore);
+        const label = getFloodRiskLabel(floodScore);
+
+        const circle = L.circle(
+            [city.lat, city.lon],
+            {
+                color,
+                fillColor: color,
+                fillOpacity: 0.28,
+                radius
+            }
+        );
+
+        circle.bindPopup(`
+            <b>${city.name}</b><br>
+            مؤشر السيول: ${floodScore}%<br>
+            التصنيف: ${label}<br>
+            المطر الآن: ${city.score}%<br>
+            24 ساعة: ${city.forecast24Score}%<br>
+            72 ساعة: ${city.forecast72Score}%
+        `);
+
+        if (floodMapEnabled) {
+            circle.addTo(map);
+        }
+
+        floodMapLayer.push(circle);
+    });
+}
+
+function toggleFloodRiskMap() {
+    floodMapEnabled = !floodMapEnabled;
+
+    if (!map || floodMapLayer.length === 0) {
+        showActionMessage(
+            floodMapEnabled
+                ? "تم تفعيل خريطة السيول، سيتم عرضها بعد التحديث القادم"
+                : "تم إيقاف خريطة السيول",
+            floodMapEnabled ? "success" : "warning"
+        );
+        return;
+    }
+
+    floodMapLayer.forEach(layer => {
+        if (floodMapEnabled) {
+            layer.addTo(map);
+        } else {
+            map.removeLayer(layer);
+        }
+    });
+
+    showActionMessage(
+        floodMapEnabled
+            ? "تم تشغيل خريطة السيول"
+            : "تم إيقاف خريطة السيول",
+        floodMapEnabled ? "success" : "warning"
+    );
+}
 async function runSmartMultiCityBackgroundCheck() {
     if (!isSmartMultiCityEnabled()) return;
     if (!isBackgroundMonitorEnabled()) return;
