@@ -1069,6 +1069,7 @@ async function runSmartMultiCityBackgroundCheck() {
     renderSmartMultiCityTopPanel(results);
     renderSmartMultiCityForecastPanel(results);
     renderFloodPredictionPanel(results);
+    updateFloodRiskMap(results);
     saveSmartMultiCityHistory(topCities);
 
     updateBackgroundMonitorStatus(
