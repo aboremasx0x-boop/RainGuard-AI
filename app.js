@@ -1,6 +1,11 @@
 const API_BASE_URL = "https://rainguard-ai.onrender.com";
 
 const OFFLINE_CACHE_KEY = "rainguard_last_success_data";
+
+const NOTIFICATION_ENABLED_KEY = "rainguard_notifications_enabled";
+const NOTIFICATION_LAST_ALERT_KEY = "rainguard_last_notification_time";
+const NOTIFICATION_COOLDOWN_MINUTES = 30;
+
 let map;
 let marker;
 let rainLayer;
