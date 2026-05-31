@@ -226,6 +226,9 @@
                     <button onclick="enableRainNotifications()">
                       تفعيل تنبيهات المطر
                      </button>
+                    <button onclick="toggleBackgroundRainMonitoring()">
+                        تشغيل / إيقاف المراقبة الخلفية
+                    </button>
 
                     <button onclick="readOfflineEmergencyWeather()">
                         عرض آخر حالة محفوظة
@@ -271,6 +274,16 @@
                 </button>
 
             </div>
+            <div
+    id="backgroundMonitorStatus"
+    style="
+        margin-top:12px;
+        color:#94a3b8;
+        font-size:14px;
+        line-height:1.8;
+    ">
+    المراقبة الخلفية: متوقفة
+</div>
 
             <div
                 id="multiCityStatus"
@@ -402,7 +415,7 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <script src="app.js?v=33"></script>
+    <script src="app.js?v=34"></script>
 
     <script>
         let recognition;
