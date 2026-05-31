@@ -654,7 +654,24 @@ async function runSmartMultiCityBackgroundCheck() {
         return;
     }
 
-    results.sort((a, b) => b.score - a.score);
+   results.sort((a, b) => {
+    if (b.score !== a.score) {
+        return b.score - a.score;
+    }
+
+    const aSensitive = floodSensitiveCities.some(city =>
+        a.name.includes(city)
+    );
+
+    const bSensitive = floodSensitiveCities.some(city =>
+        b.name.includes(city)
+    );
+
+    if (aSensitive && !bSensitive) return -1;
+    if (!aSensitive && bSensitive) return 1;
+
+    return a.name.localeCompare(b.name, "ar");
+});
 
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
     const topCity = topCities[0];
