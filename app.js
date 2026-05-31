@@ -2232,4 +2232,13 @@ window.onload = function () {
         startAutoRefresh();
         updateMultiCityMonitor();
     }, 3000);
-};
+
+setTimeout(() => {
+    if (isBackgroundMonitorEnabled()) {
+        startBackgroundRainMonitoring();
+    } else {
+        updateBackgroundMonitorStatus("جاهزة للتشغيل");
+    }
+}, 5000);
+};     
+    
