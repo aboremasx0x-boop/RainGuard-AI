@@ -620,39 +620,49 @@ async function runSmartMultiCityBackgroundCheck() {
             if (data.error) continue;
 
             const best = data.best_hour || data.current || {};
-            const score = Number(best.rain_score) || 0;
-            const alertLevel = best.alert_level || "تنبيه مطر";
+            const current = data.current || {};
+
+            const score =
+                Number(best.rain_score) ||
+                Number(current.rain_score) ||
+                0;
+
+            const alertLevel =
+                best.alert_level ||
+                current.alert_level ||
+                "تنبيه مطر";
 
             results.push({
                 name: city.name,
+                lat: city.lat,
+                lon: city.lon,
                 score,
-                alertLevel
+                alertLevel,
+                source: data.source || "Unknown"
             });
-
-            if (score >= 60) {
-                checkPushRainAlert(
-                    score,
-                    city.name,
-                    alertLevel
-                );
-            }
 
         } catch (error) {
             console.error(error);
         }
     }
 
-    if (results.length > 0) {
-        results.sort((a, b) => b.score - a.score);
-
-        const top = results[0];
-
+    if (results.length === 0) {
         updateBackgroundMonitorStatus(
-            `أعلى مدينة: ${top.name} ${top.score}%`
+            "تعذر فحص المدن الذكية"
         );
+        return;
     }
-}
 
+    results.sort((a, b) => b.score - a.score);
+
+    const topCity = results[0];
+
+    updateBackgroundMonitorStatus(
+        `أعلى مدينة: ${topCity.name} ${topCity.score}%`
+    );
+
+    sendSmartMultiCityAlert(topCity);
+}
 // ===============================
 // Adaptive Smart Refresh AI
 // ===============================
