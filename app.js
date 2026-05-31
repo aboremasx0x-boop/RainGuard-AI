@@ -753,15 +753,16 @@ function sendFloodPredictionAlert(city) {
 
     const floodScore = Number(city.floodRiskScore) || 0;
 
-    if (floodScore < FLOOD_RISK_MIN_ALERT_SCORE) return;
+    if (floodScore < FLOOD_RISK_MEDIUM_SCORE) return;
     if (!canSendFloodPredictionAlert(city.name, floodScore)) return;
 
-    const title =
-        floodScore >= 80
-            ? "تحذير سيول مرتفع"
-            : "تنبيه سيول متوسط";
+    let title = "تنبيه سيول متوسط";
+    let advice = "راقب الحالة وتجنب مجاري السيول عند هطول المطر.";
 
-    const label = getFloodRiskLabel(floodScore);
+    if (floodScore >= FLOOD_RISK_HIGH_SCORE) {
+        title = "تحذير سيول مرتفع";
+        advice = "تجنب الأودية والأنفاق والمناطق المنخفضة فوراً، وتابع التنبيهات الرسمية.";
+    }
 
     sendRainNotification(
         title,
@@ -770,8 +771,8 @@ function sendFloodPredictionAlert(city) {
         `مؤشر المطر الآن: ${city.score}%\n` +
         `خلال 24 ساعة: ${city.forecast24Score}%\n` +
         `خلال 72 ساعة: ${city.forecast72Score}%\n` +
-        `${label}\n` +
-        `تجنب الأودية والأنفاق والمناطق المنخفضة عند هطول المطر.`
+        `${getFloodRiskLabel(floodScore)}\n` +
+        advice
     );
 
     saveFloodPredictionAlert(city.name, floodScore);
