@@ -46,6 +46,88 @@ const FLOOD_ALERT_EXTREME_SCORE = 80;
 const FLOOD_ALERT_COOLDOWN_MINUTES = 180;
 const FLOOD_ALERT_LAST_KEY = "rainguard_v82_flood_alert";
 
+const TERRAIN_ENGINE_VERSION = "V9";
+
+const terrainRiskProfiles = {
+    "مكة": {
+        valley: 18,
+        mountain: 12,
+        lowArea: 8,
+        coastal: 0,
+        history: 12
+    },
+    "جدة": {
+        valley: 8,
+        mountain: 0,
+        lowArea: 15,
+        coastal: 10,
+        history: 15
+    },
+    "الطائف": {
+        valley: 15,
+        mountain: 15,
+        lowArea: 5,
+        coastal: 0,
+        history: 10
+    },
+    "أبها": {
+        valley: 16,
+        mountain: 18,
+        lowArea: 5,
+        coastal: 0,
+        history: 10
+    },
+    "الباحة": {
+        valley: 16,
+        mountain: 18,
+        lowArea: 5,
+        coastal: 0,
+        history: 10
+    },
+    "جازان": {
+        valley: 14,
+        mountain: 8,
+        lowArea: 12,
+        coastal: 12,
+        history: 12
+    },
+    "نجران": {
+        valley: 18,
+        mountain: 8,
+        lowArea: 10,
+        coastal: 0,
+        history: 8
+    },
+    "المدينة": {
+        valley: 16,
+        mountain: 6,
+        lowArea: 8,
+        coastal: 0,
+        history: 10
+    },
+    "تبوك": {
+        valley: 14,
+        mountain: 6,
+        lowArea: 8,
+        coastal: 0,
+        history: 8
+    },
+    "الدمام": {
+        valley: 4,
+        mountain: 0,
+        lowArea: 14,
+        coastal: 12,
+        history: 6
+    },
+    "الرياض": {
+        valley: 8,
+        mountain: 0,
+        lowArea: 8,
+        coastal: 0,
+        history: 5
+    }
+};
+
 let floodMapLayer = [];
 let floodMapEnabled = true;
 
