@@ -2596,5 +2596,6 @@ setTimeout(() => {
         updateBackgroundMonitorStatus("جاهزة للتشغيل");
     }
 }, 5000);
+    renderSmartMultiCityHistory();
 };     
     
