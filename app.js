@@ -611,27 +611,35 @@ function sendEarlyMultiCityAlert(city) {
     const score72 = Number(city.forecast72Score) || 0;
 
     const earlyScore = Math.max(score24, score72);
-    const peakTime =
-    city.peakHour?.time
-        ? city.peakHour.time.replace("T", " ")
-        : "غير محدد";
 
     if (earlyScore < 40) return;
+
     if (nowScore >= earlyScore) return;
+
     if (!canSendEarlyMultiCityAlert(city.name, earlyScore)) return;
 
     let title = "تنبيه مبكر لاحتمال المطر";
-    let levelText = "تنبيه أصفر";
-    let advice = "تابع الحالة خلال الأيام القادمة.";
+    let levelText = "تنبيه مبكر";
 
     if (earlyScore >= 80) {
         title = "تحذير مبكر مرتفع";
-        levelText = "تنبيه أحمر";
-        advice = "ينصح بالاستعداد ومتابعة التنبيهات الرسمية.";
+        levelText = "احتمال مرتفع لهطول الأمطار";
     } else if (earlyScore >= 60) {
         title = "تنبيه مبكر متوسط";
-        levelText = "تنبيه برتقالي";
-        advice = "احتمال ارتفاع فرصة المطر خلال 24–72 ساعة.";
+        levelText = "احتمال متوسط لهطول الأمطار";
+    }
+
+    const peakTime =
+        city.peakHour?.time
+            ? city.peakHour.time.replace("T", " ")
+            : "غير متوفر";
+
+    let advice =
+        "تابع الحالة والتنبيهات الرسمية.";
+
+    if (earlyScore >= 80) {
+        advice =
+            "احتمال مرتفع لفرصة المطر خلال 24-72 ساعة.";
     }
 
     sendRainNotification(
@@ -639,15 +647,17 @@ function sendEarlyMultiCityAlert(city) {
         `المدينة: ${city.name}\n` +
         `الآن: ${nowScore}%\n` +
         `خلال 24 ساعة: ${score24}%\n` +
-        "خلال 72 ساعة: " + score72 + "%\n" +
-        "التوقيت: " + peakTime + "\n" +
-         levelText + "\n" +
-         advice
+        `خلال 72 ساعة: ${score72}%\n` +
+        `التوقيت: ${peakTime}\n` +
+        `${levelText}\n` +
+        advice
     );
 
-    saveEarlyMultiCityAlert(city.name, earlyScore);
+    saveEarlyMultiCityAlert(
+        city.name,
+        earlyScore
+    );
 }
-
 async function runSmartMultiCityBackgroundCheck() {
     if (!isSmartMultiCityEnabled()) return;
     if (!isBackgroundMonitorEnabled()) return;
