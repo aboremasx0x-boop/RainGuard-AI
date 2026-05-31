@@ -3220,6 +3220,15 @@ async function checkRain(
         const sourceStatusHTML = buildSourceStatusHTML(data);
         const forecastHTML = buildForecastHTML(data.next_hours);
         const dailyForecastHTML = buildDailyForecastHTML(data.daily_forecast);
+        const forecast12Box = document.getElementById("forecast12InlineBox");
+if (forecast12Box) {
+    forecast12Box.innerHTML = buildForecastHTML(data.next_hours);
+}
+
+const forecastDaysBox = document.getElementById("forecastDaysInlineBox");
+if (forecastDaysBox) {
+    forecastDaysBox.innerHTML = buildDailyForecastHTML(data.daily_forecast);
+}
         const confidenceHTML = buildConfidenceHTML(data);
         const radarFusionHTML = buildRadarFusionHTML(data);
         const arrivalTrackerHTML = buildRainArrivalTrackerHTML(data);
