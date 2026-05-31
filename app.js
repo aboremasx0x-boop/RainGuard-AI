@@ -1072,13 +1072,15 @@ function updateFloodRiskMap(results) {
         );
 
         circle.bindPopup(`
-            <b>${city.name}</b><br>
-            مؤشر السيول: ${floodScore}%<br>
-            التصنيف: ${label}<br>
-            المطر الآن: ${city.score}%<br>
-            24 ساعة: ${city.forecast24Score}%<br>
-            72 ساعة: ${city.forecast72Score}%
-        `);
+    <b>${city.name}</b><br>
+    مؤشر السيول: ${floodScore}%<br>
+    التصنيف: ${label}<br>
+    عامل التضاريس V9: ${city.terrainRiskScore || 0}<br>
+    سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
+    المطر الآن: ${city.score}%<br>
+    24 ساعة: ${city.forecast24Score}%<br>
+    72 ساعة: ${city.forecast72Score}%
+`);
 
         if (floodMapEnabled) {
             circle.addTo(map);
