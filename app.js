@@ -40,6 +40,9 @@ const FLOOD_RISK_HIGH_SCORE = 80;
 const FLOOD_RISK_MEDIUM_SCORE = 60;
 const FLOOD_RISK_WATCH_SCORE = 40;
 
+let floodMapLayer = [];
+let floodMapEnabled = true;
+
 const smartMultiCityMonitorList = [
     { name: "جدة", lat: 21.5433, lon: 39.1728 },
     { name: "مكة", lat: 21.3891, lon: 39.8579 },
