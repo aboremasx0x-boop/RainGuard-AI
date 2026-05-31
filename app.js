@@ -272,6 +272,96 @@ function readOfflineEmergencyWeather() {
 
     showActionMessage("تم عرض آخر حالة محفوظة", "warning");
 }
+function isRainNotificationEnabled() {
+    return localStorage.getItem(NOTIFICATION_ENABLED_KEY) === "true";
+}
+
+async function enableRainNotifications() {
+    if (!("Notification" in window)) {
+        showActionMessage("المتصفح لا يدعم الإشعارات", "warning");
+        return;
+    }
+
+    if (Notification.permission === "granted") {
+        localStorage.setItem(NOTIFICATION_ENABLED_KEY, "true");
+        showActionMessage("تنبيهات المطر مفعلة بالفعل", "success");
+        return;
+    }
+
+    if (Notification.permission === "denied") {
+        showActionMessage("تم رفض الإشعارات من إعدادات المتصفح", "warning");
+        return;
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission === "granted") {
+        localStorage.setItem(NOTIFICATION_ENABLED_KEY, "true");
+        showActionMessage("تم تفعيل تنبيهات المطر", "success");
+
+        new Notification("RainGuard AI", {
+            body: "تم تفعيل تنبيهات المطر بنجاح.",
+            icon: "icon-192.png"
+        });
+    } else {
+        showActionMessage("لم يتم السماح بالإشعارات", "warning");
+    }
+}
+
+function canSendRainNotification() {
+    const lastTime = Number(localStorage.getItem(NOTIFICATION_LAST_ALERT_KEY)) || 0;
+    const now = Date.now();
+    const cooldown = NOTIFICATION_COOLDOWN_MINUTES * 60 * 1000;
+
+    return now - lastTime > cooldown;
+}
+
+function markRainNotificationSent() {
+    localStorage.setItem(
+        NOTIFICATION_LAST_ALERT_KEY,
+        String(Date.now())
+    );
+}
+
+function sendRainNotification(title, message) {
+    if (!isRainNotificationEnabled()) return;
+    if (!("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    if (!canSendRainNotification()) return;
+
+    new Notification(title, {
+        body: message,
+        icon: "icon-192.png",
+        badge: "icon-192.png",
+        tag: "rainguard-rain-alert",
+        renotify: true
+    });
+
+    markRainNotificationSent();
+
+    if (navigator.vibrate) {
+        navigator.vibrate([250, 120, 250]);
+    }
+}
+
+function checkPushRainAlert(score, locationName, alertLevel) {
+    score = Number(score) || 0;
+
+    if (score >= 80) {
+        sendRainNotification(
+            "تحذير مطر مرتفع",
+            `مؤشر المطر في ${locationName} وصل إلى ${score}% - ${alertLevel}`
+        );
+        return;
+    }
+
+    if (score >= 60) {
+        sendRainNotification(
+            "تنبيه مطر متوسط",
+            `مؤشر المطر في ${locationName} وصل إلى ${score}% - تابع الحالة.`
+        );
+    }
+}
 
 // ===============================
 // Adaptive Smart Refresh AI
