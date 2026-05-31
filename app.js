@@ -1239,12 +1239,17 @@ async function runSmartMultiCityBackgroundCheck() {
     score,
     forecast24Score,
     forecast72Score,
-    floodRiskScore: calculateCityFloodRisk({
+
+    terrainRiskScore: calculateTerrainRisk(city.name),
+    terrainSummary: getTerrainRiskSummary(city.name),
+
+    floodRiskScore: calculateV9FloodRisk({
         name: city.name,
         score,
         forecast24Score,
         forecast72Score
     }),
+
     peakHour,
     forecastTiming,
     alertLevel,
