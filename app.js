@@ -1012,6 +1012,8 @@ function renderFloodPredictionPanel(results) {
                     توقع 24 ساعة: ${city.forecast24Score}%<br>
                     توقع 72 ساعة: ${city.forecast72Score}%<br>
                     وزن حساسية المدينة: ${floodCityWeights[city.name] || 0}<br>
+                    عامل التضاريس V9: ${city.terrainRiskScore || 0}<br>
+سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
                     الإجراء المقترح: ${action}
                 </div>
             </div>
