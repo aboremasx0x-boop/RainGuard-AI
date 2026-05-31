@@ -973,6 +973,82 @@ function toggleFloodRiskMap() {
         floodMapEnabled ? "success" : "warning"
     );
 }
+
+function getLastV82FloodAlert() {
+    try {
+        return JSON.parse(localStorage.getItem(FLOOD_ALERT_LAST_KEY));
+    } catch {
+        return null;
+    }
+}
+
+function canSendV82FloodAlert(cityName, floodScore) {
+    const last = getLastV82FloodAlert();
+
+    if (!last) return true;
+
+    const cooldown = FLOOD_ALERT_COOLDOWN_MINUTES * 60 * 1000;
+    const elapsed = Date.now() - Number(last.time || 0);
+
+    if (elapsed > cooldown) return true;
+
+    if (
+        last.cityName !== cityName &&
+        floodScore >= Number(last.floodScore || 0) + 10
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+function saveV82FloodAlert(cityName, floodScore, level) {
+    localStorage.setItem(
+        FLOOD_ALERT_LAST_KEY,
+        JSON.stringify({
+            cityName,
+            floodScore,
+            level,
+            time: Date.now()
+        })
+    );
+}
+
+function sendV82FloodAlert(city) {
+    if (!city) return;
+
+    const floodScore = Number(city.floodRiskScore) || 0;
+
+    if (floodScore < FLOOD_ALERT_WATCH_SCORE) return;
+    if (!canSendV82FloodAlert(city.name, floodScore)) return;
+
+    let title = "تنبيه مراقبة سيول";
+    let level = "مراقبة";
+    let advice = "يوجد احتمال محدود لتجمعات مياه. تابع التحديثات.";
+
+    if (floodScore >= FLOOD_ALERT_EXTREME_SCORE) {
+        title = "تحذير سيول شديد";
+        level = "شديد";
+        advice = "تجنب الأودية والأنفاق والمناطق المنخفضة فوراً، وتابع التنبيهات الرسمية.";
+    } else if (floodScore >= FLOOD_ALERT_HIGH_SCORE) {
+        title = "تنبيه سيول مرتفع";
+        level = "مرتفع";
+        advice = "تجنب مجاري السيول والمناطق المنخفضة عند هطول المطر.";
+    }
+
+    sendRainNotification(
+        title,
+        `المدينة: ${city.name}\n` +
+        `مؤشر السيول: ${floodScore}%\n` +
+        `التصنيف: ${level}\n` +
+        `المطر الآن: ${city.score}%\n` +
+        `خلال 24 ساعة: ${city.forecast24Score}%\n` +
+        `خلال 72 ساعة: ${city.forecast72Score}%\n` +
+        advice
+    );
+
+    saveV82FloodAlert(city.name, floodScore, level);
+}
 async function runSmartMultiCityBackgroundCheck() {
     if (!isSmartMultiCityEnabled()) return;
     if (!isBackgroundMonitorEnabled()) return;
