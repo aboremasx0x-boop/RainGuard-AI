@@ -861,6 +861,167 @@ function renderSmartMultiCityTopPanel(results) {
     }).join("");
 }
 
+function getMaxScoreByRange(hours, maxHours) {
+    if (!hours || hours.length === 0) return 0;
+
+    return Math.max(
+        ...hours.slice(0, maxHours).map(hour =>
+            Number(hour.rain_score) || 0
+        )
+    );
+}
+
+function getPeakHourByRange(hours, maxHours) {
+    if (!hours || hours.length === 0) return null;
+
+    const sliced = hours.slice(0, maxHours);
+
+    let peak = sliced[0];
+
+    sliced.forEach(hour => {
+        if ((Number(hour.rain_score) || 0) > (Number(peak.rain_score) || 0)) {
+            peak = hour;
+        }
+    });
+
+    return peak;
+}
+
+function classifyForecastTiming(scoreNow, score24, score72) {
+    if (scoreNow >= 60) return "الآن";
+    if (score24 >= 60) return "قريب خلال 24 ساعة";
+    if (score72 >= 60) return "لاحق خلال 72 ساعة";
+    return "منخفض";
+}
+
+function canSendEarlyMultiCityAlert(cityName, score) {
+    const saved = JSON.parse(
+        localStorage.getItem(SMART_MULTI_CITY_EARLY_ALERT_KEY) || "null"
+    );
+
+    if (!saved) return true;
+
+    const cooldown = 6 * 60 * 60 * 1000;
+    const elapsed = Date.now() - Number(saved.time || 0);
+
+    if (elapsed > cooldown) return true;
+
+    if (saved.cityName !== cityName && score >= Number(saved.score || 0) + 10) {
+        return true;
+    }
+
+    return false;
+}
+
+function saveEarlyMultiCityAlert(cityName, score) {
+    localStorage.setItem(
+        SMART_MULTI_CITY_EARLY_ALERT_KEY,
+        JSON.stringify({
+            cityName,
+            score,
+            time: Date.now()
+        })
+    );
+}
+
+function sendEarlyMultiCityAlert(city) {
+    if (!city) return;
+
+    const score = Number(city.forecast72Score) || 0;
+
+    if (score < SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE) return;
+    if (!canSendEarlyMultiCityAlert(city.name, score)) return;
+
+    sendRainNotification(
+        "تنبيه مبكر لاحتمال المطر",
+        `المدينة: ${city.name}\n` +
+        `أعلى مؤشر متوقع خلال 72 ساعة: ${score}%\n` +
+        `التوقيت: ${city.forecastTiming}\n` +
+        `تابع الحالة والتنبيهات الرسمية.`
+    );
+
+    saveEarlyMultiCityAlert(city.name, score);
+}
+
+function renderSmartMultiCityForecastPanel(results) {
+    const box = document.getElementById("smartMultiCityForecastBox");
+    if (!box) return;
+
+    if (!results || results.length === 0) {
+        box.innerHTML = "لا توجد بيانات توقع مبكر حالياً.";
+        return;
+    }
+
+    const ranked = [...results].sort((a, b) =>
+        b.forecast72Score - a.forecast72Score
+    );
+
+    const top = ranked.slice(0, 5);
+
+    box.innerHTML = top.map((city, index) => {
+        let color = "#22c55e";
+        let icon = "🟢";
+
+        if (city.forecast72Score >= 80) {
+            color = "#ef4444";
+            icon = "🔴";
+        } else if (city.forecast72Score >= 60) {
+            color = "#f59e0b";
+            icon = "🟠";
+        } else if (city.forecast72Score >= 40) {
+            color = "#38bdf8";
+            icon = "🔵";
+        }
+
+        const peakTime =
+            city.peakHour?.time
+                ? city.peakHour.time.replace("T", " ")
+                : "غير متوفر";
+
+        return `
+            <div style="
+                padding:14px;
+                margin-bottom:12px;
+                border-radius:16px;
+                background:#0f172a;
+                border:1px solid #334155;
+            ">
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                ">
+                    <strong style="font-size:18px;">
+                        ${index + 1}. ${icon} ${city.name}
+                    </strong>
+
+                    <strong style="
+                        color:${color};
+                        font-size:22px;
+                    ">
+                        ${city.forecast72Score}%
+                    </strong>
+                </div>
+
+                <div style="
+                    margin-top:8px;
+                    color:#cbd5e1;
+                    font-size:14px;
+                    line-height:1.8;
+                ">
+                    الآن: ${city.score}%<br>
+                    خلال 24 ساعة: ${city.forecast24Score}%<br>
+                    خلال 72 ساعة: ${city.forecast72Score}%<br>
+                    التصنيف: ${city.forecastTiming}<br>
+                    وقت الذروة المتوقع: ${peakTime}<br>
+                    المصدر: ${city.source || "Unknown"}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
 // ===============================
 // Adaptive Smart Refresh AI
 // ===============================
