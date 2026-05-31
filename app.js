@@ -1194,6 +1194,7 @@ console.log(
     });
 
 sendFloodPredictionAlert(floodRanked[0]);
+sendV82FloodAlert(floodRanked[0]);    
 }
 
 function saveSmartMultiCityHistory(topCities) {
