@@ -528,6 +528,77 @@ function toggleSmartMultiCityMonitoring() {
             : "مراقبة المدن الذكية متوقفة"
     );
 }
+function getLastSmartMultiCityAlert() {
+    try {
+        return JSON.parse(localStorage.getItem(SMART_MULTI_CITY_LAST_ALERT_KEY));
+    } catch {
+        return null;
+    }
+}
+
+function saveLastSmartMultiCityAlert(cityName, score) {
+    const item = {
+        cityName,
+        score,
+        time: Date.now()
+    };
+
+    localStorage.setItem(
+        SMART_MULTI_CITY_LAST_ALERT_KEY,
+        JSON.stringify(item)
+    );
+}
+
+function canSendSmartMultiCityAlert(cityName, score) {
+    const lastAlert = getLastSmartMultiCityAlert();
+
+    if (!lastAlert) return true;
+
+    const cooldown =
+        SMART_MULTI_CITY_ALERT_COOLDOWN_MINUTES * 60 * 1000;
+
+    const elapsed =
+        Date.now() - Number(lastAlert.time || 0);
+
+    if (elapsed > cooldown) return true;
+
+    if (
+        lastAlert.cityName !== cityName &&
+        score >= Number(lastAlert.score || 0) + 10
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+function sendSmartMultiCityAlert(city) {
+    if (!city) return;
+
+    const score = Number(city.score) || 0;
+
+    if (score < SMART_MULTI_CITY_MIN_ALERT_SCORE) return;
+
+    if (!canSendSmartMultiCityAlert(city.name, score)) return;
+
+    let title = "تنبيه مطر في إحدى المدن";
+    let body =
+        `المدينة: ${city.name}\n` +
+        `مؤشر المطر: ${score}%\n` +
+        `${city.alertLevel || "تابع الحالة."}`;
+
+    if (score >= 80) {
+        title = "تحذير مطر مرتفع في " + city.name;
+        body =
+            `مؤشر المطر وصل إلى ${score}%\n` +
+            `${city.alertLevel || "تحذير مطر مرتفع"}\n` +
+            `ينصح بمتابعة الحالة والتنبيهات الرسمية.`;
+    }
+
+    sendRainNotification(title, body);
+
+    saveLastSmartMultiCityAlert(city.name, score);
+}
 
 async function runSmartMultiCityBackgroundCheck() {
     if (!isSmartMultiCityEnabled()) return;
