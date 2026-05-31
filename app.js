@@ -3100,6 +3100,54 @@ function resetAccuracy() {
     showActionMessage("تم مسح تقييمات الدقة", "warning");
 }
 
+function updateProDashboardWidgets(data, name, score, best) {
+    const current = data.current || {};
+
+    const temperature =
+        current.temperature ?? "--";
+
+    const humidity =
+        current.humidity ?? "--";
+
+    const windSpeed =
+        current.wind_speed ?? "--";
+
+    const rainProbability =
+        current.rain_probability ?? score ?? "--";
+
+    const cloudCover =
+        current.cloud_cover ?? "--";
+
+    const pressure =
+        current.pressure_hpa ?? "--";
+
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+
+    setText("topRiskCity", name || "غير محدد");
+    setText("cityName", name || "غير محدد");
+
+    setText("topRiskScore", `${score}%`);
+    setText("topRiskDetails", best?.alert_level || "جاري تحليل المخاطر");
+
+    setText("tempKpi", `${temperature}°`);
+    setText("humidityKpi", `${humidity}%`);
+    setText("windKpi", `${windSpeed} كم/س`);
+    setText("rainProbKpi", `${rainProbability}%`);
+
+    setText("temperatureValue", `${temperature}°C`);
+    setText("humidityValue", `${humidity}%`);
+    setText("cloudValue", `${cloudCover}%`);
+    setText("rainChanceValue", `${rainProbability}%`);
+    setText("pressureValue", `${pressure}`);
+    setText("windValue", `${windSpeed}`);
+
+    setText("aiFloodValue", `${score}%`);
+    setText("radarFusionValue", `${score}%`);
+}
+
 // ===============================
 // Main Rain Analysis
 // ===============================
