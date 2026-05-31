@@ -954,6 +954,11 @@ async function runSmartMultiCityBackgroundCheck() {
 
     sendSmartMultiCityAlert(topCityNow);
     sendEarlyMultiCityAlert(topForecastCity);
+    const floodRanked = [...results].sort((a, b) =>
+    b.floodRiskScore - a.floodRiskScore
+);
+
+sendFloodPredictionAlert(floodRanked[0]);
 }
 
 function saveSmartMultiCityHistory(topCities) {
