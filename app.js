@@ -788,6 +788,65 @@ function calculateCityFloodRisk(city) {
     return Math.min(Math.round(floodRisk), 100);
 }
 
+function getTerrainRiskProfile(cityName) {
+    return terrainRiskProfiles[cityName] || {
+        valley: 5,
+        mountain: 0,
+        lowArea: 5,
+        coastal: 0,
+        history: 5
+    };
+}
+
+function calculateTerrainRisk(cityName) {
+    const profile = getTerrainRiskProfile(cityName);
+
+    const terrainScore =
+        Number(profile.valley || 0) +
+        Number(profile.mountain || 0) +
+        Number(profile.lowArea || 0) +
+        Number(profile.coastal || 0) +
+        Number(profile.history || 0);
+
+    return Math.min(Math.round(terrainScore), 50);
+}
+
+function calculateV9FloodRisk(city) {
+    if (!city) return 0;
+
+    const baseFloodRisk = calculateCityFloodRisk(city);
+    const terrainRisk = calculateTerrainRisk(city.name);
+
+    const forecastBoost =
+        Math.max(
+            Number(city.forecast24Score) || 0,
+            Number(city.forecast72Score) || 0
+        ) >= 60
+            ? 8
+            : 0;
+
+    const finalRisk =
+        baseFloodRisk + terrainRisk * 0.45 + forecastBoost;
+
+    return Math.min(Math.round(finalRisk), 100);
+}
+
+function getTerrainRiskSummary(cityName) {
+    const profile = getTerrainRiskProfile(cityName);
+
+    const items = [];
+
+    if (profile.valley >= 12) items.push("أودية");
+    if (profile.mountain >= 12) items.push("تضاريس جبلية");
+    if (profile.lowArea >= 12) items.push("مناطق منخفضة");
+    if (profile.coastal >= 10) items.push("قرب ساحلي");
+    if (profile.history >= 10) items.push("تاريخ سيول");
+
+    if (items.length === 0) return "حساسية تضاريسية منخفضة";
+
+    return items.join(" + ");
+}
+
 function getFloodRiskLabel(score) {
     score = Number(score) || 0;
 
