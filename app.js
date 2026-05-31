@@ -10,6 +10,16 @@ const BACKGROUND_MONITOR_INTERVAL_MINUTES = 10;
 
 let backgroundMonitorInterval = null;
 let backgroundMonitorEnabled = false;
+const SMART_MULTI_CITY_KEY = "rainguard_smart_multicity_enabled";
+
+const smartMultiCityMonitorList = [
+    { name: "جدة", lat: 21.5433, lon: 39.1728 },
+    { name: "مكة", lat: 21.3891, lon: 39.8579 },
+    { name: "الطائف", lat: 21.2703, lon: 40.4158 },
+    { name: "المدينة", lat: 24.5247, lon: 39.5692 },
+    { name: "أبها", lat: 18.2164, lon: 42.5053 },
+    { name: "الباحة", lat: 20.0129, lon: 41.4677 }
+];
 
 let map;
 let marker;
