@@ -793,3 +793,57 @@ hr {
     }
 }
 
+.forecast-section {
+    margin-top: 18px;
+}
+
+.forecast-section h3 {
+    margin-bottom: 14px;
+    color: #f8fafc;
+    font-size: 22px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.info-box {
+    background: rgba(2, 6, 23, 0.78);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 18px;
+    padding: 16px;
+    text-align: center;
+    color: #e2e8f0;
+    min-height: 125px;
+}
+
+.info-box span {
+    display: block;
+    color: #94a3b8;
+    margin-bottom: 10px;
+}
+
+.info-box strong {
+    display: block;
+    font-size: 24px;
+}
+
+.rain-low {
+    color: #22c55e !important;
+}
+
+.rain-medium {
+    color: #f59e0b !important;
+}
+
+.rain-high {
+    color: #ef4444 !important;
+}
+
+@media (max-width: 900px) {
+    .info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
