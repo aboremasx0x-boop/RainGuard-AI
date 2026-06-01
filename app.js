@@ -1552,6 +1552,39 @@ function clearSmartMultiCityHistory() {
     showActionMessage("تم مسح سجل مراقبة المدن الذكية", "warning");
 }
 
+function renderSubZonesHTML(subZones) {
+    if (!subZones || subZones.length === 0) {
+        return "";
+    }
+
+    const topZones = subZones.slice(0, 3);
+
+    return `
+        <div style="
+            margin-top:10px;
+            padding-top:10px;
+            border-top:1px solid #334155;
+            color:#cbd5e1;
+        ">
+            <strong style="color:#38bdf8;">
+                📍 المناطق المتأثرة داخل المدينة:
+            </strong>
+
+            ${topZones.map(zone => `
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    margin-top:6px;
+                    font-size:13px;
+                ">
+                    <span>${zone.name}</span>
+                    <strong style="color:#22c55e;">${zone.score}%</strong>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
+
 function renderSmartMultiCityTopPanel(results) {
     const box = document.getElementById("smartMultiCityTopBox");
     if (!box) return;
@@ -1617,6 +1650,7 @@ function renderSmartMultiCityTopPanel(results) {
                     مستوى الخطر: ${label}<br>
                     الحالة: ${city.alertLevel || "غير متوفر"}<br>
                     المصدر: ${city.source || "Unknown"}
+                          ${renderSubZonesHTML(city.subZones)}
                 </div>
             </div>
         `;
