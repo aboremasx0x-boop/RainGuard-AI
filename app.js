@@ -1683,13 +1683,18 @@ function renderSmartMultiCityTopPanel(results) {
         }
 
         return `
-            <div style="
-                padding:14px;
-                margin-bottom:12px;
-                border-radius:16px;
-                background:#0f172a;
-                border:1px solid #334155;
-            ">
+            <div
+    onclick="openCityForecastPopup('${city.name}')"
+    title="اضغط لعرض تفاصيل المدينة"
+    style="
+        padding:14px;
+        margin-bottom:12px;
+        border-radius:16px;
+        background:#0f172a;
+        border:1px solid #334155;
+        cursor:pointer;
+    "
+>
                 <div style="
                     display:flex;
                     justify-content:space-between;
