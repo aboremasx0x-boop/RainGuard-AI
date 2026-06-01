@@ -1623,7 +1623,7 @@ function openCityForecastPopup(cityName) {
 
                 <div class="rg-modal-section">
                     ${subZonesHTML || "لا توجد مناطق فرعية لهذه المدينة."}
-                    ${hourlyHTML}
+                   
                 </div>
 
                 <div class="rg-modal-section">
