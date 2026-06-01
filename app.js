@@ -3479,4 +3479,47 @@ setTimeout(() => {
 }, 5000);
     renderSmartMultiCityHistory();
 };     
-    
+
+function openMapAndRun(action) {
+    const mapButton = document.querySelector('[onclick*="mapPanel"]');
+    showProPanel("homePanel", mapButton || null);
+
+    setTimeout(() => {
+        if (action === "radar") toggleRadar();
+        if (action === "flood") toggleFloodRiskMap();
+        if (action === "heatmap") toggleHeatmap();
+        if (action === "cities") runSmartMultiCityBackgroundCheck();
+        if (action === "refresh") {
+            refreshNow();
+            runSmartMultiCityBackgroundCheck();
+        }
+
+        if (window.map && typeof map.invalidateSize === "function") {
+            map.invalidateSize();
+        }
+    }, 400);
+}
+
+function updateAIWidgets(data, score, name) {
+    const verification = data.verification || {};
+    const confidenceScore =
+        Number(verification.confidence_score) || Number(score) || 0;
+
+    const terrainScore = calculateTerrainRisk(name);
+    const floodScore = calculateV9FloodRisk({
+        name,
+        score,
+        forecast24Score: score,
+        forecast72Score: score
+    });
+
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+
+    setText("aiConfidenceValue", confidenceScore + "%");
+    setText("aiFloodValue", floodScore + "%");
+    setText("radarFusionValue", score + "%");
+    setText("terrainAiValue", terrainScore + "%");
+}
