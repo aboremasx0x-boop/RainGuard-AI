@@ -1371,7 +1371,8 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     peakHour,
     forecastTiming,
     alertLevel,
-    source: data.source || "Unknown"
+   source: data.source || "Unknown",
+subZones: await analyzeSubCityRainZones(city.name)
 });
 
         } catch (error) {
