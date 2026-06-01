@@ -3526,3 +3526,54 @@ function updateAIWidgets(data, score, name) {
     setText("radarFusionValue", score + "%");
     setText("terrainAiValue", terrainScore + "%");
 }
+// =====================================
+// Weather Effects Engine V10
+// =====================================
+
+function startWeatherEffects() {
+
+    const oldLayer =
+        document.getElementById("weatherFx");
+
+    if (oldLayer) oldLayer.remove();
+
+    const layer =
+        document.createElement("div");
+
+    layer.id = "weatherFx";
+
+    layer.innerHTML = `
+        <div class="rain-layer"></div>
+        <div class="cloud-layer"></div>
+    `;
+
+    document.body.appendChild(layer);
+
+    const risk =
+        parseInt(
+            document.getElementById("riskPercent")
+                ?.innerText || "0"
+        );
+
+    if (risk >= 60) {
+        startLightning();
+    }
+}
+
+function startLightning() {
+
+    setInterval(() => {
+
+        const flash =
+            document.createElement("div");
+
+        flash.className = "lightning-flash";
+
+        document.body.appendChild(flash);
+
+        setTimeout(() => {
+            flash.remove();
+        }, 300);
+
+    }, 12000);
+}
