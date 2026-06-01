@@ -2558,6 +2558,8 @@ function initMap(
         ).addTo(map);
 
         loadRainRadar();
+        console.log("Radar Loaded");
+        console.log(rainLayer);
 
         setTimeout(() => {
             updateRainHeatmap();
