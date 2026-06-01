@@ -1550,7 +1550,39 @@ function renderSmartMultiCityHistory() {
         `;
     }).join("");
 }
+function buildCityHourlyMiniForecast(city) {
 
+    const forecast = [
+        { time: "الآن", rain: city.score || 0 },
+        { time: "+3 ساعات", rain: Math.max((city.score || 0) - 3, 0) },
+        { time: "+6 ساعات", rain: Math.max((city.score || 0) - 5, 0) },
+        { time: "+9 ساعات", rain: Math.max((city.score || 0) - 8, 0) },
+        { time: "+12 ساعة", rain: Math.max((city.score || 0) - 10, 0) }
+    ];
+
+    return `
+        <div style="
+            margin-top:15px;
+            padding-top:10px;
+            border-top:1px solid #334155;
+        ">
+            <h3 style="color:#38bdf8;">
+                ⏰ توقع 12 ساعة القادمة
+            </h3>
+
+            ${forecast.map(item => `
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    margin:6px 0;
+                ">
+                    <span>${item.time}</span>
+                    <strong>${item.rain}%</strong>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
 function clearSmartMultiCityHistory() {
     localStorage.removeItem(SMART_MULTI_CITY_HISTORY_KEY);
     renderSmartMultiCityHistory();
