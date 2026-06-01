@@ -2591,9 +2591,9 @@ function initMap(
         console.log("Radar Loaded");
         console.log(rainLayer);
 
-        setTimeout(() => {
-            updateRainHeatmap();
-        }, 2500);
+        // setTimeout(() => {
+       //  updateRainHeatmap();
+      // }, 2500);
 
     } else {
 
@@ -3507,9 +3507,8 @@ window.onload = function () {
     renderPredictionHistory();
 
     setTimeout(() => {
-        startAutoRefresh();
-        updateMultiCityMonitor();
-    }, 3000);
+    startAutoRefresh();
+}, 3000);
 
 setTimeout(() => {
     if (isBackgroundMonitorEnabled()) {
