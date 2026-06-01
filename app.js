@@ -3216,6 +3216,7 @@ async function checkRain(
         const score = Number(best.rain_score) || 0;
 
         updateProDashboardWidgets(data, name, score, best);
+        updateAIWidgets(data, score, name);
 
         const sourceStatusHTML = buildSourceStatusHTML(data);
         const forecastHTML = buildForecastHTML(data.next_hours);
