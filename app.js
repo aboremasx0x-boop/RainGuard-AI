@@ -1276,12 +1276,11 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     }
 
 results.sort((a, b) => {
+    const aScore = Number(a.score) || 0;
+    const bScore = Number(b.score) || 0;
 
-    const aFlood = Number(a.floodRiskScore) || 0;
-    const bFlood = Number(b.floodRiskScore) || 0;
-
-    if (bFlood !== aFlood) {
-        return bFlood - aFlood;
+    if (bScore !== aScore) {
+        return bScore - aScore;
     }
 
     const aForecast72 = Number(a.forecast72Score) || 0;
@@ -1290,12 +1289,6 @@ results.sort((a, b) => {
     if (bForecast72 !== aForecast72) {
         return bForecast72 - aForecast72;
     }
-
-    const aScore = Number(a.score) || 0;
-    const bScore = Number(b.score) || 0;
-
-    return bScore - aScore;
-});
 
     const aFloodRisk = Number(a.floodRiskScore) || 0;
     const bFloodRisk = Number(b.floodRiskScore) || 0;
@@ -1510,7 +1503,7 @@ function renderSmartMultiCityTopPanel(results) {
                         color:${color};
                         font-size:22px;
                     ">
-                        ${city.floodRiskScore}%
+                        ${city.score}%
                     </strong>
                 </div>
 
@@ -1521,10 +1514,6 @@ function renderSmartMultiCityTopPanel(results) {
                     line-height:1.7;
                 ">
                     مستوى الخطر: ${label}<br>
-                    <br>
-                    خطر السيول: ${city.floodRiskScore}%
-                    <br>
-                    عامل التضاريس: ${city.terrainRiskScore}%
                     الحالة: ${city.alertLevel || "غير متوفر"}<br>
                     المصدر: ${city.source || "Unknown"}
                 </div>
@@ -1888,18 +1877,7 @@ function buildConfidenceHTML(data) {
     const verification = data.verification;
     if (!verification) return "";
 
-    let confidenceScore =
-    Number(verification.confidence_score);
-
-if (!confidenceScore || confidenceScore < 1) {
-    if (data.source?.includes("Hybrid")) {
-        confidenceScore = 70;
-    } else if (verification.verified === true) {
-        confidenceScore = 80;
-    } else {
-        confidenceScore = 40;
-    }
-}
+    const confidenceScore = Number(verification.confidence_score) || 0;
     const verified = verification.verified === true;
     const confidence = verification.confidence || "غير متوفر";
     const note = verification.note || "";
@@ -1978,12 +1956,7 @@ function buildRadarFusionHTML(data) {
     const pressure = Number(current.pressure_hpa) || 1013;
     const windSpeed = Number(current.wind_speed) || 0;
     const rainProbability = Number(current.rain_probability) || 0;
-    let confidenceScore =
-    Number(verification.confidence_score);
-
-if (!confidenceScore || confidenceScore < 1) {
-    confidenceScore = data.source?.includes("Hybrid") ? 70 : rainScore;
-}
+    const confidenceScore = Number(verification.confidence_score) || rainScore;
 
     let fusionScore = 0;
 
@@ -2591,9 +2564,9 @@ function initMap(
         console.log("Radar Loaded");
         console.log(rainLayer);
 
-        // setTimeout(() => {
-       //  updateRainHeatmap();
-      // }, 2500);
+        setTimeout(() => {
+            updateRainHeatmap();
+        }, 2500);
 
     } else {
 
@@ -3507,8 +3480,9 @@ window.onload = function () {
     renderPredictionHistory();
 
     setTimeout(() => {
-    startAutoRefresh();
-}, 3000);
+        startAutoRefresh();
+        updateMultiCityMonitor();
+    }, 3000);
 
 setTimeout(() => {
     if (isBackgroundMonitorEnabled()) {
@@ -3542,18 +3516,8 @@ function openMapAndRun(action) {
 
 function updateAIWidgets(data, score, name) {
     const verification = data.verification || {};
-    let confidenceScore =
-    Number(verification.confidence_score);
-
-if (!confidenceScore || confidenceScore < 1) {
-    if (data.source?.includes("Hybrid")) {
-        confidenceScore = 70;
-    } else if (verification.verified === true) {
-        confidenceScore = 80;
-    } else {
-        confidenceScore = Number(score) || 40;
-    }
-}
+    const confidenceScore =
+        Number(verification.confidence_score) || Number(score) || 0;
 
     const terrainScore = calculateTerrainRisk(name);
     const floodScore = calculateV9FloodRisk({
