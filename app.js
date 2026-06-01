@@ -145,37 +145,6 @@ const smartMultiCityMonitorList = [
     { name: "خليص",lat: 22.1500, lon: 39.3400 },
     { name: "الرياض", lat: 24.7136, lon: 46.6753 }
 ];
-const subCityRainZones = {
-    "الطائف": [
-        { name: "الوهط", lat: 21.2910, lon: 40.4330 },
-        { name: "الهدا", lat: 21.3670, lon: 40.2850 },
-        { name: "الشفا", lat: 21.0760, lon: 40.3110 },
-        { name: "الحوية", lat: 21.4410, lon: 40.5010 },
-        { name: "السيل الكبير", lat: 21.6330, lon: 40.5000 },
-        { name: "بني سعد", lat: 20.9330, lon: 40.7500 }
-    ],
-
-    "مكة": [
-        { name: "الشرائع", lat: 21.4900, lon: 39.9500 },
-        { name: "العوالي", lat: 21.3500, lon: 39.9100 },
-        { name: "بحرة", lat: 21.4000, lon: 39.4800 },
-        { name: "الجموم", lat: 21.6160, lon: 39.7000 }
-    ],
-
-    "جدة": [
-        { name: "أبحر", lat: 21.7500, lon: 39.1000 },
-        { name: "الحمدانية", lat: 21.7200, lon: 39.2500 },
-        { name: "بريمان", lat: 21.6500, lon: 39.3000 },
-        { name: "شرق جدة", lat: 21.5500, lon: 39.3000 }
-    ],
-
-    "المدينة المنورة": [
-        { name: "العزيزية", lat: 24.4300, lon: 39.5400 },
-        { name: "قباء", lat: 24.4360, lon: 39.6170 },
-        { name: "العاقول", lat: 24.5600, lon: 39.7200 },
-        { name: "المسيجيد", lat: 24.9500, lon: 39.1500 }
-    ],
-
     const subCityRainZones = {
     "الطائف": [
         { name: "الوهط", lat: 21.2910, lon: 40.4330 },
@@ -223,6 +192,59 @@ const subCityRainZones = {
         { name: "صبيا", lat: 17.1500, lon: 42.6250 }
     ]
 };
+
+async function analyzeSubCityRainZones(cityName) {
+    const zones = subCityRainZones[cityName];
+
+    if (!zones || zones.length === 0) {
+        return null;
+    }
+
+    const results = [];
+
+    for (const zone of zones) {
+        try {
+            const url =
+                `${API_BASE_URL}/rain-alert?lat=${zone.lat}&lon=${zone.lon}&name=${encodeURIComponent(zone.name)}&hours=12`;
+
+            const response = await fetch(url);
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            if (data.error) continue;
+
+            const best = data.best_hour || data.current || {};
+            const current = data.current || {};
+
+            const score =
+                Number(best.rain_score) ||
+                Number(current.rain_score) ||
+                Number(current.rain_probability) ||
+                0;
+
+            results.push({
+                name: zone.name,
+                lat: zone.lat,
+                lon: zone.lon,
+                score,
+                rainProbability: Number(current.rain_probability || 0),
+                floodRiskScore: calculateV9FloodRisk({
+                    name: zone.name,
+                    score,
+                    forecast24Score: score,
+                    forecast72Score: score
+                })
+            });
+
+        } catch (error) {
+            console.error("Sub-city zone error:", zone.name, error);
+        }
+    }
+
+    results.sort((a, b) => b.score - a.score);
+
+    return results;
+}
 let map;
 let marker;
 let rainLayer;
