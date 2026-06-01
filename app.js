@@ -1256,7 +1256,12 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
         forecast24Score,
         forecast72Score
     }),
-
+                actualRiskScore: Math.round(
+    (Number(score) || 0) * 0.5 +
+    (Number(floodRiskScore) || 0) * 0.3 +
+    (Number(terrainRiskScore) || 0) * 0.2
+),
+                
     peakHour,
     forecastTiming,
     alertLevel,
@@ -1276,28 +1281,17 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     }
 
 results.sort((a, b) => {
-    const aScore = Number(a.score) || 0;
-    const bScore = Number(b.score) || 0;
+    const aActualRisk =
+        (Number(a.score) || 0) * 0.5 +
+        (Number(a.floodRiskScore) || 0) * 0.3 +
+        (Number(a.terrainRiskScore) || 0) * 0.2;
 
-    if (bScore !== aScore) {
-        return bScore - aScore;
-    }
+    const bActualRisk =
+        (Number(b.score) || 0) * 0.5 +
+        (Number(b.floodRiskScore) || 0) * 0.3 +
+        (Number(b.terrainRiskScore) || 0) * 0.2;
 
-    const aForecast72 = Number(a.forecast72Score) || 0;
-    const bForecast72 = Number(b.forecast72Score) || 0;
-
-    if (bForecast72 !== aForecast72) {
-        return bForecast72 - aForecast72;
-    }
-
-    const aFloodRisk = Number(a.floodRiskScore) || 0;
-    const bFloodRisk = Number(b.floodRiskScore) || 0;
-
-    if (bFloodRisk !== aFloodRisk) {
-        return bFloodRisk - aFloodRisk;
-    }
-
-    return a.name.localeCompare(b.name, "ar");
+    return bActualRisk - aActualRisk;
 });
     const highestFloodCity = results[0];
 
@@ -1503,7 +1497,7 @@ function renderSmartMultiCityTopPanel(results) {
                         color:${color};
                         font-size:22px;
                     ">
-                        ${city.score}%
+                        ${city.actualRiskScore ?? city.score}%
                     </strong>
                 </div>
 
