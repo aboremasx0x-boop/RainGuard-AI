@@ -401,6 +401,7 @@ function readOfflineEmergencyWeather() {
 
     updateRiskBar(score);
     updateLightningStormMode(score);
+    updateWeatherEffectsByRisk(score);
 
     document.getElementById("adviceText").innerHTML = `
         ${buildOfflineEmergencyHTML(saved)}
@@ -1194,9 +1195,11 @@ function sendV82FloodAlert(city) {
 
     saveV82FloodAlert(city.name, floodScore, level);
 }
-async function runSmartMultiCityBackgroundCheck() {
-    if (!isSmartMultiCityEnabled()) return;
-    if (!isBackgroundMonitorEnabled()) return;
+async function runSmartMultiCityBackgroundCheck(force = false) {
+    if (!force) {
+        if (!isSmartMultiCityEnabled()) return;
+        if (!isBackgroundMonitorEnabled()) return;
+    }
 
     const results = [];
 
@@ -3234,6 +3237,14 @@ if (forecastDaysBox) {
 }
         const confidenceHTML = buildConfidenceHTML(data);
         const radarFusionHTML = buildRadarFusionHTML(data);
+        const sourceStatusBox = document.getElementById("sourceStatusBox");
+if (sourceStatusBox) sourceStatusBox.innerHTML = sourceStatusHTML;
+
+const confidenceBox = document.getElementById("confidenceBox");
+if (confidenceBox) confidenceBox.innerHTML = confidenceHTML;
+
+const radarFusionBox = document.getElementById("radarFusionBox");
+if (radarFusionBox) radarFusionBox.innerHTML = radarFusionHTML;
         const arrivalTrackerHTML = buildRainArrivalTrackerHTML(data);
         const floodRiskHTML = buildFloodRiskHTML(data, name);
 
@@ -3491,10 +3502,10 @@ function openMapAndRun(action) {
         if (action === "radar") toggleRadar();
         if (action === "flood") toggleFloodRiskMap();
         if (action === "heatmap") toggleHeatmap();
-        if (action === "cities") runSmartMultiCityBackgroundCheck();
+        if (action === "cities") runSmartMultiCityBackgroundCheck(true);
         if (action === "refresh") {
             refreshNow();
-            runSmartMultiCityBackgroundCheck();
+           runSmartMultiCityBackgroundCheck(true);
         }
 
         if (window.map && typeof map.invalidateSize === "function") {
@@ -3530,50 +3541,100 @@ function updateAIWidgets(data, score, name) {
 // Weather Effects Engine V10
 // =====================================
 
+let weatherEffectsEnabled = true;
+let lightningInterval = null;
+
 function startWeatherEffects() {
+    if (!weatherEffectsEnabled) return;
 
-    const oldLayer =
-        document.getElementById("weatherFx");
-
+    const oldLayer = document.getElementById("weatherFx");
     if (oldLayer) oldLayer.remove();
 
-    const layer =
-        document.createElement("div");
-
+    const layer = document.createElement("div");
     layer.id = "weatherFx";
 
     layer.innerHTML = `
-        <div class="rain-layer"></div>
         <div class="cloud-layer"></div>
+        <div class="rain-layer"></div>
     `;
 
     document.body.appendChild(layer);
+}
 
-    const risk =
-        parseInt(
-            document.getElementById("riskPercent")
-                ?.innerText || "0"
-        );
+function stopWeatherEffects() {
+    const oldLayer = document.getElementById("weatherFx");
+    if (oldLayer) oldLayer.remove();
 
-    if (risk >= 60) {
+    stopLightningOnly();
+
+    document.body.classList.remove(
+        "fx-low",
+        "fx-medium",
+        "fx-high",
+        "fx-danger"
+    );
+}
+
+function toggleWeatherEffects() {
+    weatherEffectsEnabled = !weatherEffectsEnabled;
+
+    if (weatherEffectsEnabled) {
+        startWeatherEffects();
+        updateWeatherEffectsByRisk(lastRainScore);
+        showActionMessage("تم تشغيل المؤثرات الجوية", "success");
+    } else {
+        stopWeatherEffects();
+        showActionMessage("تم إيقاف المؤثرات الجوية", "warning");
+    }
+}
+
+function updateWeatherEffectsByRisk(score) {
+    score = Number(score) || 0;
+    lastRainScore = score;
+
+    if (!weatherEffectsEnabled) return;
+
+    startWeatherEffects();
+
+    document.body.classList.remove(
+        "fx-low",
+        "fx-medium",
+        "fx-high",
+        "fx-danger"
+    );
+
+    if (score >= 80) {
+        document.body.classList.add("fx-danger");
         startLightning();
+    } else if (score >= 60) {
+        document.body.classList.add("fx-high");
+        startLightning();
+    } else if (score >= 40) {
+        document.body.classList.add("fx-medium");
+        stopLightningOnly();
+    } else {
+        document.body.classList.add("fx-low");
+        stopLightningOnly();
     }
 }
 
 function startLightning() {
+    if (lightningInterval) return;
 
-    setInterval(() => {
-
-        const flash =
-            document.createElement("div");
-
+    lightningInterval = setInterval(() => {
+        const flash = document.createElement("div");
         flash.className = "lightning-flash";
-
         document.body.appendChild(flash);
 
         setTimeout(() => {
             flash.remove();
-        }, 300);
+        }, 260);
+    }, 9000);
+}
 
-    }, 12000);
+function stopLightningOnly() {
+    if (lightningInterval) {
+        clearInterval(lightningInterval);
+        lightningInterval = null;
+    }
 }
