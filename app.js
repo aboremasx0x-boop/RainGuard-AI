@@ -3520,12 +3520,13 @@ function updateAIWidgets(data, score, name) {
         Number(verification.confidence_score) || Number(score) || 0;
 
     const terrainScore = calculateTerrainRisk(name);
-    const floodScore = calculateV9FloodRisk({
-        name,
-        score,
-        forecast24Score: score,
-        forecast72Score: score
-    });
+    const floodScore = Math.min(
+    100,
+    Math.round(
+        (Number(score) * 0.7) +
+        (Number(terrainScore) * 0.3)
+    )
+);
 
     const setText = (id, value) => {
         const el = document.getElementById(id);
