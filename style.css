@@ -894,3 +894,93 @@ hr {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+#weatherFx {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.rg-shell,
+.rg-bottom-nav,
+.leaflet-container {
+    position: relative;
+    z-index: 3;
+}
+
+.cloud-layer {
+    position: absolute;
+    inset: -20%;
+    opacity: 0.22;
+    filter: blur(18px);
+    background:
+        radial-gradient(circle at 15% 20%, rgba(255,255,255,.18), transparent 18%),
+        radial-gradient(circle at 45% 12%, rgba(148,163,184,.18), transparent 22%),
+        radial-gradient(circle at 75% 30%, rgba(255,255,255,.14), transparent 20%);
+    animation: cloudMoveV10 38s ease-in-out infinite alternate;
+}
+
+.rain-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0.12;
+    background-image:
+        linear-gradient(115deg, transparent 0%, rgba(255,255,255,.35) 48%, transparent 52%);
+    background-size: 120px 680px;
+    animation: rainFallV10 .75s linear infinite;
+}
+
+body.fx-low .rain-layer {
+    opacity: 0.05;
+}
+
+body.fx-medium .rain-layer {
+    opacity: 0.16;
+}
+
+body.fx-high .rain-layer {
+    opacity: 0.28;
+    animation-duration: .48s;
+}
+
+body.fx-danger .rain-layer {
+    opacity: 0.42;
+    animation-duration: .32s;
+}
+
+.lightning-flash {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 35% 18%, rgba(255,255,255,.95), transparent 18%),
+        linear-gradient(135deg, rgba(255,255,255,.55), transparent 45%);
+    animation: lightningFlashV10 .26s ease-out forwards;
+}
+
+@keyframes cloudMoveV10 {
+    from {
+        transform: translateX(-4%) translateY(-2%) scale(1);
+    }
+    to {
+        transform: translateX(5%) translateY(3%) scale(1.08);
+    }
+}
+
+@keyframes rainFallV10 {
+    from {
+        background-position: 0 -700px;
+    }
+    to {
+        background-position: -240px 700px;
+    }
+}
+
+@keyframes lightningFlashV10 {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    55% { opacity: .28; }
+    100% { opacity: 0; }
+}
