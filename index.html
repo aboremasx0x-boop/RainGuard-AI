@@ -7,7 +7,7 @@
 
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-    <link rel="stylesheet" href="style.css?v=59">
+    <link rel="stylesheet" href="style.css?v=60">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
@@ -209,6 +209,7 @@
                         <button onclick="refreshNow()"><i class="fa-solid fa-rotate"></i> تحديث الآن</button>
                         <button onclick="toggleRadar()"><i class="fa-solid fa-satellite-dish"></i> تشغيل الرادار</button>
                         <button onclick="toggleHeatmap()"><i class="fa-solid fa-fire"></i> الخريطة الحرارية</button>
+                        <button onclick="toggleWeatherEffects()"><i class="fa-solid fa-cloud-bolt"></i> المؤثرات الجوية</button>
                         <button onclick="startAutoRefresh()"><i class="fa-solid fa-bolt"></i> التحديث الذكي</button>
                         <button onclick="stopAutoRefresh()"><i class="fa-solid fa-pause"></i> إيقاف التحديث</button>
                         <button onclick="shareWeatherWhatsApp()"><i class="fa-brands fa-whatsapp"></i> مشاركة واتساب</button>
@@ -243,7 +244,7 @@
                 <div class="pro-card map-section">
                     <div class="card-title">
                         <h3>الخريطة التفاعلية - رادار المطر والسيول</h3>
-                        <button onclick="runSmartMultiCityBackgroundCheck()">تحديث الخريطة</button>
+                        <button onclick="openMapAndRun('refresh')">تحديث الخريطة</button>
                     </div>
 
                     <div id="map"></div>
@@ -512,7 +513,7 @@
 </nav>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="app.js?v=58"></script>
+<script src="app.js?v=60"></script>
 
 <script>
 function showProPanel(panelId, button, mobile = false) {
