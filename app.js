@@ -1557,6 +1557,18 @@ function renderSubZonesHTML(subZones) {
         return "";
     }
 
+    const maxZoneScore = Math.max(
+        ...subZones.map(z => Number(z.score) || 0)
+    );
+
+    let title = "📍 متابعة المناطق الداخلية";
+
+    if (maxZoneScore >= 60) {
+        title = "📍 المناطق المتأثرة بالمطر";
+    } else if (maxZoneScore >= 30) {
+        title = "📍 مناطق محتملة التأثر";
+    }
+
     const topZones = subZones.slice(0, 3);
 
     return `
@@ -1567,7 +1579,7 @@ function renderSubZonesHTML(subZones) {
             color:#cbd5e1;
         ">
             <strong style="color:#38bdf8;">
-                📍 المناطق المتأثرة داخل المدينة:
+                ${title}
             </strong>
 
             ${topZones.map(zone => `
