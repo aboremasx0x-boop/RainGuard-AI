@@ -1552,6 +1552,57 @@ function clearSmartMultiCityHistory() {
     showActionMessage("تم مسح سجل مراقبة المدن الذكية", "warning");
 }
 
+window.lastMultiCityResults = [];
+
+function openCityForecastPopup(cityName) {
+    const city = window.lastMultiCityResults.find(c => c.name === cityName);
+
+    if (!city) {
+        showActionMessage("لا توجد بيانات تفصيلية لهذه المدينة حالياً", "warning");
+        return;
+    }
+
+    const subZonesHTML = renderSubZonesHTML(city.subZones);
+
+    const html = `
+        <div id="cityForecastModal" class="rg-modal">
+            <div class="rg-modal-content">
+                <button class="rg-modal-close" onclick="closeCityForecastPopup()">×</button>
+
+                <h2>تفاصيل ${city.name}</h2>
+
+                <div class="rg-modal-score">
+                    مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score}%
+                </div>
+
+                <div class="rg-modal-grid">
+                    <div>المطر الآن: <strong>${city.score}%</strong></div>
+                    <div>السيول: <strong>${city.floodRiskScore ?? "--"}%</strong></div>
+                    <div>التضاريس: <strong>${city.terrainRiskScore ?? "--"}%</strong></div>
+                    <div>24 ساعة: <strong>${city.forecast24Score ?? "--"}%</strong></div>
+                    <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
+                </div>
+
+                <div class="rg-modal-section">
+                    ${subZonesHTML || "لا توجد مناطق فرعية لهذه المدينة."}
+                </div>
+
+                <div class="rg-modal-note">
+                    المصدر: ${city.source || "Unknown"}<br>
+                    الحالة: ${city.alertLevel || "غير متوفر"}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML("beforeend", html);
+}
+
+function closeCityForecastPopup() {
+    const modal = document.getElementById("cityForecastModal");
+    if (modal) modal.remove();
+}
+
 function renderSubZonesHTML(subZones) {
     if (!subZones || subZones.length === 0) {
         return "";
