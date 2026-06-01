@@ -1696,9 +1696,18 @@ function renderSmartMultiCityTopPanel(results) {
                     align-items:center;
                     gap:10px;
                 ">
-                    <strong style="font-size:18px;">
-                        ${index + 1}. ${icon} ${city.name}
-                    </strong>
+                    <<strong
+    onclick="openCityForecastPopup('${city.name}')"
+    title="اضغط لعرض تفاصيل المدينة"
+    style="
+        font-size:18px;
+        cursor:pointer;
+        text-decoration:underline;
+        text-underline-offset:4px;
+    "
+>
+    ${index + 1}. ${icon} ${city.name}
+</strong>
 
                     <strong style="
                         color:${color};
