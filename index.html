@@ -7,7 +7,7 @@
 
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-    <link rel="stylesheet" href="style.css?v=58">
+    <link rel="stylesheet" href="style.css?v=59">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
@@ -287,11 +287,12 @@
                 </div>
 
                 <div class="rg-map-tools">
-                    <button onclick="toggleRadar()">الرادار</button>
-                    <button onclick="toggleFloodRiskMap()">خطر السيول</button>
-                    <button onclick="toggleHeatmap()">الخريطة الحرارية</button>
-                    <button onclick="runSmartMultiCityBackgroundCheck()">تحديث المدن</button>
-                </div>
+    <button onclick="openMapAndRun('radar')">الرادار</button>
+    <button onclick="openMapAndRun('flood')">خطر السيول</button>
+    <button onclick="openMapAndRun('heatmap')">الخريطة الحرارية</button>
+    <button onclick="openMapAndRun('cities')">تحديث المدن</button>
+    <button onclick="openMapAndRun('refresh')">تحديث الخريطة</button>
+</div>
 
                 <div id="mapCopyNotice" class="rg-muted">
                     الخريطة الرئيسية موجودة في الصفحة الرئيسية.
