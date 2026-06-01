@@ -1421,6 +1421,7 @@ console.log(
     const topForecastCity = forecastRanked[0];
     
     window.lastMultiCityResults = results;
+    window.openCityForecastPopup = openCityForecastPopup;
     renderSmartMultiCityTopPanel(results);
     renderSmartMultiCityForecastPanel(results);
     renderFloodPredictionPanel(results);
