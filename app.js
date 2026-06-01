@@ -1258,8 +1258,13 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     }),
                 actualRiskScore: Math.round(
     (Number(score) || 0) * 0.5 +
-    (Number(floodRiskScore) || 0) * 0.3 +
-    (Number(terrainRiskScore) || 0) * 0.2
+    (Number(calculateV9FloodRisk({
+        name: city.name,
+        score,
+        forecast24Score,
+        forecast72Score
+    })) || 0) * 0.3 +
+    (Number(calculateTerrainRisk(city.name)) || 0) * 0.2
 ),
                 
     peakHour,
