@@ -1091,9 +1091,12 @@ function renderFloodPredictionPanel(results) {
                     align-items:center;
                     gap:10px;
                 ">
-                    <strong style="font-size:18px;">
-                        ${index + 1}. ${icon} ${city.name}
-                    </strong>
+                    <strong
+    onclick="openCityForecastPopup('${city.name}')"
+    style="font-size:18px; cursor:pointer;"
+>
+    ${index + 1}. ${icon} ${city.name}
+</strong>
 
                     <strong style="
                         color:${color};
