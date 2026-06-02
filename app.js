@@ -1655,21 +1655,24 @@ function openCityForecastPopup(cityName) {
                     <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
                 </div>
 
+                <div id="cityMiniMap" style="
+                    height:220px;
+                    margin-top:15px;
+                    border-radius:16px;
+                    overflow:hidden;
+                    border:1px solid #334155;
+                "></div>
+
                 <div class="rg-modal-section">
                     ${subZonesHTML || "لا توجد مناطق فرعية لهذه المدينة."}
-                   
                 </div>
 
                 <div class="rg-modal-section">
-                     ${hourlyHTML}
-                     ${dailyHTML}
-                     <div id="cityMiniMap" style="
-                     height:220px;
-                     margin-top:15px;
-                     border-radius:16px;
-                     overflow:hidden;
-                     border:1px solid #334155;
-             "></div>
+                    ${hourlyHTML}
+                </div>
+
+                <div class="rg-modal-section">
+                    ${dailyHTML}
                 </div>
 
                 <div class="rg-modal-note">
@@ -1681,45 +1684,48 @@ function openCityForecastPopup(cityName) {
     `;
 
     document.body.insertAdjacentHTML("beforeend", html);
-   setTimeout(() => {
-    if (!city.lat || !city.lon || !window.L) return;
-
-    const miniMap = L.map("cityMiniMap", {
-        zoomControl: false,
-        attributionControl: false
-    }).setView([city.lat, city.lon], 10);
-
-    L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { maxZoom: 18 }
-    ).addTo(miniMap);
-
-    L.marker([city.lat, city.lon]).addTo(miniMap);
-
-    if (city.subZones && city.subZones.length > 0) {
-        city.subZones.forEach(zone => {
-            if (!zone.lat || !zone.lon) return;
-
-            const zoneColor =
-                zone.score >= 60 ? "red" :
-                zone.score >= 30 ? "orange" :
-                zone.score >= 15 ? "yellow" :
-                "green";
-
-            L.circleMarker([zone.lat, zone.lon], {
-                radius: 8,
-                color: zoneColor,
-                fillColor: zoneColor,
-                fillOpacity: 0.75
-            })
-            .bindPopup(`${zone.name}<br>احتمال المطر: ${zone.score}%`)
-            .addTo(miniMap);
-        });
-    }
 
     setTimeout(() => {
-        miniMap.invalidateSize();
-    }, 300);
+        if (!city.lat || !city.lon || !window.L) return;
+
+        const miniMap = L.map("cityMiniMap", {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([city.lat, city.lon], 10);
+
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            { maxZoom: 18 }
+        ).addTo(miniMap);
+
+        L.marker([city.lat, city.lon]).addTo(miniMap);
+
+        if (city.subZones && city.subZones.length > 0) {
+            city.subZones.forEach(zone => {
+                if (!zone.lat || !zone.lon) return;
+
+                const zoneColor =
+                    zone.score >= 60 ? "red" :
+                    zone.score >= 30 ? "orange" :
+                    zone.score >= 15 ? "yellow" :
+                    "green";
+
+                L.circleMarker([zone.lat, zone.lon], {
+                    radius: 8,
+                    color: zoneColor,
+                    fillColor: zoneColor,
+                    fillOpacity: 0.75
+                })
+                .bindPopup(
+                    `${zone.name}<br>احتمال المطر: ${zone.score}%`
+                )
+                .addTo(miniMap);
+            });
+        }
+
+        setTimeout(() => {
+            miniMap.invalidateSize();
+        }, 300);
 
     }, 300);
 }
