@@ -1797,7 +1797,9 @@ function closeCityForecastPopupOnOutsideClick(event) {
 function renderSubZonesHTML(subZones) {
     if (!subZones || subZones.length === 0) return "";
 
-    const topZones = subZones.slice(0, 5);
+    const topZones = [...subZones]
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+    .slice(0, 5);
 
     const getZoneStyle = (score) => {
         score = Number(score) || 0;
