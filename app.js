@@ -1716,9 +1716,17 @@ function openCityForecastPopup(cityName) {
                     fillColor: zoneColor,
                     fillOpacity: 0.75
                 })
-                .bindPopup(
-                    `${zone.name}<br>احتمال المطر: ${zone.score}%`
-                )
+                .bindPopup(`
+    <strong>${zone.name}</strong><br>
+    احتمال المطر: ${zone.score}%<br>
+    مؤشر السيول: ${zone.floodRiskScore ?? "--"}%<br>
+    <span style="color:#38bdf8;">
+        ${zone.score >= 60 ? "تنبيه مرتفع" :
+          zone.score >= 30 ? "تنبيه متوسط" :
+          zone.score >= 15 ? "احتمال محدود" :
+          "منخفض"}
+    </span>
+`)
                 .addTo(miniMap);
             });
         }
