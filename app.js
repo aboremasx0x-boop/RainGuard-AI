@@ -1583,6 +1583,39 @@ function buildCityHourlyMiniForecast(city) {
         </div>
     `;
 }
+
+function buildCityDailyMiniForecast(city) {
+    const score = Number(city.forecast72Score || city.score || 0);
+
+    const days = [
+        { day: "اليوم", rain: Number(city.score || 0) },
+        { day: "غداً", rain: Math.max(score - 2, 0) },
+        { day: "بعد غد", rain: Math.max(score - 5, 0) }
+    ];
+
+    return `
+        <div style="
+            margin-top:15px;
+            padding-top:10px;
+            border-top:1px solid #334155;
+        ">
+            <h3 style="color:#38bdf8;">
+                📅 توقع الأيام القادمة
+            </h3>
+
+            ${days.map(item => `
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    margin:6px 0;
+                ">
+                    <span>${item.day}</span>
+                    <strong>${item.rain}%</strong>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
 function clearSmartMultiCityHistory() {
     localStorage.removeItem(SMART_MULTI_CITY_HISTORY_KEY);
     renderSmartMultiCityHistory();
