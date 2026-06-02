@@ -1634,6 +1634,7 @@ function openCityForecastPopup(cityName) {
 
     const subZonesHTML = renderSubZonesHTML(city.subZones);
     const hourlyHTML = buildCityHourlyMiniForecast(city);
+    const dailyHTML = buildCityDailyMiniForecast(city);
 
     const html = `
         <div id="cityForecastModal" class="rg-modal">
@@ -1661,6 +1662,7 @@ function openCityForecastPopup(cityName) {
 
                 <div class="rg-modal-section">
                      ${hourlyHTML}
+                     ${dailyHTML}
                 </div>
 
                 <div class="rg-modal-note">
