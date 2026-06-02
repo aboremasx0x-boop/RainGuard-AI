@@ -1625,6 +1625,7 @@ function clearSmartMultiCityHistory() {
 window.lastMultiCityResults = [];
 
 function openCityForecastPopup(cityName) {
+    closeCityForecastPopup();
     const city = window.lastMultiCityResults.find(c => c.name === cityName);
 
     if (!city) {
