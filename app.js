@@ -1663,6 +1663,13 @@ function openCityForecastPopup(cityName) {
                 <div class="rg-modal-section">
                      ${hourlyHTML}
                      ${dailyHTML}
+                     <div id="cityMiniMap" style="
+                     height:220px;
+                     margin-top:15px;
+                     border-radius:16px;
+                     overflow:hidden;
+                     border:1px solid #334155;
+             "></div>
                 </div>
 
                 <div class="rg-modal-note">
