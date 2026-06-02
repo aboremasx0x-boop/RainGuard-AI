@@ -1681,39 +1681,47 @@ function openCityForecastPopup(cityName) {
     `;
 
     document.body.insertAdjacentHTML("beforeend", html);
-    setTimeout(() => {
+   setTimeout(() => {
     if (!city.lat || !city.lon || !window.L) return;
-if (city.subZones && city.subZones.length > 0) {
-    city.subZones.forEach(zone => {
-        if (!zone.lat || !zone.lon) return;
 
-        const zoneColor =
-            zone.score >= 60 ? "red" :
-            zone.score >= 30 ? "orange" :
-            zone.score >= 15 ? "yellow" :
-            "green";
-
-        L.circleMarker([zone.lat, zone.lon], {
-            radius: 8,
-            color: zoneColor,
-            fillColor: zoneColor,
-            fillOpacity: 0.75
-        })
-        .bindPopup(`${zone.name}<br>احتمال المطر: ${zone.score}%`)
-        .addTo(miniMap);
-    });
-}
     const miniMap = L.map("cityMiniMap", {
         zoomControl: false,
         attributionControl: false
-    }).setView([city.lat, city.lon], 8);
+    }).setView([city.lat, city.lon], 10);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(miniMap);
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { maxZoom: 18 }
+    ).addTo(miniMap);
 
     L.marker([city.lat, city.lon]).addTo(miniMap);
-        
-}, 200);
-}
+
+    if (city.subZones && city.subZones.length > 0) {
+        city.subZones.forEach(zone => {
+            if (!zone.lat || !zone.lon) return;
+
+            const zoneColor =
+                zone.score >= 60 ? "red" :
+                zone.score >= 30 ? "orange" :
+                zone.score >= 15 ? "yellow" :
+                "green";
+
+            L.circleMarker([zone.lat, zone.lon], {
+                radius: 8,
+                color: zoneColor,
+                fillColor: zoneColor,
+                fillOpacity: 0.75
+            })
+            .bindPopup(`${zone.name}<br>احتمال المطر: ${zone.score}%`)
+            .addTo(miniMap);
+        });
+    }
+
+    setTimeout(() => {
+        miniMap.invalidateSize();
+    }, 300);
+
+}, 300);
 
 function closeCityForecastPopup() {
     const modal = document.getElementById("cityForecastModal");
