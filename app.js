@@ -1730,23 +1730,18 @@ function closeCityForecastPopup() {
 }
 
 function renderSubZonesHTML(subZones) {
-    if (!subZones || subZones.length === 0) {
-        return "";
-    }
+    if (!subZones || subZones.length === 0) return "";
 
-    const maxZoneScore = Math.max(
-        ...subZones.map(z => Number(z.score) || 0)
-    );
+    const topZones = subZones.slice(0, 5);
 
-    let title = "📍 متابعة المناطق الداخلية";
+    const getZoneStyle = (score) => {
+        score = Number(score) || 0;
 
-    if (maxZoneScore >= 60) {
-        title = "📍 المناطق المتأثرة بالمطر";
-    } else if (maxZoneScore >= 30) {
-        title = "📍 مناطق محتملة التأثر";
-    }
-
-    const topZones = subZones.slice(0, 3);
+        if (score >= 60) return { color: "#ef4444", icon: "🔴", label: "مرتفع" };
+        if (score >= 30) return { color: "#f59e0b", icon: "🟠", label: "متوسط" };
+        if (score >= 15) return { color: "#facc15", icon: "🟡", label: "محدود" };
+        return { color: "#22c55e", icon: "🟢", label: "منخفض" };
+    };
 
     return `
         <div style="
@@ -1756,20 +1751,29 @@ function renderSubZonesHTML(subZones) {
             color:#cbd5e1;
         ">
             <strong style="color:#38bdf8;">
-                ${title}
+                📍 متابعة المناطق الداخلية
             </strong>
 
-            ${topZones.map(zone => `
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    margin-top:6px;
-                    font-size:13px;
-                ">
-                    <span>${zone.name}</span>
-                    <strong style="color:#22c55e;">${zone.score}%</strong>
-                </div>
-            `).join("")}
+            ${topZones.map(zone => {
+                const z = getZoneStyle(zone.score);
+
+                return `
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        margin-top:8px;
+                        font-size:14px;
+                        padding:6px 0;
+                        border-bottom:1px solid rgba(51,65,85,0.55);
+                    ">
+                        <span>${z.icon} ${zone.name}</span>
+                        <strong style="color:${z.color};">
+                            ${zone.score}% - ${z.label}
+                        </strong>
+                    </div>
+                `;
+            }).join("")}
         </div>
     `;
 }
