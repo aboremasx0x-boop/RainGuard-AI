@@ -1647,7 +1647,7 @@ function openCityForecastPopup(cityName) {
                     مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score}%
                 </div>
 
-                <button onclick="refreshCityForecastPopup('${city.name}')" style="
+               <button id="refreshCityBtn" onclick="refreshCityForecastPopup('${city.name}')" style="
     width:100%;
     margin-top:12px;
     padding:12px;
@@ -1758,11 +1758,20 @@ function closeCityForecastPopup() {
 }
 
 async function refreshCityForecastPopup(cityName) {
-    closeCityForecastPopup();
+    const btn = document.getElementById("refreshCityBtn");
+
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = "0.6";
+        btn.style.cursor = "not-allowed";
+        btn.innerText = "⏳ جاري تحديث بيانات المدينة...";
+    }
 
     showActionMessage("جاري تحديث بيانات المدينة...", "warning");
 
     await runSmartMultiCityBackgroundCheck(true);
+
+    closeCityForecastPopup();
 
     setTimeout(() => {
         openCityForecastPopup(cityName);
