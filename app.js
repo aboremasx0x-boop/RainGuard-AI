@@ -1699,6 +1699,10 @@ function openCityForecastPopup(cityName) {
     `;
 
     document.body.insertAdjacentHTML("beforeend", html);
+    const cityModal = document.getElementById("cityForecastModal");
+if (cityModal) {
+    cityModal.addEventListener("click", closeCityForecastPopupOnOutsideClick);
+}
 
     setTimeout(() => {
         if (!city.lat || !city.lon || !window.L) return;
@@ -1777,6 +1781,17 @@ async function refreshCityForecastPopup(cityName) {
     setTimeout(() => {
         openCityForecastPopup(cityName);
     }, 500);
+}
+
+function closeCityForecastPopupOnOutsideClick(event) {
+    const modal = document.getElementById("cityForecastModal");
+    const content = document.querySelector("#cityForecastModal .rg-modal-content");
+
+    if (!modal || !content) return;
+
+    if (event.target === modal) {
+        closeCityForecastPopup();
+    }
 }
 
 function renderSubZonesHTML(subZones) {
