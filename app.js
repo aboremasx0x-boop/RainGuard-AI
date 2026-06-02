@@ -1674,6 +1674,18 @@ function openCityForecastPopup(cityName) {
     `;
 
     document.body.insertAdjacentHTML("beforeend", html);
+    setTimeout(() => {
+    if (!city.lat || !city.lon || !window.L) return;
+
+    const miniMap = L.map("cityMiniMap", {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([city.lat, city.lon], 8);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(miniMap);
+
+    L.marker([city.lat, city.lon]).addTo(miniMap);
+}, 200);
 }
 
 function closeCityForecastPopup() {
