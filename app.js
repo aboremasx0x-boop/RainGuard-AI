@@ -1670,7 +1670,16 @@ function openCityForecastPopup(cityName) {
                     <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
                 </div>
 
-                <div id="cityMiniMap" style="
+                <div style="
+    margin-top:16px;
+    margin-bottom:8px;
+    color:#38bdf8;
+    font-weight:bold;
+">
+    🗺️ خريطة المدينة والمناطق الداخلية
+</div>
+
+<div id="cityMiniMap" style="
                     height:220px;
                     margin-top:15px;
                     border-radius:16px;
