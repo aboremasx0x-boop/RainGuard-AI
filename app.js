@@ -1834,7 +1834,16 @@ function renderSubZonesHTML(subZones) {
                         padding:6px 0;
                         border-bottom:1px solid rgba(51,65,85,0.55);
                     ">
-                        <span>${z.icon} ${zone.name}</span>
+                        <span style="display:flex;align-items:center;gap:8px;">
+    <span style="
+        width:8px;
+        height:28px;
+        border-radius:8px;
+        background:${z.color};
+        display:inline-block;
+    "></span>
+    ${z.icon} ${zone.name}
+</span>
                         <strong style="color:${z.color};">
                             ${zone.score}% - ${z.label}
                         </strong>
