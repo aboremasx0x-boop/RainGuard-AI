@@ -1721,7 +1721,8 @@ function openCityForecastPopup(cityName) {
         miniMap.invalidateSize();
     }, 300);
 
-}, 300);
+    }, 300);
+}
 
 function closeCityForecastPopup() {
     const modal = document.getElementById("cityForecastModal");
@@ -1822,7 +1823,7 @@ function renderSmartMultiCityTopPanel(results) {
                     align-items:center;
                     gap:10px;
                 ">
-                    <<strong
+                    <strong
     onclick="openCityForecastPopup('${city.name}')"
     title="اضغط لعرض تفاصيل المدينة"
     style="
