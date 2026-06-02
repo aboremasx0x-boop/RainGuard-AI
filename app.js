@@ -1647,6 +1647,20 @@ function openCityForecastPopup(cityName) {
                     مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score}%
                 </div>
 
+                <button onclick="refreshCityForecastPopup('${city.name}')" style="
+    width:100%;
+    margin-top:12px;
+    padding:12px;
+    border-radius:14px;
+    border:1px solid #38bdf8;
+    background:#082f49;
+    color:#e0f2fe;
+    font-weight:bold;
+    cursor:pointer;
+">
+    🔄 تحديث بيانات المدينة
+</button>
+
                 <div class="rg-modal-grid">
                     <div>المطر الآن: <strong>${city.score}%</strong></div>
                     <div>السيول: <strong>${city.floodRiskScore ?? "--"}%</strong></div>
@@ -1741,6 +1755,18 @@ function openCityForecastPopup(cityName) {
 function closeCityForecastPopup() {
     const modal = document.getElementById("cityForecastModal");
     if (modal) modal.remove();
+}
+
+async function refreshCityForecastPopup(cityName) {
+    closeCityForecastPopup();
+
+    showActionMessage("جاري تحديث بيانات المدينة...", "warning");
+
+    await runSmartMultiCityBackgroundCheck(true);
+
+    setTimeout(() => {
+        openCityForecastPopup(cityName);
+    }, 500);
 }
 
 function renderSubZonesHTML(subZones) {
