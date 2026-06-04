@@ -1529,6 +1529,13 @@ if (topCityNow) {
     renderNationalTrendPanel(results);
     updateFloodRiskMap(results);
     updateCloudRainMapLayer(results);
+
+    const mapUpdateEl = document.getElementById("mapLastUpdateStatus");
+if (mapUpdateEl) {
+    mapUpdateEl.innerText =
+        "آخر تحديث للخريطة: " + new Date().toLocaleTimeString("ar-SA");
+}
+    
     saveSmartMultiCityHistory(topCities);
 
     updateBackgroundMonitorStatus(
