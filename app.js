@@ -1442,6 +1442,7 @@ if (topCityNow) {
     window.lastMultiCityResults = results;
     window.openCityForecastPopup = openCityForecastPopup;
     renderSmartMultiCityTopPanel(results);
+    renderConfirmedRainCitiesPanel(results);
     renderSmartMultiCityForecastPanel(results);
     renderFloodPredictionPanel(results);
     updateFloodRiskMap(results);
