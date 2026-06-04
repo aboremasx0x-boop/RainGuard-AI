@@ -130,6 +130,8 @@ const terrainRiskProfiles = {
 
 let floodMapLayer = [];
 let floodMapEnabled = true;
+let cloudRainMapLayer = [];
+let cloudRainMapEnabled = true;
 
 const smartMultiCityMonitorList = [
     { name: "جدة", lat: 21.5433, lon: 39.1728 },
@@ -1192,6 +1194,84 @@ function updateFloodRiskMap(results) {
         }
 
         floodMapLayer.push(circle);
+    });
+}
+
+function clearCloudRainMapLayer() {
+    if (!map || !cloudRainMapLayer) return;
+
+    cloudRainMapLayer.forEach(layer => {
+        map.removeLayer(layer);
+    });
+
+    cloudRainMapLayer = [];
+}
+
+function updateCloudRainMapLayer(results) {
+    if (!map) return;
+    if (!results || results.length === 0) return;
+
+    clearCloudRainMapLayer();
+
+    results.forEach(city => {
+        const rainScore = Number(city.score || 0);
+        const forecast24 = Number(city.forecast24Score || 0);
+        const cloudScore = Math.max(rainScore, forecast24);
+
+        if (cloudScore < 30) return;
+
+        let color = "#38bdf8";
+        let label = "سحب / احتمال مطر";
+
+        if (rainScore >= 85) {
+            color = "#ef4444";
+            label = "تنبيه مطر";
+        } else if (rainScore >= 70) {
+            color = "#f97316";
+            label = "مطر مؤكد";
+        } else if (rainScore >= 50) {
+            color = "#38bdf8";
+            label = "احتمال مطر مرتفع";
+        }
+
+        const cloudRadius = 18000 + cloudScore * 350;
+        const rainRadius = 7000 + rainScore * 180;
+
+        const cloudCircle = L.circle([city.lat, city.lon], {
+            color: "#94a3b8",
+            fillColor: "#94a3b8",
+            fillOpacity: 0.12,
+            opacity: 0.35,
+            radius: cloudRadius
+        });
+
+        const rainCircle = L.circle([city.lat, city.lon], {
+            color,
+            fillColor: color,
+            fillOpacity: 0.35,
+            opacity: 0.85,
+            radius: rainRadius
+        });
+
+        const popupHTML = `
+            <b>${city.name}</b><br>
+            ${label}<br>
+            المطر الآن: ${rainScore}%<br>
+            خلال 24 ساعة: ${forecast24}%<br>
+            السحب/المؤشر العام: ${cloudScore}%<br>
+            السيول: ${city.floodRiskScore ?? "--"}%
+        `;
+
+        cloudCircle.bindPopup(popupHTML);
+        rainCircle.bindPopup(popupHTML);
+
+        if (cloudRainMapEnabled) {
+            cloudCircle.addTo(map);
+            rainCircle.addTo(map);
+        }
+
+        cloudRainMapLayer.push(cloudCircle);
+        cloudRainMapLayer.push(rainCircle);
     });
 }
 
