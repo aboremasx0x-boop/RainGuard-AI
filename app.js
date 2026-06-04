@@ -1526,6 +1526,7 @@ if (topCityNow) {
     renderSmartMultiCityForecastPanel(results);
     renderFloodPredictionPanel(results);
     updateFloodRiskMap(results);
+    updateCloudRainMapLayer(results);
     saveSmartMultiCityHistory(topCities);
 
     updateBackgroundMonitorStatus(
