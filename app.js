@@ -2333,7 +2333,16 @@ function renderFloodWatchCitiesPanel(results) {
 }
 
 function updateNationalWeatherSummary(results) {
-    if (!results || !results.length) return;
+    const rainEl = document.getElementById("rainCitiesCount");
+    const floodEl = document.getElementById("floodCitiesCount");
+    const cloudEl = document.getElementById("cloudCitiesCount");
+
+    if (!results || !results.length) {
+        if (rainEl) rainEl.innerText = "0";
+        if (floodEl) floodEl.innerText = "0";
+        if (cloudEl) cloudEl.innerText = "0";
+        return;
+    }
 
     const rainCities = results.filter(city =>
         Number(city.score || 0) >= 50
@@ -2355,14 +2364,15 @@ function updateNationalWeatherSummary(results) {
         );
     });
 
-    const cloudCities = results.filter(city =>
-        Number(city.score || 0) < 50 &&
-        Number(city.forecast24Score || 0) >= 30
-    );
+    const cloudCities = results.filter(city => {
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
 
-    const rainEl = document.getElementById("rainCitiesCount");
-    const floodEl = document.getElementById("floodCitiesCount");
-    const cloudEl = document.getElementById("cloudCitiesCount");
+        return (
+            rainNow < 50 &&
+            rain24 >= 30
+        );
+    });
 
     if (rainEl) rainEl.innerText = rainCities.length;
     if (floodEl) floodEl.innerText = floodCities.length;
