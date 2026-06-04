@@ -2036,103 +2036,54 @@ function renderSubZonesHTML(subZones) {
 }
 
 function renderSmartMultiCityTopPanel(results) {
-
     const box = document.getElementById("smartMultiCityTopBox");
     if (!box) return;
 
     if (!results || results.length === 0) {
-        box.innerHTML = "لا توجد بيانات أمطار حالياً.";
+        box.innerHTML = "لا توجد بيانات توقع مطر حالياً.";
         return;
     }
 
     const rainCities = [...results]
+        .filter(city => Number(city.forecast24Score || 0) >= 50)
         .sort((a, b) =>
-            Number(b.score || 0) - Number(a.score || 0)
-        );
+            Number(b.forecast24Score || 0) - Number(a.forecast24Score || 0)
+        )
+        .slice(0, 5);
 
-    const topRainCity = rainCities[0];
-
-    const setText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = value;
-    };
-
-    if (topRainCity) {
-
-        setText(
-            "topRiskCity",
-            topRainCity.name || "غير محدد"
-        );
-
-        setText(
-            "topRiskScore",
-            `${topRainCity.score || 0}%`
-        );
-
-        setText(
-            "topRiskDetails",
-            topRainCity.score >= 70
-                ? "مطر مؤكد"
-                : topRainCity.score >= 40
-                ? "احتمال مطر"
-                : "لا يوجد تنبيه مطر"
-        );
+    if (rainCities.length === 0) {
+        box.innerHTML = `
+            <div style="
+                padding:18px;
+                text-align:center;
+                color:#94a3b8;
+                line-height:2;
+            ">
+                🌤️ لا توجد مدن عليها أمطار تستدعي التنبيه حالياً
+                <br>
+                يتم عرض المدن فقط إذا كان مؤشر المطر خلال 24 ساعة 50% أو أعلى.
+            </div>
+        `;
+        return;
     }
 
-   const topCities = [...results]
-    .filter(city => Number(city.forecast72Score || 0) >= 40)
-    .sort((a, b) =>
-        Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
-    )
-    .slice(0, 5);
+    box.innerHTML = rainCities.map((city, index) => {
+        const rainNow = Number(city.score || 0);
+        const forecast24 = Number(city.forecast24Score || 0);
 
-if (topCities.length === 0) {
-    panel.innerHTML = `
-        <div style="text-align:center; line-height:2; color:#94a3b8;">
-            🌤️ لا توجد مدن بتوقعات مطر مهمة خلال 72 ساعة
-            <br>
-            يتم عرض المدن فقط إذا كان المؤشر 40% أو أعلى.
-        </div>
-    `;
-    return;
-}
+        let color = "#38bdf8";
+        let icon = "🔵";
+        let label = "احتمال مطر مرتفع";
 
-if (topCities.length === 0) {
-    box.innerHTML = `
-        <div style="
-            padding:18px;
-            text-align:center;
-            color:#94a3b8;
-            line-height:2;
-        ">
-            🌤️ لا توجد مدن عليها أمطار تستدعي التنبيه حالياً
-            <br>
-            يتم عرض المدن فقط إذا كان مؤشر المطر 50% أو أعلى.
-        </div>
-    `;
-
-    return;
-}
-
-    box.innerHTML = topCities.map((city, index) => {
-
-        const rainScore = Number(city.score || 0);
-
-        if (rainScore >= 85) {
-    color = "#ef4444";
-    icon = "🔴";
-    label = "تنبيه مطر";
-}
-else if (rainScore >= 70) {
-    color = "#f97316";
-    icon = "🟠";
-    label = "مطر مؤكد";
-}
-else if (rainScore >= 50) {
-    color = "#38bdf8";
-    icon = "🔵";
-    label = "احتمال مطر مرتفع";
-}
+        if (forecast24 >= 85) {
+            color = "#ef4444";
+            icon = "🔴";
+            label = "تنبيه مطر";
+        } else if (forecast24 >= 70) {
+            color = "#f97316";
+            icon = "🟠";
+            label = "مطر مؤكد";
+        }
 
         return `
             <div
@@ -2150,6 +2101,7 @@ else if (rainScore >= 50) {
                     display:flex;
                     justify-content:space-between;
                     align-items:center;
+                    gap:10px;
                 ">
                     <strong>
                         ${index + 1}. ${icon} ${city.name}
@@ -2159,7 +2111,7 @@ else if (rainScore >= 50) {
                         color:${color};
                         font-size:22px;
                     ">
-                        ${rainScore}%
+                        ${forecast24}%
                     </strong>
                 </div>
 
@@ -2169,16 +2121,16 @@ else if (rainScore >= 50) {
                     line-height:1.8;
                     font-size:14px;
                 ">
-                    مستوى المطر: ${label}<br>
-                    توقع المطر خلال 24 ساعة: ${city.forecast24Score || 0}%<br>
-                    المطر الحالي: ${rainScore}%<br>
+                    التصنيف: ${label}<br>
+                    توقع المطر خلال 24 ساعة: ${forecast24}%<br>
+                    المطر الحالي: ${rainNow}%<br>
                     الحالة:
                     ${
-                        rainScore >= 70
-                        ? "🌧️ مطر مؤكد"
-                        : rainScore >= 40
-                        ? "⛅ احتمال مطر"
-                        : "☀️ لا يوجد تنبيه مطر"
+                        forecast24 >= 85
+                            ? "🔴 تنبيه مطر"
+                            : forecast24 >= 70
+                            ? "🟠 مطر مؤكد"
+                            : "🔵 احتمال مطر مرتفع"
                     }
                 </div>
             </div>
