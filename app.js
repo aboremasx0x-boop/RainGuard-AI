@@ -2461,51 +2461,52 @@ function renderSmartMultiCityForecastPanel(results) {
 }
 
 function updateNationalStatus(results) {
+    const box = document.getElementById("nationalWeatherStatus");
+    if (!box) return;
 
-    const box =
-        document.getElementById("nationalWeatherStatus");
+    if (!results || !results.length) {
+        box.innerHTML = "⚪ الحالة الوطنية: لا توجد بيانات";
+        box.style.borderColor = "#64748b";
+        return;
+    }
 
-    if (!box || !results?.length) return;
+    const rainCities = results.filter(c =>
+        Number(c.forecast24Score || 0) >= 50
+    );
 
-    const rainCities =
-        results.filter(c =>
-            Number(c.score || 0) >= 50
+    const floodCities = results.filter(c => {
+        const flood = Number(c.floodRiskScore || 0);
+        const rainNow = Number(c.score || 0);
+        const rain24 = Number(c.forecast24Score || 0);
+        const rain72 = Number(c.forecast72Score || 0);
+
+        return (
+            flood >= 60 &&
+            (
+                rainNow >= 40 ||
+                rain24 >= 40 ||
+                rain72 >= 50
+            )
         );
+    });
 
-    const floodCities =
-        results.filter(c =>
-            Number(c.floodRiskScore || 0) >= 60
-        );
-
-    if (
-        rainCities.length === 0 &&
-        floodCities.length === 0
-    ) {
-        box.innerHTML =
-            "🟢 الحالة الوطنية: مستقرة";
-
-        box.style.borderColor =
-            "#22c55e";
-
+    if (rainCities.length === 0 && floodCities.length === 0) {
+        box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
+        box.style.borderColor = "#22c55e";
         return;
     }
 
     if (floodCities.length > 0) {
-
-        box.innerHTML =
-            "🔴 الحالة الوطنية: تنبيه";
-
-        box.style.borderColor =
-            "#ef4444";
-
+        box.innerHTML = "🔴 الحالة الوطنية: تنبيه";
+        box.style.borderColor = "#ef4444";
         return;
     }
 
-    box.innerHTML =
-        "🟠 الحالة الوطنية: مراقبة";
-
-    box.style.borderColor =
-        "#f59e0b";
+    if (rainCities.length > 0) {
+        box.innerHTML = "🟠 الحالة الوطنية: مراقبة";
+        box.style.borderColor = "#f59e0b";
+        return;
+    }
 }
 
 // ===============================
