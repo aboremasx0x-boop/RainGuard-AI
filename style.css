@@ -1166,3 +1166,35 @@ body.fx-danger .rain-layer {
     background: #22c55e;
     box-shadow: 0 0 10px #22c55e;
 }
+
+.national-weather-summary{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin-bottom:12px;
+}
+
+.summary-card{
+    padding:10px 16px;
+    border-radius:12px;
+    font-weight:700;
+    color:white;
+    min-width:180px;
+    text-align:center;
+}
+
+.summary-card.rain{
+    background:rgba(56,189,248,.15);
+    border:1px solid #38bdf8;
+}
+
+.summary-card.flood{
+    background:rgba(239,68,68,.15);
+    border:1px solid #ef4444;
+}
+
+.summary-card.cloud{
+    background:rgba(148,163,184,.15);
+    border:1px solid #94a3b8;
+}
