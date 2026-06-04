@@ -2162,20 +2162,34 @@ function renderFloodWatchCitiesPanel(results) {
     }
 
     const floodCities = [...results]
-        .filter(city => Number(city.floodRiskScore || 0) >= 60)
-        .sort((a, b) =>
-            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
+    .filter(city => {
+        const flood = Number(city.floodRiskScore || 0);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
+
+        return (
+            flood >= 60 &&
+            (
+                rainNow >= 40 ||
+                rain24 >= 40 ||
+                rain72 >= 50
+            )
         );
+    })
+    .sort((a, b) =>
+        Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
+    );
 
     if (floodCities.length === 0) {
         box.innerHTML = `
-            <div style="
-                color:#94a3b8;
-                line-height:1.8;
-            ">
-                لا توجد مدن معرضة للسيول حالياً.
-            </div>
-        `;
+    <div style="
+        color:#94a3b8;
+        line-height:1.8;
+    ">
+        لا توجد مدن معرضة للسيول حالياً مع وجود مؤشرات مطر كافية.
+    </div>
+`;
         return;
     }
 
