@@ -2459,6 +2459,53 @@ function renderSmartMultiCityForecastPanel(results) {
     }).join("");
 }
 
+function updateNationalStatus(results){
+
+    const box = document.getElementById("nationalWeatherStatus");
+    if (!box) return;
+
+    let maxRain = 0;
+    let maxFlood = 0;
+
+    results.forEach(city => {
+
+        maxRain = Math.max(
+            maxRain,
+            Number(city.score || 0),
+            Number(city.forecast24Score || 0)
+        );
+
+        maxFlood = Math.max(
+            maxFlood,
+            Number(city.floodRiskScore || 0)
+        );
+    });
+
+    if (maxFlood >= 80 || maxRain >= 80) {
+
+        box.innerHTML =
+        "🔴 الحالة الوطنية: تنبيه";
+
+        box.style.borderColor = "#ef4444";
+
+    }
+    else if (maxFlood >= 60 || maxRain >= 50) {
+
+        box.innerHTML =
+        "🟠 الحالة الوطنية: مراقبة";
+
+        box.style.borderColor = "#f59e0b";
+
+    }
+    else {
+
+        box.innerHTML =
+        "🟢 الحالة الوطنية: مستقرة";
+
+        box.style.borderColor = "#22c55e";
+    }
+}
+
 // ===============================
 // Adaptive Smart Refresh AI
 // ===============================
