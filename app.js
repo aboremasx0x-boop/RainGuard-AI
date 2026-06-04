@@ -1822,21 +1822,33 @@ function closeCityForecastPopupOnOutsideClick(event) {
 function renderSubZonesHTML(subZones) {
     if (!subZones || subZones.length === 0) return "";
 
-    const topZones = [...subZones]
-    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
-    .slice(0, 5);
-    const highestZone = topZones[0];
-const highestStyle = highestZone ? getZoneStyle(highestZone.score) : null;
-
-
     const getZoneStyle = (score) => {
         score = Number(score) || 0;
 
-        if (score >= 60) return { color: "#ef4444", icon: "🔴", label: "مرتفع" };
-        if (score >= 30) return { color: "#f59e0b", icon: "🟠", label: "متوسط" };
-        if (score >= 15) return { color: "#facc15", icon: "🟡", label: "محدود" };
+        if (score >= 60) {
+            return { color: "#ef4444", icon: "🔴", label: "مرتفع" };
+        }
+
+        if (score >= 30) {
+            return { color: "#f59e0b", icon: "🟠", label: "متوسط" };
+        }
+
+        if (score >= 15) {
+            return { color: "#facc15", icon: "🟡", label: "محدود" };
+        }
+
         return { color: "#22c55e", icon: "🟢", label: "منخفض" };
     };
+
+    const topZones = [...subZones]
+        .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+        .slice(0, 5);
+
+    const highestZone = topZones[0];
+
+    const highestStyle = highestZone
+        ? getZoneStyle(highestZone.score)
+        : null;
 
     return `
         <div style="
@@ -1850,37 +1862,47 @@ const highestStyle = highestZone ? getZoneStyle(highestZone.score) : null;
             </strong>
 
             ${
-    highestZone
-        ? `
-            <div style="
-                margin-top:12px;
-                padding:12px;
-                border-radius:14px;
-                background:#020617;
-                border:1px solid ${highestStyle.color};
-                color:#e5e7eb;
-            ">
-                <div style="color:${highestStyle.color};font-weight:bold;">
-                    🔥 أخطر حي حالياً
-                </div>
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    margin-top:8px;
-                    align-items:center;
-                ">
-                    <span>${highestStyle.icon} ${highestZone.name}</span>
-                    <strong style="color:${highestStyle.color};font-size:20px;">
-                        ${highestZone.score}%
-                    </strong>
-                </div>
-                <div style="margin-top:6px;color:#94a3b8;font-size:13px;">
-                    التصنيف: ${highestStyle.label}
-                </div>
-            </div>
-        `
-        : ""
-}
+                highestZone
+                    ? `
+                        <div style="
+                            margin-top:12px;
+                            padding:12px;
+                            border-radius:14px;
+                            background:#020617;
+                            border:1px solid ${highestStyle.color};
+                            color:#e5e7eb;
+                        ">
+                            <div style="color:${highestStyle.color};font-weight:bold;">
+                                🔥 أخطر حي حالياً
+                            </div>
+
+                            <div style="
+                                display:flex;
+                                justify-content:space-between;
+                                margin-top:8px;
+                                align-items:center;
+                            ">
+                                <span>${highestStyle.icon} ${highestZone.name}</span>
+
+                                <strong style="
+                                    color:${highestStyle.color};
+                                    font-size:20px;
+                                ">
+                                    ${highestZone.score}%
+                                </strong>
+                            </div>
+
+                            <div style="
+                                margin-top:6px;
+                                color:#94a3b8;
+                                font-size:13px;
+                            ">
+                                التصنيف: ${highestStyle.label}
+                            </div>
+                        </div>
+                    `
+                    : ""
+            }
 
             ${topZones.map(zone => {
                 const z = getZoneStyle(zone.score);
@@ -1895,16 +1917,22 @@ const highestStyle = highestZone ? getZoneStyle(highestZone.score) : null;
                         padding:6px 0;
                         border-bottom:1px solid rgba(51,65,85,0.55);
                     ">
-                        <span style="display:flex;align-items:center;gap:8px;">
-    <span style="
-        width:8px;
-        height:28px;
-        border-radius:8px;
-        background:${z.color};
-        display:inline-block;
-    "></span>
-    ${z.icon} ${zone.name}
-</span>
+                        <span style="
+                            display:flex;
+                            align-items:center;
+                            gap:8px;
+                        ">
+                            <span style="
+                                width:8px;
+                                height:28px;
+                                border-radius:8px;
+                                background:${z.color};
+                                display:inline-block;
+                            "></span>
+
+                            ${z.icon} ${zone.name}
+                        </span>
+
                         <strong style="color:${z.color};">
                             ${zone.score}% - ${z.label}
                         </strong>
