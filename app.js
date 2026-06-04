@@ -3107,6 +3107,17 @@ function initMap(
         setTimeout(() => {
             updateRainHeatmap();
         }, 2500);
+        setTimeout(() => {
+    if (map) map.invalidateSize();
+}, 300);
+
+setTimeout(() => {
+    if (map) map.invalidateSize();
+}, 1000);
+
+setTimeout(() => {
+    if (map) map.invalidateSize();
+}, 2500);
 
     } else {
 
@@ -4015,6 +4026,13 @@ window.onload = function () {
     initMap();
 
     checkRain(21.4858, 39.1925, "جدة");
+    setTimeout(() => {
+    if (map) map.invalidateSize();
+}, 1500);
+
+setTimeout(() => {
+    if (map) map.invalidateSize();
+}, 3000);
 
     updateAccuracyBox();
     renderPredictionHistory();
