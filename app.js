@@ -4249,7 +4249,7 @@ if (radarFusionBox) radarFusionBox.innerHTML = radarFusionHTML;
             <b>${name}</b><br>
             مؤشر المطر: ${score}%<br>
             ${best.alert_level}
-        `).openPopup();
+     
 
         updateRefreshStatus("تم تحديث البيانات");
 
