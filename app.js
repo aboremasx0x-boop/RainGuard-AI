@@ -2473,9 +2473,13 @@ function updateNationalStatus(results) {
         Number(c.cloudCover || 0) >= 50
     );
 
+    console.log("Cloudy Cities:", cloudyCities);
+console.log("Results:", results);
+
     if (rainCountEl) rainCountEl.innerText = rainCities.length;
     if (floodCountEl) floodCountEl.innerText = floodCities.length;
-    if (cloudCountEl) cloudCountEl.innerText = cloudyCities.length;
+   if (cloudCountEl)
+    cloudCountEl.innerText = cloudyCities.length;
 
     if (rainCities.length === 0 && floodCities.length === 0) {
         box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
