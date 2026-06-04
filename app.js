@@ -1645,6 +1645,7 @@ window.lastMultiCityResults = [];
 
 function openCityForecastPopup(cityName) {
     closeCityForecastPopup();
+
     const city = window.lastMultiCityResults.find(c => c.name === cityName);
 
     if (!city) {
@@ -1667,19 +1668,19 @@ function openCityForecastPopup(cityName) {
                     مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score}%
                 </div>
 
-               <button id="refreshCityBtn" onclick="refreshCityForecastPopup('${city.name}')" style="
-    width:100%;
-    margin-top:12px;
-    padding:12px;
-    border-radius:14px;
-    border:1px solid #38bdf8;
-    background:#082f49;
-    color:#e0f2fe;
-    font-weight:bold;
-    cursor:pointer;
-">
-    🔄 تحديث بيانات المدينة
-</button>
+                <button id="refreshCityBtn" onclick="refreshCityForecastPopup('${city.name}')" style="
+                    width:100%;
+                    margin-top:12px;
+                    padding:12px;
+                    border-radius:14px;
+                    border:1px solid #38bdf8;
+                    background:#082f49;
+                    color:#e0f2fe;
+                    font-weight:bold;
+                    cursor:pointer;
+                ">
+                    🔄 تحديث بيانات المدينة
+                </button>
 
                 <div class="rg-modal-grid">
                     <div>المطر الآن: <strong>${city.score}%</strong></div>
@@ -1690,15 +1691,15 @@ function openCityForecastPopup(cityName) {
                 </div>
 
                 <div style="
-    margin-top:16px;
-    margin-bottom:8px;
-    color:#38bdf8;
-    font-weight:bold;
-">
-    🗺️ خريطة المدينة والمناطق الداخلية
-</div>
+                    margin-top:16px;
+                    margin-bottom:8px;
+                    color:#38bdf8;
+                    font-weight:bold;
+                ">
+                    🗺️ خريطة المدينة والمناطق الداخلية
+                </div>
 
-<div id="cityMiniMap" style="
+                <div id="cityMiniMap" style="
                     height:220px;
                     margin-top:15px;
                     border-radius:16px;
@@ -1727,10 +1728,12 @@ function openCityForecastPopup(cityName) {
     `;
 
     document.body.insertAdjacentHTML("beforeend", html);
+
     const cityModal = document.getElementById("cityForecastModal");
-if (cityModal) {
-    cityModal.addEventListener("click", closeCityForecastPopupOnOutsideClick);
-}
+
+    if (cityModal) {
+        cityModal.addEventListener("click", closeCityForecastPopupOnOutsideClick);
+    }
 
     setTimeout(() => {
         if (!city.lat || !city.lon || !window.L) return;
@@ -1764,16 +1767,18 @@ if (cityModal) {
                     fillOpacity: 0.75
                 })
                 .bindPopup(`
-    <strong>${zone.name}</strong><br>
-    احتمال المطر: ${zone.score}%<br>
-    مؤشر السيول: ${zone.floodRiskScore ?? "--"}%<br>
-    <span style="color:#38bdf8;">
-        ${zone.score >= 60 ? "تنبيه مرتفع" :
-          zone.score >= 30 ? "تنبيه متوسط" :
-          zone.score >= 15 ? "احتمال محدود" :
-          "منخفض"}
-    </span>
-`)
+                    <strong>${zone.name}</strong><br>
+                    احتمال المطر: ${zone.score}%<br>
+                    مؤشر السيول: ${zone.floodRiskScore ?? "--"}%<br>
+                    <span style="color:#38bdf8;">
+                        ${
+                            zone.score >= 60 ? "تنبيه مرتفع" :
+                            zone.score >= 30 ? "تنبيه متوسط" :
+                            zone.score >= 15 ? "احتمال محدود" :
+                            "منخفض"
+                        }
+                    </span>
+                `)
                 .addTo(miniMap);
             });
         }
