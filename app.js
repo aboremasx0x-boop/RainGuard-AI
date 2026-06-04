@@ -2595,13 +2595,13 @@ else {
             <div>
                 🔴 أعلى تدهور:
                 ${worstCity?.name || "-"}
-                (${worstCity?.diff || 0}%)
+               (${Math.round(worstCity?.diff || 0)}%)
             </div>
 
             <div>
                 🟢 أعلى تحسن:
                 ${bestImprove?.name || "-"}
-                (${bestImprove?.diff || 0}%)
+               (${Math.round(bestImprove?.diff || 0)}%)
             </div>
 
         </div>
