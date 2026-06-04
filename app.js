@@ -1953,70 +1953,104 @@ function renderSubZonesHTML(subZones) {
 }
 
 function renderSmartMultiCityTopPanel(results) {
-    const setText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = value;
-    };
-
-    if (results && results.length > 0) {
-        const topCity = results[0];
-
-        setText("topRiskCity", topCity.name || "غير محدد");
-        setText(
-            "topRiskScore",
-            `${topCity.actualRiskScore ?? topCity.score ?? "--"}%`
-        );
-        setText(
-            "topRiskDetails",
-            topCity.alertLevel || "تم تحديث البيانات"
-        );
-    } else {
-        setText("topRiskCity", "غير محدد");
-        setText("topRiskScore", "--%");
-        setText("topRiskDetails", "لم يتم تشغيل مراقبة المدن بعد");
-    }
 
     const box = document.getElementById("smartMultiCityTopBox");
     if (!box) return;
 
     if (!results || results.length === 0) {
-        box.innerHTML = "لا توجد بيانات مدن حالياً.";
+        box.innerHTML = "لا توجد بيانات أمطار حالياً.";
         return;
     }
 
-    const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
+    const rainCities = [...results]
+        .sort((a, b) =>
+            Number(b.score || 0) - Number(a.score || 0)
+        );
+
+    const topRainCity = rainCities[0];
+
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+
+    if (topRainCity) {
+
+        setText(
+            "topRiskCity",
+            topRainCity.name || "غير محدد"
+        );
+
+        setText(
+            "topRiskScore",
+            `${topRainCity.score || 0}%`
+        );
+
+        setText(
+            "topRiskDetails",
+            topRainCity.score >= 70
+                ? "مطر مؤكد"
+                : topRainCity.score >= 40
+                ? "احتمال مطر"
+                : "لا يوجد تنبيه مطر"
+        );
+    }
+
+    const topCities = rainCities.slice(0, 5);
+
+    if ((topCities[0]?.score || 0) < 30) {
+
+        box.innerHTML = `
+            <div style="
+                padding:18px;
+                text-align:center;
+                color:#94a3b8;
+                line-height:2;
+            ">
+                🌤️ لا توجد مدن عليها أمطار مهمة حالياً
+                <br>
+                أعلى احتمال مطر حالياً:
+                <strong>${topCities[0]?.name || "-"}</strong>
+                (${topCities[0]?.score || 0}%)
+            </div>
+        `;
+
+        return;
+    }
 
     box.innerHTML = topCities.map((city, index) => {
-        const riskScore = Number(city.actualRiskScore ?? city.score ?? 0);
+
+        const rainScore = Number(city.score || 0);
 
         let color = "#22c55e";
         let icon = "🟢";
-        let label = "منخفض";
+        let label = "ضعيف";
 
-        if (riskScore >= 80) {
+        if (rainScore >= 80) {
             color = "#ef4444";
             icon = "🔴";
-            label = "مرتفع";
-        } else if (riskScore >= 60) {
+            label = "مطر مؤكد";
+        }
+        else if (rainScore >= 60) {
             color = "#f59e0b";
             icon = "🟠";
-            label = "متوسط";
-        } else if (riskScore >= 40) {
+            label = "مرتفع";
+        }
+        else if (rainScore >= 40) {
             color = "#38bdf8";
             icon = "🔵";
-            label = "محدود";
+            label = "متوسط";
         }
 
         return `
             <div
                 onclick="openCityForecastPopup('${city.name}')"
-                title="اضغط لعرض تفاصيل المدينة"
                 style="
                     padding:14px;
                     margin-bottom:12px;
                     border-radius:16px;
                     background:#0f172a;
-                    border:1px solid #334155;
+                    border:1px solid ${color};
                     cursor:pointer;
                 "
             >
@@ -2024,14 +2058,8 @@ function renderSmartMultiCityTopPanel(results) {
                     display:flex;
                     justify-content:space-between;
                     align-items:center;
-                    gap:10px;
                 ">
-                    <strong style="
-                        font-size:18px;
-                        cursor:pointer;
-                        text-decoration:underline;
-                        text-underline-offset:4px;
-                    ">
+                    <strong>
                         ${index + 1}. ${icon} ${city.name}
                     </strong>
 
@@ -2039,24 +2067,27 @@ function renderSmartMultiCityTopPanel(results) {
                         color:${color};
                         font-size:22px;
                     ">
-                        ${riskScore}%
+                        ${rainScore}%
                     </strong>
                 </div>
 
                 <div style="
                     margin-top:8px;
                     color:#cbd5e1;
+                    line-height:1.8;
                     font-size:14px;
-                    line-height:1.7;
                 ">
-                    مستوى الخطر: ${label}<br>
-                    المطر الآن: ${city.score ?? "--"}%<br>
-                    السيول: ${city.floodRiskScore ?? "--"}%<br>
-                    24 ساعة: ${city.forecast24Score ?? "--"}%<br>
-                    72 ساعة: ${city.forecast72Score ?? "--"}%<br>
-                    الحالة: ${city.alertLevel || "غير متوفر"}<br>
-                    المصدر: ${city.source || "Unknown"}
-                    ${renderSubZonesHTML(city.subZones)}
+                    مستوى المطر: ${label}<br>
+                    المطر الآن: ${rainScore}%<br>
+                    خلال 24 ساعة: ${city.forecast24Score || 0}%<br>
+                    الحالة:
+                    ${
+                        rainScore >= 70
+                        ? "🌧️ مطر مؤكد"
+                        : rainScore >= 40
+                        ? "⛅ احتمال مطر"
+                        : "☀️ لا يوجد تنبيه مطر"
+                    }
                 </div>
             </div>
         `;
