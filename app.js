@@ -2125,6 +2125,117 @@ function saveEarlyMultiCityAlert(cityName, score) {
     );
 }
 
+function renderConfirmedRainCitiesPanel(results) {
+    const box = document.getElementById("confirmedRainCitiesBox");
+    if (!box) return;
+
+    if (!results || results.length === 0) {
+        box.innerHTML = "لا توجد بيانات مدن حالياً.";
+        return;
+    }
+
+    const confirmed = [...results]
+        .filter(city => {
+            const score = Number(city.score || 0);
+            const forecast24 = Number(city.forecast24Score || 0);
+            const alert = city.alertLevel || "";
+
+            return (
+                score >= 60 ||
+                forecast24 >= 60 ||
+                alert.includes("مطر") ||
+                alert.includes("مرتفع") ||
+                alert.includes("متوسط")
+            );
+        })
+        .sort((a, b) => {
+            const aScore = Math.max(
+                Number(a.score || 0),
+                Number(a.forecast24Score || 0)
+            );
+
+            const bScore = Math.max(
+                Number(b.score || 0),
+                Number(b.forecast24Score || 0)
+            );
+
+            return bScore - aScore;
+        });
+
+    if (confirmed.length === 0) {
+        box.innerHTML = `
+            <div style="
+                color:#94a3b8;
+                line-height:1.8;
+            ">
+                لا توجد مدن بمطر مؤكد حالياً حسب بيانات النظام.
+            </div>
+        `;
+        return;
+    }
+
+    box.innerHTML = confirmed.slice(0, 6).map(city => {
+        const score = Number(city.score || 0);
+        const forecast24 = Number(city.forecast24Score || 0);
+        const rainValue = Math.max(score, forecast24);
+
+        let color = "#38bdf8";
+        let icon = "🔵";
+        let label = "احتمال مطر";
+
+        if (rainValue >= 80) {
+            color = "#ef4444";
+            icon = "🔴";
+            label = "مطر مؤكد مرتفع";
+        } else if (rainValue >= 60) {
+            color = "#f59e0b";
+            icon = "🟠";
+            label = "مطر مؤكد متوسط";
+        }
+
+        return `
+            <div
+                onclick="openCityForecastPopup('${city.name}')"
+                style="
+                    padding:12px;
+                    margin-bottom:10px;
+                    border-radius:14px;
+                    background:#0f172a;
+                    border:1px solid ${color};
+                    cursor:pointer;
+                "
+            >
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                ">
+                    <strong style="color:#e5e7eb;">
+                        ${icon} ${city.name}
+                    </strong>
+
+                    <strong style="color:${color};font-size:20px;">
+                        ${rainValue}%
+                    </strong>
+                </div>
+
+                <div style="
+                    margin-top:8px;
+                    color:#cbd5e1;
+                    font-size:13px;
+                    line-height:1.7;
+                ">
+                    ${label}<br>
+                    المطر الآن: ${score}%<br>
+                    خلال 24 ساعة: ${forecast24}%<br>
+                    الحالة: ${city.alertLevel || "غير متوفر"}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
 
 
 function renderSmartMultiCityForecastPanel(results) {
