@@ -2481,6 +2481,21 @@ function updateNationalStatus(results) {
     if (floodCountEl) floodCountEl.innerText = floodCities.length;
     if (cloudCountEl) cloudCountEl.innerText = cloudyCities.length;
 
+    const cloudyCities =
+    results.filter(c =>
+        Number(c.forecast24Score || 0) < 40 &&
+        Number(c.cloudCover || 0) >= 50
+    );
+
+document.getElementById("rainCitiesCount").innerText =
+    rainCities.length;
+
+document.getElementById("floodCitiesCount").innerText =
+    floodCities.length;
+
+document.getElementById("cloudCitiesCount").innerText =
+    cloudyCities.length;
+
     if (rainCities.length === 0 && floodCities.length === 0) {
         box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
         box.style.borderColor = "#22c55e";
