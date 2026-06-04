@@ -1413,6 +1413,22 @@ console.log(
 
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
     const topCityNow = topCities[0];
+    const setTopRiskText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = value;
+};
+
+if (topCityNow) {
+    setTopRiskText("topRiskCity", topCityNow.name || "غير محدد");
+    setTopRiskText(
+        "topRiskScore",
+        `${topCityNow.actualRiskScore ?? topCityNow.score ?? "--"}%`
+    );
+    setTopRiskText(
+        "topRiskDetails",
+        topCityNow.alertLevel || "تم تحديث البيانات"
+    );
+}
 
     const forecastRanked = [...results].sort((a, b) =>
         b.forecast72Score - a.forecast72Score
