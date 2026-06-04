@@ -2509,6 +2509,105 @@ function updateNationalStatus(results) {
     }
 }
 
+function renderNationalTrendPanel(results) {
+
+    const panel =
+        document.getElementById("nationalTrendPanel");
+
+    if (!panel) return;
+
+    if (!results || !results.length) {
+        panel.innerHTML = "لا توجد بيانات حالياً";
+        return;
+    }
+
+    let improving = 0;
+    let worsening = 0;
+    let stable = 0;
+
+    let bestImprove = null;
+    let worstCity = null;
+
+    results.forEach(city => {
+
+        const now =
+            Number(city.score || 0);
+
+        const next24 =
+            Number(city.forecast24Score || 0);
+
+        const diff = next24 - now;
+
+        if (diff >= 15) {
+            worsening++;
+        }
+        else if (diff <= -15) {
+            improving++;
+        }
+        else {
+            stable++;
+        }
+
+        if (
+            !bestImprove ||
+            diff < bestImprove.diff
+        ) {
+            bestImprove = {
+                name: city.name,
+                diff
+            };
+        }
+
+        if (
+            !worstCity ||
+            diff > worstCity.diff
+        ) {
+            worstCity = {
+                name: city.name,
+                diff
+            };
+        }
+    });
+
+    panel.innerHTML = `
+        <div style="line-height:2">
+
+            <div>
+                📈 مدن تتجه للارتفاع:
+                <b>${worsening}</b>
+            </div>
+
+            <div>
+                📉 مدن تتحسن:
+                <b>${improving}</b>
+            </div>
+
+            <div>
+                ➖ مدن مستقرة:
+                <b>${stable}</b>
+            </div>
+
+            <hr style="
+                margin:12px 0;
+                border-color:#334155;
+            ">
+
+            <div>
+                🔴 أعلى تدهور:
+                ${worstCity?.name || "-"}
+                (${worstCity?.diff || 0}%)
+            </div>
+
+            <div>
+                🟢 أعلى تحسن:
+                ${bestImprove?.name || "-"}
+                (${bestImprove?.diff || 0}%)
+            </div>
+
+        </div>
+    `;
+}
+
 // ===============================
 // Adaptive Smart Refresh AI
 // ===============================
