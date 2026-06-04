@@ -2155,8 +2155,8 @@ else if (rainScore >= 50) {
                     font-size:14px;
                 ">
                     مستوى المطر: ${label}<br>
-                    المطر الآن: ${rainScore}%<br>
-                    خلال 24 ساعة: ${city.forecast24Score || 0}%<br>
+                    توقع المطر خلال 24 ساعة: ${city.forecast24Score || 0}%<br>
+                    المطر الحالي: ${rainScore}%<br>
                     الحالة:
                     ${
                         rainScore >= 70
@@ -2346,8 +2346,8 @@ function updateNationalWeatherSummary(results) {
     }
 
     const rainCities = results.filter(city =>
-        Number(city.score || 0) >= 50
-    );
+    Number(city.forecast24Score || 0) >= 50
+);
 
     const floodCities = results.filter(city => {
         const flood = Number(city.floodRiskScore || 0);
