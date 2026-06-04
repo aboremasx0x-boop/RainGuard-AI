@@ -2448,7 +2448,6 @@ function updateNationalStatus(results) {
         if (rainCountEl) rainCountEl.innerText = "0";
         if (floodCountEl) floodCountEl.innerText = "0";
         if (cloudCountEl) cloudCountEl.innerText = "0";
-
         return;
     }
 
@@ -2462,13 +2461,10 @@ function updateNationalStatus(results) {
         const rain24 = Number(c.forecast24Score || 0);
         const rain72 = Number(c.forecast72Score || 0);
 
-        return (
-            flood >= 60 &&
-            (
-                rainNow >= 40 ||
-                rain24 >= 40 ||
-                rain72 >= 50
-            )
+        return flood >= 60 && (
+            rainNow >= 40 ||
+            rain24 >= 40 ||
+            rain72 >= 50
         );
     });
 
@@ -2480,21 +2476,6 @@ function updateNationalStatus(results) {
     if (rainCountEl) rainCountEl.innerText = rainCities.length;
     if (floodCountEl) floodCountEl.innerText = floodCities.length;
     if (cloudCountEl) cloudCountEl.innerText = cloudyCities.length;
-
-    const cloudyCities =
-    results.filter(c =>
-        Number(c.forecast24Score || 0) < 40 &&
-        Number(c.cloudCover || 0) >= 50
-    );
-
-document.getElementById("rainCitiesCount").innerText =
-    rainCities.length;
-
-document.getElementById("floodCitiesCount").innerText =
-    floodCities.length;
-
-document.getElementById("cloudCitiesCount").innerText =
-    cloudyCities.length;
 
     if (rainCities.length === 0 && floodCities.length === 0) {
         box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
