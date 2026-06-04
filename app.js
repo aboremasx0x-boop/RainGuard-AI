@@ -1900,6 +1900,19 @@ const highestStyle = highestZone ? getZoneStyle(highestZone.score) : null;
 }
 
 function renderSmartMultiCityTopPanel(results) {
+    if (results && results.length > 0) {
+        const topCity = results[0];
+
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = value;
+        };
+
+        setText("topRiskCity", topCity.name || "غير محدد");
+        setText("topRiskScore", `${topCity.actualRiskScore ?? topCity.score ?? "--"}%`);
+        setText("topRiskDetails", topCity.alertLevel || "تم تحديث البيانات");
+    }
+
     const box = document.getElementById("smartMultiCityTopBox");
     if (!box) return;
 
@@ -1909,41 +1922,23 @@ function renderSmartMultiCityTopPanel(results) {
     }
 
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
-    const topCity = topCities[0];
-
-if (topCity) {
-    const setText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = value;
-    };
-
-    setText("topRiskCity", topCity.name);
-
-    setText(
-        "topRiskScore",
-        `${topCity.actualRiskScore ?? topCity.score}%`
-    );
-
-    setText(
-        "topRiskDetails",
-        topCity.alertLevel || "تم تحديث البيانات"
-    );
-}
 
     box.innerHTML = topCities.map((city, index) => {
         let color = "#22c55e";
         let icon = "🟢";
         let label = "منخفض";
 
-        if (city.score >= 80) {
+        const riskScore = Number(city.actualRiskScore ?? city.score ?? 0);
+
+        if (riskScore >= 80) {
             color = "#ef4444";
             icon = "🔴";
             label = "مرتفع";
-        } else if (city.score >= 60) {
+        } else if (riskScore >= 60) {
             color = "#f59e0b";
             icon = "🟠";
             label = "متوسط";
-        } else if (city.score >= 40) {
+        } else if (riskScore >= 40) {
             color = "#38bdf8";
             icon = "🔵";
             label = "محدود";
@@ -1951,41 +1946,37 @@ if (topCity) {
 
         return `
             <div
-    onclick="openCityForecastPopup('${city.name}')"
-    title="اضغط لعرض تفاصيل المدينة"
-    style="
-        padding:14px;
-        margin-bottom:12px;
-        border-radius:16px;
-        background:#0f172a;
-        border:1px solid #334155;
-        cursor:pointer;
-    "
->
+                onclick="openCityForecastPopup('${city.name}')"
+                title="اضغط لعرض تفاصيل المدينة"
+                style="
+                    padding:14px;
+                    margin-bottom:12px;
+                    border-radius:16px;
+                    background:#0f172a;
+                    border:1px solid #334155;
+                    cursor:pointer;
+                "
+            >
                 <div style="
                     display:flex;
                     justify-content:space-between;
                     align-items:center;
                     gap:10px;
                 ">
-                    <strong
-    onclick="openCityForecastPopup('${city.name}')"
-    title="اضغط لعرض تفاصيل المدينة"
-    style="
-        font-size:18px;
-        cursor:pointer;
-        text-decoration:underline;
-        text-underline-offset:4px;
-    "
->
-    ${index + 1}. ${icon} ${city.name}
-</strong>
+                    <strong style="
+                        font-size:18px;
+                        cursor:pointer;
+                        text-decoration:underline;
+                        text-underline-offset:4px;
+                    ">
+                        ${index + 1}. ${icon} ${city.name}
+                    </strong>
 
                     <strong style="
                         color:${color};
                         font-size:22px;
                     ">
-                        ${city.actualRiskScore ?? city.score}%
+                        ${riskScore}%
                     </strong>
                 </div>
 
@@ -1996,9 +1987,13 @@ if (topCity) {
                     line-height:1.7;
                 ">
                     مستوى الخطر: ${label}<br>
+                    المطر الآن: ${city.score ?? "--"}%<br>
+                    السيول: ${city.floodRiskScore ?? "--"}%<br>
+                    24 ساعة: ${city.forecast24Score ?? "--"}%<br>
+                    72 ساعة: ${city.forecast72Score ?? "--"}%<br>
                     الحالة: ${city.alertLevel || "غير متوفر"}<br>
                     المصدر: ${city.source || "Unknown"}
-                          ${renderSubZonesHTML(city.subZones)}
+                    ${renderSubZonesHTML(city.subZones)}
                 </div>
             </div>
         `;
