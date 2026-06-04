@@ -2485,10 +2485,27 @@ function renderNationalTrendPanel(results) {
     }
 
     const topCities = [...results]
+        .filter(city => Number(city.forecast72Score || 0) >= 40)
         .sort((a, b) =>
             Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
         )
         .slice(0, 5);
+
+    if (topCities.length === 0) {
+        panel.innerHTML = `
+            <div style="
+                text-align:center;
+                padding:30px;
+                color:#94a3b8;
+                line-height:2;
+            ">
+                🌤️ لا توجد مدن بتوقعات مطر مهمة خلال 72 ساعة
+                <br>
+                يتم عرض المدن فقط إذا كان المؤشر 40% أو أعلى.
+            </div>
+        `;
+        return;
+    }
 
     panel.innerHTML = `
         <div style="line-height:2;">
@@ -2503,30 +2520,59 @@ function renderNationalTrendPanel(results) {
             ${topCities.map((city, index) => {
                 const score = Number(city.forecast72Score || 0);
 
-                let icon = "🟢";
-                let color = "#22c55e";
+                let icon = "🔵";
+                let color = "#38bdf8";
+                let label = "احتمال متوسط";
 
                 if (score >= 80) {
                     icon = "🔴";
                     color = "#ef4444";
+                    label = "تنبيه مرتفع";
                 } else if (score >= 60) {
                     icon = "🟠";
                     color = "#f59e0b";
-                } else if (score >= 40) {
-                    icon = "🔵";
-                    color = "#38bdf8";
+                    label = "احتمال مرتفع";
                 }
 
                 return `
-                    <div style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        padding:6px 0;
-                        border-bottom:1px solid rgba(51,65,85,.6);
-                    ">
-                        <span>${index + 1}. ${icon} ${city.name}</span>
-                        <strong style="color:${color};">${score}%</strong>
+                    <div
+                        onclick="openCityForecastPopup('${city.name}')"
+                        style="
+                            cursor:pointer;
+                            padding:8px 0;
+                            border-bottom:1px solid rgba(51,65,85,.6);
+                        "
+                    >
+                        <div style="
+                            display:flex;
+                            justify-content:space-between;
+                            align-items:center;
+                        ">
+                            <span>${index + 1}. ${icon} ${city.name}</span>
+                            <strong style="color:${color};">${score}%</strong>
+                        </div>
+
+                        <div style="
+                            margin-top:5px;
+                            height:7px;
+                            background:#1e293b;
+                            border-radius:999px;
+                            overflow:hidden;
+                        ">
+                            <div style="
+                                width:${score}%;
+                                height:100%;
+                                background:${color};
+                            "></div>
+                        </div>
+
+                        <div style="
+                            color:#94a3b8;
+                            font-size:12px;
+                            margin-top:4px;
+                        ">
+                            ${label}
+                        </div>
                     </div>
                 `;
             }).join("")}
