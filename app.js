@@ -2461,88 +2461,51 @@ function renderSmartMultiCityForecastPanel(results) {
 }
 
 function updateNationalStatus(results) {
-    const box = document.getElementById("nationalWeatherStatus");
-    const reasonBox = document.getElementById("nationalStatusReason");
 
-    if (!box) return;
+    const box =
+        document.getElementById("nationalWeatherStatus");
 
-    if (!results || !results.length) {
-        box.innerHTML = "⚪ الحالة الوطنية: لا توجد بيانات";
-        box.style.borderColor = "#64748b";
+    if (!box || !results?.length) return;
 
-        if (reasonBox) {
-            reasonBox.innerHTML = "لم يتم تحليل المدن بعد.";
-        }
-
-        return;
-    }
-
-    let maxRain = 0;
-    let maxFlood = 0;
-    let topRainCity = "غير محدد";
-    let topFloodCity = "غير محدد";
-
-    results.forEach(city => {
-        const rainScore = Math.max(
-            Number(city.score || 0),
-            Number(city.forecast24Score || 0)
+    const rainCities =
+        results.filter(c =>
+            Number(c.score || 0) >= 50
         );
 
-        const floodScore = Number(city.floodRiskScore || 0);
+    const floodCities =
+        results.filter(c =>
+            Number(c.floodRiskScore || 0) >= 60
+        );
 
-        if (rainScore > maxRain) {
-            maxRain = rainScore;
-            topRainCity = city.name || "غير محدد";
-        }
+    if (
+        rainCities.length === 0 &&
+        floodCities.length === 0
+    ) {
+        box.innerHTML =
+            "🟢 الحالة الوطنية: مستقرة";
 
-        if (floodScore > maxFlood) {
-            maxFlood = floodScore;
-            topFloodCity = city.name || "غير محدد";
-        }
-    });
-
-    if (maxRain < 30 && maxFlood < 30) {
-        box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
-        box.style.borderColor = "#22c55e";
-
-        if (reasonBox) {
-            reasonBox.innerHTML = "لا توجد مدن تتجاوز عتبة التنبيه حالياً.";
-        }
+        box.style.borderColor =
+            "#22c55e";
 
         return;
     }
 
-    if (maxFlood >= 80 || maxRain >= 80) {
-        box.innerHTML = "🔴 الحالة الوطنية: تنبيه أمطار وسيول مرتفع";
-        box.style.borderColor = "#ef4444";
+    if (floodCities.length > 0) {
 
-        if (reasonBox) {
-            reasonBox.innerHTML =
-                `سبب التنبيه: أعلى مطر ${topRainCity} ${maxRain}%، وأعلى خطر سيول ${topFloodCity} ${maxFlood}%.`;
-        }
+        box.innerHTML =
+            "🔴 الحالة الوطنية: تنبيه";
 
-        return;
-    }
-
-    if (maxFlood >= 60 || maxRain >= 50) {
-        box.innerHTML = "🟠 الحالة الوطنية: مراقبة";
-        box.style.borderColor = "#f59e0b";
-
-        if (reasonBox) {
-            reasonBox.innerHTML =
-                `سبب المراقبة: أعلى مطر ${topRainCity} ${maxRain}%، وأعلى خطر سيول ${topFloodCity} ${maxFlood}%.`;
-        }
+        box.style.borderColor =
+            "#ef4444";
 
         return;
     }
 
-    box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
-    box.style.borderColor = "#22c55e";
+    box.innerHTML =
+        "🟠 الحالة الوطنية: مراقبة";
 
-    if (reasonBox) {
-        reasonBox.innerHTML =
-            `الحالة مستقرة. أعلى مطر ${topRainCity} ${maxRain}%، وأعلى خطر سيول ${topFloodCity} ${maxFlood}%.`;
-    }
+    box.style.borderColor =
+        "#f59e0b";
 }
 
 // ===============================
