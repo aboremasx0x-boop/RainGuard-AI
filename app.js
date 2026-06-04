@@ -2484,7 +2484,18 @@ function updateNationalStatus(results) {
             maxFlood,
             Number(city.floodRiskScore || 0)
         );
-    });
+    });if (
+    maxRain < 30 &&
+    maxFlood < 30
+) {
+    box.innerHTML =
+        "🟢 الحالة الوطنية: مستقرة";
+
+    box.style.borderColor = "#22c55e";
+
+    return;
+}
+    
 
     if (maxFlood >= 80 || maxRain >= 80) {
         box.innerHTML = "🔴 الحالة الوطنية: تنبيه أمطار وسيول مرتفع";
