@@ -2001,24 +2001,21 @@ function renderSmartMultiCityTopPanel(results) {
     .slice(0, 5);
 
 if (topCities.length === 0) {
+    box.innerHTML = `
+        <div style="
+            padding:18px;
+            text-align:center;
+            color:#94a3b8;
+            line-height:2;
+        ">
+            🌤️ لا توجد مدن عليها أمطار تستدعي التنبيه حالياً
+            <br>
+            يتم عرض المدن فقط إذا كان مؤشر المطر 50% أو أعلى.
+        </div>
+    `;
 
-        box.innerHTML = `
-            <div style="
-                padding:18px;
-                text-align:center;
-                color:#94a3b8;
-                line-height:2;
-            ">
-                🌤️ لا توجد مدن عليها أمطار مهمة حالياً
-                <br>
-                أعلى احتمال مطر حالياً:
-                <strong>${topCities[0]?.name || "-"}</strong>
-                (${topCities[0]?.score || 0}%)
-            </div>
-        `;
-
-        return;
-    }
+    return;
+}
 
     box.innerHTML = topCities.map((city, index) => {
 
