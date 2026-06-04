@@ -2469,9 +2469,10 @@ function updateNationalStatus(results) {
     });
 
     const cloudyCities = results.filter(c =>
-        Number(c.forecast24Score || 0) < 50 &&
-        Number(c.cloudCover || 0) >= 50
-    );
+    Number(c.forecast24Score || 0) < 50 &&
+    Number(c.score || 0) >= 10 &&
+    Number(c.score || 0) < 40
+);
 
     console.log("Cloudy Cities:", cloudyCities);
 console.log("Results:", results);
