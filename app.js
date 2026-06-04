@@ -1909,6 +1909,26 @@ function renderSmartMultiCityTopPanel(results) {
     }
 
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
+    const topCity = topCities[0];
+
+if (topCity) {
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+
+    setText("topRiskCity", topCity.name);
+
+    setText(
+        "topRiskScore",
+        `${topCity.actualRiskScore ?? topCity.score}%`
+    );
+
+    setText(
+        "topRiskDetails",
+        topCity.alertLevel || "تم تحديث البيانات"
+    );
+}
 
     box.innerHTML = topCities.map((city, index) => {
         let color = "#22c55e";
