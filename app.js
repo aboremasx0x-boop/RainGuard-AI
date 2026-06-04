@@ -2538,15 +2538,15 @@ function renderNationalTrendPanel(results) {
 
         const diff = next24 - now;
 
-        if (diff >= 15) {
-            worsening++;
-        }
-        else if (diff <= -15) {
-            improving++;
-        }
-        else {
-            stable++;
-        }
+       if (diff >= 5) {
+    worsening++;
+}
+else if (diff <= -5) {
+    improving++;
+}
+else {
+    stable++;
+}
 
         if (
             !bestImprove ||
