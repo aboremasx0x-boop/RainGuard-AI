@@ -1525,8 +1525,8 @@ if (topCityNow) {
     renderFloodWatchCitiesPanel(results);
     renderSmartMultiCityForecastPanel(results);
     renderFloodPredictionPanel(results);
-    renderFloodPredictionPanel(results);
     updateNationalStatus(results);
+    renderNationalTrendPanel(results);
     updateFloodRiskMap(results);
     updateCloudRainMapLayer(results);
     saveSmartMultiCityHistory(topCities);
