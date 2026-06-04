@@ -2079,9 +2079,23 @@ function renderSmartMultiCityTopPanel(results) {
         );
     }
 
-    const topCities = rainCities
-    .filter(city => Number(city.score || 0) >= 50)
+   const topCities = [...results]
+    .filter(city => Number(city.forecast72Score || 0) >= 40)
+    .sort((a, b) =>
+        Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
+    )
     .slice(0, 5);
+
+if (topCities.length === 0) {
+    panel.innerHTML = `
+        <div style="text-align:center; line-height:2; color:#94a3b8;">
+            🌤️ لا توجد مدن بتوقعات مطر مهمة خلال 72 ساعة
+            <br>
+            يتم عرض المدن فقط إذا كان المؤشر 40% أو أعلى.
+        </div>
+    `;
+    return;
+}
 
 if (topCities.length === 0) {
     box.innerHTML = `
