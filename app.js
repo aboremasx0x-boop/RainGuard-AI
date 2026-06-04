@@ -2021,25 +2021,21 @@ if (topCities.length === 0) {
 
         const rainScore = Number(city.score || 0);
 
-        let color = "#22c55e";
-        let icon = "🟢";
-        let label = "ضعيف";
-
-        if (rainScore >= 80) {
-            color = "#ef4444";
-            icon = "🔴";
-            label = "مطر مؤكد";
-        }
-        else if (rainScore >= 60) {
-            color = "#f59e0b";
-            icon = "🟠";
-            label = "مرتفع";
-        }
-        else if (rainScore >= 40) {
-            color = "#38bdf8";
-            icon = "🔵";
-            label = "متوسط";
-        }
+        if (rainScore >= 85) {
+    color = "#ef4444";
+    icon = "🔴";
+    label = "تنبيه مطر";
+}
+else if (rainScore >= 70) {
+    color = "#f97316";
+    icon = "🟠";
+    label = "مطر مؤكد";
+}
+else if (rainScore >= 50) {
+    color = "#38bdf8";
+    icon = "🔵";
+    label = "احتمال مطر مرتفع";
+}
 
         return `
             <div
