@@ -2510,100 +2510,60 @@ function updateNationalStatus(results) {
 }
 
 function renderNationalTrendPanel(results) {
-
-    const panel =
-        document.getElementById("nationalTrendPanel");
-
+    const panel = document.getElementById("nationalTrendPanel");
     if (!panel) return;
 
     if (!results || !results.length) {
-        panel.innerHTML = "لا توجد بيانات حالياً";
+        panel.innerHTML = "لا توجد بيانات توقع حالياً";
         return;
     }
 
-    let improving = 0;
-    let worsening = 0;
-    let stable = 0;
-
-    let bestImprove = null;
-    let worstCity = null;
-
-    results.forEach(city => {
-
-        const now =
-            Number(city.score || 0);
-
-        const next24 =
-            Number(city.forecast24Score || 0);
-
-        const diff = next24 - now;
-
-       if (diff >= 5) {
-    worsening++;
-}
-else if (diff <= -5) {
-    improving++;
-}
-else {
-    stable++;
-}
-
-        if (
-            !bestImprove ||
-            diff < bestImprove.diff
-        ) {
-            bestImprove = {
-                name: city.name,
-                diff
-            };
-        }
-
-        if (
-            !worstCity ||
-            diff > worstCity.diff
-        ) {
-            worstCity = {
-                name: city.name,
-                diff
-            };
-        }
-    });
+    const topCities = [...results]
+        .sort((a, b) =>
+            Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
+        )
+        .slice(0, 5);
 
     panel.innerHTML = `
-        <div style="line-height:2">
-
-            <div>
-                📈 مدن تتجه للارتفاع:
-                <b>${worsening}</b>
-            </div>
-
-            <div>
-                📉 مدن تتحسن:
-                <b>${improving}</b>
-            </div>
-
-            <div>
-                ➖ مدن مستقرة:
-                <b>${stable}</b>
-            </div>
-
-            <hr style="
-                margin:12px 0;
-                border-color:#334155;
+        <div style="line-height:2;">
+            <div style="
+                font-weight:800;
+                margin-bottom:10px;
+                color:#38bdf8;
             ">
-
-            <div>
-                🔴 أعلى تدهور:
-                ${worstCity?.name || "-"}
-               (${Math.round(worstCity?.diff || 0)}%)
+                🌦️ أعلى 5 مدن متوقعة خلال 72 ساعة
             </div>
 
-            <div>
-                🟢 أعلى تحسن:
-                ${bestImprove?.name || "-"}
-               (${Math.round(bestImprove?.diff || 0)}%)
-            </div>
+            ${topCities.map((city, index) => {
+                const score = Number(city.forecast72Score || 0);
 
+                let icon = "🟢";
+                let color = "#22c55e";
+
+                if (score >= 80) {
+                    icon = "🔴";
+                    color = "#ef4444";
+                } else if (score >= 60) {
+                    icon = "🟠";
+                    color = "#f59e0b";
+                } else if (score >= 40) {
+                    icon = "🔵";
+                    color = "#38bdf8";
+                }
+
+                return `
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        padding:6px 0;
+                        border-bottom:1px solid rgba(51,65,85,.6);
+                    ">
+                        <span>${index + 1}. ${icon} ${city.name}</span>
+                        <strong style="color:${color};">${score}%</strong>
+                    </div>
+                `;
+            }).join("")}
         </div>
     `;
 }
