@@ -2437,9 +2437,18 @@ function updateNationalStatus(results) {
     const box = document.getElementById("nationalWeatherStatus");
     if (!box) return;
 
+    const rainCountEl = document.getElementById("rainCitiesCount");
+    const floodCountEl = document.getElementById("floodCitiesCount");
+    const cloudCountEl = document.getElementById("cloudCitiesCount");
+
     if (!results || !results.length) {
         box.innerHTML = "⚪ الحالة الوطنية: لا توجد بيانات";
         box.style.borderColor = "#64748b";
+
+        if (rainCountEl) rainCountEl.innerText = "0";
+        if (floodCountEl) floodCountEl.innerText = "0";
+        if (cloudCountEl) cloudCountEl.innerText = "0";
+
         return;
     }
 
@@ -2462,6 +2471,15 @@ function updateNationalStatus(results) {
             )
         );
     });
+
+    const cloudyCities = results.filter(c =>
+        Number(c.forecast24Score || 0) < 50 &&
+        Number(c.cloudCover || 0) >= 50
+    );
+
+    if (rainCountEl) rainCountEl.innerText = rainCities.length;
+    if (floodCountEl) floodCountEl.innerText = floodCities.length;
+    if (cloudCountEl) cloudCountEl.innerText = cloudyCities.length;
 
     if (rainCities.length === 0 && floodCities.length === 0) {
         box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
