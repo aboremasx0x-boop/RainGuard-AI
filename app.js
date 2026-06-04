@@ -1944,17 +1944,27 @@ function renderSubZonesHTML(subZones) {
 }
 
 function renderSmartMultiCityTopPanel(results) {
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+
     if (results && results.length > 0) {
         const topCity = results[0];
 
-        const setText = (id, value) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = value;
-        };
-
         setText("topRiskCity", topCity.name || "غير محدد");
-        setText("topRiskScore", `${topCity.actualRiskScore ?? topCity.score ?? "--"}%`);
-        setText("topRiskDetails", topCity.alertLevel || "تم تحديث البيانات");
+        setText(
+            "topRiskScore",
+            `${topCity.actualRiskScore ?? topCity.score ?? "--"}%`
+        );
+        setText(
+            "topRiskDetails",
+            topCity.alertLevel || "تم تحديث البيانات"
+        );
+    } else {
+        setText("topRiskCity", "غير محدد");
+        setText("topRiskScore", "--%");
+        setText("topRiskDetails", "لم يتم تشغيل مراقبة المدن بعد");
     }
 
     const box = document.getElementById("smartMultiCityTopBox");
@@ -1968,11 +1978,11 @@ function renderSmartMultiCityTopPanel(results) {
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
 
     box.innerHTML = topCities.map((city, index) => {
+        const riskScore = Number(city.actualRiskScore ?? city.score ?? 0);
+
         let color = "#22c55e";
         let icon = "🟢";
         let label = "منخفض";
-
-        const riskScore = Number(city.actualRiskScore ?? city.score ?? 0);
 
         if (riskScore >= 80) {
             color = "#ef4444";
