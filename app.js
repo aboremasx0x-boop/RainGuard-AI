@@ -4246,9 +4246,10 @@ if (radarFusionBox) radarFusionBox.innerHTML = radarFusionHTML;
         `;
 
         marker.bindPopup(`
-            <b>${name}</b><br>
-            مؤشر المطر: ${score}%<br>
-            ${best.alert_level}
+    <b>${name}</b><br>
+    مؤشر المطر: ${score}%<br>
+    ${best.alert_level}
+`);
      
 
         updateRefreshStatus("تم تحديث البيانات");
