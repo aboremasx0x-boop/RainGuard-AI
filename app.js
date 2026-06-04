@@ -1809,6 +1809,9 @@ function renderSubZonesHTML(subZones) {
     const topZones = [...subZones]
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
     .slice(0, 5);
+    const highestZone = topZones[0];
+const highestStyle = highestZone ? getZoneStyle(highestZone.score) : null;
+
 
     const getZoneStyle = (score) => {
         score = Number(score) || 0;
@@ -1829,6 +1832,39 @@ function renderSubZonesHTML(subZones) {
             <strong style="color:#38bdf8;">
                 📍 متابعة المناطق الداخلية
             </strong>
+
+            ${
+    highestZone
+        ? `
+            <div style="
+                margin-top:12px;
+                padding:12px;
+                border-radius:14px;
+                background:#020617;
+                border:1px solid ${highestStyle.color};
+                color:#e5e7eb;
+            ">
+                <div style="color:${highestStyle.color};font-weight:bold;">
+                    🔥 أخطر حي حالياً
+                </div>
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    margin-top:8px;
+                    align-items:center;
+                ">
+                    <span>${highestStyle.icon} ${highestZone.name}</span>
+                    <strong style="color:${highestStyle.color};font-size:20px;">
+                        ${highestZone.score}%
+                    </strong>
+                </div>
+                <div style="margin-top:6px;color:#94a3b8;font-size:13px;">
+                    التصنيف: ${highestStyle.label}
+                </div>
+            </div>
+        `
+        : ""
+}
 
             ${topZones.map(zone => {
                 const z = getZoneStyle(zone.score);
