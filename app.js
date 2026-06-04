@@ -2332,6 +2332,43 @@ function renderFloodWatchCitiesPanel(results) {
     }).join("");
 }
 
+function updateNationalWeatherSummary(results) {
+    if (!results || !results.length) return;
+
+    const rainCities = results.filter(city =>
+        Number(city.score || 0) >= 50
+    );
+
+    const floodCities = results.filter(city => {
+        const flood = Number(city.floodRiskScore || 0);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
+
+        return (
+            flood >= 60 &&
+            (
+                rainNow >= 40 ||
+                rain24 >= 40 ||
+                rain72 >= 50
+            )
+        );
+    });
+
+    const cloudCities = results.filter(city =>
+        Number(city.score || 0) < 50 &&
+        Number(city.forecast24Score || 0) >= 30
+    );
+
+    const rainEl = document.getElementById("rainCitiesCount");
+    const floodEl = document.getElementById("floodCitiesCount");
+    const cloudEl = document.getElementById("cloudCitiesCount");
+
+    if (rainEl) rainEl.innerText = rainCities.length;
+    if (floodEl) floodEl.innerText = floodCities.length;
+    if (cloudEl) cloudEl.innerText = cloudCities.length;
+}
+
 function renderSmartMultiCityForecastPanel(results) {
     const box = document.getElementById("smartMultiCityForecastBox");
     if (!box) return;
