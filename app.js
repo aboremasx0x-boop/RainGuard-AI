@@ -1996,9 +1996,11 @@ function renderSmartMultiCityTopPanel(results) {
         );
     }
 
-    const topCities = rainCities.slice(0, 5);
+    const topCities = rainCities
+    .filter(city => Number(city.score || 0) >= 50)
+    .slice(0, 5);
 
-    if ((topCities[0]?.score || 0) < 30) {
+if (topCities.length === 0) {
 
         box.innerHTML = `
             <div style="
