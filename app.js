@@ -2126,72 +2126,46 @@ function saveEarlyMultiCityAlert(cityName, score) {
     );
 }
 
-function renderConfirmedRainCitiesPanel(results) {
-    const box = document.getElementById("confirmedRainCitiesBox");
+function renderFloodWatchCitiesPanel(results) {
+    const box = document.getElementById("floodWatchCitiesBox");
     if (!box) return;
 
     if (!results || results.length === 0) {
-        box.innerHTML = "لا توجد بيانات مدن حالياً.";
+        box.innerHTML = "لا توجد بيانات سيول حالياً.";
         return;
     }
 
-    const confirmed = [...results]
-        .filter(city => {
-            const score = Number(city.score || 0);
-            const forecast24 = Number(city.forecast24Score || 0);
-            const alert = city.alertLevel || "";
+    const floodCities = [...results]
+        .filter(city => Number(city.floodRiskScore || 0) >= 60)
+        .sort((a, b) =>
+            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
+        );
 
-            return (
-                score >= 60 ||
-                forecast24 >= 60 ||
-                alert.includes("مطر") ||
-                alert.includes("مرتفع") ||
-                alert.includes("متوسط")
-            );
-        })
-        .sort((a, b) => {
-            const aScore = Math.max(
-                Number(a.score || 0),
-                Number(a.forecast24Score || 0)
-            );
-
-            const bScore = Math.max(
-                Number(b.score || 0),
-                Number(b.forecast24Score || 0)
-            );
-
-            return bScore - aScore;
-        });
-
-    if (confirmed.length === 0) {
+    if (floodCities.length === 0) {
         box.innerHTML = `
             <div style="
                 color:#94a3b8;
                 line-height:1.8;
             ">
-                لا توجد مدن بمطر مؤكد حالياً حسب بيانات النظام.
+                لا توجد مدن معرضة للسيول حالياً.
             </div>
         `;
         return;
     }
 
-    box.innerHTML = confirmed.slice(0, 6).map(city => {
-        const score = Number(city.score || 0);
+    box.innerHTML = floodCities.slice(0, 6).map(city => {
+        const floodScore = Number(city.floodRiskScore || 0);
+        const rainScore = Number(city.score || 0);
         const forecast24 = Number(city.forecast24Score || 0);
-        const rainValue = Math.max(score, forecast24);
 
-        let color = "#38bdf8";
-        let icon = "🔵";
-        let label = "احتمال مطر";
+        let color = "#f59e0b";
+        let icon = "🟠";
+        let label = "خطر سيول متوسط";
 
-        if (rainValue >= 80) {
+        if (floodScore >= 80) {
             color = "#ef4444";
             icon = "🔴";
-            label = "مطر مؤكد مرتفع";
-        } else if (rainValue >= 60) {
-            color = "#f59e0b";
-            icon = "🟠";
-            label = "مطر مؤكد متوسط";
+            label = "خطر سيول مرتفع";
         }
 
         return `
@@ -2217,7 +2191,7 @@ function renderConfirmedRainCitiesPanel(results) {
                     </strong>
 
                     <strong style="color:${color};font-size:20px;">
-                        ${rainValue}%
+                        ${floodScore}%
                     </strong>
                 </div>
 
@@ -2228,16 +2202,14 @@ function renderConfirmedRainCitiesPanel(results) {
                     line-height:1.7;
                 ">
                     ${label}<br>
-                    المطر الآن: ${score}%<br>
-                    خلال 24 ساعة: ${forecast24}%<br>
-                    الحالة: ${city.alertLevel || "غير متوفر"}
+                    مؤشر المطر الآن: ${rainScore}%<br>
+                    توقع المطر 24 ساعة: ${forecast24}%<br>
+                    سبب الخطورة: ${city.terrainSummary || "حساسية تضاريسية / سيول"}
                 </div>
             </div>
         `;
     }).join("");
 }
-
-
 
 function renderSmartMultiCityForecastPanel(results) {
     const box = document.getElementById("smartMultiCityForecastBox");
