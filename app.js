@@ -826,6 +826,28 @@ function calculateCityFloodRisk(city) {
     const rainScore = Number(city.score) || 0;
     const forecast24 = Number(city.forecast24Score) || 0;
     const forecast72 = Number(city.forecast72Score) || 0;
+    const floodCityWeights = {
+    "مكة": 15,
+    "جدة": 20,
+    "الطائف": 18,
+    "الوهط - جنوب الطائف": 18,
+    "الهدا": 15,
+    "الشفا": 15,
+    "المدينة": 12,
+    "الرياض": 10,
+    "الدمام": 8,
+    "الخبر": 8,
+    "الأحساء": 10,
+    "أبها": 20,
+    "الباحة": 18,
+    "جازان": 22,
+    "نجران": 16,
+    "تبوك": 10,
+    "خميس مشيط": 18,
+    "بيش": 20,
+    "صبيا": 20,
+    "محايل عسير": 18
+};
     const cityWeight = floodCityWeights[city.name] || 0;
 
     let floodRisk = 0;
