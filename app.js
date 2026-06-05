@@ -940,7 +940,7 @@ function getFloodRiskLabel(score) {
 
     if (score >= 80) return "خطر سيول مرتفع";
     if (score >= 60) return "خطر سيول متوسط";
-    if (score >= 40) return "قابلية تجمع مياه";
+    if (score >= 30) return "قابلية تجمع مياه";
     return "خطر منخفض";
 }
 
@@ -949,7 +949,7 @@ function getFloodRiskIcon(score) {
 
     if (score >= 80) return "🔴";
     if (score >= 60) return "🟠";
-    if (score >= 40) return "🔵";
+    if (score >= 30) return "🔵";
     return "🟢";
 }
 
@@ -1117,7 +1117,7 @@ function getFloodMapColor(score) {
 
     if (score >= 80) return "#ef4444";
     if (score >= 60) return "#f59e0b";
-    if (score >= 40) return "#38bdf8";
+    if (score >= 30) return "#38bdf8";
     return "#22c55e";
 }
 
@@ -1126,7 +1126,7 @@ function getFloodMapRadius(score) {
 
     if (score >= 80) return 42000;
     if (score >= 60) return 34000;
-    if (score >= 40) return 26000;
+    if (score >= 30) return 26000;
     return 16000;
 }
 
@@ -1213,7 +1213,7 @@ function updateCloudRainMapLayer(results) {
         } else if (rainScore >= 70) {
             color = "#f97316";
             label = "مطر مؤكد";
-        } else if (rainScore >= 50) {
+        } else if (rainScore >= 30) {
             color = "#38bdf8";
             label = "احتمال مطر مرتفع";
         }
@@ -1604,7 +1604,7 @@ function renderSmartMultiCityHistory() {
             } else if (city.score >= 60) {
                 color = "#f59e0b";
                 icon = "🟠";
-            } else if (city.score >= 40) {
+            } else if (city.score >= 30) {
                 color = "#38bdf8";
                 icon = "🔵";
             }
@@ -2036,7 +2036,7 @@ function renderSmartMultiCityTopPanel(results) {
     }
 
     const rainCities = [...results]
-        .filter(city => Number(city.forecast24Score || 0) >= 50)
+        .filter(city => Number(city.forecast24Score || 0) >= 30)
         .sort((a, b) =>
             Number(b.forecast24Score || 0) - Number(a.forecast24Score || 0)
         )
@@ -2211,9 +2211,9 @@ function renderFloodWatchCitiesPanel(results) {
         return (
             flood >= 60 &&
             (
-                rainNow >= 40 ||
-                rain24 >= 40 ||
-                rain72 >= 50
+                rainNow >= 30 ||
+                rain24 >= 30 ||
+                rain72 >= 30
             )
         );
     })
@@ -2304,7 +2304,7 @@ function updateNationalWeatherSummary(results) {
     }
 
     const rainCities = results.filter(city =>
-    Number(city.forecast24Score || 0) >= 50
+    Number(city.forecast24Score || 0) >= 30
 );
 
     const floodCities = results.filter(city => {
@@ -2316,9 +2316,9 @@ function updateNationalWeatherSummary(results) {
         return (
             flood >= 60 &&
             (
-                rainNow >= 40 ||
-                rain24 >= 40 ||
-                rain72 >= 50
+                rainNow >= 30 ||
+                rain24 >= 30 ||
+                rain72 >= 30
             )
         );
     });
@@ -2363,7 +2363,7 @@ function renderSmartMultiCityForecastPanel(results) {
         } else if (city.forecast72Score >= 60) {
             color = "#f59e0b";
             icon = "🟠";
-        } else if (city.forecast72Score >= 40) {
+        } else if (city.forecast72Score >= 30) {
             color = "#38bdf8";
             icon = "🔵";
         }
@@ -2436,7 +2436,7 @@ function updateNationalStatus(results) {
     }
 
     const rainCities = results.filter(c =>
-        Number(c.forecast24Score || 0) >= 50
+        Number(c.forecast24Score || 0) >= 30
     );
 
     const floodCities = results.filter(c => {
@@ -2446,9 +2446,9 @@ function updateNationalStatus(results) {
         const rain72 = Number(c.forecast72Score || 0);
 
         return flood >= 60 && (
-            rainNow >= 40 ||
-            rain24 >= 40 ||
-            rain72 >= 50
+            rainNow >= 30 ||
+            rain24 >= 30 ||
+            rain72 >= 30
         );
     });
 
@@ -2495,7 +2495,7 @@ function renderNationalTrendPanel(results) {
     }
 
     const topCities = [...results]
-        .filter(city => Number(city.forecast72Score || 0) >= 40)
+        .filter(city => Number(city.forecast72Score || 0) >= 30)
         .sort((a, b) =>
             Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
         )
@@ -2647,7 +2647,7 @@ function updateRiskBar(score) {
     } else if (score >= 60) {
         color = "#f59e0b";
         label = "تنبيه متوسط";
-    } else if (score >= 40) {
+    } else if (score >= 30) {
         color = "#38bdf8";
         label = "احتمال متوسط";
     }
@@ -2818,7 +2818,7 @@ function buildConfidenceHTML(data) {
         color = "#f59e0b";
         title = "ثقة متوسطة";
         icon = "⚠️";
-    } else if (confidenceScore >= 40) {
+    } else if (confidenceScore >= 30) {
         color = "#38bdf8";
         title = "ثقة محدودة";
         icon = "🔎";
@@ -2913,7 +2913,7 @@ function buildRadarFusionHTML(data) {
         icon = "🟡";
         movement = "توجد مؤشرات اقتراب أو تشكل سحب ممطرة";
         eta = "خلال 3–6 ساعات تقريبًا";
-    } else if (fusionScore >= 40) {
+    } else if (fusionScore >= 30) {
         color = "#38bdf8";
         title = "احتمال ضعيف إلى متوسط";
         icon = "🔵";
@@ -3005,7 +3005,7 @@ function buildRainArrivalTrackerHTML(data) {
         icon = "🟡";
         color = "#f59e0b";
         recommendation = "راقب الحالة خلال الساعات القادمة.";
-    } else if (peakScore >= 40) {
+    } else if (peakScore >= 30) {
         direction = "مؤشرات مبكرة";
         icon = "🔵";
         color = "#38bdf8";
@@ -3016,7 +3016,7 @@ function buildRainArrivalTrackerHTML(data) {
         arrivalText = `المؤشرات قد ترتفع خلال ${nextHigherIndex} ساعة تقريبًا`;
     } else if (peakIndex > 0) {
         arrivalText = `أعلى فرصة مطر متوقعة بعد ${peakIndex} ساعة تقريبًا`;
-    } else if (peakScore >= 40) {
+    } else if (peakScore >= 30) {
         arrivalText = "الفرصة الحالية قائمة وقد تتغير سريعًا";
     }
 
@@ -3096,7 +3096,7 @@ function buildFloodRiskHTML(data, locationName) {
     floodScore += Math.min(precipitationNow * 15, 12);
 
     if (windSpeed >= 25) floodScore += 5;
-    if (windSpeed >= 40) floodScore += 8;
+    if (windSpeed >= 30) floodScore += 8;
 
     const isSensitiveCity = floodSensitiveCities.some(city =>
         cityName.includes(city)
@@ -3126,7 +3126,7 @@ function buildFloodRiskHTML(data, locationName) {
         title = "خطر سيول متوسط";
         recommendation = "توجد مؤشرات متوسطة لاحتمال تجمعات مياه.";
         action = "راقب الحالة وتجنب مجاري السيول عند هطول المطر.";
-    } else if (floodScore >= 40) {
+    } else if (floodScore >= 30) {
         color = "#38bdf8";
         icon = "🔵";
         title = "احتمال تجمعات مياه محدود";
@@ -3237,7 +3237,7 @@ async function updateMultiCityMonitor() {
             } else if (city.score >= 60) {
                 color = "#f59e0b";
                 icon = "🟠";
-            } else if (city.score >= 40) {
+            } else if (city.score >= 30) {
                 color = "#38bdf8";
                 icon = "🔵";
             }
@@ -3361,7 +3361,7 @@ async function updateRainHeatmap() {
             } else if (score >= 60) {
                 color = "#f59e0b";
                 radius = 28000;
-            } else if (score >= 40) {
+            } else if (score >= 30) {
                 color = "#38bdf8";
                 radius = 22000;
             }
@@ -3872,7 +3872,7 @@ function renderPredictionHistory() {
             color = "#ef4444";
         } else if (item.score >= 60) {
             color = "#f59e0b";
-        } else if (item.score >= 40) {
+        } else if (item.score >= 30) {
             color = "#38bdf8";
         }
 
@@ -4650,7 +4650,7 @@ function updateWeatherEffectsByRisk(score) {
     } else if (score >= 60) {
         document.body.classList.add("fx-high");
         startLightning();
-    } else if (score >= 40) {
+    } else if (score >= 30) {
         document.body.classList.add("fx-medium");
         stopLightningOnly();
     } else {
