@@ -4475,6 +4475,20 @@ async function detectRain() {
     }
 }
 
+function showCloudCities() {
+    const modal = document.getElementById("cloudCitiesModal");
+    if (!modal) return;
+
+    modal.style.display = "flex";
+}
+
+function closeCloudCities() {
+    const modal = document.getElementById("cloudCitiesModal");
+    if (!modal) return;
+
+    modal.style.display = "none";
+}
+
 // ===============================
 // Startup
 // ===============================
