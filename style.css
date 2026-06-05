@@ -1026,29 +1026,6 @@ body.fx-danger .rain-layer {
     font-size: 14px;
 }
 
-.rg-modal {
-    position: fixed !important;
-    inset: 0 !important;
-    background: rgba(2, 6, 23, 0.85) !important;
-    z-index: 999999 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 20px !important;
-}
-
-.rg-modal-content {
-    width: min(520px, 94vw) !important;
-    max-height: 85vh !important;
-    overflow-y: auto !important;
-    background: #020617 !important;
-    border: 1px solid #334155 !important;
-    border-radius: 24px !important;
-    padding: 22px !important;
-    color: white !important;
-    box-shadow: 0 20px 80px rgba(0,0,0,0.65) !important;
-}
-
 .rg-modal-close {
     float: left;
     background: #ef4444;
