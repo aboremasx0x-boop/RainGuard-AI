@@ -15,12 +15,12 @@ let backgroundMonitorEnabled = false;
 const SMART_MULTI_CITY_KEY = "rainguard_smart_multicity_enabled";
 const SMART_MULTI_CITY_LAST_ALERT_KEY = "rainguard_smart_multicity_last_alert";
 const SMART_MULTI_CITY_ALERT_COOLDOWN_MINUTES = 45;
-const SMART_MULTI_CITY_MIN_ALERT_SCORE = 60;
+const SMART_MULTI_CITY_MIN_ALERT_SCORE = 30;
 const SMART_MULTI_CITY_HISTORY_KEY = "rainguard_smart_multicity_history";
 const SMART_MULTI_CITY_TOP_LIMIT = 20;
 const SMART_MULTI_CITY_FORECAST_HOURS = 72;
 const SMART_MULTI_CITY_EARLY_ALERT_KEY = "rainguard_smart_multicity_early_alert";
-const SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE = 60;
+const SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE = 30;
 
 const FLOOD_PREDICTION_ALERT_KEY = "rainguard_flood_prediction_alert";
 const FLOOD_RISK_MIN_ALERT_SCORE = 30;
@@ -4353,9 +4353,9 @@ function showCloudCities() {
     if (!modal || !list || !window.lastMultiCityResults) return;
 
     const cloudyCities = window.lastMultiCityResults.filter(c =>
-        Number(c.forecast24Score || 0) < 50 &&
+        Number(c.forecast24Score || 0) < 30 &&
         Number(c.score || 0) >= 10 &&
-        Number(c.score || 0) < 40
+        Number(c.score || 0) < 30
     );
 
     list.innerHTML = cloudyCities.length
@@ -4369,9 +4369,9 @@ function showCloudCities() {
                     border-radius:10px;
                 "
             >
-                ☁️ ${c.name} - مؤشر: ${c.score}%
+                ☁️ ${c.name} - مؤشر: ${c.score || 0}%
                 <div style="font-size:12px;color:#94a3b8;margin-top:4px;">
-                    اضغط لعرض تفاصيل 24 و72 ساعة
+                    اضغط لعرض التفاصيل
                 </div>
             </div>
         `).join("")
@@ -4382,16 +4382,19 @@ function showCloudCities() {
 
 function closeCloudCities() {
     const modal = document.getElementById("cloudCitiesModal");
-    if (modal) {
-        modal.style.display = "none";
-    }
+
+    if (!modal) return;
+
+    modal.style.display = "none";
 }
 
 function showCloudCityDetails(cityName) {
     const list = document.getElementById("cloudCitiesList");
+
     if (!list || !window.lastMultiCityResults) return;
 
     const city = window.lastMultiCityResults.find(c => c.name === cityName);
+
     if (!city) return;
 
     list.innerHTML = `
@@ -4402,19 +4405,51 @@ function showCloudCityDetails(cityName) {
             <p>📅 توقع 24 ساعة: <strong>${city.forecast24Score || 0}%</strong></p>
             <p>📈 توقع 72 ساعة: <strong>${city.forecast72Score || 0}%</strong></p>
             <p>🌊 خطر السيول: <strong>${city.floodRiskScore || 0}%</strong></p>
-            <p>⏰ وقت الذروة: <strong>${
-                city.peakHour?.time
-                    ? city.peakHour.time.replace("T", " ")
-                    : "غير متوفر"
-            }</strong></p>
+            <p>⛰️ التضاريس: <strong>${city.terrainRiskScore || 0}%</strong></p>
+            <p>⏰ وقت الذروة:
+                <strong>
+                    ${
+                        city.peakHour?.time
+                            ? city.peakHour.time.replace("T", " ")
+                            : "غير متوفر"
+                    }
+                </strong>
+            </p>
 
-            <button onclick="focusCloudCityOnMap('${city.name}')">
-                📍 عرض المدينة على الخريطة
-            </button>
+            <div style="
+                display:flex;
+                gap:10px;
+                flex-wrap:wrap;
+                margin-top:20px;
+            ">
+                <button
+                    onclick="focusCloudCityOnMap('${city.name}')"
+                    style="
+                        padding:10px 15px;
+                        border:none;
+                        border-radius:10px;
+                        background:#2563eb;
+                        color:white;
+                        cursor:pointer;
+                    "
+                >
+                    📍 عرض المدينة على الخريطة
+                </button>
 
-            <button onclick="showCloudCities()">
-                ↩️ رجوع
-            </button>
+                <button
+                    onclick="showCloudCities()"
+                    style="
+                        padding:10px 15px;
+                        border:none;
+                        border-radius:10px;
+                        background:#475569;
+                        color:white;
+                        cursor:pointer;
+                    "
+                >
+                    ↩️ رجوع
+                </button>
+            </div>
         </div>
     `;
 }
@@ -4423,23 +4458,26 @@ function focusCloudCityOnMap(cityName) {
     if (!window.lastMultiCityResults) return;
 
     const city = window.lastMultiCityResults.find(c => c.name === cityName);
+
     if (!city || !city.lat || !city.lon) return;
 
     closeCloudCities();
 
     const activeMap = window.map || map;
+
     if (!activeMap) return;
 
-    activeMap.setView([city.lat, city.lon], 8);
+    activeMap.setView([city.lat, city.lon], 9);
 
     L.popup()
         .setLatLng([city.lat, city.lon])
         .setContent(`
             <b>${city.name}</b><br>
-            🌧️ مؤشر المطر: ${city.score || 0}%<br>
+            🌧️ المطر الآن: ${city.score || 0}%<br>
             📅 24 ساعة: ${city.forecast24Score || 0}%<br>
             📈 72 ساعة: ${city.forecast72Score || 0}%<br>
-            🌊 خطر السيول: ${city.floodRiskScore || 0}%
+            🌊 السيول: ${city.floodRiskScore || 0}%<br>
+            ⛰️ التضاريس: ${city.terrainRiskScore || 0}%
         `)
         .openOn(activeMap);
 }
