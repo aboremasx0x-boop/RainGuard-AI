@@ -4452,112 +4452,57 @@ function showCloudCities() {
     modal.style.display = "flex";
 }
 
+function closeCloudCities() {
+    const modal = document.getElementById("cloudCitiesModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+
 function showCloudCityDetails(cityName) {
     const list = document.getElementById("cloudCitiesList");
     if (!list || !window.lastMultiCityResults) return;
 
-    const city = window.lastMultiCityResults.find(
-        c => c.name === cityName
-    );
-
+    const city = window.lastMultiCityResults.find(c => c.name === cityName);
     if (!city) return;
 
     list.innerHTML = `
         <div style="line-height:2;">
+            <h3>☁️ ${city.name}</h3>
 
-            <h3 style="margin-bottom:15px;">
-                ☁️ ${city.name}
-            </h3>
+            <p>🌧️ مؤشر المطر الآن: <strong>${city.score || 0}%</strong></p>
+            <p>📅 توقع 24 ساعة: <strong>${city.forecast24Score || 0}%</strong></p>
+            <p>📈 توقع 72 ساعة: <strong>${city.forecast72Score || 0}%</strong></p>
+            <p>🌊 خطر السيول: <strong>${city.floodRiskScore || 0}%</strong></p>
+            <p>⏰ وقت الذروة: <strong>${
+                city.peakHour?.time
+                    ? city.peakHour.time.replace("T", " ")
+                    : "غير متوفر"
+            }</strong></p>
 
-            <p>
-                🌧️ مؤشر المطر الآن:
-                <strong>${city.score || 0}%</strong>
-            </p>
+            <button onclick="focusCloudCityOnMap('${city.name}')">
+                📍 عرض المدينة على الخريطة
+            </button>
 
-            <p>
-                📅 توقع 24 ساعة:
-                <strong>${city.forecast24Score || 0}%</strong>
-            </p>
-
-            <p>
-                📈 توقع 72 ساعة:
-                <strong>${city.forecast72Score || 0}%</strong>
-            </p>
-
-            <p>
-                🌊 خطر السيول:
-                <strong>${city.floodRiskScore || 0}%</strong>
-            </p>
-
-            <p>
-                ⏰ وقت الذروة:
-                <strong>
-                    ${
-                        city.peakHour?.time
-                        ? city.peakHour.time.replace("T"," ")
-                        : "غير متوفر"
-                    }
-                </strong>
-            </p>
-
-            <div style="
-                display:flex;
-                gap:10px;
-                margin-top:20px;
-                flex-wrap:wrap;
-            ">
-
-                <button
-                    onclick="focusCloudCityOnMap('${city.name}')"
-                    style="
-                        padding:10px 15px;
-                        border:none;
-                        border-radius:10px;
-                        background:#2563eb;
-                        color:white;
-                        cursor:pointer;
-                    "
-                >
-                    📍 عرض المدينة على الخريطة
-                </button>
-
-                <button
-                    onclick="showCloudCities()"
-                    style="
-                        padding:10px 15px;
-                        border:none;
-                        border-radius:10px;
-                        background:#475569;
-                        color:white;
-                        cursor:pointer;
-                    "
-                >
-                    ↩️ رجوع
-                </button>
-
-            </div>
-
+            <button onclick="showCloudCities()">
+                ↩️ رجوع
+            </button>
         </div>
     `;
 }
 
 function focusCloudCityOnMap(cityName) {
-
     if (!window.lastMultiCityResults) return;
-    if (!window.map) return;
 
-    const city = window.lastMultiCityResults.find(
-        c => c.name === cityName
-    );
-
-    if (!city) return;
+    const city = window.lastMultiCityResults.find(c => c.name === cityName);
+    if (!city || !city.lat || !city.lon) return;
 
     closeCloudCities();
 
-    map.setView(
-        [city.lat, city.lon],
-        8
-    );
+    const activeMap = window.map || map;
+    if (!activeMap) return;
+
+    activeMap.setView([city.lat, city.lon], 8);
 
     L.popup()
         .setLatLng([city.lat, city.lon])
@@ -4568,9 +4513,8 @@ function focusCloudCityOnMap(cityName) {
             📈 72 ساعة: ${city.forecast72Score || 0}%<br>
             🌊 خطر السيول: ${city.floodRiskScore || 0}%
         `)
-        .openOn(map);
+        .openOn(activeMap);
 }
-
 // ===============================
 // Startup
 // ===============================
