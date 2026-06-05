@@ -4431,11 +4431,24 @@ function showCloudCities() {
     );
 
     list.innerHTML = cloudyCities.length
-        ? cloudyCities.map(c => `
-            <div style="padding:10px;border-bottom:1px solid #334155;">
-                ☁️ ${c.name} - مؤشر: ${c.score}%
-            </div>
-        `).join("")
+        ? cloudyCities.map(c => {
+            return `
+                <div
+                    onclick="openCityForecastPopup('${c.name}')"
+                    style="
+                        padding:12px;
+                        border-bottom:1px solid #334155;
+                        cursor:pointer;
+                        border-radius:10px;
+                    "
+                >
+                    ☁️ ${c.name} - مؤشر: ${c.score}%
+                    <div style="font-size:12px;color:#94a3b8;margin-top:4px;">
+                        اضغط لعرض تفاصيل 24 و72 ساعة
+                    </div>
+                </div>
+            `;
+        }).join("")
         : "لا توجد مدن غائمة حالياً";
 
     modal.style.display = "flex";
