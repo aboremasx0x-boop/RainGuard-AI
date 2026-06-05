@@ -7,7 +7,7 @@
 
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-    <link rel="stylesheet" href="style.css?v=150">
+    <link rel="stylesheet" href="style.css?v=151">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
@@ -580,7 +580,7 @@
 </nav>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="app.js?v=150"></script>
+<script src="app.js?v=151"></script>
 
 <script>
 function showProPanel(panelId, button, mobile = false) {
@@ -677,12 +677,10 @@ function speakWeatherSummary() {
     style="display:none;"
     onclick="closeCloudCities()"
 >
-
     <div
         class="rg-modal-box"
         onclick="event.stopPropagation()"
     >
-
         <button
             type="button"
             class="cloud-modal-close"
@@ -690,6 +688,7 @@ function speakWeatherSummary() {
         >
             ✕
         </button>
+
         <h3>☁️ المدن الغائمة حالياً</h3>
         <div id="cloudCitiesList"></div>
     </div>
