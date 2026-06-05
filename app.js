@@ -2501,6 +2501,26 @@ console.log("Results:", results);
     }
 }
 
+function showCloudCities() {
+    if (!window.lastMultiCityResults) return;
+
+    const cloudyCities = window.lastMultiCityResults.filter(c =>
+        Number(c.forecast24Score || 0) < 50 &&
+        Number(c.score || 0) >= 10 &&
+        Number(c.score || 0) < 40
+    );
+
+    if (!cloudyCities.length) {
+        alert("لا توجد مدن غائمة حالياً");
+        return;
+    }
+
+    alert(
+        "المدن الغائمة:\n\n" +
+        cloudyCities.map(c => c.name).join("\n")
+    );
+}
+
 function renderNationalTrendPanel(results) {
     const panel = document.getElementById("nationalTrendPanel");
     if (!panel) return;
