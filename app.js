@@ -2502,7 +2502,10 @@ console.log("Results:", results);
 }
 
 function showCloudCities() {
-    if (!window.lastMultiCityResults) return;
+    const modal = document.getElementById("cloudCitiesModal");
+    const list = document.getElementById("cloudCitiesList");
+
+    if (!modal || !list || !window.lastMultiCityResults) return;
 
     const cloudyCities = window.lastMultiCityResults.filter(c =>
         Number(c.forecast24Score || 0) < 50 &&
@@ -2511,14 +2514,24 @@ function showCloudCities() {
     );
 
     if (!cloudyCities.length) {
-        alert("لا توجد مدن غائمة حالياً");
-        return;
+        list.innerHTML = "لا توجد مدن غائمة حالياً";
+    } else {
+        list.innerHTML = cloudyCities.map(c => `
+            <div style="
+                padding:10px;
+                border-bottom:1px solid #334155;
+            ">
+                ☁️ ${c.name} - مؤشر: ${c.score}%
+            </div>
+        `).join("");
     }
 
-    alert(
-        "المدن الغائمة:\n\n" +
-        cloudyCities.map(c => c.name).join("\n")
-    );
+    modal.style.display = "flex";
+}
+
+function closeCloudCities() {
+    const modal = document.getElementById("cloudCitiesModal");
+    if (modal) modal.style.display = "none";
 }
 
 function renderNationalTrendPanel(results) {
