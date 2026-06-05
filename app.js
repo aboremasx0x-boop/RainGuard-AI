@@ -170,6 +170,15 @@ const smartMultiCityMonitorList = [
     { name: "رابغ", lat: 22.7986, lon: 39.0349 }
 ];
 
+const subCityRainZones = [
+    { name: "الوهط", lat: 21.1667, lon: 40.4167 },
+    { name: "الهدا", lat: 21.3650, lon: 40.2850 },
+    { name: "الشفا", lat: 21.0720, lon: 40.3120 },
+    { name: "الحوية", lat: 21.4400, lon: 40.5000 },
+    { name: "بني سعد", lat: 20.9000, lon: 40.6500 },
+    { name: "ميسان", lat: 20.9000, lon: 40.8000 }
+];
+
 async function analyzeSubCityRainZones(cityName) {
     const zones = subCityRainZones[cityName];
 
