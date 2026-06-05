@@ -94,56 +94,86 @@ const subCityRainZones = {
     ]
 };
 async function analyzeSubCityRainZones(cityName) {
-    const zones = subCityRainZones[cityName];
 
-    if (!zones || zones.length === 0) {
-        return null;
-    }
+    try {
 
-    const results = [];
+        const zones = subCityRainZones[cityName];
 
-    for (const zone of zones) {
-        try {
-            const url =
-                `${API_BASE_URL}/rain-alert?lat=${zone.lat}&lon=${zone.lon}&name=${encodeURIComponent(zone.name)}&hours=12`;
-
-            const response = await fetch(url);
-            if (!response.ok) continue;
-
-            const data = await response.json();
-            if (data.error) continue;
-
-            const best = data.best_hour || data.current || {};
-            const current = data.current || {};
-
-            const score =
-                Number(best.rain_score) ||
-                Number(current.rain_score) ||
-                Number(current.rain_probability) ||
-                0;
-
-            results.push({
-                name: zone.name,
-                lat: zone.lat,
-                lon: zone.lon,
-                score,
-                rainProbability: Number(current.rain_probability || 0),
-                floodRiskScore: calculateV9FloodRisk({
-                    name: zone.name,
-                    score,
-                    forecast24Score: score,
-                    forecast72Score: score
-                })
-            });
-
-        } catch (error) {
-            console.error("Sub-city zone error:", zone.name, error);
+        if (!zones || zones.length === 0) {
+            return [];
         }
+
+        const results = await Promise.all(
+
+            zones.map(async (zone) => {
+
+                try {
+
+                    const url =
+                        `${API_BASE_URL}/rain-alert?lat=${zone.lat}&lon=${zone.lon}&hours=72`;
+
+                    const response = await fetch(url);
+
+                    if (!response.ok) {
+                        return null;
+                    }
+
+                    const data = await response.json();
+
+                    return {
+                        name: zone.name,
+                        lat: zone.lat,
+                        lon: zone.lon,
+
+                        rainNow:
+                            data.currentRainProbability ||
+                            data.rainProbability ||
+                            0,
+
+                        forecast24:
+                            data.forecast24Probability ||
+                            data.next24RainProbability ||
+                            0,
+
+                        forecast72:
+                            data.forecast72Probability ||
+                            data.next72RainProbability ||
+                            0,
+
+                        floodRisk:
+                            data.floodRiskScore || 0,
+
+                        terrainRisk:
+                            data.terrainRiskScore || 0
+                    };
+
+                } catch (err) {
+
+                    console.error(
+                        "SubCity Error:",
+                        zone.name,
+                        err
+                    );
+
+                    return null;
+                }
+
+            })
+
+        );
+
+        return results.filter(Boolean);
+
+    } catch (err) {
+
+        console.error(
+            "analyzeSubCityRainZones Error:",
+            err
+        );
+
+        return [];
     }
 
-    results.sort((a, b) => b.score - a.score);
-
-    return results;
 }
 let map;
 let marker;
