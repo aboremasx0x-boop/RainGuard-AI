@@ -5,11 +5,13 @@ const OFFLINE_CACHE_KEY = "rainguard_last_success_data";
 const NOTIFICATION_ENABLED_KEY = "rainguard_notifications_enabled";
 const NOTIFICATION_LAST_ALERT_KEY = "rainguard_last_notification_time";
 const NOTIFICATION_COOLDOWN_MINUTES = 30;
+
 const BACKGROUND_MONITOR_KEY = "rainguard_background_monitor_enabled";
 const BACKGROUND_MONITOR_INTERVAL_MINUTES = 10;
 
 let backgroundMonitorInterval = null;
 let backgroundMonitorEnabled = false;
+
 const SMART_MULTI_CITY_KEY = "rainguard_smart_multicity_enabled";
 const SMART_MULTI_CITY_LAST_ALERT_KEY = "rainguard_smart_multicity_last_alert";
 const SMART_MULTI_CITY_ALERT_COOLDOWN_MINUTES = 45;
@@ -19,114 +21,21 @@ const SMART_MULTI_CITY_TOP_LIMIT = 20;
 const SMART_MULTI_CITY_FORECAST_HOURS = 72;
 const SMART_MULTI_CITY_EARLY_ALERT_KEY = "rainguard_smart_multicity_early_alert";
 const SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE = 60;
-const FLOOD_PREDICTION_ALERT_KEY = "rainguard_flood_prediction_alert";
-const FLOOD_RISK_MIN_ALERT_SCORE = 60;
 
-const floodCityWeights = {
-    "جدة": 25,
-    "مكة": 30,
-    "الطائف": 25,
-    "المدينة": 15,
-    "أبها": 25,
-    "الباحة": 25,
-    "جازان": 25,
-    "نجران": 20,
-    "تبوك": 20,
-    "الدمام": 15,
-    "الرياض": 10
-};
+const FLOOD_PREDICTION_ALERT_KEY = "rainguard_flood_prediction_alert";
+const FLOOD_RISK_MIN_ALERT_SCORE = 30;
 
 const FLOOD_RISK_HIGH_SCORE = 80;
 const FLOOD_RISK_MEDIUM_SCORE = 60;
-const FLOOD_RISK_WATCH_SCORE = 40;
+const FLOOD_RISK_WATCH_SCORE = 30;
 
-const FLOOD_ALERT_WATCH_SCORE = 40;
+const FLOOD_ALERT_WATCH_SCORE = 30;
 const FLOOD_ALERT_HIGH_SCORE = 60;
 const FLOOD_ALERT_EXTREME_SCORE = 80;
 const FLOOD_ALERT_COOLDOWN_MINUTES = 180;
 const FLOOD_ALERT_LAST_KEY = "rainguard_v82_flood_alert";
 
 const TERRAIN_ENGINE_VERSION = "V9";
-
-const terrainRiskProfiles = {
-    "مكة": {
-        valley: 18,
-        mountain: 12,
-        lowArea: 8,
-        coastal: 0,
-        history: 12
-    },
-    "جدة": {
-        valley: 8,
-        mountain: 0,
-        lowArea: 15,
-        coastal: 10,
-        history: 15
-    },
-    "الطائف": {
-        valley: 15,
-        mountain: 15,
-        lowArea: 5,
-        coastal: 0,
-        history: 10
-    },
-    "أبها": {
-        valley: 16,
-        mountain: 18,
-        lowArea: 5,
-        coastal: 0,
-        history: 10
-    },
-    "الباحة": {
-        valley: 16,
-        mountain: 18,
-        lowArea: 5,
-        coastal: 0,
-        history: 10
-    },
-    "جازان": {
-        valley: 14,
-        mountain: 8,
-        lowArea: 12,
-        coastal: 12,
-        history: 12
-    },
-    "نجران": {
-        valley: 18,
-        mountain: 8,
-        lowArea: 10,
-        coastal: 0,
-        history: 8
-    },
-    "المدينة": {
-        valley: 16,
-        mountain: 6,
-        lowArea: 8,
-        coastal: 0,
-        history: 10
-    },
-    "تبوك": {
-        valley: 14,
-        mountain: 6,
-        lowArea: 8,
-        coastal: 0,
-        history: 8
-    },
-    "الدمام": {
-        valley: 4,
-        mountain: 0,
-        lowArea: 14,
-        coastal: 12,
-        history: 6
-    },
-    "الرياض": {
-        valley: 8,
-        mountain: 0,
-        lowArea: 8,
-        coastal: 0,
-        history: 5
-    }
-};
 
 let floodMapLayer = [];
 let floodMapEnabled = true;
@@ -170,15 +79,20 @@ const smartMultiCityMonitorList = [
     { name: "رابغ", lat: 22.7986, lon: 39.0349 }
 ];
 
-const subCityRainZones = [
-    { name: "الوهط", lat: 21.1667, lon: 40.4167 },
-    { name: "الهدا", lat: 21.3650, lon: 40.2850 },
-    { name: "الشفا", lat: 21.0720, lon: 40.3120 },
-    { name: "الحوية", lat: 21.4400, lon: 40.5000 },
-    { name: "بني سعد", lat: 20.9000, lon: 40.6500 },
-    { name: "ميسان", lat: 20.9000, lon: 40.8000 }
-];
+const subCityRainZones = {
+    "الطائف": [
+        { name: "الوهط", lat: 21.1667, lon: 40.4167 },
+        { name: "الهدا", lat: 21.3650, lon: 40.2850 },
+        { name: "الشفا", lat: 21.0720, lon: 40.3120 },
+        { name: "الحوية", lat: 21.4400, lon: 40.5000 },
+        { name: "بني سعد", lat: 20.9000, lon: 40.6500 },
+        { name: "ميسان", lat: 20.9000, lon: 40.8000 }
+    ],
 
+    "الوهط - جنوب الطائف": [
+        { name: "الوهط", lat: 21.1667, lon: 40.4167 }
+    ]
+};
 async function analyzeSubCityRainZones(cityName) {
     const zones = subCityRainZones[cityName];
 
