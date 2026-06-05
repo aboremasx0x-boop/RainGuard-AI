@@ -673,7 +673,13 @@ function speakWeatherSummary() {
 
    <div id="cloudCitiesModal" class="rg-modal" style="display:none;">
     <div class="rg-modal-box">
-        <button class="cloud-modal-close" onclick="closeCloudCities()">×</button>
+       <button
+    type="button"
+    class="cloud-modal-close"
+    onclick="closeCloudCities(); return false;"
+>
+    ×
+</button>
         <h3>☁️ المدن الغائمة حالياً</h3>
         <div id="cloudCitiesList"></div>
     </div>
