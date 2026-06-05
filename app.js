@@ -15,7 +15,7 @@ const SMART_MULTI_CITY_LAST_ALERT_KEY = "rainguard_smart_multicity_last_alert";
 const SMART_MULTI_CITY_ALERT_COOLDOWN_MINUTES = 45;
 const SMART_MULTI_CITY_MIN_ALERT_SCORE = 60;
 const SMART_MULTI_CITY_HISTORY_KEY = "rainguard_smart_multicity_history";
-const SMART_MULTI_CITY_TOP_LIMIT = 9;
+const SMART_MULTI_CITY_TOP_LIMIT = 20;
 const SMART_MULTI_CITY_FORECAST_HOURS = 72;
 const SMART_MULTI_CITY_EARLY_ALERT_KEY = "rainguard_smart_multicity_early_alert";
 const SMART_MULTI_CITY_EARLY_ALERT_MIN_SCORE = 60;
@@ -2490,7 +2490,7 @@ function renderNationalTrendPanel(results) {
         .sort((a, b) =>
             Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
         )
-        .slice(0, 5);
+        .slice(0, 20);
 
     if (topCities.length === 0) {
         panel.innerHTML = `
