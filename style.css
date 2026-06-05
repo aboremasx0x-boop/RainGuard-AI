@@ -985,44 +985,7 @@ body.fx-danger .rain-layer {
     100% { opacity: 0; }
 }
 
-.rg-modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 6, 23, 0.78);
-    backdrop-filter: blur(10px);
-    z-index: 99999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 18px;
-}
 
-.rg-modal-content {
-    width: min(520px, 94vw);
-    max-height: 85vh;
-    overflow-y: auto;
-    background: linear-gradient(145deg, #020617, #0f172a);
-    border: 1px solid #334155;
-    border-radius: 24px;
-    padding: 22px;
-    color: #e5e7eb;
-    box-shadow: 0 20px 80px rgba(0,0,0,0.45);
-    position: relative;
-}
-
-.rg-modal-close {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 1px solid #334155;
-    background: #111827;
-    color: white;
-    font-size: 22px;
-    cursor: pointer;
-}
 
 .rg-modal-content h2 {
     margin: 0 0 14px;
@@ -1218,64 +1181,6 @@ body.fx-danger .rain-layer {
     font-size:12px;
     color:#94a3b8;
     text-align:center;
-}
-
-.rg-modal{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.65);
-    z-index:9999;
-    align-items:center;
-    justify-content:center;
-}
-
-.rg-modal-box{
-    width:min(420px,90%);
-    background:#0f172a;
-    border:1px solid #334155;
-    border-radius:18px;
-    padding:20px;
-    color:white;
-}
-
-.rg-modal-close{
-    float:left;
-    background:#ef4444;
-    color:white;
-    border:0;
-    border-radius:8px;
-    padding:4px 10px;
-    cursor:pointer;
-}
-
-.rg-modal{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.65);
-    z-index:9999;
-    align-items:center;
-    justify-content:center;
-}
-
-.rg-modal-box{
-    width:min(420px,90%);
-    background:#0f172a;
-    border:1px solid #334155;
-    border-radius:18px;
-    padding:20px;
-    color:white;
-}
-
-.rg-modal-close{
-    float:left;
-    background:#ef4444;
-    color:white;
-    border:0;
-    border-radius:8px;
-    padding:4px 10px;
-    cursor:pointer;
 }
 
 .rg-modal{
