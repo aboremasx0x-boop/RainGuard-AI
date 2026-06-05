@@ -2501,13 +2501,6 @@ console.log("Results:", results);
     }
 }
 
-
-
-function closeCloudCities() {
-    const modal = document.getElementById("cloudCitiesModal");
-    if (modal) modal.style.display = "none";
-}
-
 function renderNationalTrendPanel(results) {
     const panel = document.getElementById("nationalTrendPanel");
     if (!panel) return;
