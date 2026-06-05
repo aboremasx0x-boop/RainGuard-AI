@@ -4431,27 +4431,52 @@ function showCloudCities() {
     );
 
     list.innerHTML = cloudyCities.length
-        ? cloudyCities.map(c => {
-            return `
-                <div
-                    onclick="openCityForecastPopup('${c.name}')"
-                    style="
-                        padding:12px;
-                        border-bottom:1px solid #334155;
-                        cursor:pointer;
-                        border-radius:10px;
-                    "
-                >
-                    ☁️ ${c.name} - مؤشر: ${c.score}%
-                    <div style="font-size:12px;color:#94a3b8;margin-top:4px;">
-                        اضغط لعرض تفاصيل 24 و72 ساعة
-                    </div>
+        ? cloudyCities.map(c => `
+            <div
+                onclick="showCloudCityDetails('${c.name}')"
+                style="
+                    padding:12px;
+                    border-bottom:1px solid #334155;
+                    cursor:pointer;
+                    border-radius:10px;
+                "
+            >
+                ☁️ ${c.name} - مؤشر: ${c.score}%
+                <div style="font-size:12px;color:#94a3b8;margin-top:4px;">
+                    اضغط لعرض تفاصيل 24 و72 ساعة
                 </div>
-            `;
-        }).join("")
+            </div>
+        `).join("")
         : "لا توجد مدن غائمة حالياً";
 
     modal.style.display = "flex";
+}
+
+function showCloudCityDetails(cityName) {
+    const list = document.getElementById("cloudCitiesList");
+    if (!list || !window.lastMultiCityResults) return;
+
+    const city = window.lastMultiCityResults.find(c => c.name === cityName);
+    if (!city) return;
+
+    list.innerHTML = `
+        <div style="line-height:2;">
+            <h3>☁️ ${city.name}</h3>
+            <p>مؤشر المطر الآن: ${city.score || 0}%</p>
+            <p>توقع 24 ساعة: ${city.forecast24Score || 0}%</p>
+            <p>توقع 72 ساعة: ${city.forecast72Score || 0}%</p>
+            <p>خطر السيول: ${city.floodRiskScore || 0}%</p>
+            <p>وقت الذروة: ${
+                city.peakHour?.time
+                    ? city.peakHour.time.replace("T", " ")
+                    : "غير متوفر"
+            }</p>
+
+            <button onclick="showCloudCities()">
+                رجوع للمدن الغائمة
+            </button>
+        </div>
+    `;
 }
 
 function closeCloudCities() {
