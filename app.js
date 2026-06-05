@@ -2529,6 +2529,30 @@ function showCloudCities() {
     modal.style.display = "flex";
 }
 
+function showCloudCities() {
+    const modal = document.getElementById("cloudCitiesModal");
+    const list = document.getElementById("cloudCitiesList");
+
+    if (!modal || !list || !window.lastMultiCityResults) return;
+
+    const cloudyCities = window.lastMultiCityResults.filter(c =>
+        Number(c.forecast24Score || 0) < 50 &&
+        Number(c.score || 0) >= 10 &&
+        Number(c.score || 0) < 40
+    );
+
+    list.innerHTML = cloudyCities.length
+        ? cloudyCities.map(c => `
+            <div style="padding:10px;border-bottom:1px solid #334155;">
+                ☁️ ${c.name} - مؤشر: ${c.score}%
+            </div>
+        `).join("")
+        : "لا توجد مدن غائمة حالياً";
+
+    modal.style.display = "flex";
+}
+
+
 function closeCloudCities() {
     const modal = document.getElementById("cloudCitiesModal");
     if (modal) modal.style.display = "none";
