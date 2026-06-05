@@ -1171,6 +1171,7 @@ body.fx-danger .rain-layer {
 }
 
 .rg-modal-box{
+    position:relative;
     width:min(420px,90%);
     background:#0f172a;
     border:1px solid #334155;
@@ -1180,11 +1181,18 @@ body.fx-danger .rain-layer {
 }
 
 .cloud-modal-close{
-    float:left;
+    position:absolute;
+    top:15px;
+    left:15px;
+    width:32px;
+    height:32px;
+    border:none;
+    border-radius:50%;
     background:#ef4444;
-    color:white;
-    border:0;
-    border-radius:8px;
-    padding:4px 10px;
+    color:#fff;
+    font-size:18px;
     cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
 }
