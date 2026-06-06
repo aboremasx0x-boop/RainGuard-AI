@@ -1139,6 +1139,11 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                     forecast24Score,
                     forecast72Score
                 ),
+                cloudMovement: estimateCloudMovement(
+    city.name,
+    score,
+    forecast24Score
+),
                 alertLevel:
                     best.alert_level ||
                     current.alert_level ||
