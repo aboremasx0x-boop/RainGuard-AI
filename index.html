@@ -7,7 +7,7 @@
 
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-    <link rel="stylesheet" href="style.css?v=168">
+    <link rel="stylesheet" href="style.css?v=169">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
@@ -285,15 +285,15 @@
                             class="national-weather-summary"
                         >
 
-                            <div class="summary-card rain">
-                                🌧️ يوجد تنبيه مطر:
-                                <span id="rainCitiesCount">0</span>
-                            </div>
+                            <div class="summary-card rain" onclick="openFirstRainCity()" style="cursor:pointer">
+                                 🌧️ يوجد تنبيه مطر:
+                            <span id="rainCitiesCount">0</span>
+                          </div>
 
-                            <div class="summary-card flood">
-                                🌊 مدن معرضة للسيول:
-                                <span id="floodCitiesCount">0</span>
-                            </div>
+                            <div class="summary-card flood" onclick="openFirstFloodCity()" style="cursor:pointer">
+                                  🌊 مدن معرضة للسيول:
+                            <span id="floodCitiesCount">0</span>
+                          </div>
 
                             <div
                                 class="summary-card cloud"
@@ -728,7 +728,7 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script src="app.js?v=168"></script>
+<script src="app.js?v=169"></script>
 <script>
 function showProPanel(panelId, button, mobile = false) {
     document.querySelectorAll(".rg-panel").forEach(panel => {
