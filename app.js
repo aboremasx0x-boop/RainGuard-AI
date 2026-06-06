@@ -46,8 +46,7 @@ const FLOOD_ALERT_EXTREME_SCORE = 80;
 const FLOOD_ALERT_COOLDOWN_MINUTES = 180;
 const FLOOD_ALERT_LAST_KEY = "rainguard_v10_flood_alert";
 
-const TERRAIN_ENGINE_VERSION = "V11";
-const CLOUD_TRACKER_VERSION = "V10";
+
 
 let cloudMovementHistory = {};
 
