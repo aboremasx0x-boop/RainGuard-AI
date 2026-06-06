@@ -476,7 +476,7 @@ async function enableRainNotifications() {
         localStorage.setItem(NOTIFICATION_ENABLED_KEY, "true");
         showActionMessage("تم تفعيل تنبيهات المطر", "success");
 
-        new Notification("RainGuard AI V10", {
+        new Notification(APP_VERSION, {
             body: "تنبيهات المطر مفعلة الآن بنجاح.",
             icon: "icon-192.png"
         });
@@ -495,7 +495,7 @@ async function enableRainNotifications() {
         localStorage.setItem(NOTIFICATION_ENABLED_KEY, "true");
         showActionMessage("تم تفعيل تنبيهات المطر", "success");
 
-        new Notification("RainGuard AI V10", {
+        new Notification(APP_VERSION, {
             body: "تم تفعيل تنبيهات المطر بنجاح.",
             icon: "icon-192.png"
         });
@@ -2407,7 +2407,7 @@ function openCityForecastPopup(cityName) {
                 <h2>تفاصيل ${city.name}</h2>
 
                 <div class="rg-modal-score">
-                    RainGuard AI V10<br>
+                    ${APP_VERSION}
                     مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score}%
                 </div>
 
@@ -3694,7 +3694,7 @@ function shareWeatherWhatsApp() {
     const confidenceText = document.getElementById("confidenceText")?.innerText || "";
 
     const message =
-        `🌧 RainGuard AI V10\n` +
+    `🌧 ${APP_VERSION}\n` +
         `الموقع: ${lastName}\n` +
         `مؤشر المطر: ${riskValue}\n` +
         `الحالة: ${statusText}\n` +
@@ -3744,7 +3744,7 @@ function updateAIWidgets(data, score, name) {
             line-height:1.8;
             color:#cbd5e1;
         ">
-            🤖 تحليل RainGuard AI V10<br>
+🤖 تحليل ${APP_VERSION}<br>
             المدينة: ${name || "--"}<br>
             مؤشر المطر: <strong style="color:${color};">${score || 0}%</strong><br>
             التصنيف: ${label}<br>
