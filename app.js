@@ -36,6 +36,9 @@ const FLOOD_ALERT_COOLDOWN_MINUTES = 180;
 const FLOOD_ALERT_LAST_KEY = "rainguard_v82_flood_alert";
 
 const TERRAIN_ENGINE_VERSION = "V9";
+const CLOUD_TRACKER_VERSION = "V10";
+
+let cloudMovementHistory = {};
 
 const floodCityWeights = {
     "مكة": 15,
@@ -834,6 +837,56 @@ function calculateV9FloodRisk(city) {
         baseFloodRisk + terrainRisk * 0.45 + forecastBoost;
 
     return Math.min(Math.round(finalRisk), 100);
+}
+function estimateCloudMovement(cityName, currentScore, forecast24Score) {
+    const previous = cloudMovementHistory[cityName];
+
+    cloudMovementHistory[cityName] = {
+        score: currentScore,
+        forecast24Score: forecast24Score,
+        time: Date.now()
+    };
+
+    if (!previous) {
+        return {
+            direction: "جاري التعلم",
+            speed: 0,
+            etaMinutes: null,
+            confidence: 30
+        };
+    }
+
+    const delta = Number(currentScore || 0) - Number(previous.score || 0);
+
+    let direction = "ثابتة";
+    let speed = 0;
+    let confidence = 50;
+
+    if (delta >= 15) {
+        direction = "تقترب بقوة";
+        speed = 35;
+        confidence = 80;
+    } else if (delta >= 5) {
+        direction = "تقترب ببطء";
+        speed = 20;
+        confidence = 65;
+    } else if (delta <= -10) {
+        direction = "تبتعد";
+        speed = 30;
+        confidence = 70;
+    }
+
+    const etaMinutes =
+        speed > 0 && direction.includes("تقترب")
+            ? Math.round((25 / speed) * 60)
+            : null;
+
+    return {
+        direction,
+        speed,
+        etaMinutes,
+        confidence
+    };
 }
 
 function getTerrainRiskSummary(cityName) {
