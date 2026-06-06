@@ -4188,7 +4188,7 @@ function openMapAndRun(action) {
     setTimeout(() => {
         if (action === "radar") toggleRadar();
         if (action === "flood") toggleFloodRiskMap();
-        if (action === "cloud") toggleCloudRainMap();
+        if (action === "cloud" || action === "clouds") toggleCloudRainMap();
         if (action === "heatmap") toggleHeatmap();
         if (action === "cities") runSmartMultiCityBackgroundCheck(true);
 
