@@ -726,6 +726,111 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script src="app.js?v=164"></script>
+<script>
+function showProPanel(panelId, button, mobile = false) {
+    document.querySelectorAll(".rg-panel").forEach(panel => {
+        panel.classList.remove("active");
+    });
+
+    const target = document.getElementById(panelId);
+
+    if (target) {
+        target.classList.add("active");
+    }
+
+    if (!mobile) {
+        document.querySelectorAll(".rg-nav-item").forEach(btn => {
+            btn.classList.remove("active");
+        });
+    } else {
+        document.querySelectorAll(".rg-bottom-nav button").forEach(btn => {
+            btn.classList.remove("active");
+        });
+    }
+
+    if (button) {
+        button.classList.add("active");
+    }
+
+    setTimeout(() => {
+        if (window.map && typeof map.invalidateSize === "function") {
+            map.invalidateSize();
+        }
+    }, 300);
+}
+
+let recognition;
+
+function startVoiceAssistant() {
+    const voiceStatus = document.getElementById("voiceStatus");
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        if (voiceStatus) {
+            voiceStatus.innerText = "المتصفح لا يدعم المساعد الصوتي.";
+        }
+        return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = "ar-SA";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    if (voiceStatus) {
+        voiceStatus.innerText = "جاري الاستماع...";
+    }
+
+    recognition.start();
+
+    recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript;
+        const cityInput = document.getElementById("cityInput");
+
+        if (cityInput) {
+            cityInput.value = transcript;
+        }
+
+        if (voiceStatus) {
+            voiceStatus.innerText = `تم التعرف على: ${transcript}`;
+        }
+
+        detectRain();
+    };
+
+    recognition.onerror = function () {
+        if (voiceStatus) {
+            voiceStatus.innerText = "حدث خطأ أثناء التعرف على الصوت.";
+        }
+    };
+
+    recognition.onend = function () {
+        setTimeout(() => {
+            if (voiceStatus) {
+                voiceStatus.innerText = "المساعد الصوتي جاهز.";
+            }
+        }, 4000);
+    };
+}
+
+function speakWeatherSummary() {
+    const city = document.getElementById("cityName")?.innerText || "المدينة";
+    const status = document.getElementById("statusText")?.innerText || "";
+    const risk = document.getElementById("riskValue")?.innerText || "";
+
+    const text = `حالة المطر في ${city}. ${status}. مؤشر الخطر ${risk}`;
+
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.lang = "ar-SA";
+    speech.rate = 1;
+    speech.pitch = 1;
+
+    window.speechSynthesis.speak(speech);
+}
+</script>
 
 <div
     id="cloudCitiesModal"
