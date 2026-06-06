@@ -3821,11 +3821,13 @@ async function checkRain(
         saveLastSuccessfulWeather(data, lat, lon, name);
 
         const current = data.current || {};
-        const best = data.best_hour || current;
-        const score = Number(best.rain_score) || 0;
+const best = data.best_hour || current;
+const score = Number(best.rain_score) || 0;
 
-        updateProDashboardWidgets(data, name, score, best);
-        updateAIWidgets(data, score, name);
+updateMainWeatherValues(current);
+
+updateProDashboardWidgets(data, name, score, best);
+updateAIWidgets(data, score, name);
 
         const sourceStatusHTML = buildSourceStatusHTML(data);
         const forecastHTML = buildForecastHTML(data.next_hours);
