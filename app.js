@@ -2449,6 +2449,9 @@ function focusCloudCityOnMap(cityName) {
             السيول: ${city.floodRiskScore || 0}%
         `)
         .openOn(map);
+        setTimeout(() => {
+    openCityForecastPopup(cityName);
+}, 500);
 }
 
 function getAdaptiveRefreshMinutes(score) {
