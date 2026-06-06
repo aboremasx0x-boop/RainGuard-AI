@@ -2311,6 +2311,7 @@ function openCityForecastPopup(cityName) {
         setTimeout(() => miniMap.invalidateSize(), 300);
     }, 300);
 }
+window.openCityForecastPopup = openCityForecastPopup;
 
 function closeCityForecastPopup() {
     const modal = document.getElementById("cityForecastModal");
@@ -2440,19 +2441,25 @@ function focusCloudCityOnMap(cityName) {
     map.setView([city.lat, city.lon], 9);
 
     L.popup()
-        .setLatLng([city.lat, city.lon])
-        .setContent(`
-            <b>${city.name}</b><br>
-            المطر الآن: ${city.score || 0}%<br>
-            24 ساعة: ${city.forecast24Score || 0}%<br>
-            72 ساعة: ${city.forecast72Score || 0}%<br>
-            السيول: ${city.floodRiskScore || 0}%
-        `)
-        .openOn(map);
-        setTimeout(() => {
-    openCityForecastPopup(cityName);
+    .setLatLng([city.lat, city.lon])
+    .setContent(`
+        <b>${city.name}</b><br>
+        المطر الآن: ${city.score || 0}%<br>
+        24 ساعة: ${city.forecast24Score || 0}%<br>
+        72 ساعة: ${city.forecast72Score || 0}%<br>
+        السيول: ${city.floodRiskScore || 0}%
+    `)
+    .openOn(map);
+
+setTimeout(function () {
+    if (typeof openCityForecastPopup === "function") {
+        openCityForecastPopup(cityName);
+    } else if (typeof window.openCityForecastPopup === "function") {
+        window.openCityForecastPopup(cityName);
+    } else {
+        console.error("openCityForecastPopup غير موجودة");
+    }
 }, 500);
-}
 
 function getAdaptiveRefreshMinutes(score) {
     score = Number(score) || 0;
