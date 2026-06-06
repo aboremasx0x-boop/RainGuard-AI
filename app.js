@@ -435,6 +435,7 @@ function readOfflineEmergencyWeather() {
     const current = data.current || {};
     const best = data.best_hour || current;
     const score = Number(best.rain_score) || 0;
+    updateMainWeatherValues(current);
 
     document.getElementById("cityName").innerText =
         saved.name || data.location_name || "آخر موقع محفوظ";
@@ -3747,6 +3748,26 @@ function updateAIWidgets(data, score, name) {
             المصدر: ${data?.source || "Unknown"}
         </div>
     `;
+}
+function updateMainWeatherValues(current) {
+    if (!current) return;
+
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+
+    setText("temperatureValue", `${current.temperature ?? "--"}°C`);
+    setText("humidityValue", `${current.humidity ?? "--"}%`);
+    setText("cloudValue", `${current.cloud_cover ?? "--"}%`);
+    setText("rainChanceValue", `${current.rain_probability ?? "--"}%`);
+    setText("pressureValue", current.pressure_hpa ?? "--");
+    setText("windValue", `${current.wind_speed ?? "--"} كم/س`);
+
+    setText("tempKpi", `${current.temperature ?? "--"}°`);
+    setText("humidityKpi", `${current.humidity ?? "--"}%`);
+    setText("rainProbKpi", `${current.rain_probability ?? "--"}%`);
+    setText("windKpi", `${current.wind_speed ?? "--"} كم/س`);
 }
 async function checkRain(
     lat,
