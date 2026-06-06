@@ -3697,7 +3697,7 @@ function shareWeatherWhatsApp() {
         `الحالة: ${statusText}\n` +
         `${confidenceText}\n` +
         `${refreshStatus}\n\n` +
-        `رابط التطبيق:\nhttps://rain-guard-ai.vercel.app/?v=162`;
+`رابط التطبيق:\nhttps://rain-guard-ai.vercel.app/?v=165`;
 
     window.open("https://wa.me/?text=" + encodeURIComponent(message), "_blank");
 }
