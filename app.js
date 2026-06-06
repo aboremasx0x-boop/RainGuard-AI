@@ -4241,4 +4241,3 @@ window.onload = function () {
     renderSmartMultiCityHistory();
 };
 console.log("APP LOADED");
-alert("APP LOADED");
