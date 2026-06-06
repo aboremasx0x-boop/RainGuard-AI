@@ -1495,7 +1495,17 @@ function renderSmartMultiCityTopPanel(results) {
     }
 
     const rainCities = [...results]
-        .filter(city => Number(city.forecast24Score || 0) >= 30)
+    .filter(city => {
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
+
+        return (
+            rainNow >= 30 ||
+            rain24 >= 30 ||
+            rain72 >= 30
+        );
+    })
         .sort((a, b) =>
             Number(b.forecast24Score || 0) - Number(a.forecast24Score || 0)
         )
@@ -1750,9 +1760,17 @@ function updateNationalWeatherSummary(results) {
         return;
     }
 
-    const rainCities = results.filter(city =>
-        Number(city.forecast24Score || 0) >= 30
+    const rainCities = results.filter(city => {
+    const rainNow = Number(city.score || 0);
+    const rain24 = Number(city.forecast24Score || 0);
+    const rain72 = Number(city.forecast72Score || 0);
+
+    return (
+        rainNow >= 30 ||
+        rain24 >= 30 ||
+        rain72 >= 30
     );
+});
 
     const floodCities = results.filter(city => {
         const flood = Number(city.floodRiskScore || 0);
@@ -1794,9 +1812,17 @@ function updateNationalStatus(results) {
         return;
     }
 
-    const rainCities = results.filter(c =>
-        Number(c.forecast24Score || 0) >= 30
+    const rainCities = results.filter(city => {
+    const rainNow = Number(city.score || 0);
+    const rain24 = Number(city.forecast24Score || 0);
+    const rain72 = Number(city.forecast72Score || 0);
+
+    return (
+        rainNow >= 30 ||
+        rain24 >= 30 ||
+        rain72 >= 30
     );
+});
 
     const floodCities = results.filter(c => {
         const flood = Number(c.floodRiskScore || 0);
