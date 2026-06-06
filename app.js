@@ -2182,6 +2182,56 @@ function openCityForecastPopup(cityName) {
                     <div>24 ساعة: <strong>${city.forecast24Score ?? "--"}%</strong></div>
                     <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
                 </div>
+                <div style="
+    margin-top:16px;
+    padding:14px;
+    border-radius:16px;
+    background:#020617;
+    border:1px solid #334155;
+">
+
+    <div style="
+        color:#38bdf8;
+        font-weight:bold;
+        margin-bottom:10px;
+    ">
+        ☁️ Cloud Motion Engine V10
+    </div>
+
+    <div>
+        اتجاه السحب:
+        <strong>
+            ${city.cloudMovement?.direction || "غير معروف"}
+        </strong>
+    </div>
+
+    <div style="margin-top:6px;">
+        سرعة الحركة:
+        <strong>
+            ${city.cloudMovement?.speed || 0}
+        </strong>
+        كم/س
+    </div>
+
+    <div style="margin-top:6px;">
+        زمن الوصول المتوقع:
+        <strong>
+            ${
+                city.cloudMovement?.etaMinutes
+                    ? city.cloudMovement.etaMinutes + " دقيقة"
+                    : "غير متوفر"
+            }
+        </strong>
+    </div>
+
+    <div style="margin-top:6px;">
+        الثقة:
+        <strong>
+            ${city.cloudMovement?.confidence || 0}%
+        </strong>
+    </div>
+
+</div>
 
                 <div id="cityMiniMap" style="
                     height:220px;
