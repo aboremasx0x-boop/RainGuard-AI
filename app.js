@@ -2512,13 +2512,20 @@ function openCityForecastPopup(cityName) {
     }
 
     setTimeout(() => {
-        if (!city.lat || !city.lon || !window.L) return;
+    if (!city.lat || !city.lon || !window.L) return;
 
-        const miniMap = L.map("cityMiniMap", {
-            zoomControl: false,
-            attributionControl: false
-        }).setView([city.lat, city.lon], 10);
+    const miniMapEl = document.getElementById("cityMiniMap");
 
+    if (!miniMapEl) return;
+
+    if (miniMapEl._leaflet_id) {
+        miniMapEl._leaflet_id = null;
+    }
+
+    const miniMap = L.map(miniMapEl, {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([city.lat, city.lon], 10);
         L.tileLayer(
             "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
             { maxZoom: 18 }
