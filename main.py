@@ -9,15 +9,11 @@ app = FastAPI(title="RainGuard AI API", version="6.3")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://rain-guard-ai.vercel.app",
-        "https://www.rain-guard-ai.vercel.app"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
