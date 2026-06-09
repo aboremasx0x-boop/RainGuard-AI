@@ -1264,11 +1264,23 @@ body.fx-danger .rain-layer {
     width: 100vw !important;
     height: 100vh !important;
     background: rgba(0,0,0,.75) !important;
-    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     z-index: 999999 !important;
     direction: rtl !important;
+}
+
+#cityForecastModal {
+    display: none;
+}
+
+#cloudCitiesModal {
+    display: none;
+}
+
+#cityForecastModal.show,
+#cloudCitiesModal.show {
+    display: flex !important;
 }
 
 #cityForecastModal .rg-modal-content,
