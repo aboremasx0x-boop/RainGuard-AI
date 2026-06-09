@@ -4339,3 +4339,42 @@ window.openFirstFloodCity = function () {
     openCityForecastPopup(city.name);
 };
 console.log("APP LOADED");
+
+window.openFirstRainCity = function () {
+    const results = window.lastMultiCityResults || [];
+
+    const city = results.find(c => {
+        const rainNow = Number(c.score || 0);
+        const rain24 = Number(c.forecast24Score || 0);
+        const rain72 = Number(c.forecast72Score || 0);
+
+        return rainNow >= 30 || rain24 >= 30 || rain72 >= 30;
+    });
+
+    if (!city) {
+        showActionMessage("لا توجد مدن عليها تنبيه مطر حالياً", "warning");
+        return;
+    }
+
+    openCityForecastPopup(city.name);
+};
+
+window.openFirstFloodCity = function () {
+    const results = window.lastMultiCityResults || [];
+
+    const city = results.find(c => {
+        const flood = Number(c.floodRiskScore || 0);
+        const rainNow = Number(c.score || 0);
+        const rain24 = Number(c.forecast24Score || 0);
+        const rain72 = Number(c.forecast72Score || 0);
+
+        return flood >= 30 && (rainNow >= 30 || rain24 >= 30 || rain72 >= 30);
+    });
+
+    if (!city) {
+        showActionMessage("لا توجد مدن معرضة للسيول حالياً", "warning");
+        return;
+    }
+
+    openCityForecastPopup(city.name);
+};
