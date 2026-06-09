@@ -4299,18 +4299,19 @@ window.openFirstRainCity = function () {
         return;
     }
 
-    const city = window.lastMultiCityResults.find(c => {
-        const rainNow = Number(c.score || 0);
-        const rain24 = Number(c.forecast24Score || 0);
-        const rain72 = Number(c.forecast72Score || 0);
-
-        return rainNow >= 30 || rain24 >= 30 || rain72 >= 30;
-    });
-
-    if (!city) {
-        showActionMessage("لا توجد مدن عليها تنبيه مطر حالياً", "warning");
-        return;
-    }
+    const city =
+        window.lastMultiCityResults.find(c =>
+            Number(c.score || 0) >= 30 ||
+            Number(c.forecast24Score || 0) >= 30 ||
+            Number(c.forecast72Score || 0) >= 30
+        )
+        ||
+        window.lastMultiCityResults
+            .slice()
+            .sort((a, b) =>
+                Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0)) -
+                Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0))
+            )[0];
 
     openCityForecastPopup(city.name);
 };
@@ -4321,19 +4322,16 @@ window.openFirstFloodCity = function () {
         return;
     }
 
-    const city = window.lastMultiCityResults.find(c => {
-        const flood = Number(c.floodRiskScore || 0);
-        const rainNow = Number(c.score || 0);
-        const rain24 = Number(c.forecast24Score || 0);
-        const rain72 = Number(c.forecast72Score || 0);
-
-        return flood >= 30 && (rainNow >= 30 || rain24 >= 30 || rain72 >= 30);
-    });
-
-    if (!city) {
-        showActionMessage("لا توجد مدن معرضة للسيول حالياً", "warning");
-        return;
-    }
+    const city =
+        window.lastMultiCityResults.find(c =>
+            Number(c.floodRiskScore || 0) >= 30
+        )
+        ||
+        window.lastMultiCityResults
+            .slice()
+            .sort((a, b) =>
+                Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
+            )[0];
 
     openCityForecastPopup(city.name);
 };
