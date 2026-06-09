@@ -11,10 +11,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://rain-guard-ai.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:8000"
+        "https://www.rain-guard-ai.vercel.app"
     ],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
