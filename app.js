@@ -4359,22 +4359,49 @@ window.openFirstRainCity = function () {
     openCityForecastPopup(city.name);
 };
 
+window.openFirstRainCity = function () {
+    const results = window.lastMultiCityResults || [];
+
+    const cities = results
+        .map(c => ({
+            ...c,
+            maxRain: Math.max(
+                Number(c.score || 0),
+                Number(c.forecast24Score || 0),
+                Number(c.forecast72Score || 0)
+            )
+        }))
+        .filter(c => c.maxRain >= 30)
+        .sort((a, b) => b.maxRain - a.maxRain);
+
+    if (!cities.length) {
+        showActionMessage("لا توجد مدن عليها تنبيه مطر حالياً", "warning");
+        return;
+    }
+
+    openCityForecastPopup(cities[0].name);
+};
+
 window.openFirstFloodCity = function () {
     const results = window.lastMultiCityResults || [];
 
-    const city = results.find(c => {
-        const flood = Number(c.floodRiskScore || 0);
-        const rainNow = Number(c.score || 0);
-        const rain24 = Number(c.forecast24Score || 0);
-        const rain72 = Number(c.forecast72Score || 0);
+    const cities = results
+        .map(c => ({
+            ...c,
+            flood: Number(c.floodRiskScore || 0),
+            maxRain: Math.max(
+                Number(c.score || 0),
+                Number(c.forecast24Score || 0),
+                Number(c.forecast72Score || 0)
+            )
+        }))
+        .filter(c => c.flood >= 30 || c.maxRain >= 30)
+        .sort((a, b) => b.flood - a.flood);
 
-        return flood >= 30 && (rainNow >= 30 || rain24 >= 30 || rain72 >= 30);
-    });
-
-    if (!city) {
+    if (!cities.length) {
         showActionMessage("لا توجد مدن معرضة للسيول حالياً", "warning");
         return;
     }
 
-    openCityForecastPopup(city.name);
+    openCityForecastPopup(cities[0].name);
 };
