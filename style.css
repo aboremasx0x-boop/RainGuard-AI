@@ -1228,3 +1228,29 @@ body.fx-danger .rain-layer {
     left: 10px !important;
     z-index: 1000001 !important;
 }
+
+.rg-modal-content h2,
+.rg-modal-content h3,
+.rg-modal-content div,
+.rg-modal-content strong {
+    color: #e5e7eb !important;
+}
+
+.rg-modal-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-top: 14px !important;
+}
+
+.rg-modal-grid div,
+.rg-modal-section,
+.rg-modal-note,
+.rg-modal-score {
+    background: #020617 !important;
+    border: 1px solid #334155 !important;
+    border-radius: 14px !important;
+    padding: 12px !important;
+    margin-top: 10px !important;
+    color: #e5e7eb !important;
+}
