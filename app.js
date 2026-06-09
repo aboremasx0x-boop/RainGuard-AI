@@ -2636,7 +2636,10 @@ function showCloudCities() {
 
 function closeCloudCities() {
     const modal = document.getElementById("cloudCitiesModal");
-    if (modal) modal.classList.remove("show");
+    if (!modal) return;
+
+    modal.classList.remove("show");
+    modal.style.display = "none";
 }
 
 function showCloudCityDetails(cityName) {
