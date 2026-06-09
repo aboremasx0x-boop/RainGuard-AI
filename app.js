@@ -2631,12 +2631,12 @@ function showCloudCities() {
         `).join("")
         : "لا توجد مدن غائمة حالياً";
 
-    modal.style.display = "flex";
+   modal.classList.add("show");
 }
 
 function closeCloudCities() {
     const modal = document.getElementById("cloudCitiesModal");
-    if (modal) modal.style.display = "none";
+    if (modal) modal.classList.remove("show");
 }
 
 function showCloudCityDetails(cityName) {
