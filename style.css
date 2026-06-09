@@ -1256,3 +1256,42 @@ body.fx-danger .rain-layer {
     margin-top: 10px !important;
     color: #e5e7eb !important;
 }
+
+#cityForecastModal.rg-modal,
+#cloudCitiesModal.rg-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0,0,0,.75) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 999999 !important;
+    direction: rtl !important;
+}
+
+#cityForecastModal .rg-modal-content,
+#cloudCitiesModal .rg-modal-content {
+    position: relative !important;
+    width: min(92vw, 560px) !important;
+    max-height: 88vh !important;
+    overflow-y: auto !important;
+    background: #020617 !important;
+    color: #e5e7eb !important;
+    border: 1px solid #38bdf8 !important;
+    border-radius: 20px !important;
+    padding: 20px !important;
+    text-align: right !important;
+    display: block !important;
+}
+
+.rg-modal-close {
+    position: absolute !important;
+    top: 10px !important;
+    left: 10px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    z-index: 1000001 !important;
+}
