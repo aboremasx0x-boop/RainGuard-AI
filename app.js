@@ -4527,23 +4527,29 @@ window.openRainCityByName = function (cityName) {
     openCityDetailsDirect(city);
 };
 
-document.addEventListener("click", function (e) {
-    const rainCard = e.target.closest(".summary-card.rain");
-    const floodCard = e.target.closest(".summary-card.flood");
-    const cloudCard = e.target.closest(".summary-card.cloud");
+setTimeout(() => {
+    const rainCard = document.querySelector(".summary-card.rain");
+    const floodCard = document.querySelector(".summary-card.flood");
+    const cloudCard = document.querySelector(".summary-card.cloud");
 
     if (rainCard) {
-        e.preventDefault();
-        openFirstRainCity();
+        rainCard.onclick = function () {
+            openFirstRainCity();
+        };
+        rainCard.style.cursor = "pointer";
     }
 
     if (floodCard) {
-        e.preventDefault();
-        openFirstFloodCity();
+        floodCard.onclick = function () {
+            openFirstFloodCity();
+        };
+        floodCard.style.cursor = "pointer";
     }
 
     if (cloudCard) {
-        e.preventDefault();
-        showCloudCities();
+        cloudCard.onclick = function () {
+            showCloudCities();
+        };
+        cloudCard.style.cursor = "pointer";
     }
-});
+}, 2000);
