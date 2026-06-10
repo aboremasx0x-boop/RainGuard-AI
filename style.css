@@ -1298,12 +1298,24 @@ body.fx-danger .rain-layer {
     display: block !important;
 }
 
-.rg-modal-close {
+.rg-modal-close,
+.cloud-modal-close,
+button.rg-modal-close,
+button.cloud-modal-close {
     position: absolute !important;
-    top: 10px !important;
-    left: 10px !important;
-    width: 36px !important;
-    height: 36px !important;
+    top: 18px !important;
+    left: 18px !important;
+    width: 44px !important;
+    height: 44px !important;
     border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    font-size: 28px !important;
+    font-weight: bold !important;
+    text-align: center !important;
     z-index: 1000001 !important;
 }
+
