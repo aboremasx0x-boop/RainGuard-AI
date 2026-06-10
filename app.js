@@ -2073,10 +2073,11 @@ function getFloodMapColor(score) {
 function getFloodMapRadius(score) {
     score = Number(score) || 0;
 
-    if (score >= 80) return 42000;
-    if (score >= 60) return 34000;
-    if (score >= 30) return 26000;
-    return 16000;
+    if (score >= 80) return 18000;
+    if (score >= 60) return 14000;
+    if (score >= 30) return 9000;
+
+    return 5000;
 }
 
 function clearFloodMapLayer() {
@@ -2179,7 +2180,7 @@ function updateCloudRainMapLayer(results) {
             fillColor: "#94a3b8",
             fillOpacity: 0.12,
             opacity: 0.35,
-            radius: 18000 + cloudScore * 350
+            radius: 6000 + cloudScore * 120
         });
 
         const rainCircle = L.circle([city.lat, city.lon], {
@@ -2187,7 +2188,7 @@ function updateCloudRainMapLayer(results) {
             fillColor: color,
             fillOpacity: 0.35,
             opacity: 0.85,
-            radius: 7000 + cloudScore * 180
+            radius: 3500 + cloudScore * 80
         });
 
         const popupHTML = `
