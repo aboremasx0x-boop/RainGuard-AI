@@ -1900,7 +1900,7 @@ function renderNationalTrendPanel(results) {
     }
 
     const topCities = [...results]
-        .filter(city => Number(city.forecast72Score || 0) >= 30)
+        .filter(city => Number(city.forecast72Score || city.forecast24Score || city.score || 0) >= 10)
         .sort((a, b) =>
             Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
         )
@@ -1929,7 +1929,7 @@ function renderNationalTrendPanel(results) {
                 margin-bottom:10px;
                 color:#38bdf8;
             ">
-                🌦️ أعلى 20 مدينة متوقعة خلال 72 ساعة
+                🌦️ أعلى المدن مطراً / غيوماً خلال 72 ساعة
             </div>
 
             ${topCities.map((city, index) => {
