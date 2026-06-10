@@ -4419,10 +4419,21 @@ window.openCityDetailsDirect = function (city) {
 
     closeCityForecastPopup();
 
+    const peakTime =
+        city.peakHour?.time
+            ? city.peakHour.time.replace("T", " ")
+            : "غير متوفر";
+
+    const etaText =
+        city.cloudMovement?.etaMinutes
+            ? city.cloudMovement.etaMinutes + " دقيقة"
+            : peakTime;
+
     document.body.insertAdjacentHTML("beforeend", `
         <div id="cityForecastModal" class="rg-modal" style="display:flex !important;">
             <div class="rg-modal-content">
                 <button class="rg-modal-close" onclick="closeCityForecastPopup()">×</button>
+
                 <h2>تفاصيل ${city.name}</h2>
 
                 <div class="rg-modal-score">
@@ -4435,9 +4446,13 @@ window.openCityDetailsDirect = function (city) {
                     <div>72 ساعة: <strong>${city.forecast72Score ?? 0}%</strong></div>
                     <div>السيول: <strong>${city.floodRiskScore ?? 0}%</strong></div>
                     <div>التضاريس: <strong>${city.terrainRiskScore ?? 0}%</strong></div>
+                    <div>وقت وصول المطر: <strong>${etaText}</strong></div>
                 </div>
 
                 <div class="rg-modal-note">
+                    اتجاه السحب: ${city.cloudMovement?.direction || "غير معروف"}<br>
+                    سرعة السحب: ${city.cloudMovement?.speed || 0} كم/س<br>
+                    وقت الذروة المتوقع: ${peakTime}<br>
                     المصدر: ${city.source || "Unknown"}<br>
                     الحالة: ${city.alertLevel || "غير متوفر"}
                 </div>
