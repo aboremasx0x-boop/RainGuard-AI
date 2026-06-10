@@ -4495,12 +4495,24 @@ window.openFirstRainCity = function () {
     const results = window.lastMultiCityResults || [];
 
     const city = results
-        .map(c => ({
-            ...c,
-            maxRain: Math.max(+c.score || 0, +c.forecast24Score || 0, +c.forecast72Score || 0)
-        }))
-        .filter(c => c.maxRain >= 30)
-        .sort((a, b) => b.maxRain - a.maxRain)[0];
+        .filter(c => {
+            const rain = Math.max(
+                Number(c.score || 0),
+                Number(c.forecast24Score || 0),
+                Number(c.forecast72Score || 0)
+            );
+            return rain >= 10;
+        })
+        .sort((a, b) => {
+            const rainA = Math.max(+a.score || 0, +a.forecast24Score || 0, +a.forecast72Score || 0);
+            const rainB = Math.max(+b.score || 0, +b.forecast24Score || 0, +b.forecast72Score || 0);
+            return rainB - rainA;
+        })[0];
+
+    if (!city) {
+        showActionMessage("لا توجد مدن مطر حالياً", "warning");
+        return;
+    }
 
     openCityDetailsDirect(city);
 };
