@@ -4405,3 +4405,67 @@ window.openFirstFloodCity = function () {
 
     openCityForecastPopup(cities[0].name);
 };
+
+window.closeCityForecastPopup = function () {
+    const modal = document.getElementById("cityForecastModal");
+    if (modal) modal.remove();
+};
+
+window.openCityDetailsDirect = function (city) {
+    if (!city) {
+        showActionMessage("لا توجد بيانات لهذه المدينة", "warning");
+        return;
+    }
+
+    closeCityForecastPopup();
+
+    document.body.insertAdjacentHTML("beforeend", `
+        <div id="cityForecastModal" class="rg-modal" style="display:flex !important;">
+            <div class="rg-modal-content">
+                <button class="rg-modal-close" onclick="closeCityForecastPopup()">×</button>
+                <h2>تفاصيل ${city.name}</h2>
+
+                <div class="rg-modal-score">
+                    مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score ?? 0}%
+                </div>
+
+                <div class="rg-modal-grid">
+                    <div>المطر الآن: <strong>${city.score ?? 0}%</strong></div>
+                    <div>24 ساعة: <strong>${city.forecast24Score ?? 0}%</strong></div>
+                    <div>72 ساعة: <strong>${city.forecast72Score ?? 0}%</strong></div>
+                    <div>السيول: <strong>${city.floodRiskScore ?? 0}%</strong></div>
+                    <div>التضاريس: <strong>${city.terrainRiskScore ?? 0}%</strong></div>
+                </div>
+
+                <div class="rg-modal-note">
+                    المصدر: ${city.source || "Unknown"}<br>
+                    الحالة: ${city.alertLevel || "غير متوفر"}
+                </div>
+            </div>
+        </div>
+    `);
+};
+
+window.openFirstRainCity = function () {
+    const results = window.lastMultiCityResults || [];
+
+    const city = results
+        .map(c => ({
+            ...c,
+            maxRain: Math.max(+c.score || 0, +c.forecast24Score || 0, +c.forecast72Score || 0)
+        }))
+        .filter(c => c.maxRain >= 30)
+        .sort((a, b) => b.maxRain - a.maxRain)[0];
+
+    openCityDetailsDirect(city);
+};
+
+window.openFirstFloodCity = function () {
+    const results = window.lastMultiCityResults || [];
+
+    const city = results
+        .filter(c => Number(c.floodRiskScore || 0) >= 30)
+        .sort((a, b) => Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0))[0];
+
+    openCityDetailsDirect(city);
+};
