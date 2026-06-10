@@ -1539,7 +1539,7 @@ function renderSmartMultiCityTopPanel(results) {
 
         return `
             <div
-                onclick="openCityForecastPopup('${city.name}')"
+                onclick="openRainCityByName('${city.name}')"
                 style="
                     padding:14px;
                     margin-bottom:12px;
@@ -4481,6 +4481,18 @@ window.openFirstFloodCity = function () {
     const city = results
         .filter(c => Number(c.floodRiskScore || 0) >= 30)
         .sort((a, b) => Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0))[0];
+
+    openCityDetailsDirect(city);
+};
+
+window.openRainCityByName = function (cityName) {
+    const city = (window.lastMultiCityResults || [])
+        .find(c => c.name === cityName);
+
+    if (!city) {
+        showActionMessage("لا توجد بيانات لهذه المدينة حالياً", "warning");
+        return;
+    }
 
     openCityDetailsDirect(city);
 };
