@@ -4526,3 +4526,24 @@ window.openRainCityByName = function (cityName) {
 
     openCityDetailsDirect(city);
 };
+
+document.addEventListener("click", function (e) {
+    const rainCard = e.target.closest(".summary-card.rain");
+    const floodCard = e.target.closest(".summary-card.flood");
+    const cloudCard = e.target.closest(".summary-card.cloud");
+
+    if (rainCard) {
+        e.preventDefault();
+        openFirstRainCity();
+    }
+
+    if (floodCard) {
+        e.preventDefault();
+        openFirstFloodCity();
+    }
+
+    if (cloudCard) {
+        e.preventDefault();
+        showCloudCities();
+    }
+});
