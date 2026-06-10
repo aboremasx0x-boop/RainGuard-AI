@@ -3838,6 +3838,20 @@ async function checkRain(
 const best = data.best_hour || current;
 const score = Number(best.rain_score) || 0;
 
+let rainArrivalText = "غير متوفر";
+
+if (data.next_hours && data.next_hours.length > 0) {
+    const nextRain = data.next_hours.find(
+        h => Number(h.rain_score || 0) >= 30
+    );
+
+    if (nextRain) {
+        rainArrivalText = nextRain.time
+            ? nextRain.time.replace("T", " ")
+            : "قريباً";
+    }
+}
+
 updateMainWeatherValues(current);
 
 updateProDashboardWidgets(data, name, score, best);
@@ -3897,6 +3911,21 @@ updateAIWidgets(data, score, name);
 
         adviceText.innerHTML = `
             <p>${best.advice || ""}</p>
+            <div class="forecast-section">
+    <h3>⏰ موعد وصول المطر المتوقع</h3>
+    <div style="
+        padding:16px;
+        border-radius:16px;
+        background:#020617;
+        border:1px solid #334155;
+        color:#38bdf8;
+        font-size:20px;
+        font-weight:bold;
+        text-align:center;
+    ">
+        ${rainArrivalText}
+    </div>
+</div>
 
             ${sourceStatusHTML}
             ${confidenceHTML}
