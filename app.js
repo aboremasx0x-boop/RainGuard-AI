@@ -1635,7 +1635,7 @@ function renderFloodWatchCitiesPanel(results) {
 
         return `
             <div
-                onclick="openCityForecastPopup('${city.name}')"
+                onclick="openRainCityByName('${city.name}')"
                 style="
                     padding:12px;
                     margin-bottom:10px;
@@ -1721,7 +1721,7 @@ function renderFloodPredictionPanel(results) {
                     gap:10px;
                 ">
                     <strong
-                        onclick="openCityForecastPopup('${city.name}')"
+                        onclick="openRainCityByName('${city.name}')"
                         style="font-size:18px; cursor:pointer;"
                     >
                         ${index + 1}. ${icon} ${city.name}
@@ -1938,7 +1938,7 @@ function renderNationalTrendPanel(results) {
 
                 return `
                     <div
-                        onclick="openCityForecastPopup('${city.name}')"
+                        onclick="openRainCityByName('${city.name}')"
                         style="
                             cursor:pointer;
                             padding:8px 0;
@@ -2019,7 +2019,7 @@ function renderSmartMultiCityForecastPanel(results) {
 
         return `
             <div
-                onclick="openCityForecastPopup('${city.name}')"
+                onclick="openRainCityByName('${city.name}')"
                 style="
                     padding:14px;
                     margin-bottom:12px;
