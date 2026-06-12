@@ -1261,6 +1261,21 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
 
             const subZones = await analyzeSubCityRainZones(city.name);
 
+            const cloudMovement = estimateCloudMovement(
+    city.name,
+    score,
+    forecast24Score
+);
+
+const rainArrival = calculateRainArrivalV12({
+    name: city.name,
+    score,
+    forecast24Score,
+    forecast72Score,
+    cloudMovement,
+    peakHour
+});
+
             results.push({
                 name: city.name,
                 lat: city.lat,
@@ -1274,19 +1289,16 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 actualRiskScore,
                 peakHour,
                 forecastTiming: classifyForecastTiming(
-                    score,
-                    forecast24Score,
-                    forecast72Score
-                ),
-                cloudMovement: estimateCloudMovement(
-                    city.name,
-                    score,
-                    forecast24Score
-                ),
-                alertLevel:
-                    best.alert_level ||
-                    current.alert_level ||
-                    "تنبيه مطر",
+    score,
+    forecast24Score,
+    forecast72Score
+),
+cloudMovement,
+rainArrival,
+alertLevel:
+    best.alert_level ||
+    current.alert_level ||
+    "تنبيه مطر",
                 source: data.source || "Unknown",
                 subZones
             });
