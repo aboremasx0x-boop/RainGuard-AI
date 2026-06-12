@@ -2058,12 +2058,13 @@ function renderRainArrivalCitiesPanel(results) {
 
     const cities = results
     .filter(city =>
-        city.rainArrival &&
-        city.rainArrival.etaMinutes !== null
+        Number(city.score || 0) >= 20 ||
+        Number(city.forecast24Score || 0) >= 20 ||
+        Number(city.forecast72Score || 0) >= 20
     )
     .sort((a, b) =>
-        Number(a.rainArrival.etaMinutes ?? 99999) -
-        Number(b.rainArrival.etaMinutes ?? 99999)
+        Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0)) -
+        Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0))
     )
     .slice(0, 10);
 
@@ -2086,7 +2087,7 @@ function renderRainArrivalCitiesPanel(results) {
             "
         >
             <strong>${index + 1}. ${city.name}</strong><br>
-            وقت الوصول: <strong>${city.rainArrival.label}</strong><br>
+           وقت الوصول: <strong>${city.rainArrival?.label || "احتمال خلال اليوم"}</strong><br>
             مؤشر المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
         </div>
     `).join("");
