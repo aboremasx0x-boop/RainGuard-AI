@@ -1662,13 +1662,13 @@ function renderFloodWatchCitiesPanel(results) {
             const rain72 = Number(city.forecast72Score || 0);
 
             return (
-                flood >= 30 &&
-                (
-                    rainNow >= 30 ||
-                    rain24 >= 30 ||
-                    rain72 >= 30
-                )
-            );
+    flood >= 30 &&
+    (
+        rainNow >= 25 ||
+        rain24 >= 25 ||
+        rain72 >= 30
+    )
+);
         })
         .sort((a, b) =>
             Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
@@ -1749,11 +1749,14 @@ function renderFloodPredictionPanel(results) {
     }
 
     const ranked = [...results]
-        .filter(city => city.floodRiskScore !== undefined)
-        .sort((a, b) =>
-            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
+    .filter(city =>
+        Number(city.floodRiskScore || 0) >= 30 &&
+        (
+            Number(city.score || 0) >= 25 ||
+            Number(city.forecast24Score || 0) >= 25 ||
+            Number(city.forecast72Score || 0) >= 30
         )
-        .slice(0, 8);
+    )
 
     box.innerHTML = ranked.map((city, index) => {
         const floodScore = Number(city.floodRiskScore) || 0;
