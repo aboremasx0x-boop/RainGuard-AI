@@ -2098,20 +2098,12 @@ const bPower =
                 line-height:1.8;
             "
         >
-            <strong>${index + 1}. ${city.name}</strong><br>
-           وقت الوصول: <strong>${
-    Number(city.score || 0) >= 20 || Number(city.forecast24Score || 0) >= 20
-        ? "احتمال خلال اليوم"
-        : (city.rainArrival?.label || "غير متوفر")
-}</strong><br>
-           قوة الوصول: ${Math.round(
-    Number(city.score || 0) +
-    Number(city.forecast24Score || 0) +
-    Number(city.forecast72Score || 0) * 0.5 +
-    Number(city.floodRiskScore || 0) * 0.25 +
-    Number(city.terrainRiskScore || 0) * 0.2
+           وقت الوصول: <strong>${city.rainArrival?.label || "غير متوفر"}</strong><br>
+قوة الوصول: ${Math.round(
+    Number(city.score || 0) * 0.5 +
+    Number(city.forecast24Score || 0) * 0.3 +
+    Number(city.forecast72Score || 0) * 0.2
 )}% | المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
-        </div>
     `).join("");
 }
 
