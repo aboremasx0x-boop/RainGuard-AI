@@ -1862,7 +1862,7 @@ function updateNationalWeatherSummary(results) {
         const rain24 = Number(city.forecast24Score || 0);
         const rain72 = Number(city.forecast72Score || 0);
 
-        return flood >= 30 && (
+        return flood >= 60 && (
             rainNow >= 30 ||
             rain24 >= 30 ||
             rain72 >= 30
