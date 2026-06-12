@@ -4742,31 +4742,24 @@ function renderRainArrivalCitiesPanel(results) {
         )
         .sort((a, b) => {
             const aPower =
-                Number(a.score || 0) +
-                Number(a.forecast24Score || 0) +
-                Number(a.forecast72Score || 0) * 0.5 +
-                Number(a.floodRiskScore || 0) * 0.25 +
-                Number(a.terrainRiskScore || 0) * 0.2;
+    Number(a.score || 0) * 0.5 +
+    Number(a.forecast24Score || 0) * 0.3 +
+    Number(a.forecast72Score || 0) * 0.2;
 
-            const bPower =
-                Number(b.score || 0) +
-                Number(b.forecast24Score || 0) +
-                Number(b.forecast72Score || 0) * 0.5 +
-                Number(b.floodRiskScore || 0) * 0.25 +
-                Number(b.terrainRiskScore || 0) * 0.2;
-
+const bPower =
+    Number(b.score || 0) * 0.5 +
+    Number(b.forecast24Score || 0) * 0.3 +
+    Number(b.forecast72Score || 0) * 0.2;
             return bPower - aPower;
         })
         .slice(0, 10);
 
     box.innerHTML = cities.map((city, index) => {
         const power = Math.round(
-            Number(city.score || 0) +
-            Number(city.forecast24Score || 0) +
-            Number(city.forecast72Score || 0) * 0.5 +
-            Number(city.floodRiskScore || 0) * 0.25 +
-            Number(city.terrainRiskScore || 0) * 0.2
-        );
+    Number(city.score || 0) * 0.5 +
+    Number(city.forecast24Score || 0) * 0.3 +
+    Number(city.forecast72Score || 0) * 0.2
+);
 
         return `
             <div onclick="openRainCityByName('${city.name}')" style="
