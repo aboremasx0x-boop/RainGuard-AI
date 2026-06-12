@@ -1926,8 +1926,14 @@ function updateNationalStatus(results) {
     );
 
     const maxFlood = Math.max(
-        ...results.map(city => Number(city.floodRiskScore || 0))
-    );
+    ...results
+        .filter(city =>
+            Number(city.score || 0) >= 25 ||
+            Number(city.forecast24Score || 0) >= 25 ||
+            Number(city.forecast72Score || 0) >= 30
+        )
+        .map(city => Number(city.floodRiskScore || 0))
+);
 
     if (maxFlood >= 80 || maxRain24 >= 80) {
         box.innerHTML = `
