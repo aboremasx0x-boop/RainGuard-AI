@@ -2108,7 +2108,13 @@ function renderRainArrivalCitiesPanel(results) {
         ? "احتمال خلال اليوم"
         : (city.rainArrival?.label || "غير متوفر")
 }</strong><br>
-            مؤشر المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
+           قوة الوصول: ${Math.round(
+    Number(city.score || 0) +
+    Number(city.forecast24Score || 0) +
+    Number(city.forecast72Score || 0) * 0.5 +
+    Number(city.floodRiskScore || 0) * 0.25 +
+    Number(city.terrainRiskScore || 0) * 0.2
+)}% | المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
         </div>
     `).join("");
 }
