@@ -914,7 +914,10 @@ function calculateRainArrivalV12(city) {
     etaMinutes = 480;
     label = "خلال 8 ساعات";
     confidence = Math.max(confidence, 50);
-
+} else if (score24 >= 20 || now >= 20) {
+    etaMinutes = 720;
+    label = "احتمال خلال 12 ساعة";
+    confidence = Math.max(confidence, 45);
 } else {
     etaMinutes = null;
     label = "لا يوجد وصول مطر واضح حالياً";
