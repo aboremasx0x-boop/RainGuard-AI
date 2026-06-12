@@ -2065,10 +2065,23 @@ function renderRainArrivalCitiesPanel(results) {
         Number(city.forecast24Score || 0) >= 20 ||
         Number(city.forecast72Score || 0) >= 20
     )
-    .sort((a, b) =>
-        Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0)) -
-        Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0))
-    )
+    .sort((a, b) => {
+    const aPower =
+        Number(a.score || 0) +
+        Number(a.forecast24Score || 0) +
+        Number(a.forecast72Score || 0) * 0.5 +
+        Number(a.floodRiskScore || 0) * 0.25 +
+        Number(a.terrainRiskScore || 0) * 0.2;
+
+    const bPower =
+        Number(b.score || 0) +
+        Number(b.forecast24Score || 0) +
+        Number(b.forecast72Score || 0) * 0.5 +
+        Number(b.floodRiskScore || 0) * 0.25 +
+        Number(b.terrainRiskScore || 0) * 0.2;
+
+    return bPower - aPower;
+})
     .slice(0, 10);
 
     if (!cities.length) {
