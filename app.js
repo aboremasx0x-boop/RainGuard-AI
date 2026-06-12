@@ -1371,6 +1371,7 @@ alertLevel:
     updateNationalStatus(results);
     updateNationalWeatherSummary(results);
     renderNationalTrendPanel(results);
+    renderRainArrivalCitiesPanel(results);
     updateFloodRiskMap(results);
     updateCloudRainMapLayer(results);
 
@@ -2044,6 +2045,48 @@ function renderNationalTrendPanel(results) {
             }).join("")}
         </div>
     `;
+}
+
+function renderRainArrivalCitiesPanel(results) {
+    const box = document.getElementById("rainArrivalCitiesBox");
+    if (!box) return;
+
+    if (!results || !results.length) {
+        box.innerHTML = "لا توجد بيانات وقت وصول المطر حالياً.";
+        return;
+    }
+
+    const cities = results
+        .filter(city => city.rainArrival)
+        .sort((a, b) =>
+            Number(a.rainArrival.etaMinutes ?? 99999) -
+            Number(b.rainArrival.etaMinutes ?? 99999)
+        )
+        .slice(0, 10);
+
+    if (!cities.length) {
+        box.innerHTML = "لا توجد مدن لديها وقت وصول مطر واضح حالياً.";
+        return;
+    }
+
+    box.innerHTML = cities.map((city, index) => `
+        <div
+            onclick="openRainCityByName('${city.name}')"
+            style="
+                padding:12px;
+                margin-bottom:10px;
+                border-radius:14px;
+                background:#0f172a;
+                border:1px solid #334155;
+                cursor:pointer;
+                line-height:1.8;
+            "
+        >
+            <strong>${index + 1}. ${city.name}</strong><br>
+            وقت الوصول: <strong>${city.rainArrival.label}</strong><br>
+            مؤشر المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
+        </div>
+    `).join("");
 }
 
 function renderSmartMultiCityForecastPanel(results) {
