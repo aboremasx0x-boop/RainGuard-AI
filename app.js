@@ -1870,7 +1870,7 @@ function updateNationalWeatherSummary(results) {
     });
 
     const highFloodCities = floodCities.filter(city =>
-    Number(city.floodRiskScore || 0) >= 60
+    Number(city.floodRiskScore || 0) >= 55
 );
 
     const cloudCities = results.filter(city => {
