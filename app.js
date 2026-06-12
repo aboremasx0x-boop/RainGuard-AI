@@ -896,17 +896,30 @@ function calculateRainArrivalV12(city) {
     } else if (etaMinutes) {
         label = `خلال ${etaMinutes} دقيقة تقريباً`;
     } else if (score24 >= 60) {
-        etaMinutes = 180;
-        label = "خلال الساعات القادمة";
-        confidence = Math.max(confidence, 65);
-    } else if (score24 >= 30) {
-        etaMinutes = 360;
-        label = "احتمال خلال اليوم";
-        confidence = Math.max(confidence, 50);
-    } else {
-        label = "لا يوجد وصول مطر واضح حالياً";
-        confidence = Math.min(confidence, 40);
-    }
+    etaMinutes = 180;
+    label = "خلال 3 ساعات القادمة";
+    confidence = Math.max(confidence, 65);
+
+} else if (score24 >= 50) {
+    etaMinutes = 240;
+    label = "خلال 4 ساعات";
+    confidence = Math.max(confidence, 60);
+
+} else if (score24 >= 40) {
+    etaMinutes = 360;
+    label = "خلال 6 ساعات";
+    confidence = Math.max(confidence, 55);
+
+} else if (score24 >= 30) {
+    etaMinutes = 480;
+    label = "خلال 8 ساعات";
+    confidence = Math.max(confidence, 50);
+
+} else {
+    etaMinutes = null;
+    label = "لا يوجد وصول مطر واضح حالياً";
+    confidence = Math.min(confidence, 40);
+}
 
     return {
         etaMinutes,
