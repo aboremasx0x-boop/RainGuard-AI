@@ -4493,10 +4493,14 @@ window.openCityDetailsDirect = function (city) {
             ? city.peakHour.time.replace("T", " ")
             : "غير متوفر";
 
-    const etaText =
+   const etaText =
+    city.rainArrival?.label
+    || city.rainArrival?.etaText
+    || (
         city.cloudMovement?.etaMinutes
             ? city.cloudMovement.etaMinutes + " دقيقة"
-            : peakTime;
+            : peakTime
+    );
 
     document.body.insertAdjacentHTML("beforeend", `
         <div id="cityForecastModal" class="rg-modal" style="display:flex !important;">
