@@ -1,10 +1,12 @@
 const API_BASE_URL = "https://rainguard-ai.onrender.com";
 
-const APP_VERSION = "RainGuard AI V11";
+const APP_VERSION = "RainGuard AI V12";
 
-const TERRAIN_ENGINE_VERSION = "V11";
+const TERRAIN_ENGINE_VERSION = "V12";
 
 const CLOUD_TRACKER_VERSION = "V10";
+
+const RAIN_ARRIVAL_ENGINE_VERSION = "V12";
 
 const OFFLINE_CACHE_KEY = "rainguard_last_success_data";
 
