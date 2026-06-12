@@ -914,7 +914,7 @@ function calculateRainArrivalV12(city) {
     etaMinutes = 480;
     label = "خلال 8 ساعات";
     confidence = Math.max(confidence, 50);
-} else if (score24 >= 30 || now >= 20) {
+} else if (score24 >= 25 || now >= 25) {
     etaMinutes = 720;
     label = "احتمال خلال 12 ساعة";
     confidence = Math.max(confidence, 45);
@@ -2079,9 +2079,9 @@ function renderRainArrivalCitiesPanel(results) {
 
     const cities = results
     .filter(city =>
-        Number(city.score || 0) >= 20 ||
-        Number(city.forecast24Score || 0) >= 20 ||
-        Number(city.forecast72Score || 0) >= 20
+        Number(city.score || 0) >= 25 ||
+        Number(city.forecast24Score || 0) >= 25 ||
+        Number(city.forecast72Score || 0) >= 30
     )
     .sort((a, b) => {
     const aPower =
