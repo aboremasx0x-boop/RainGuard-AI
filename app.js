@@ -1947,15 +1947,19 @@ function updateNationalStatus(results) {
     }
 
     if (floodCities.length > 0) {
-        box.innerHTML = `
-            🔴 الحالة الوطنية: تنبيه
-            <div style="font-size:13px;color:#fecaca;margin-top:6px;">
-                توجد مدن لديها قابلية تجمع مياه أو سيول من 30% فأعلى.
-            </div>
-        `;
-        box.style.borderColor = "#ef4444";
-        return;
-    }
+    const color = maxFlood >= 80 ? "#ef4444" : "#f59e0b";
+    const icon = maxFlood >= 80 ? "🔴" : "🟠";
+    const level = maxFlood >= 80 ? "تنبيه مرتفع" : "مراقبة سيول";
+
+    box.innerHTML = `
+        ${icon} الحالة الوطنية: ${level}
+        <div style="font-size:13px;color:#fde68a;margin-top:6px;">
+            توجد ${floodCities.length} مدن تستحق المتابعة بسبب أمطار متوقعة ومؤشرات سيول.
+        </div>
+    `;
+    box.style.borderColor = color;
+    return;
+}
 
     if (rainCities.length > 0) {
         box.innerHTML = `
