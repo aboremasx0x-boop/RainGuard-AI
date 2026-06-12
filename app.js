@@ -880,6 +880,42 @@ function calculateTerrainRisk(cityName) {
     return Math.min(Math.round(terrainScore), 50);
 }
 
+function calculateRainArrivalV12(city) {
+    const now = Number(city.score || 0);
+    const score24 = Number(city.forecast24Score || 0);
+    const movement = city.cloudMovement || {};
+
+    let etaMinutes = movement.etaMinutes || null;
+    let confidence = Number(movement.confidence || 40);
+    let label = "غير متوفر";
+
+    if (now >= 60) {
+        etaMinutes = 0;
+        label = "المطر حاضر الآن";
+        confidence = Math.max(confidence, 85);
+    } else if (etaMinutes) {
+        label = `خلال ${etaMinutes} دقيقة تقريباً`;
+    } else if (score24 >= 60) {
+        etaMinutes = 180;
+        label = "خلال الساعات القادمة";
+        confidence = Math.max(confidence, 65);
+    } else if (score24 >= 30) {
+        etaMinutes = 360;
+        label = "احتمال خلال اليوم";
+        confidence = Math.max(confidence, 50);
+    } else {
+        label = "لا يوجد وصول مطر واضح حالياً";
+        confidence = Math.min(confidence, 40);
+    }
+
+    return {
+        etaMinutes,
+        label,
+        confidence,
+        direction: movement.direction || "غير معروف"
+    };
+}
+
 function calculateV9FloodRisk(city) {
     if (!city) return 0;
 
