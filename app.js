@@ -2057,7 +2057,13 @@ function renderRainArrivalCitiesPanel(results) {
     }
 
     const cities = results
-        .filter(city => city.rainArrival)
+        .filter(city =>
+    city.rainArrival &&
+    city.rainArrival.label
+)
+        .filter(city =>
+    city.rainArrival.label !== "لا يوجد وصول مطر واضح حالياً"
+)
         .sort((a, b) =>
             Number(a.rainArrival.etaMinutes ?? 99999) -
             Number(b.rainArrival.etaMinutes ?? 99999)
