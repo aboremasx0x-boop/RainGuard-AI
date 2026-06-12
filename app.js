@@ -4717,22 +4717,41 @@ function renderRainArrivalCitiesPanel(results) {
     }
 
     const cities = results
-        .filter(city => city.rainArrival)
-        .sort((a, b) =>
-            Number(a.rainArrival.etaMinutes ?? 99999) -
-            Number(b.rainArrival.etaMinutes ?? 99999)
+        .filter(city =>
+            Number(city.score || 0) >= 20 ||
+            Number(city.forecast24Score || 0) >= 20 ||
+            Number(city.forecast72Score || 0) >= 20
         )
+        .sort((a, b) => {
+            const aPower =
+                Number(a.score || 0) +
+                Number(a.forecast24Score || 0) +
+                Number(a.forecast72Score || 0) * 0.5 +
+                Number(a.floodRiskScore || 0) * 0.25 +
+                Number(a.terrainRiskScore || 0) * 0.2;
+
+            const bPower =
+                Number(b.score || 0) +
+                Number(b.forecast24Score || 0) +
+                Number(b.forecast72Score || 0) * 0.5 +
+                Number(b.floodRiskScore || 0) * 0.25 +
+                Number(b.terrainRiskScore || 0) * 0.2;
+
+            return bPower - aPower;
+        })
         .slice(0, 10);
 
-    if (!cities.length) {
-        box.innerHTML = "لا توجد مدن لديها وقت وصول مطر واضح حالياً.";
-        return;
-    }
+    box.innerHTML = cities.map((city, index) => {
+        const power = Math.round(
+            Number(city.score || 0) +
+            Number(city.forecast24Score || 0) +
+            Number(city.forecast72Score || 0) * 0.5 +
+            Number(city.floodRiskScore || 0) * 0.25 +
+            Number(city.terrainRiskScore || 0) * 0.2
+        );
 
-    box.innerHTML = cities.map((city, index) => `
-        <div
-            onclick="openRainCityByName('${city.name}')"
-            style="
+        return `
+            <div onclick="openRainCityByName('${city.name}')" style="
                 padding:12px;
                 margin-bottom:10px;
                 border-radius:14px;
@@ -4740,13 +4759,13 @@ function renderRainArrivalCitiesPanel(results) {
                 border:1px solid #334155;
                 cursor:pointer;
                 line-height:1.8;
-            "
-        >
-            <strong>${index + 1}. ${city.name}</strong><br>
-            وقت الوصول: <strong>${city.rainArrival.label}</strong><br>
-            مؤشر المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
-        </div>
-    `).join("");
+            ">
+                <strong>${index + 1}. ${city.name}</strong><br>
+                وقت الوصول: <strong>${city.rainArrival?.label || "احتمال خلال اليوم"}</strong><br>
+                قوة الوصول: ${power}% | المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
+            </div>
+        `;
+    }).join("");
 }
 
 window.renderRainArrivalCitiesPanel = renderRainArrivalCitiesPanel;
