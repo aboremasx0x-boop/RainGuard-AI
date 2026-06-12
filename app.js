@@ -4490,9 +4490,19 @@ window.openFirstFloodCity = function () {
         ||
         window.lastMultiCityResults
             .slice()
-            .sort((a, b) =>
-                Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
-            )[0];
+            .sort((a, b) => {
+    const aPower =
+        Number(a.floodRiskScore || 0) * 0.5 +
+        Number(a.score || 0) * 0.3 +
+        Number(a.forecast24Score || 0) * 0.2;
+
+    const bPower =
+        Number(b.floodRiskScore || 0) * 0.5 +
+        Number(b.score || 0) * 0.3 +
+        Number(b.forecast24Score || 0) * 0.2;
+
+    return bPower - aPower;
+})
 
     openCityForecastPopup(city.name);
 };
