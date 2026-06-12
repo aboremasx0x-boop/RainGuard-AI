@@ -1908,9 +1908,9 @@ function updateNationalStatus(results) {
     const rain72 = Number(city.forecast72Score || 0);
 
     return (
-        rainNow >= 30 ||
-        rain24 >= 30 ||
-        rain72 >= 30
+        rainNow >= 40 ||
+        rain24 >= 40 ||
+        rain72 >= 40
     );
 });
 
