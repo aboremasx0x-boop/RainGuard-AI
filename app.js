@@ -4695,41 +4695,42 @@ setTimeout(() => {
     }
 }, 2000);
 
-function renderRainArrivalCitiesPanel(results) {
+ function renderRainArrivalCitiesPanel(results) {
     const box = document.getElementById("rainArrivalCitiesBox");
     if (!box) return;
 
-    if (!results || !results.length) {
-        box.innerHTML = "لا توجد بيانات وقت وصول المطر حالياً.";
-        return;
-    }
-
-    const cities = results
+    const cities = (results || [])
         .filter(city =>
-            Number(city.score || 0) >= 20 ||
-            Number(city.forecast24Score || 0) >= 20 ||
-            Number(city.forecast72Score || 0) >= 20
+            Number(city.score || 0) >= 25 ||
+            Number(city.forecast24Score || 0) >= 25 ||
+            Number(city.forecast72Score || 0) >= 30
         )
         .sort((a, b) => {
             const aPower =
-    Number(a.score || 0) * 0.5 +
-    Number(a.forecast24Score || 0) * 0.3 +
-    Number(a.forecast72Score || 0) * 0.2;
+                Number(a.score || 0) * 0.5 +
+                Number(a.forecast24Score || 0) * 0.3 +
+                Number(a.forecast72Score || 0) * 0.2;
 
-const bPower =
-    Number(b.score || 0) * 0.5 +
-    Number(b.forecast24Score || 0) * 0.3 +
-    Number(b.forecast72Score || 0) * 0.2;
+            const bPower =
+                Number(b.score || 0) * 0.5 +
+                Number(b.forecast24Score || 0) * 0.3 +
+                Number(b.forecast72Score || 0) * 0.2;
+
             return bPower - aPower;
         })
         .slice(0, 10);
 
+    if (!cities.length) {
+        box.innerHTML = "لا توجد مدن لديها وقت وصول مطر واضح حالياً.";
+        return;
+    }
+
     box.innerHTML = cities.map((city, index) => {
         const power = Math.round(
-    Number(city.score || 0) * 0.5 +
-    Number(city.forecast24Score || 0) * 0.3 +
-    Number(city.forecast72Score || 0) * 0.2
-);
+            Number(city.score || 0) * 0.5 +
+            Number(city.forecast24Score || 0) * 0.3 +
+            Number(city.forecast72Score || 0) * 0.2
+        );
 
         return `
             <div onclick="openRainCityByName('${city.name}')" style="
@@ -4742,11 +4743,9 @@ const bPower =
                 line-height:1.8;
             ">
                 <strong>${index + 1}. ${city.name}</strong><br>
-                وقت الوصول: <strong>${city.rainArrival?.label || "احتمال خلال اليوم"}</strong><br>
+                وقت الوصول: <strong>${city.rainArrival?.label || "غير متوفر"}</strong><br>
                 قوة الوصول: ${power}% | المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
             </div>
         `;
     }).join("");
 }
-
-window.renderRainArrivalCitiesPanel = renderRainArrivalCitiesPanel;
