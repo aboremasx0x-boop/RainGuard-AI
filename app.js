@@ -1607,6 +1607,7 @@ function renderSmartMultiCityTopPanel(results) {
                     توقع المطر خلال 24 ساعة: ${forecast24}%<br>
                     توقع المطر خلال 72 ساعة: ${forecast72}%<br>
                     المطر الحالي: ${rainNow}%<br>
+                    وقت وصول المطر: ${calculateRainArrivalV12(city).label}<br>
                     خطر السيول: ${city.floodRiskScore ?? "--"}%
                 </div>
             </div>
