@@ -1339,7 +1339,15 @@ alertLevel:
     );
 
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
-    const topCityNow = topCities[0];
+    const topCityNow = results
+    .filter(city =>
+        Number(city.score || 0) >= 25 ||
+        Number(city.forecast24Score || 0) >= 25 ||
+        Number(city.forecast72Score || 0) >= 30
+    )
+    .sort((a, b) =>
+        Number(b.actualRiskScore || 0) - Number(a.actualRiskScore || 0)
+    )[0];
 
     const forecastRanked = [...results].sort((a, b) =>
         Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
