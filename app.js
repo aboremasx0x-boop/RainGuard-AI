@@ -2088,9 +2088,9 @@ function renderRainArrivalCitiesPanel(results) {
         >
             <strong>${index + 1}. ${city.name}</strong><br>
            وقت الوصول: <strong>${
-    city.rainArrival?.etaMinutes !== null && city.rainArrival?.label
-        ? city.rainArrival.label
-        : "احتمال خلال اليوم"
+    Number(city.score || 0) >= 20 || Number(city.forecast24Score || 0) >= 20
+        ? "احتمال خلال اليوم"
+        : (city.rainArrival?.label || "غير متوفر")
 }</strong><br>
             مؤشر المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
         </div>
