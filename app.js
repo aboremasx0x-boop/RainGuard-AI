@@ -1348,24 +1348,7 @@ alertLevel:
     const topForecastCity = forecastRanked[0];
 
     window.lastMultiCityResults = results;
-    document.body.insertAdjacentHTML(
-    "afterbegin",
-    `<pre style="
-        position:fixed;
-        top:0;
-        left:0;
-        right:0;
-        max-height:300px;
-        overflow:auto;
-        background:black;
-        color:lime;
-        z-index:999999;
-        font-size:10px;
-        padding:10px;
-    ">${JSON.stringify(results[0], null, 2)}</pre>`
-);
-    console.log(results[0]);
-
+     
     window.openCityForecastPopup = openCityForecastPopup;
 
     const setTopRiskText = (id, value) => {
