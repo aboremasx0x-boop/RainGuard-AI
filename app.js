@@ -1861,6 +1861,10 @@ function updateNationalWeatherSummary(results) {
         );
     });
 
+    const highFloodCities = floodCities.filter(city =>
+    Number(city.floodRiskScore || 0) >= 60
+);
+
     const cloudCities = results.filter(city => {
         const rainNow = Number(city.score || 0);
         const rain24 = Number(city.forecast24Score || 0);
@@ -1873,7 +1877,9 @@ function updateNationalWeatherSummary(results) {
     });
 
     if (rainEl) rainEl.innerText = rainCities.length;
-    if (floodEl) floodEl.innerText = floodCities.length;
+    if (floodEl) {
+    floodEl.innerText = `${floodCities.length} | مرتفع ${highFloodCities.length}`;
+}
     if (cloudEl) cloudEl.innerText = cloudCities.length;
 }
 
