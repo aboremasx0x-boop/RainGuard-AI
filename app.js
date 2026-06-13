@@ -1294,6 +1294,8 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
 
             const radarRainIntensity = await getLiveRadarIntensity(city.lat, city.lon);
 
+            const radarFusion = await getRainViewerRadarFusionV1(city.lat, city.lon);
+
             const floodRiskScore = calculateV9FloodRisk({
     name: city.name,
     score,
@@ -1336,6 +1338,7 @@ const rainArrival = calculateRainArrivalV12({
                 forecast72Score,
                 cloudScore,
                 radarRainIntensity,
+                radarFusion,
                 terrainRiskScore,
                 terrainSummary: getTerrainRiskSummary(city.name),
                 floodRiskScore,
@@ -3497,6 +3500,43 @@ async function getLiveRadarIntensity(lat, lon) {
     } catch (error) {
         console.error("Live radar intensity error:", error);
         return 0;
+    }
+}
+
+async function getRainViewerRadarFusionV1(lat, lon) {
+    try {
+        const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+        const data = await response.json();
+
+        if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
+            return {
+                radarAvailable: false,
+                radarIntensity: 0,
+                radarSource: "RainViewer",
+                note: "لا توجد بيانات رادار متاحة"
+            };
+        }
+
+        const latestRadar = data.radar.past[data.radar.past.length - 1];
+
+        return {
+            radarAvailable: true,
+            radarIntensity: 0,
+            radarSource: "RainViewer",
+            radarTime: latestRadar.time,
+            radarPath: latestRadar.path,
+            note: "الرادار متاح، ولم يتم ربط قراءة البكسل بعد"
+        };
+
+    } catch (error) {
+        console.error("Radar Fusion V1 Error:", error);
+
+        return {
+            radarAvailable: false,
+            radarIntensity: 0,
+            radarSource: "RainViewer",
+            note: "فشل الاتصال بالرادار"
+        };
     }
 }
 
