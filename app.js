@@ -961,10 +961,9 @@ function calculateV9FloodRisk(city) {
         ) >= 60 ? 8 : 0;
 
     const cloudBoost =
-        Number(city.cloudScore || 0) >= 80 ? 10 :
-        Number(city.cloudScore || 0) >= 60 ? 6 :
-        Number(city.cloudScore || 0) >= 40 ? 3 :
-        0;
+    Number(city.cloudScore || 0) >= 80 ? 8 :
+    Number(city.cloudScore || 0) >= 60 ? 4 :
+    0;
 
     const radarBoost =
         Number(city.radarRainIntensity || 0) >= 80 ? 20 :
