@@ -1872,6 +1872,9 @@ function updateNationalWeatherSummary(results) {
     const highFloodCities = floodCities.filter(city =>
     Number(city.floodRiskScore || 0) >= 55
 );
+    const extremeFloodCities = floodCities.filter(
+    city => Number(city.floodRiskScore || 0) >= 70
+);
 
     const cloudCities = results.filter(city => {
         const rainNow = Number(city.score || 0);
@@ -1886,7 +1889,7 @@ function updateNationalWeatherSummary(results) {
 
     if (rainEl) rainEl.innerText = rainCities.length;
     if (floodEl) {
-    floodEl.innerText = `${floodCities.length} | مرتفع ${highFloodCities.length}`;
+    floodEl.innerText = `${highFloodCities.length} مرتفع | ${extremeFloodCities.length} حرج ${highFloodCities.length}`;
 }
     if (cloudEl) cloudEl.innerText = cloudCities.length;
 }
