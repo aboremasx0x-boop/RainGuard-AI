@@ -3508,8 +3508,18 @@ async function getRainViewerRadarFusionV1(lat, lon) {
         const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
         const data = await response.json();
 
-        if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
-            const z = 6;
+       if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
+    return {
+        radarAvailable: false,
+        radarIntensity: 0,
+        radarSource: "RainViewer",
+        note: "لا توجد بيانات رادار متاحة"
+    };
+}
+        const latestRadar =
+    data.radar.past[data.radar.past.length - 1];
+
+const z = 6;
 const x = lonToTileX(lon, z);
 const y = latToTileY(lat, z);
 
@@ -3532,7 +3542,8 @@ canvas.height = 256;
 const ctx = canvas.getContext("2d");
 ctx.drawImage(img, 0, 0);
 
-const centerPixel = ctx.getImageData(128, 128, 1, 1).data;
+const centerPixel =
+    ctx.getImageData(128, 128, 1, 1).data;
 
 const intensity = Math.max(
     centerPixel[0],
