@@ -1294,12 +1294,15 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
 
             const terrainRiskScore = calculateTerrainRisk(city.name);
 
+            const radarRainIntensity = await getLiveRadarIntensity(city.lat, city.lon);
+
             const floodRiskScore = calculateV9FloodRisk({
     name: city.name,
     score,
     forecast24Score,
     forecast72Score,
-    cloudScore
+    cloudScore,
+    radarRainIntensity
 });
 
             const actualRiskScore = Math.round(
@@ -1334,7 +1337,7 @@ const rainArrival = calculateRainArrivalV12({
                 forecast24Score,
                 forecast72Score,
                 cloudScore,
-                radarRainIntensity: Number(data.radarRainIntensity || data.radarScore || data.radarIntensity || 0),
+                radarRainIntensity,
                 terrainRiskScore,
                 terrainSummary: getTerrainRiskSummary(city.name),
                 floodRiskScore,
@@ -3477,6 +3480,25 @@ async function loadRainRadar() {
 
     } catch (error) {
         console.error(error);
+    }
+}
+
+async function getLiveRadarIntensity(lat, lon) {
+    try {
+        const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+        const data = await response.json();
+
+        if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
+            return 0;
+        }
+
+        // حالياً نعطي قيمة تقريبية إذا الرادار متوفر
+        // المرحلة القادمة نربطها بالبكسل الحقيقي فوق المدينة
+        return 20;
+
+    } catch (error) {
+        console.error("Live radar intensity error:", error);
+        return 0;
     }
 }
 
