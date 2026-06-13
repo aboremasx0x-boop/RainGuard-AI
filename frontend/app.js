@@ -3503,73 +3503,7 @@ async function getLiveRadarIntensity(lat, lon) {
     }
 }
 
-async function getRainViewerRadarFusionV1(lat, lon) {
-    try {
-        const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
-        const data = await response.json();
 
-        if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
-            return {
-                radarAvailable: false,
-                radarIntensity: 0,
-                radarSource: "RainViewer",
-                note: "لا توجد بيانات رادار متاحة"
-            };
-        }
-
-        const latestRadar = data.radar.past[data.radar.past.length - 1];
-
-        const z = 6;
-        const x = lonToTileX(lon, z);
-        const y = latToTileY(lat, z);
-
-        const tileUrl =
-            `https://tilecache.rainviewer.com${latestRadar.path}/256/${z}/${x}/${y}/1/1_1.png`;
-
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = tileUrl;
-        });
-
-        const canvas = document.createElement("canvas");
-        canvas.width = 256;
-        canvas.height = 256;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-
-        const centerPixel = ctx.getImageData(128, 128, 1, 1).data;
-
-        const intensity = Math.max(
-            centerPixel[0],
-            centerPixel[1],
-            centerPixel[2]
-        );
-
-        return {
-            radarAvailable: true,
-            radarIntensity: intensity,
-            radarSource: "RainViewer",
-            radarTime: latestRadar.time,
-            radarPath: latestRadar.path,
-            tileUrl
-        };
-
-    } catch (error) {
-        console.error("Radar Fusion V1 Error:", error);
-
-        return {
-            radarAvailable: false,
-            radarIntensity: 0,
-            radarSource: "RainViewer",
-            note: "فشل الاتصال بالرادار"
-        };
-    }
-}
 
 function latToTileY(lat, zoom) {
     return Math.floor(
