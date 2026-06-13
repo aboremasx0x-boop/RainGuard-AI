@@ -1334,6 +1334,7 @@ const rainArrival = calculateRainArrivalV12({
                 forecast24Score,
                 forecast72Score,
                 cloudScore,
+                radarRainIntensity: Number(data.radarRainIntensity || data.radarScore || data.radarIntensity || 0),
                 terrainRiskScore,
                 terrainSummary: getTerrainRiskSummary(city.name),
                 floodRiskScore,
