@@ -3466,9 +3466,15 @@ async function loadRainRadar() {
             "https://api.rainviewer.com/public/weather-maps.json"
         );
 
+        if (!response.ok) {
+            console.error("RainViewer metadata failed");
+            return;
+        }
+
         const data = await response.json();
 
         if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
+            console.warn("No RainViewer radar frames");
             return;
         }
 
@@ -3477,22 +3483,28 @@ async function loadRainRadar() {
         const radarUrl =
             `${data.host}${latestRadar.path}/256/{z}/{x}/{y}/2/1_1.png`;
 
-        rainLayer = L.tileLayer(
-            radarUrl,
-            {
-                minZoom: 4,
-                maxZoom: 10,
-                opacity: 0.65,
-                attribution: "RainViewer"
-            }
-        );
+        if (rainLayer && map.hasLayer(rainLayer)) {
+            map.removeLayer(rainLayer);
+        }
+
+        rainLayer = L.tileLayer(radarUrl, {
+            minZoom: 4,
+            maxZoom: 8,
+            opacity: 0.65,
+            zIndex: 500,
+            attribution: "RainViewer"
+        });
 
         if (radarEnabled && map) {
             rainLayer.addTo(map);
         }
 
+        if (map.getZoom() > 8) {
+            map.setZoom(8);
+        }
+
     } catch (error) {
-        console.error(error);
+        console.error("loadRainRadar error:", error);
     }
 }
 
