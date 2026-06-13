@@ -882,6 +882,20 @@ function calculateTerrainRisk(cityName) {
     return Math.min(Math.round(terrainScore), 50);
 }
 
+function calculateRadarScore(city) {
+    if (!city) return 0;
+
+    const radarRain = Number(city.radarRainIntensity || 0);
+
+    if (radarRain >= 20) return 100;
+    if (radarRain >= 15) return 80;
+    if (radarRain >= 10) return 60;
+    if (radarRain >= 5) return 40;
+    if (radarRain >= 1) return 20;
+
+    return 0;
+}
+
 function calculateRainArrivalV12(city) {
     const now = Number(city.score || 0);
     const score24 = Number(city.forecast24Score || 0);
@@ -948,10 +962,18 @@ function calculateV9FloodRisk(city) {
             ? 8
             : 0;
 
-    const finalRisk =
-        baseFloodRisk + terrainRisk * 0.45 + forecastBoost;
+    const cloudBoost =
+    Number(city.cloudScore || 0) >= 60 ? 12 :
+    Number(city.cloudScore || 0) >= 40 ? 6 :
+    0;
 
-    return Math.min(Math.round(finalRisk), 100);
+const finalRisk =
+    baseFloodRisk +
+    terrainRisk * 0.45 +
+    forecastBoost +
+    cloudBoost;
+
+   return Math.min(Math.round(finalRisk), 100);
 }
 
 function estimateCloudMovement(cityName, currentScore, forecast24Score) {
