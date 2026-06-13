@@ -3492,7 +3492,7 @@ async function getLiveRadarIntensity(lat, lon) {
 
         // حالياً نعطي قيمة تقريبية إذا الرادار متوفر
         // المرحلة القادمة نربطها بالبكسل الحقيقي فوق المدينة
-        return 20;
+        return 0;
 
     } catch (error) {
         console.error("Live radar intensity error:", error);
