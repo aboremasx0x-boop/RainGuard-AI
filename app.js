@@ -1904,39 +1904,26 @@ function updateNationalStatus(results) {
         updateNationalWeatherSummary([]);
         return;
     }
-    const maxFlood = Math.max(
-    ...results.map(c => Number(c.floodRiskScore || 0))
-);
-
-const maxRain = Math.max(
-    ...results.map(c =>
-        Math.max(
-            Number(c.score || 0),
-            Number(c.forecast24Score || 0),
-            Number(c.forecast72Score || 0)
-        )
-    )
-);
 
     const rainCities = results.filter(city => {
-    const rainNow = Number(city.score || 0);
-    const rain24 = Number(city.forecast24Score || 0);
-    const rain72 = Number(city.forecast72Score || 0);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
 
-    return (
-        rainNow >= 40 ||
-        rain24 >= 40 ||
-        rain72 >= 40
-    );
-});
+        return (
+            rainNow >= 40 ||
+            rain24 >= 40 ||
+            rain72 >= 40
+        );
+    });
 
-    const floodCities = results.filter(c => {
-        const flood = Number(c.floodRiskScore || 0);
-        const rainNow = Number(c.score || 0);
-        const rain24 = Number(c.forecast24Score || 0);
-        const rain72 = Number(c.forecast72Score || 0);
+    const floodCities = results.filter(city => {
+        const flood = Number(city.floodRiskScore || 0);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
 
-        return flood >= 30 && (
+        return flood >= 55 && (
             rainNow >= 30 ||
             rain24 >= 30 ||
             rain72 >= 30
@@ -1951,66 +1938,75 @@ const maxRain = Math.max(
         return;
     }
 
-    const maxRain24 = Math.max(
-        ...results.map(city => Number(city.forecast24Score || 0))
+    const maxFlood = Math.max(
+        ...results
+            .filter(city =>
+                Number(city.score || 0) >= 30 ||
+                Number(city.forecast24Score || 0) >= 30 ||
+                Number(city.forecast72Score || 0) >= 30
+            )
+            .map(city => Number(city.floodRiskScore || 0)),
+        0
     );
 
-    const maxFlood = Math.max(
-    ...results
-        .filter(city =>
-            Number(city.score || 0) >= 25 ||
-            Number(city.forecast24Score || 0) >= 25 ||
-            Number(city.forecast72Score || 0) >= 30
-        )
-        .map(city => Number(city.floodRiskScore || 0))
-);
+    const maxRain = Math.max(
+        ...results.map(city =>
+            Math.max(
+                Number(city.score || 0),
+                Number(city.forecast24Score || 0),
+                Number(city.forecast72Score || 0)
+            )
+        ),
+        0
+    );
 
-   if (maxFlood >= 80) {
-    box.innerHTML = `
-        🚨 الحالة الوطنية: خطر مرتفع
-        <div style="font-size:13px;color:#fecaca;margin-top:6px;">
-            توجد مؤشرات سيول شديدة في بعض المدن.
-        </div>
-    `;
-    box.style.borderColor = "#ef4444";
-    return;
-}
-else if (maxFlood >= 70) {
-    box.innerHTML = `
-        🔴 الحالة الوطنية: تحذير سيول
-        <div style="font-size:13px;color:#fecaca;margin-top:6px;">
-            توجد مدينة أو أكثر بمؤشر سيول مرتفع يحتاج متابعة عاجلة.
-        </div>
-    `;
-    box.style.borderColor = "#ef4444";
-    return;
-}
-else if (maxFlood >= 55) {
-    box.innerHTML = `
-        🟠 الحالة الوطنية: مراقبة سيول
-        <div style="font-size:13px;color:#fde68a;margin-top:6px;">
-            توجد مدن تستحق المتابعة بسبب أمطار متوقعة ومؤشرات سيول.
-        </div>
-    `;
-    box.style.borderColor = "#f59e0b";
-    return;
-}
-else if (maxRain >= 30) {
-    box.innerHTML = `
-        🔵 الحالة الوطنية: مراقبة أمطار
-        <div style="font-size:13px;color:#bfdbfe;margin-top:6px;">
-            توجد مدن عليها مؤشرات مطر تحتاج متابعة.
-        </div>
-    `;
-    box.style.borderColor = "#3b82f6";
-    return;
-}
-else {
+    if (maxFlood >= 80) {
+        box.innerHTML = `
+            🚨 الحالة الوطنية: خطر مرتفع
+            <div style="font-size:13px;color:#fecaca;margin-top:6px;">
+                توجد مؤشرات سيول شديدة في بعض المدن.
+            </div>
+        `;
+        box.style.borderColor = "#ef4444";
+        return;
+    }
+
+    if (maxFlood >= 70) {
+        box.innerHTML = `
+            🔴 الحالة الوطنية: تحذير سيول
+            <div style="font-size:13px;color:#fecaca;margin-top:6px;">
+                توجد مدينة أو أكثر بمؤشر سيول مرتفع يحتاج متابعة عاجلة.
+            </div>
+        `;
+        box.style.borderColor = "#ef4444";
+        return;
+    }
+
+    if (maxFlood >= 55) {
+        box.innerHTML = `
+            🟠 الحالة الوطنية: مراقبة سيول
+            <div style="font-size:13px;color:#fde68a;margin-top:6px;">
+                توجد مدن تستحق المتابعة بسبب أمطار متوقعة ومؤشرات سيول.
+            </div>
+        `;
+        box.style.borderColor = "#f59e0b";
+        return;
+    }
+
+    if (maxRain >= 30) {
+        box.innerHTML = `
+            🔵 الحالة الوطنية: مراقبة أمطار
+            <div style="font-size:13px;color:#bfdbfe;margin-top:6px;">
+                توجد مدن عليها مؤشرات مطر تحتاج متابعة.
+            </div>
+        `;
+        box.style.borderColor = "#3b82f6";
+        return;
+    }
+
     box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
     box.style.borderColor = "#22c55e";
-    return;
 }
-
 function renderNationalTrendPanel(results) {
     const panel = document.getElementById("nationalTrendPanel");
     if (!panel) return;
