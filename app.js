@@ -967,11 +967,19 @@ function calculateV9FloodRisk(city) {
     Number(city.cloudScore || 0) >= 40 ? 6 :
     0;
 
+    const radarBoost =
+    Number(city.radarRainIntensity || 0) >= 80 ? 20 :
+    Number(city.radarRainIntensity || 0) >= 60 ? 15 :
+    Number(city.radarRainIntensity || 0) >= 40 ? 10 :
+    Number(city.radarRainIntensity || 0) >= 20 ? 5 :
+    0;
+
 const finalRisk =
     baseFloodRisk +
     terrainRisk * 0.45 +
     forecastBoost +
-    cloudBoost;
+    cloudBoost +
+    radarBoost;
 
    return Math.min(Math.round(finalRisk), 100);
 }
