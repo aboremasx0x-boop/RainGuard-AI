@@ -974,11 +974,11 @@ function calculateV9FloodRisk(city) {
         0;
 
     const finalRisk =
-        baseFloodRisk +
-        (terrainRisk * 0.45) +
-        forecastBoost +
-        cloudBoost +
-        radarBoost;
+    (baseFloodRisk * 0.55) +
+    (terrainRisk * 0.20) +
+    forecastBoost +
+    cloudBoost +
+    radarBoost;
 
     return Math.min(Math.round(finalRisk), 100);
 }
