@@ -845,13 +845,15 @@ function calculateCityFloodRisk(city) {
     const rainScore = Number(city.score) || 0;
     const forecast24 = Number(city.forecast24Score) || 0;
     const forecast72 = Number(city.forecast72Score) || 0;
+    const cloudScore = Number(city.cloudScore || city.cloudCover || 0);
     const cityWeight = floodCityWeights[city.name] || 0;
 
     let floodRisk = 0;
 
-    floodRisk += rainScore * 0.35;
-    floodRisk += forecast24 * 0.25;
-    floodRisk += forecast72 * 0.25;
+    floodRisk += rainScore * 0.30;
+    floodRisk += forecast24 * 0.22;
+    floodRisk += forecast72 * 0.20;
+    floodRisk += cloudScore * 0.13;
     floodRisk += cityWeight;
 
     return Math.min(Math.round(floodRisk), 100);
@@ -1246,6 +1248,7 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
 
             const best = data.best_hour || data.current || {};
             const current = data.current || {};
+            const cloudScore = Number(current.cloud_cover || 0);
             const nextHours = Array.isArray(data.next_hours)
                 ? data.next_hours
                 : [];
@@ -1262,11 +1265,12 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
             const terrainRiskScore = calculateTerrainRisk(city.name);
 
             const floodRiskScore = calculateV9FloodRisk({
-                name: city.name,
-                score,
-                forecast24Score,
-                forecast72Score
-            });
+    name: city.name,
+    score,
+    forecast24Score,
+    forecast72Score,
+    cloudScore
+});
 
             const actualRiskScore = Math.round(
                 score * 0.5 +
@@ -1299,6 +1303,7 @@ const rainArrival = calculateRainArrivalV12({
                 score,
                 forecast24Score,
                 forecast72Score,
+                cloudScore,
                 terrainRiskScore,
                 terrainSummary: getTerrainRiskSummary(city.name),
                 floodRiskScore,
