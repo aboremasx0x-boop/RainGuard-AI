@@ -3665,20 +3665,29 @@ async function getRainViewerRadarFusionV1(lat, lon) {
     }
 }
 
-function toggleRadar() {
-    if (!rainLayer || !map) return;
+async function toggleRadar() {
+    if (!map) {
+        showActionMessage("الخريطة غير جاهزة", "warning");
+        return;
+    }
 
-    if (radarEnabled) {
-        if (map.hasLayer(rainLayer)) {
-            map.removeLayer(rainLayer);
-        }
-
+    if (rainLayer && map.hasLayer(rainLayer)) {
+        map.removeLayer(rainLayer);
         radarEnabled = false;
         showActionMessage("تم إيقاف الرادار", "warning");
-    } else {
+        return;
+    }
+
+    if (!rainLayer) {
+        await loadRainRadar();
+    }
+
+    if (rainLayer) {
         rainLayer.addTo(map);
         radarEnabled = true;
         showActionMessage("تم تشغيل الرادار", "success");
+    } else {
+        showActionMessage("تعذر تحميل رادار المطر", "danger");
     }
 }
 
