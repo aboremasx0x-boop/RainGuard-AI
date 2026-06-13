@@ -1,3 +1,6 @@
+// ===== RainGuard AI frontend/app.js fixed - PART 1 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
 const API_BASE_URL = "https://rainguard-ai.onrender.com";
 
 const APP_VERSION = "RainGuard AI V12 Stable";
@@ -998,6 +1001,9 @@ function estimateCloudMovement(cityName, currentScore, forecast24Score) {
             etaMinutes: null,
             confidence: 30
         };
+// ===== RainGuard AI frontend/app.js fixed - PART 2 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
     }
 
     const delta =
@@ -1998,6 +2004,9 @@ function updateNationalStatus(results) {
             )
         ),
         0
+// ===== RainGuard AI frontend/app.js fixed - PART 3 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
     );
 
     if (maxFlood >= 80) {
@@ -2998,6 +3007,9 @@ function applyAlertCardColor(score) {
     let alertBoxClass = "alert-green";
 
     if (score >= 80) {
+// ===== RainGuard AI frontend/app.js fixed - PART 4 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
         alertBoxClass = "alert-red";
     } else if (score >= 60) {
         alertBoxClass = "alert-yellow";
@@ -3518,6 +3530,141 @@ function latToTileY(lat, zoom) {
     );
 }
 
+
+function lonToTileX(lon, zoom) {
+    return Math.floor(
+        ((Number(lon) + 180) / 360) * Math.pow(2, zoom)
+    );
+}
+
+function getRadarPixelIntensity(r, g, b, a) {
+    if (!a || a < 20) return 0;
+
+    const max = Math.max(r, g, b);
+
+    // ألوان RainViewer تختلف حسب نوع الطبقة، لذلك نحسبها كتقدير عام من شدة اللون.
+    if (max < 25) return 0;
+    if (r >= 180 && g <= 120) return 90;
+    if (r >= 150 && g <= 170) return 75;
+    if (g >= 150 && r >= 120) return 60;
+    if (g >= 120 || b >= 160) return 40;
+    if (max >= 60) return 20;
+
+    return 0;
+}
+
+async function getRainViewerRadarFusionV1(lat, lon) {
+    try {
+        lat = Number(lat);
+        lon = Number(lon);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            return {
+                radarAvailable: false,
+                radarIntensity: 0,
+                radarSource: "RainViewer",
+                radarError: "Invalid coordinates"
+            };
+        }
+
+        const zoom = 6;
+        const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+
+        if (!response.ok) {
+            return {
+                radarAvailable: false,
+                radarIntensity: 0,
+                radarSource: "RainViewer",
+                radarError: "RainViewer metadata unavailable"
+            };
+        }
+
+        const data = await response.json();
+
+        if (!data?.radar?.past || data.radar.past.length === 0 || !data.host) {
+            return {
+                radarAvailable: false,
+                radarIntensity: 0,
+                radarSource: "RainViewer",
+                radarError: "No radar frames"
+            };
+        }
+
+        const latestRadar = data.radar.past[data.radar.past.length - 1];
+        const x = lonToTileX(lon, zoom);
+        const y = latToTileY(lat, zoom);
+
+        const tileUrl = `${data.host}${latestRadar.path}/256/${zoom}/${x}/${y}/2/1_1.png`;
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        const imageLoaded = await new Promise(resolve => {
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = tileUrl;
+        });
+
+        if (!imageLoaded) {
+            return {
+                radarAvailable: true,
+                radarIntensity: 0,
+                radarSource: "RainViewer",
+                radarTime: latestRadar.time,
+                radarPath: latestRadar.path,
+                tileUrl,
+                radarError: "Radar tile image failed to load"
+            };
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, 256, 256);
+
+        const n = Math.pow(2, zoom);
+        const tileXFloat = ((lon + 180) / 360) * n;
+        const latRad = lat * Math.PI / 180;
+        const tileYFloat =
+            (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+
+        const pixelX = Math.max(0, Math.min(255, Math.floor((tileXFloat - x) * 256)));
+        const pixelY = Math.max(0, Math.min(255, Math.floor((tileYFloat - y) * 256)));
+
+        const pixel = ctx.getImageData(pixelX, pixelY, 1, 1).data;
+        const intensity = getRadarPixelIntensity(pixel[0], pixel[1], pixel[2], pixel[3]);
+
+        return {
+            radarAvailable: true,
+            radarIntensity: intensity,
+            radarSource: "RainViewer",
+            radarTime: latestRadar.time,
+            radarPath: latestRadar.path,
+            tileUrl,
+            pixel: {
+                x: pixelX,
+                y: pixelY,
+                r: pixel[0],
+                g: pixel[1],
+                b: pixel[2],
+                a: pixel[3]
+            }
+        };
+
+    } catch (error) {
+        console.error("RainViewer Radar Fusion V1 error:", error);
+
+        return {
+            radarAvailable: false,
+            radarIntensity: 0,
+            radarSource: "RainViewer",
+            radarError: error?.message || String(error)
+        };
+    }
+}
+
 function toggleRadar() {
     if (!rainLayer || !map) return;
 
@@ -3862,6 +4009,9 @@ function recheckHistoryItem(index) {
     } else {
         detectRain();
     }
+
+// ===== RainGuard AI frontend/app.js fixed - PART 5 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
 
     window.scrollTo({
         top: 0,
@@ -4863,6 +5013,9 @@ setTimeout(() => {
             Number(city.forecast24Score || 0) * 0.3 +
             Number(city.forecast72Score || 0) * 0.2
         );
+// ===== RainGuard AI frontend/app.js fixed - PART 6 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
 
         return `
             <div onclick="openRainCityByName('${city.name}')" style="
