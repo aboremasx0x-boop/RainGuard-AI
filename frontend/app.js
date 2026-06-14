@@ -1937,8 +1937,24 @@ function updateNationalWeatherSummary(results) {
     if (rainEl) rainEl.innerText = rainCities.length;
 
     if (floodEl) {
-        floodEl.innerText =
-            `متابعة ${watchFloodCities.length} | تنبيه ${highFloodCities.length} | إنذار ${extremeFloodCities.length}`;
+    let floodBoxColor = "#3b82f6";
+
+    if (extremeFloodCities.length > 0) {
+        floodBoxColor = "#ef4444";
+    } else if (highFloodCities.length > 0) {
+        floodBoxColor = "#f59e0b";
+    }
+
+    floodEl.innerHTML =
+        `متابعة ${watchFloodCities.length} | تنبيه ${highFloodCities.length} | إنذار ${extremeFloodCities.length}`;
+
+    const parentBox = floodEl.closest(".status-card, .map-stat, .national-box, .risk-card, div");
+
+    if (parentBox) {
+        parentBox.style.borderColor = floodBoxColor;
+        parentBox.style.boxShadow = `0 0 18px ${floodBoxColor}55`;
+    }
+}
     }
 
     if (cloudEl) cloudEl.innerText = cloudCities.length;
