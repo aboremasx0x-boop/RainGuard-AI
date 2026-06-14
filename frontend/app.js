@@ -1057,10 +1057,10 @@ function getTerrainRiskSummary(cityName) {
 function getFloodRiskLabel(score) {
     score = Number(score) || 0;
 
-    if (score >= 80) return "خطر سيول مرتفع";
-    if (score >= 60) return "خطر سيول متوسط";
-    if (score >= 30) return "قابلية تجمع مياه";
-    return "خطر منخفض";
+    if (score >= 80) return "حرج";
+    if (score >= 60) return "مرتفع";
+    if (score >= 30) return "متابعة";
+    return "منخفض";
 }
 
 function getFloodRiskIcon(score) {
