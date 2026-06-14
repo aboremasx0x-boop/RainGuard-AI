@@ -1938,7 +1938,7 @@ function updateNationalWeatherSummary(results) {
 
     if (floodEl) {
         floodEl.innerText =
-            `متابعة ${watchFloodCities.length} | مرتفع ${highFloodCities.length} | حرج ${extremeFloodCities.length}`;
+            `متابعة ${watchFloodCities.length} | تنبيه ${highFloodCities.length} | إنذار ${extremeFloodCities.length}`;
     }
 
     if (cloudEl) cloudEl.innerText = cloudCities.length;
