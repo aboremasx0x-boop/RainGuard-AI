@@ -1704,7 +1704,7 @@ function renderFloodWatchCitiesPanel(results) {
     if (!box) return;
 
     if (!results || results.length === 0) {
-        box.innerHTML = "لا توجد بيانات سيول حالياً.";
+        box.innerHTML = "لا توجد بيانات متابعة حالياً.";
         return;
     }
 
@@ -1715,14 +1715,11 @@ function renderFloodWatchCitiesPanel(results) {
             const rain24 = Number(city.forecast24Score || 0);
             const rain72 = Number(city.forecast72Score || 0);
 
-            return (
-    flood >= 30 &&
-    (
-        rainNow >= 25 ||
-        rain24 >= 25 ||
-        rain72 >= 30
-    )
-);
+            return flood >= 30 && (
+                rainNow >= 25 ||
+                rain24 >= 25 ||
+                rain72 >= 30
+            );
         })
         .sort((a, b) =>
             Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
@@ -1744,16 +1741,16 @@ function renderFloodWatchCitiesPanel(results) {
 
         let color = "#38bdf8";
         let icon = "🔵";
-        let label = "مؤشر المتابعة";
+        let level = "متابعة";
 
         if (floodScore >= 80) {
             color = "#ef4444";
             icon = "🔴";
-            label = "خطر سيول مرتفع";
+            level = "إنذار";
         } else if (floodScore >= 60) {
             color = "#f59e0b";
             icon = "🟠";
-            label = "خطر سيول متوسط";
+            level = "تنبيه";
         }
 
         return `
@@ -1765,6 +1762,7 @@ function renderFloodWatchCitiesPanel(results) {
                     border-radius:14px;
                     background:#0f172a;
                     border:1px solid ${color};
+                    box-shadow:0 0 14px ${color}44;
                     cursor:pointer;
                 "
             >
@@ -1782,102 +1780,17 @@ function renderFloodWatchCitiesPanel(results) {
                     margin-top:8px;
                     color:#cbd5e1;
                     font-size:13px;
-                    line-height:1.7;
-                ">
-                    ${label}<br>
-                    مؤشر المطر الآن: ${rainScore}%<br>
-                    توقع المطر 24 ساعة: ${forecast24}%<br>
-                    سبب الخطورة: ${city.terrainSummary || "حساسية تضاريسية / سيول"}
-                </div>
-            </div>
-        `;
-    }).join("");
-}
-function renderFloodPredictionPanel(results) {
-    const box = document.getElementById("floodPredictionBox");
-    if (!box) return;
-
-    if (!results || results.length === 0) {
-        box.innerHTML = "لا توجد بيانات سيول حالياً.";
-        return;
-    }
-
-    const ranked = [...results]
-    .filter(city =>
-        Number(city.floodRiskScore || 0) >= 30 &&
-        (
-            Number(city.score || 0) >= 25 ||
-            Number(city.forecast24Score || 0) >= 25 ||
-            Number(city.forecast72Score || 0) >= 30
-        )
-    )
-
-    box.innerHTML = ranked.map((city, index) => {
-        const floodScore = Number(city.floodRiskScore) || 0;
-        const icon = getFloodRiskIcon(floodScore);
-        const label = getFloodRiskLabel(floodScore);
-        const cityWeight = floodCityWeights[city.name] || 0;
-
-        let color = "#22c55e";
-        let action = "المتابعة الدورية كافية.";
-
-        if (floodScore >= 80) {
-            color = "#ef4444";
-            action = "تجنب الأودية والأنفاق والمناطق المنخفضة فوراً.";
-        } else if (floodScore >= 60) {
-            color = "#f59e0b";
-            action = "راقب الحالة وتجنب مجاري السيول عند هطول المطر.";
-        } else if (floodScore >= 30) {
-            color = "#38bdf8";
-            action = "احتمال تجمعات مياه محدود، تابع التحديثات.";
-        }
-
-        return `
-            <div style="
-                padding:14px;
-                margin-bottom:12px;
-                border-radius:16px;
-                background:#0f172a;
-                border:1px solid #334155;
-            ">
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:center;
-                    gap:10px;
-                ">
-                    <strong
-                        onclick="openRainCityByName('${city.name}')"
-                        style="font-size:18px; cursor:pointer;"
-                    >
-                        ${index + 1}. ${icon} ${city.name}
-                    </strong>
-
-                    <strong style="color:${color};font-size:22px;">
-                        ${floodScore}%
-                    </strong>
-                </div>
-
-                <div style="
-                    margin-top:8px;
-                    color:#cbd5e1;
-                    font-size:14px;
                     line-height:1.8;
                 ">
-                    التصنيف: ${label}<br>
-                    مؤشر المطر الآن: ${city.score}%<br>
-                    توقع 24 ساعة: ${city.forecast24Score}%<br>
-                    توقع 72 ساعة: ${city.forecast72Score}%<br>
-                    وزن حساسية المدينة: ${cityWeight}<br>
-                    عامل التضاريس ${TERRAIN_ENGINE_VERSION}: ${city.terrainRiskScore || 0}<br>
-                    سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
-                    الإجراء المقترح: ${action}
+                    المستوى: <strong style="color:${color};">${level}</strong><br>
+                    مؤشر المطر الآن: ${rainScore}%<br>
+                    توقع المطر 24 ساعة: ${forecast24}%<br>
+                    عوامل المتابعة: ${city.terrainSummary || "أودية / مناطق منخفضة / قابلية تجمع مياه"}
                 </div>
             </div>
         `;
     }).join("");
 }
-
 function updateNationalWeatherSummary(results) {
     const rainEl = document.getElementById("rainCitiesCount");
     const floodEl = document.getElementById("floodCitiesCount");
