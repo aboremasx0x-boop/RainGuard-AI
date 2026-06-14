@@ -1744,7 +1744,7 @@ function renderFloodWatchCitiesPanel(results) {
 
         let color = "#38bdf8";
         let icon = "🔵";
-        let label = "قابلية تجمع مياه";
+        let label = "مؤشر المتابعة";
 
         if (floodScore >= 80) {
             color = "#ef4444";
