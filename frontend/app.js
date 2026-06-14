@@ -1955,7 +1955,7 @@ function updateNationalWeatherSummary(results) {
         parentBox.style.boxShadow = `0 0 18px ${floodBoxColor}55`;
     }
 }
-    }
+    
 
     if (cloudEl) cloudEl.innerText = cloudCities.length;
 }
