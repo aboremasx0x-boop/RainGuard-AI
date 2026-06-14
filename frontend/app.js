@@ -1731,7 +1731,7 @@ function renderFloodWatchCitiesPanel(results) {
     if (floodCities.length === 0) {
         box.innerHTML = `
             <div style="color:#94a3b8;line-height:1.8;">
-                لا توجد مدن تحت متابعة السيول حالياً مع وجود مؤشرات مطر كافية.
+                لا توجد مدن تحت المتابعة حالياً مع وجود مؤشرات مطر كافية.
             </div>
         `;
         return;
@@ -4706,7 +4706,7 @@ function openFirstFloodCity() {
     });
 
     if (!city) {
-        showActionMessage("لا توجد مدن تحت متابعة السيول حالياً", "warning");
+        showActionMessage("لا توجد مدن تحت المتابعة حالياً", "warning");
         return;
     }
 
@@ -4861,7 +4861,7 @@ window.openFirstFloodCity = function () {
         .sort((a, b) => b.flood - a.flood);
 
     if (!cities.length) {
-        showActionMessage("لا توجد مدن تحت متابعة السيول حالياً", "warning");
+        showActionMessage("لا توجد مدن تحت المتابعة حالياً", "warning");
         return;
     }
 
