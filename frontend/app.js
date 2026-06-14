@@ -1946,11 +1946,18 @@ if (floodEl) {
     }
 
     floodEl.innerHTML = `
-    🔵 متابعة: ${watchFloodCities.length}
-    <span style="margin:0 6px;">|</span>
-    🟠 تنبيه: ${highFloodCities.length}
-    <span style="margin:0 6px;">|</span>
-    🔴 إنذار: ${extremeFloodCities.length}
+<div style="
+display:flex;
+justify-content:center;
+gap:12px;
+flex-wrap:wrap;
+font-size:14px;
+font-weight:700;
+">
+<span style="color:#3b82f6;">🔵 متابعة ${watchFloodCities.length}</span>
+<span style="color:#f59e0b;">🟠 تنبيه ${highFloodCities.length}</span>
+<span style="color:#ef4444;">🔴 إنذار ${extremeFloodCities.length}</span>
+</div>
 `;
 
     const parentBox = floodEl.closest(
