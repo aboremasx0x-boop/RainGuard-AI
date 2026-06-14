@@ -1815,26 +1815,28 @@ function updateNationalWeatherSummary(results) {
         );
     });
 
-    const watchFloodCities = results.filter(city => {
-        const flood = Number(city.floodRiskScore || 0);
-        const rainNow = Number(city.score || 0);
-        const rain24 = Number(city.forecast24Score || 0);
-        const rain72 = Number(city.forecast72Score || 0);
+    const sourceResults = window.lastMultiCityResults || results;
 
-        return flood >= 30 && (
-            rainNow >= 25 ||
-            rain24 >= 25 ||
-            rain72 >= 30
-        );
-    });
+const watchFloodCities = sourceResults.filter(city => {
+    const flood = Number(city.floodRiskScore || 0);
+    const rainNow = Number(city.score || 0);
+    const rain24 = Number(city.forecast24Score || 0);
+    const rain72 = Number(city.forecast72Score || 0);
 
-    const highFloodCities = watchFloodCities.filter(city =>
-        Number(city.floodRiskScore || 0) >= 60
+    return flood >= 30 && (
+        rainNow >= 25 ||
+        rain24 >= 25 ||
+        rain72 >= 30
     );
+});
 
-    const extremeFloodCities = watchFloodCities.filter(city =>
-        Number(city.floodRiskScore || 0) >= 80
-    );
+const highFloodCities = watchFloodCities.filter(city =>
+    Number(city.floodRiskScore || 0) >= 60
+);
+
+const extremeFloodCities = watchFloodCities.filter(city =>
+    Number(city.floodRiskScore || 0) >= 80
+);
 
     const cloudCities = results.filter(city => {
         const rainNow = Number(city.score || 0);
