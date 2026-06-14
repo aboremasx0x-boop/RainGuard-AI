@@ -1945,8 +1945,13 @@ if (floodEl) {
         floodBoxColor = "#f59e0b";
     }
 
-    floodEl.innerHTML =
-        `متابعة ${watchFloodCities.length} | تنبيه ${highFloodCities.length} | إنذار ${extremeFloodCities.length}`;
+    floodEl.innerHTML = `
+    🔵 متابعة: ${watchFloodCities.length}
+    <span style="margin:0 6px;">|</span>
+    🟠 تنبيه: ${highFloodCities.length}
+    <span style="margin:0 6px;">|</span>
+    🔴 إنذار: ${extremeFloodCities.length}
+`;
 
     const parentBox = floodEl.closest(
         ".status-card, .map-stat, .national-box, .risk-card, div"
