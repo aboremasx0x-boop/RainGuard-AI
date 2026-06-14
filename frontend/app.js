@@ -1721,9 +1721,14 @@ function renderFloodWatchCitiesPanel(results) {
                 rain72 >= 30
             );
         })
-        .sort((a, b) =>
-            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
-        );
+        .sort((a, b) => {
+    const aFlood = Number(a.floodRiskScore || 0);
+    const bFlood = Number(b.floodRiskScore || 0);
+    const aRain = Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0));
+    const bRain = Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0));
+
+    return (bFlood * 0.7 + bRain * 0.3) - (aFlood * 0.7 + aRain * 0.3);
+})
 
     if (floodCities.length === 0) {
         box.innerHTML = `
