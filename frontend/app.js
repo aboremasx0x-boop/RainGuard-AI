@@ -1425,7 +1425,7 @@ alertLevel:
     renderSmartMultiCityTopPanel(results);
     renderFloodWatchCitiesPanel(results);
     renderSmartMultiCityForecastPanel(results);
-    renderFloodPredictionPanel(results);
+   renderFloodWatchCitiesPanel(results);
     updateNationalStatus(results);
     updateNationalWeatherSummary(results);
     renderNationalTrendPanel(results);
