@@ -1885,42 +1885,43 @@ function updateNationalWeatherSummary(results) {
 
     if (!results || !results.length) {
         if (rainEl) rainEl.innerText = "0";
-        if (floodEl) floodEl.innerText = "0";
+        if (floodEl) floodEl.innerText = "متابعة 0 | مرتفع 0 | حرج 0";
         if (cloudEl) cloudEl.innerText = "0";
         return;
     }
 
     const rainCities = results.filter(city => {
-    const rainNow = Number(city.score || 0);
-    const rain24 = Number(city.forecast24Score || 0);
-    const rain72 = Number(city.forecast72Score || 0);
-
-    return (
-        rainNow >= 30 ||
-        rain24 >= 30 ||
-        rain72 >= 30
-    );
-});
-
-    const floodCities = results.filter(city => {
-        const flood = Number(city.floodRiskScore || 0);
         const rainNow = Number(city.score || 0);
         const rain24 = Number(city.forecast24Score || 0);
         const rain72 = Number(city.forecast72Score || 0);
 
-        return flood >= 60 && (
+        return (
             rainNow >= 30 ||
             rain24 >= 30 ||
             rain72 >= 30
         );
     });
 
-    const highFloodCities = floodCities.filter(city =>
-    Number(city.floodRiskScore || 0) >= 55
-);
-    const extremeFloodCities = floodCities.filter(
-    city => Number(city.floodRiskScore || 0) >= 70
-);
+    const watchFloodCities = results.filter(city => {
+        const flood = Number(city.floodRiskScore || 0);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
+
+        return flood >= 30 && (
+            rainNow >= 25 ||
+            rain24 >= 25 ||
+            rain72 >= 30
+        );
+    });
+
+    const highFloodCities = watchFloodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 60
+    );
+
+    const extremeFloodCities = watchFloodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 80
+    );
 
     const cloudCities = results.filter(city => {
         const rainNow = Number(city.score || 0);
@@ -1934,32 +1935,12 @@ function updateNationalWeatherSummary(results) {
     });
 
     if (rainEl) rainEl.innerText = rainCities.length;
+
     if (floodEl) {
-    const watchFloodCities = results.filter(city => {
-    const flood = Number(city.floodRiskScore || 0);
-    const rainNow = Number(city.score || 0);
-    const rain24 = Number(city.forecast24Score || 0);
-    const rain72 = Number(city.forecast72Score || 0);
+        floodEl.innerText =
+            `متابعة ${watchFloodCities.length} | مرتفع ${highFloodCities.length} | حرج ${extremeFloodCities.length}`;
+    }
 
-    return flood >= 30 && (
-        rainNow >= 25 ||
-        rain24 >= 25 ||
-        rain72 >= 30
-    );
-});
-
-const highFloodCities = watchFloodCities.filter(city =>
-    Number(city.floodRiskScore || 0) >= 60
-);
-
-const extremeFloodCities = watchFloodCities.filter(city =>
-    Number(city.floodRiskScore || 0) >= 80
-);
-
-if (floodEl) {
-    floodEl.innerText =
-        `متابعة ${watchFloodCities.length} | مرتفع ${highFloodCities.length} | حرج ${extremeFloodCities.length}`;
-}
     if (cloudEl) cloudEl.innerText = cloudCities.length;
 }
 
