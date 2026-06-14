@@ -1936,7 +1936,7 @@ function updateNationalWeatherSummary(results) {
 
     if (rainEl) rainEl.innerText = rainCities.length;
 
-    if (floodEl) {
+if (floodEl) {
     let floodBoxColor = "#3b82f6";
 
     if (extremeFloodCities.length > 0) {
@@ -1948,16 +1948,17 @@ function updateNationalWeatherSummary(results) {
     floodEl.innerHTML =
         `متابعة ${watchFloodCities.length} | تنبيه ${highFloodCities.length} | إنذار ${extremeFloodCities.length}`;
 
-    const parentBox = floodEl.closest(".status-card, .map-stat, .national-box, .risk-card, div");
+    const parentBox = floodEl.closest(
+        ".status-card, .map-stat, .national-box, .risk-card, div"
+    );
 
     if (parentBox) {
         parentBox.style.borderColor = floodBoxColor;
         parentBox.style.boxShadow = `0 0 18px ${floodBoxColor}55`;
     }
 }
-    
 
-    if (cloudEl) cloudEl.innerText = cloudCities.length;
+if (cloudEl) cloudEl.innerText = cloudCities.length;
 }
 
 function updateNationalStatus(results) {
