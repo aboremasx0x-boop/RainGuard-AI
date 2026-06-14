@@ -1960,95 +1960,68 @@ function updateNationalStatus(results) {
         const rain24 = Number(city.forecast24Score || 0);
         const rain72 = Number(city.forecast72Score || 0);
 
-        return (
-            rainNow >= 40 ||
-            rain24 >= 40 ||
-            rain72 >= 40
-        );
+        return rainNow >= 30 || rain24 >= 30 || rain72 >= 30;
     });
 
-    const floodCities = results.filter(city => {
+    const watchFloodCities = results.filter(city => {
         const flood = Number(city.floodRiskScore || 0);
         const rainNow = Number(city.score || 0);
         const rain24 = Number(city.forecast24Score || 0);
         const rain72 = Number(city.forecast72Score || 0);
 
-        return flood >= 55 && (
-            rainNow >= 30 ||
-            rain24 >= 30 ||
+        return flood >= 30 && (
+            rainNow >= 25 ||
+            rain24 >= 25 ||
             rain72 >= 30
         );
     });
 
+    const highFloodCities = watchFloodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 60
+    );
+
+    const extremeFloodCities = watchFloodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 80
+    );
+
     updateNationalWeatherSummary(results);
 
-    if (rainCities.length === 0 && floodCities.length === 0) {
-        box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
-        box.style.borderColor = "#22c55e";
-        return;
-    }
-
-    const maxFlood = Math.max(
-        ...results
-            .filter(city =>
-                Number(city.score || 0) >= 30 ||
-                Number(city.forecast24Score || 0) >= 30 ||
-                Number(city.forecast72Score || 0) >= 30
-            )
-            .map(city => Number(city.floodRiskScore || 0)),
-        0
-    );
-
-    const maxRain = Math.max(
-        ...results.map(city =>
-            Math.max(
-                Number(city.score || 0),
-                Number(city.forecast24Score || 0),
-                Number(city.forecast72Score || 0)
-            )
-        ),
-        0
-// ===== RainGuard AI frontend/app.js fixed - PART 3 =====
-// انسخ الأجزاء بالترتيب داخل frontend/app.js
-
-    );
-
-    if (maxFlood >= 80) {
+    if (extremeFloodCities.length > 0) {
         box.innerHTML = `
-            🚨 الحالة الوطنية: خطر مرتفع
+            🔴 الحالة الوطنية: إنذار
             <div style="font-size:13px;color:#fecaca;margin-top:6px;">
-                توجد مؤشرات سيول شديدة في بعض المدن.
+                توجد مدن وصلت إلى مستوى إنذار وتحتاج متابعة عاجلة.
             </div>
         `;
         box.style.borderColor = "#ef4444";
         return;
     }
 
-    if (maxFlood >= 70) {
+    if (highFloodCities.length > 0) {
         box.innerHTML = `
-            🔴 الحالة الوطنية: تحذير سيول
-            <div style="font-size:13px;color:#fecaca;margin-top:6px;">
-                توجد مدينة أو أكثر بمؤشر سيول مرتفع يحتاج متابعة عاجلة.
-            </div>
-        `;
-        box.style.borderColor = "#ef4444";
-        return;
-    }
-
-    if (maxFlood >= 55) {
-        box.innerHTML = `
-            🟠 الحالة الوطنية: مراقبة سيول
+            🟠 الحالة الوطنية: تنبيه
             <div style="font-size:13px;color:#fde68a;margin-top:6px;">
-                توجد مدن تستحق المتابعة بسبب أمطار متوقعة ومؤشرات سيول.
+                توجد مدن بمؤشرات مرتفعة تحتاج متابعة دقيقة.
             </div>
         `;
         box.style.borderColor = "#f59e0b";
         return;
     }
 
-    if (maxRain >= 30) {
+    if (watchFloodCities.length > 0) {
         box.innerHTML = `
-            🔵 الحالة الوطنية: مراقبة أمطار
+            🔵 الحالة الوطنية: متابعة
+            <div style="font-size:13px;color:#bfdbfe;margin-top:6px;">
+                توجد مدن تحت المتابعة بسبب مؤشرات مطر وتجمع مياه.
+            </div>
+        `;
+        box.style.borderColor = "#3b82f6";
+        return;
+    }
+
+    if (rainCities.length > 0) {
+        box.innerHTML = `
+            🔵 الحالة الوطنية: أمطار
             <div style="font-size:13px;color:#bfdbfe;margin-top:6px;">
                 توجد مدن عليها مؤشرات مطر تحتاج متابعة.
             </div>
