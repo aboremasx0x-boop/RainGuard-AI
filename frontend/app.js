@@ -2315,20 +2315,11 @@ function updateFloodRiskMap(results) {
     </button>
 `);
 
-    circle.closePopup();
+if (floodMapEnabled) {
+    circle.addTo(map);
+}
 
-    setTimeout(function () {
-        if (typeof openCityForecastPopup === "function") {
-            openCityForecastPopup(city.name);
-        }
-    }, 100);
-});
-
-        if (floodMapEnabled) {
-            circle.addTo(map);
-        }
-
-        floodMapLayer.push(circle);
+floodMapLayer.push(circle);
     });
 }
 
