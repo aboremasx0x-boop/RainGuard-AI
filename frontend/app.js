@@ -2250,11 +2250,11 @@ function getFloodMapColor(score) {
 function getFloodMapRadius(score) {
     score = Number(score) || 0;
 
-    if (score >= 80) return 18000;
-    if (score >= 60) return 14000;
-    if (score >= 30) return 9000;
+    if (score >= 80) return 11000;
+    if (score >= 60) return 8500;
+    if (score >= 30) return 6000;
 
-    return 5000;
+    return 3500;
 }
 
 function clearFloodMapLayer() {
@@ -2269,57 +2269,86 @@ function clearFloodMapLayer() {
     floodMapLayer = [];
 }
 
+function safeCityName(name) {
+    return String(name || "").replace(/'/g, "\\'");
+}
+
+window.openPopupCityDetails = function (cityName) {
+    const city = (window.lastMultiCityResults || []).find(c => c.name === cityName);
+
+    if (!city) {
+        showActionMessage("لا توجد بيانات تفصيلية لهذه المدينة حالياً", "warning");
+        return;
+    }
+
+    openCityForecastPopup(city.name);
+};
+
 function updateFloodRiskMap(results) {
     if (!map) return;
     if (!results || results.length === 0) return;
 
     clearFloodMapLayer();
 
-    results.forEach(city => {
-        const floodScore = Number(city.floodRiskScore) || 0;
+    const unique = [];
+    const used = new Set();
 
+    results.forEach(city => {
+        const key = city.name;
+        if (!used.has(key)) {
+            used.add(key);
+            unique.push(city);
+        }
+    });
+
+    unique.forEach(city => {
+        const floodScore = Number(city.floodRiskScore) || 0;
         if (floodScore < 30) return;
 
         const color = getFloodMapColor(floodScore);
         const radius = getFloodMapRadius(floodScore);
         const label = getFloodRiskLabel(floodScore);
+        const safeName = safeCityName(city.name);
 
-        const circle = L.circle(
-            [city.lat, city.lon],
-            {
-                color,
-                fillColor: color,
-                fillOpacity: 0.28,
-                radius
-            }
-        );
+        const circle = L.circle([city.lat, city.lon], {
+            color,
+            fillColor: color,
+            fillOpacity: 0.18,
+            opacity: 0.85,
+            radius
+        });
 
         circle.bindPopup(`
-    <b>${city.name}</b><br>
-    ${label}<br>
-    المطر الآن: ${city.score}%<br>
-    24 ساعة: ${city.forecast24Score}%<br>
-    72 ساعة: ${city.forecast72Score}%<br>
-    السيول: ${floodScore}%<br><br>
+            <b>${city.name}</b><br>
+            ${label}<br>
+            المطر الآن: ${city.score}%<br>
+            24 ساعة: ${city.forecast24Score}%<br>
+            72 ساعة: ${city.forecast72Score}%<br>
+            السيول: ${floodScore}%<br><br>
 
-    <button class="rg-popup-details-btn" data-city="${city.name}" style="
-    padding:7px 12px;
-    border-radius:8px;
-    border:1px solid #38bdf8;
-    background:#082f49;
-    color:white;
-    cursor:pointer;
-    font-weight:bold;
-">
-    عرض التفاصيل
-</button>
-`);
-        
-if (floodMapEnabled) {
-    circle.addTo(map);
-}
+            <button onclick="window.openPopupCityDetails('${safeName}')" style="
+                padding:8px 14px;
+                border-radius:8px;
+                border:1px solid #38bdf8;
+                background:#082f49;
+                color:white;
+                cursor:pointer;
+                font-weight:bold;
+                pointer-events:auto;
+            ">
+                عرض التفاصيل
+            </button>
+        `);
 
-floodMapLayer.push(circle);
+        circle.on("dblclick", function () {
+            openCityForecastPopup(city.name);
+        });
+
+        if (floodMapEnabled) {
+            circle.addTo(map);
+        }
+
+        floodMapLayer.push(circle);
     });
 }
 document.addEventListener("click", function (e) {
@@ -3422,7 +3451,7 @@ function initMap(lat = 21.4858, lon = 39.1925) {
     if (!map) {
         map = L.map("map", {
             minZoom: 4,
-            maxZoom: 10
+            maxZoom: 13
         }).setView([lat, lon], 6);
 
         window.map = map;
