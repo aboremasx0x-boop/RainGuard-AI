@@ -2275,6 +2275,7 @@ function safeCityName(name) {
 
 window.openPopupCityDetails = function (cityName) {
     const city = (window.lastMultiCityResults || []).find(c => c.name === cityName);
+    console.log("CITY DETAILS FOUND:", city);
 
     if (!city) {
         showActionMessage("لا توجد بيانات تفصيلية لهذه المدينة حالياً", "warning");
