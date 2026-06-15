@@ -2284,8 +2284,21 @@ window.openPopupCityDetails = function (cityName) {
     openCityForecastPopup(city.name);
 };
 
+function rgNormalizeCityName(name) {
+    return String(name || "")
+        .trim()
+        .replace(/\s+/g, "")
+        .replace(/[أإآ]/g, "ا")
+        .replace(/ة/g, "ه");
+}
+
 function rgGetCityByName(cityName) {
-    return (window.lastMultiCityResults || []).find(c => c.name === cityName);
+    const target = rgNormalizeCityName(cityName);
+
+    return (window.lastMultiCityResults || []).find(c => {
+        const current = rgNormalizeCityName(c.name);
+        return current === target || current.includes(target) || target.includes(current);
+    });
 }
 
 window.rgOpenCityDetails = function (cityName) {
@@ -2296,7 +2309,7 @@ window.rgOpenCityDetails = function (cityName) {
         return;
     }
 
-    openCityForecastPopup(city.name);
+    window.openCityForecastPopup(city.name);
 };
 
 function updateFloodRiskMap(results) {
