@@ -2302,7 +2302,7 @@ function updateFloodRiskMap(results) {
     72 ساعة: ${city.forecast72Score}%<br>
     السيول: ${floodScore}%<br><br>
 
-    <button onclick="window.openCityForecastPopup('${city.name}')" style="
+    <button class="rg-popup-details-btn" data-city="${city.name}" style="
     padding:7px 12px;
     border-radius:8px;
     border:1px solid #38bdf8;
@@ -2322,6 +2322,17 @@ if (floodMapEnabled) {
 floodMapLayer.push(circle);
     });
 }
+document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".rg-popup-details-btn");
+    if (!btn) return;
+
+    const cityName = btn.dataset.city;
+    if (!cityName) return;
+
+    if (typeof window.openCityForecastPopup === "function") {
+        window.openCityForecastPopup(cityName);
+    }
+});
 
 function clearCloudRainMapLayer() {
     if (!map || !cloudRainMapLayer) return;
