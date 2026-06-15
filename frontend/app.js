@@ -2302,16 +2302,45 @@ function rgGetCityByName(cityName) {
 }
 
 window.rgOpenCityDetails = function (cityName) {
-    const city = rgGetCityByName(cityName);
+    const city = (window.lastMultiCityResults || []).find(c => c.name === cityName);
 
     if (!city) {
         showActionMessage("لا توجد بيانات تفصيلية لهذه المدينة حالياً", "warning");
         return;
     }
 
-    window.openCityForecastPopup(city.name);
-};
+    closeCityForecastPopup();
 
+    const modal = document.createElement("div");
+    modal.id = "cityForecastModal";
+    modal.className = "rg-modal";
+
+    modal.innerHTML = `
+        <div class="rg-modal-content">
+            <button class="rg-modal-close" onclick="closeCityForecastPopup()">×</button>
+
+            <h2>تفاصيل ${city.name}</h2>
+
+            <div class="rg-modal-score">
+                مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.floodRiskScore ?? city.score ?? 0}%
+            </div>
+
+            <div class="rg-modal-grid">
+                <div>المطر الآن: <strong>${city.score ?? "--"}%</strong></div>
+                <div>24 ساعة: <strong>${city.forecast24Score ?? "--"}%</strong></div>
+                <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
+                <div>السيول: <strong>${city.floodRiskScore ?? "--"}%</strong></div>
+                <div>التضاريس: <strong>${city.terrainRiskScore ?? "--"}%</strong></div>
+            </div>
+
+            <div style="margin-top:14px;line-height:1.8;color:#cbd5e1;">
+                سبب الخطورة: ${city.terrainSummary || "غير محدد"}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+};
 function updateFloodRiskMap(results) {
     if (!map || !results || results.length === 0) return;
 
