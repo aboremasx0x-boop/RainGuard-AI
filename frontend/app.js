@@ -2295,19 +2295,25 @@ function updateFloodRiskMap(results) {
         );
 
         circle.bindPopup(`
-            <b>${city.name}</b><br>
-            مؤشر السيول: ${floodScore}%<br>
-            التصنيف: ${label}<br>
-            عامل التضاريس ${TERRAIN_ENGINE_VERSION}: ${city.terrainRiskScore || 0}<br>
-            سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
-            المطر الآن: ${city.score}%<br>
-            24 ساعة: ${city.forecast24Score}%<br>
-            72 ساعة: ${city.forecast72Score}%
-        `);
-        circle.on("click", function (e) {
-    if (e && e.originalEvent) {
-        L.DomEvent.stopPropagation(e.originalEvent);
-    }
+    <b>${city.name}</b><br>
+    ${label}<br>
+    المطر الآن: ${city.score}%<br>
+    24 ساعة: ${city.forecast24Score}%<br>
+    72 ساعة: ${city.forecast72Score}%<br>
+    السيول: ${floodScore}%<br><br>
+
+    <button onclick="openCityForecastPopup('${city.name}')" style="
+        padding:7px 12px;
+        border-radius:8px;
+        border:1px solid #38bdf8;
+        background:#082f49;
+        color:white;
+        cursor:pointer;
+        font-weight:bold;
+    ">
+        عرض التفاصيل
+    </button>
+`);
 
     circle.closePopup();
 
