@@ -2304,10 +2304,18 @@ function updateFloodRiskMap(results) {
             24 ساعة: ${city.forecast24Score}%<br>
             72 ساعة: ${city.forecast72Score}%
         `);
-        circle.on("click", function () {
-    if (typeof openCityForecastPopup === "function") {
-        openCityForecastPopup(city.name);
+        circle.on("click", function (e) {
+    if (e && e.originalEvent) {
+        L.DomEvent.stopPropagation(e.originalEvent);
     }
+
+    circle.closePopup();
+
+    setTimeout(function () {
+        if (typeof openCityForecastPopup === "function") {
+            openCityForecastPopup(city.name);
+        }
+    }, 100);
 });
 
         if (floodMapEnabled) {
