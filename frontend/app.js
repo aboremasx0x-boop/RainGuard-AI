@@ -2870,16 +2870,35 @@ function focusCloudCityOnMap(cityName) {
 
     closeCloudCities();
 
-    map.setView([city.lat, city.lon], 9);
+    const lat = Number(city.lat);
+    const lon = Number(city.lon);
+    const flood = Number(city.floodRiskScore || 0);
+
+    let level = "متابعة";
+    let levelColor = "#38bdf8";
+
+    if (flood >= 80) {
+        level = "إنذار";
+        levelColor = "#ef4444";
+    } else if (flood >= 60) {
+        level = "تنبيه";
+        levelColor = "#f59e0b";
+    }
+
+    const reason = city.terrainSummary || "أودية + مناطق منخفضة + قابلية تجمع مياه";
+
+    map.setView([lat, lon], 9);
 
     L.popup()
-        .setLatLng([city.lat, city.lon])
+        .setLatLng([lat, lon])
         .setContent(`
             <b>${city.name}</b><br>
+            <span style="color:${levelColor};font-weight:bold;">المستوى: ${level}</span><br>
+            مؤشر تجمع المياه: ${flood}%<br>
             المطر الآن: ${city.score || 0}%<br>
             24 ساعة: ${city.forecast24Score || 0}%<br>
             72 ساعة: ${city.forecast72Score || 0}%<br>
-            السيول: ${city.floodRiskScore || 0}%
+            سبب الخطورة: ${reason}
         `)
         .openOn(map);
 
