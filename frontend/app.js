@@ -2303,12 +2303,9 @@ function rgGetCityByName(cityName) {
 }
 
 window.rgOpenCityDetails = function (cityName) {
-    const city = (window.lastMultiCityResults || []).find(c => c.name === cityName);
-
-    if (!city) {
-        showActionMessage("لا توجد بيانات تفصيلية لهذه المدينة حالياً", "warning");
-        return;
-    }
+    const city =
+        (window.lastMultiCityResults || []).find(c => String(c.name).trim() === String(cityName).trim()) ||
+        { name: cityName };
 
     closeCityForecastPopup();
 
@@ -2323,7 +2320,7 @@ window.rgOpenCityDetails = function (cityName) {
             <h2>تفاصيل ${city.name}</h2>
 
             <div class="rg-modal-score">
-                مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.floodRiskScore ?? city.score ?? 0}%
+                مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.floodRiskScore ?? city.score ?? "--"}%
             </div>
 
             <div class="rg-modal-grid">
