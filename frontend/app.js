@@ -4904,16 +4904,6 @@ window.openFirstRainCity = function () {
     openCityDetailsDirect(city);
 };
 
-window.openFirstFloodCity = function () {
-    const results = window.lastMultiCityResults || [];
-
-    const city = results
-        .filter(c => Number(c.floodRiskScore || 0) >= 30)
-        .sort((a, b) => Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0))[0];
-
-    openCityDetailsDirect(city);
-};
-
 window.openRainCityByName = function (cityName) {
     const city = (window.lastMultiCityResults || [])
         .find(c => c.name === cityName);
@@ -4923,35 +4913,25 @@ window.openRainCityByName = function (cityName) {
         return;
     }
 
+    const lat = Number(city.lat);
+    const lon = Number(city.lon);
+
+    if (window.map && lat && lon) {
+        window.map.setView([lat, lon], 9);
+
+        L.popup()
+            .setLatLng([lat, lon])
+            .setContent(`
+                <b>${city.name}</b><br>
+                مؤشر تجمع المياه: ${city.floodRiskScore || 0}%<br>
+                المطر الآن: ${city.score || 0}%<br>
+                24 ساعة: ${city.forecast24Score || 0}%
+            `)
+            .openOn(window.map);
+    }
+
     openCityDetailsDirect(city);
 };
-
-setTimeout(() => {
-    const rainCard = document.querySelector(".summary-card.rain");
-    const floodCard = document.querySelector(".summary-card.flood");
-    const cloudCard = document.querySelector(".summary-card.cloud");
-
-    if (rainCard) {
-        rainCard.onclick = function () {
-            openFirstRainCity();
-        };
-        rainCard.style.cursor = "pointer";
-    }
-
-    if (floodCard) {
-        floodCard.onclick = function () {
-            openFirstFloodCity();
-        };
-        floodCard.style.cursor = "pointer";
-    }
-
-    if (cloudCard) {
-        cloudCard.onclick = function () {
-            showCloudCities();
-        };
-        cloudCard.style.cursor = "pointer";
-    }
-}, 2000);
 
  function renderRainArrivalCitiesPanel(results) {
     const box = document.getElementById("rainArrivalCitiesBox");
