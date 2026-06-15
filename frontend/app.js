@@ -2363,19 +2363,22 @@ detailsBtn.addEventListener("click", function (e) {
 popupDiv.appendChild(detailsBtn);
 
 circle.bindPopup(popupDiv);
-document.addEventListener("click", function (e) {
-    const btn = e.target.closest(".rg-popup-details-btn");
-    if (!btn) return;
+popupDiv.appendChild(detailsBtn);
 
-    e.preventDefault();
-    e.stopPropagation();
+circle.bindPopup(popupDiv);
 
-    const cityName = btn.dataset.city;
-    if (!cityName) return;
+circle.on("dblclick", function () {
+    window.rgOpenCityDetails(city.name);
+});
 
-    window.openPopupCityDetails(cityName);
-}, true);
+if (floodMapEnabled) {
+    circle.addTo(map);
+}
 
+floodMapLayer.push(circle);
+
+    });
+}
 function clearCloudRainMapLayer() {
     if (!map || !cloudRainMapLayer) return;
 
@@ -2453,6 +2456,23 @@ detailsBtn.addEventListener("click", function (e) {
 popupDiv.appendChild(detailsBtn);
 
 rainCircle.bindPopup(popupDiv);
+        popupDiv.appendChild(detailsBtn);
+
+rainCircle.bindPopup(popupDiv);
+
+rainCircle.on("dblclick", function () {
+    window.rgOpenCityDetails(city.name);
+});
+
+if (cloudRainMapEnabled) {
+    rainCircle.addTo(map);
+}
+
+cloudRainMapLayer.push(rainCircle);
+
+    }); // نهاية results.forEach
+
+} // نهاية updateCloudRainMapLayer
 
 function toggleFloodRiskMap() {
     floodMapEnabled = !floodMapEnabled;
