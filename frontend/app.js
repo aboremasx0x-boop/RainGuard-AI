@@ -2343,6 +2343,7 @@ popupDiv.innerHTML = `
 `;
 
 const detailsBtn = document.createElement("button");
+detailsBtn.type = "button";
 detailsBtn.innerText = "عرض التفاصيل";
 detailsBtn.style.cssText = `
     padding:8px 14px;
@@ -2352,20 +2353,29 @@ detailsBtn.style.cssText = `
     color:white;
     cursor:pointer;
     font-weight:bold;
+    pointer-events:auto;
 `;
 
-detailsBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
+function openDetailsFromPopup(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+
     window.rgOpenCityDetails(city.name);
-});
+}
+
+detailsBtn.onclick = openDetailsFromPopup;
+detailsBtn.onmousedown = openDetailsFromPopup;
+detailsBtn.ontouchstart = openDetailsFromPopup;
 
 popupDiv.appendChild(detailsBtn);
 
-circle.bindPopup(popupDiv);
-popupDiv.appendChild(detailsBtn);
+L.DomEvent.disableClickPropagation(popupDiv);
+L.DomEvent.disableScrollPropagation(popupDiv);
 
-circle.bindPopup(popupDiv);
+rainCircle.bindPopup(popupDiv);
 
 circle.on("dblclick", function () {
     window.rgOpenCityDetails(city.name);
