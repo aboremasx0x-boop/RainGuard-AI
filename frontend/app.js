@@ -1796,6 +1796,22 @@ function renderFloodWatchCitiesPanel(results) {
         `;
     }).join("");
 }
+function openRainCityByName(cityName) {
+    const city = window.lastMultiCityResults?.find(
+        c => c.name === cityName
+    );
+
+    if (!city) return;
+
+    if (window.map) {
+        map.setView(
+            [city.lat, city.lon],
+            9
+        );
+    }
+
+    openCityForecastPopup(city);
+}
 function updateNationalWeatherSummary(results) {
     const rainEl = document.getElementById("rainCitiesCount");
     const floodEl = document.getElementById("floodCitiesCount");
