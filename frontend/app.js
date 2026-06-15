@@ -2586,7 +2586,7 @@ function openCityForecastPopup(cityName) {
 
                 <div class="rg-modal-score">
                     ${APP_VERSION}
-                    مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score}%
+                   مؤشر تجمع المياه: ${city.floodRiskScore ?? city.actualRiskScore ?? city.score}%
                 </div>
 
                 <button id="refreshCityBtn" onclick="refreshCityForecastPopup('${city.name}')" style="
