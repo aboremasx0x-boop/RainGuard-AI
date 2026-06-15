@@ -3733,6 +3733,11 @@ async function updateRainHeatmap() {
                 مؤشر المطر: ${score}%<br>
                 التصنيف: ${getRainPanelStyle(score).label}
             `);
+            circle.on("click", function () {
+    if (typeof openCityForecastPopup === "function") {
+        openCityForecastPopup(city.name);
+    }
+});
 
             heatmapLayer.push(circle);
 
