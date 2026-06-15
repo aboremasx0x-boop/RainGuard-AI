@@ -2359,13 +2359,14 @@ document.addEventListener("click", function (e) {
     const btn = e.target.closest(".rg-popup-details-btn");
     if (!btn) return;
 
+    e.preventDefault();
+    e.stopPropagation();
+
     const cityName = btn.dataset.city;
     if (!cityName) return;
 
-    if (typeof window.openCityForecastPopup === "function") {
-        window.openCityForecastPopup(cityName);
-    }
-});
+    window.openPopupCityDetails(cityName);
+}, true);
 
 function clearCloudRainMapLayer() {
     if (!map || !cloudRainMapLayer) return;
@@ -3517,7 +3518,7 @@ async function loadRainRadar() {
 
         rainLayer = L.tileLayer(radarUrl, {
             minZoom: 4,
-            maxZoom: 8,
+            maxZoom: 13,
             opacity: 0.65,
             zIndex: 500,
             attribution: "RainViewer"
@@ -3527,9 +3528,7 @@ async function loadRainRadar() {
             rainLayer.addTo(map);
         }
 
-        if (map.getZoom() > 8) {
-            map.setZoom(8);
-        }
+
 
     } catch (error) {
         console.error("loadRainRadar error:", error);
