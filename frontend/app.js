@@ -2326,18 +2326,22 @@ function updateFloodRiskMap(results) {
             72 ساعة: ${city.forecast72Score}%<br>
             السيول: ${floodScore}%<br><br>
 
-            <button onclick="window.openPopupCityDetails('${safeName}')" style="
-                padding:8px 14px;
-                border-radius:8px;
-                border:1px solid #38bdf8;
-                background:#082f49;
-                color:white;
-                cursor:pointer;
-                font-weight:bold;
-                pointer-events:auto;
-            ">
-                عرض التفاصيل
-            </button>
+            <a href="javascript:void(0)"
+   class="rg-popup-details-btn"
+   data-city="${safeName}"
+   style="
+        display:inline-block;
+        padding:8px 14px;
+        border-radius:8px;
+        border:1px solid #38bdf8;
+        background:#082f49;
+        color:white;
+        cursor:pointer;
+        font-weight:bold;
+        text-decoration:none;
+   ">
+    عرض التفاصيل
+</a>
         `);
 
         circle.on("dblclick", function () {
