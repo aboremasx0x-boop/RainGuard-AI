@@ -1699,6 +1699,21 @@ function renderSmartMultiCityTopPanel(results) {
     }).join("");
 }
 
+const uniqueCities = [];
+const used = new Set();
+
+floodCities.forEach(city => {
+    const key =
+        Math.round(Number(city.lat) * 10) +
+        "_" +
+        Math.round(Number(city.lon) * 10);
+
+    if (!used.has(key)) {
+        used.add(key);
+        uniqueCities.push(city);
+    }
+});
+
 function renderFloodWatchCitiesPanel(results) {
     const box = document.getElementById("floodWatchCitiesBox");
     if (!box) return;
@@ -1739,7 +1754,7 @@ function renderFloodWatchCitiesPanel(results) {
         return;
     }
 
-    box.innerHTML = floodCities.slice(0, 8).map(city => {
+    box.innerHTML = uniqueCities.slice(0, 8).map(city => {
         const floodScore = Number(city.floodRiskScore || 0);
         const rainScore = Number(city.score || 0);
         const forecast24 = Number(city.forecast24Score || 0);
