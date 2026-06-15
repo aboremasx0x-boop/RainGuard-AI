@@ -2331,36 +2331,38 @@ function updateFloodRiskMap(results) {
             radius
         });
 
-        circle.bindPopup(`
-            <b>${city.name}</b><br>
-            التصنيف: ${label}<br>
-            المطر الآن: ${city.score}%<br>
-            24 ساعة: ${city.forecast24Score}%<br>
-            72 ساعة: ${city.forecast72Score}%<br>
-            السيول: ${floodScore}%<br><br>
+        const popupDiv = document.createElement("div");
 
-            <button onclick="window.rgOpenCityDetails('${city.name}')" style="
-                padding:8px 14px;
-                border-radius:8px;
-                border:1px solid #38bdf8;
-                background:#082f49;
-                color:white;
-                cursor:pointer;
-                font-weight:bold;
-            ">
-                عرض التفاصيل
-            </button>
-        `);
+popupDiv.innerHTML = `
+    <b>${city.name}</b><br>
+    التصنيف: ${label}<br>
+    المطر الآن: ${city.score}%<br>
+    24 ساعة: ${city.forecast24Score}%<br>
+    72 ساعة: ${city.forecast72Score}%<br>
+    السيول: ${floodScore}%<br><br>
+`;
 
-        circle.on("dblclick", function () {
-            window.rgOpenCityDetails(city.name);
-        });
+const detailsBtn = document.createElement("button");
+detailsBtn.innerText = "عرض التفاصيل";
+detailsBtn.style.cssText = `
+    padding:8px 14px;
+    border-radius:8px;
+    border:1px solid #38bdf8;
+    background:#082f49;
+    color:white;
+    cursor:pointer;
+    font-weight:bold;
+`;
 
-        if (floodMapEnabled) circle.addTo(map);
+detailsBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    window.rgOpenCityDetails(city.name);
+});
 
-        floodMapLayer.push(circle);
-    });
-}
+popupDiv.appendChild(detailsBtn);
+
+circle.bindPopup(popupDiv);
 document.addEventListener("click", function (e) {
     const btn = e.target.closest(".rg-popup-details-btn");
     if (!btn) return;
@@ -2419,36 +2421,38 @@ function updateCloudRainMapLayer(results) {
             radius: 3000 + cloudScore * 55
         });
 
-        rainCircle.bindPopup(`
-            <b>${city.name}</b><br>
-            ${label}<br>
-            المطر الآن: ${rainScore}%<br>
-            خلال 24 ساعة: ${forecast24}%<br>
-            السحب/المؤشر العام: ${cloudScore}%<br>
-            السيول: ${city.floodRiskScore ?? "--"}%<br><br>
+        const popupDiv = document.createElement("div");
 
-            <button onclick="window.rgOpenCityDetails('${city.name}')" style="
-                padding:8px 14px;
-                border-radius:8px;
-                border:1px solid #38bdf8;
-                background:#082f49;
-                color:white;
-                cursor:pointer;
-                font-weight:bold;
-            ">
-                عرض التفاصيل
-            </button>
-        `);
+popupDiv.innerHTML = `
+    <b>${city.name}</b><br>
+    ${label}<br>
+    المطر الآن: ${rainScore}%<br>
+    خلال 24 ساعة: ${forecast24}%<br>
+    السحب/المؤشر العام: ${cloudScore}%<br>
+    السيول: ${city.floodRiskScore ?? "--"}%<br><br>
+`;
 
-        rainCircle.on("dblclick", function () {
-            window.rgOpenCityDetails(city.name);
-        });
+const detailsBtn = document.createElement("button");
+detailsBtn.innerText = "عرض التفاصيل";
+detailsBtn.style.cssText = `
+    padding:8px 14px;
+    border-radius:8px;
+    border:1px solid #38bdf8;
+    background:#082f49;
+    color:white;
+    cursor:pointer;
+    font-weight:bold;
+`;
 
-        if (cloudRainMapEnabled) rainCircle.addTo(map);
+detailsBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    window.rgOpenCityDetails(city.name);
+});
 
-        cloudRainMapLayer.push(rainCircle);
-    });
-}
+popupDiv.appendChild(detailsBtn);
+
+rainCircle.bindPopup(popupDiv);
 
 function toggleFloodRiskMap() {
     floodMapEnabled = !floodMapEnabled;
