@@ -2375,7 +2375,7 @@ popupDiv.appendChild(detailsBtn);
 L.DomEvent.disableClickPropagation(popupDiv);
 L.DomEvent.disableScrollPropagation(popupDiv);
 
-rainCircle.bindPopup(popupDiv);
+Circle.bindPopup(popupDiv);
 
 circle.on("dblclick", function () {
     window.rgOpenCityDetails(city.name);
