@@ -2008,13 +2008,6 @@ function updateNationalWeatherSummary(results) {
     }
 
     if (cloudEl) cloudEl.innerText = cloudCities.length;
-    const topRainCity =
-    [...results]
-    .sort((a,b)=>
-        (b.actualRiskScore || b.score || 0) -
-        (a.actualRiskScore || a.score || 0)
-    )[0];
-
 const topRainCity =
     [...results]
         .sort((a, b) =>
