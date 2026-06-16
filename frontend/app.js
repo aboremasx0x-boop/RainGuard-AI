@@ -1,6 +1,3 @@
-// ===== RainGuard AI frontend/app.js fixed - PART 1 =====
-// انسخ الأجزاء بالترتيب داخل frontend/app.js
-
 const API_BASE_URL = "https://rainguard-ai.onrender.com";
 
 const APP_VERSION = "RainGuard AI V12 Stable";
@@ -1001,9 +998,6 @@ function estimateCloudMovement(cityName, currentScore, forecast24Score) {
             etaMinutes: null,
             confidence: 30
         };
-// ===== RainGuard AI frontend/app.js fixed - PART 2 =====
-// انسخ الأجزاء بالترتيب داخل frontend/app.js
-
     }
 
     const delta =
@@ -3174,8 +3168,6 @@ function applyAlertCardColor(score) {
     let alertBoxClass = "alert-green";
 
     if (score >= 80) {
-// ===== RainGuard AI frontend/app.js fixed - PART 4 =====
-// انسخ الأجزاء بالترتيب داخل frontend/app.js
 
         alertBoxClass = "alert-red";
     } else if (score >= 60) {
@@ -4200,9 +4192,6 @@ function recheckHistoryItem(index) {
     } else {
         detectRain();
     }
-
-// ===== RainGuard AI frontend/app.js fixed - PART 5 =====
-// انسخ الأجزاء بالترتيب داخل frontend/app.js
 
     window.scrollTo({
         top: 0,
