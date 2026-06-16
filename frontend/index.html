@@ -7,7 +7,7 @@
 
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-   <link rel="stylesheet" href="/style.css?v=296">
+   <link rel="stylesheet" href="/style.css?v=297">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
@@ -16,67 +16,59 @@
 <div class="rg-shell">
 
     <aside class="rg-sidebar">
-        <div class="rg-brand">
-            <div>
-                <h1>RainGuard AI 🌧️</h1>
-                <div class="rg-brand">
-    <div>
-        <h1>RainGuard AI 🌧️</h1>
-        <p>منصة إنذار المطر الذكية V10</p>
-        <p style="color:#38bdf8;font-size:12px;margin-top:4px;line-height:1.6;">
-            ☁️ Cloud Motion Engine V10<br>
-            ⛰️ Digital Terrain Engine V11
-        </p>
+    <div class="rg-brand">
+        <div>
+            <h1>RainGuard AI 🌧️</h1>
+            <p>منصة إنذار المطر الذكية V10</p>
+            <p style="color:#38bdf8;font-size:12px;margin-top:4px;line-height:1.6;">
+                ☁️ Cloud Motion Engine V10<br>
+                ⛰️ Digital Terrain Engine V11
+            </p>
+        </div>
     </div>
-</div>
-    ☁️ Cloud Motion Engine V10<br>
-    ⛰️ Digital Terrain Engine V11
-</p>
-            </div>
+
+    <nav class="rg-nav">
+        <button class="rg-nav-item active" onclick="showProPanel('homePanel', this)">
+            <i class="fa-solid fa-house"></i> الرئيسية
+        </button>
+
+        <button class="rg-nav-item" onclick="showProPanel('mapPanel', this)">
+            <i class="fa-solid fa-map"></i> الخريطة التفاعلية
+        </button>
+
+        <button class="rg-nav-item" onclick="showProPanel('forecastPanel', this)">
+            <i class="fa-solid fa-calendar-days"></i> التوقعات
+        </button>
+
+        <button class="rg-nav-item" onclick="showProPanel('citiesPanel', this)">
+            <i class="fa-solid fa-city"></i> المدن والسيول
+        </button>
+
+        <button class="rg-nav-item" onclick="showProPanel('aiPanel', this)">
+            <i class="fa-solid fa-brain"></i> الذكاء الاصطناعي
+        </button>
+
+        <button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)">
+            <i class="fa-solid fa-bell"></i> التنبيهات
+        </button>
+
+        <button class="rg-nav-item" onclick="showProPanel('historyPanel', this)">
+            <i class="fa-solid fa-clipboard-list"></i> السجل والتقييم
+        </button>
+
+        <button class="rg-nav-item" onclick="showProPanel('voicePanel', this)">
+            <i class="fa-solid fa-microphone"></i> المساعد الصوتي
+        </button>
+    </nav>
+
+    <div class="rg-side-card">
+        <div class="rg-status-dot"></div>
+        <div>
+            <strong>حالة النظام</strong>
+            <span>يعمل بكفاءة</span>
         </div>
-
-        <nav class="rg-nav">
-            <button class="rg-nav-item active" onclick="showProPanel('homePanel', this)">
-                <i class="fa-solid fa-house"></i> الرئيسية
-            </button>
-
-            <button class="rg-nav-item" onclick="showProPanel('mapPanel', this)">
-                <i class="fa-solid fa-map"></i> الخريطة التفاعلية
-            </button>
-
-            <button class="rg-nav-item" onclick="showProPanel('forecastPanel', this)">
-                <i class="fa-solid fa-calendar-days"></i> التوقعات
-            </button>
-
-            <button class="rg-nav-item" onclick="showProPanel('citiesPanel', this)">
-                <i class="fa-solid fa-city"></i> المدن والسيول
-            </button>
-
-            <button class="rg-nav-item" onclick="showProPanel('aiPanel', this)">
-                <i class="fa-solid fa-brain"></i> الذكاء الاصطناعي
-            </button>
-
-            <button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)">
-                <i class="fa-solid fa-bell"></i> التنبيهات
-            </button>
-
-            <button class="rg-nav-item" onclick="showProPanel('historyPanel', this)">
-                <i class="fa-solid fa-clipboard-list"></i> السجل والتقييم
-            </button>
-
-            <button class="rg-nav-item" onclick="showProPanel('voicePanel', this)">
-                <i class="fa-solid fa-microphone"></i> المساعد الصوتي
-            </button>
-        </nav>
-
-        <div class="rg-side-card">
-            <div class="rg-status-dot"></div>
-            <div>
-                <strong>حالة النظام</strong>
-                <span>يعمل بكفاءة</span>
-            </div>
-        </div>
-    </aside>
+    </div>
+</aside>
 
     <main class="rg-main">
 
@@ -747,7 +739,7 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script src="/app.js?v=296"></script>
+<script src="/app.js?v=297"></script>
   
 <script>
 function showProPanel(panelId, button, mobile = false) {
