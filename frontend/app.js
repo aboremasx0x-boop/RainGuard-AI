@@ -2027,19 +2027,35 @@ const rainCount =
         (r.actualRiskScore || r.score || 0) >= 30
     ).length;
 
-const rainEl = document.getElementById("nationalTopRainCity");
-if (rainEl) {
-    rainEl.innerText = topRainCity?.name || "--";
+cconst nationalTopRainEl =
+    document.getElementById("nationalTopRainCity");
+
+if (nationalTopRainEl) {
+    nationalTopRainEl.innerText =
+        topRainCity?.name || "--";
 }
 
-const floodEl = document.getElementById("nationalTopFloodCity");
-if (floodEl) {
-    floodEl.innerText = topFloodCity?.name || "--";
+const nationalTopFloodEl =
+    document.getElementById("nationalTopFloodCity");
+
+if (nationalTopFloodEl) {
+    nationalTopFloodEl.innerText =
+        topFloodCity?.name || "--";
 }
 
-const countEl = document.getElementById("nationalRainCount");
-if (countEl) {
-    countEl.innerText = rainCount;
+const nationalRainCountEl =
+    document.getElementById("nationalRainCount");
+
+if (nationalRainCountEl) {
+    nationalRainCountEl.innerText =
+        rainCount;
+}
+    const nationalUpdateEl =
+    document.getElementById("nationalLastUpdate");
+
+if (nationalUpdateEl) {
+    nationalUpdateEl.innerText =
+        new Date().toLocaleTimeString("ar-SA");
 }
 
 const updateEl = document.getElementById("nationalLastUpdate");
