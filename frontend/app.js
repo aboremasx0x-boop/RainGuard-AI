@@ -985,6 +985,47 @@ function calculateV9FloodRisk(city) {
     return Math.min(Math.round(finalRisk), 100);
 }
 
+function getCloudMotionFallback(cityName) {
+    const name = String(cityName || "");
+
+    const westCoast = [
+        "جدة", "مكة", "الطائف", "القنفذة", "الليث",
+        "جازان", "صبيا", "أبو عريش", "الدرب"
+    ];
+
+    const southWest = [
+        "أبها", "خميس مشيط", "الباحة", "النماص", "محايل عسير"
+    ];
+
+    const southEast = [
+        "نجران", "شرورة"
+    ];
+
+    let direction = "غربية إلى شمالية غربية";
+    let speed = 18;
+    let etaMinutes = 360;
+
+    if (westCoast.some(c => name.includes(c))) {
+        direction = "غربية / جنوبية غربية";
+        speed = 22;
+        etaMinutes = 300;
+    } else if (southWest.some(c => name.includes(c))) {
+        direction = "جنوبية غربية";
+        speed = 18;
+        etaMinutes = 360;
+    } else if (southEast.some(c => name.includes(c))) {
+        direction = "جنوبية شرقية";
+        speed = 16;
+        etaMinutes = 420;
+    }
+
+    return {
+        direction,
+        speed,
+        etaMinutes
+    };
+}
+
 function estimateCloudMovement(cityName, currentScore, forecast24Score) {
     const previous = cloudMovementHistory[cityName];
 
@@ -995,16 +1036,15 @@ function estimateCloudMovement(cityName, currentScore, forecast24Score) {
     };
 
     if (!previous) {
-        return {
-            direction: "جاري التعلم",
-            speed: 0,
-            etaMinutes: null,
-            confidence: 30
-        };
-// ===== RainGuard AI frontend/app.js fixed - PART 2 =====
-// انسخ الأجزاء بالترتيب داخل frontend/app.js
+    const fallback = getCloudMotionFallback(cityName);
 
-    }
+    return {
+        direction: fallback.direction,
+        speed: fallback.speed,
+        etaMinutes: fallback.etaMinutes,
+        confidence: 45
+    };
+}
 
     const delta =
         Number(currentScore || 0) - Number(previous.score || 0);
