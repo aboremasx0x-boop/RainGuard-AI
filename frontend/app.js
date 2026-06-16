@@ -1647,6 +1647,14 @@ function getRainPanelStyle(score) {
     };
 }
 
+function safeCityName(name) {
+    return String(name || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, "&quot;")
+        .trim();
+}
+
 function renderSmartMultiCityTopPanel(results) {
     const box = document.getElementById("smartMultiCityTopBox");
     if (!box) return;
