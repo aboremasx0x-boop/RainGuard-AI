@@ -1262,7 +1262,20 @@ function updateTopCityCard(results) {
 
     if (!results || !results.length) return;
 
-    const top = [...results].sort((a, b) => {
+    const filtered = results.filter(city =>
+        Number(city.score || 0) >= 25 ||
+        Number(city.forecast24Score || 0) >= 25 ||
+        Number(city.forecast72Score || 0) >= 25
+    );
+
+    if (!filtered.length) {
+        if (nameEl) nameEl.innerText = "لا توجد مدينة";
+        if (scoreEl) scoreEl.innerText = "--";
+        if (detailsEl) detailsEl.innerText = "لا توجد مؤشرات مطر حالياً";
+        return;
+    }
+
+    const top = [...filtered].sort((a, b) => {
         const aScore = Number(a.actualRiskScore ?? a.floodRiskScore ?? a.score ?? 0);
         const bScore = Number(b.actualRiskScore ?? b.floodRiskScore ?? b.score ?? 0);
         return bScore - aScore;
@@ -1271,8 +1284,10 @@ function updateTopCityCard(results) {
     if (!top) return;
 
     if (nameEl) nameEl.innerText = top.name || "غير محدد";
-    if (scoreEl) scoreEl.innerText = `${top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? "--"}%`;
-    if (detailsEl) detailsEl.innerText = top.alertLevel || top.terrainSummary || "تم تحديث البيانات";
+    if (scoreEl) scoreEl.innerText =
+        `${top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? "--"}%`;
+    if (detailsEl) detailsEl.innerText =
+        top.alertLevel || top.terrainSummary || "تم تحديث البيانات";
 }
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (!force) {
@@ -1640,9 +1655,9 @@ function renderSmartMultiCityTopPanel(results) {
         const rain72 = Number(city.forecast72Score || 0);
 
         return (
-            rainNow >= 40 ||
-            rain24 >= 40 ||
-            rain72 >= 40
+            rainNow >= 25 ||
+            rain24 >= 25 ||
+            rain72 >= 25
         );
     })
         .sort((a, b) =>
@@ -1660,7 +1675,7 @@ function renderSmartMultiCityTopPanel(results) {
             ">
                 🌤️ لا توجد مدن عليها أمطار تستدعي التنبيه حالياً
                 <br>
-                يتم عرض المدن فقط إذا كان مؤشر المطر خلال 24 ساعة 30% أو أعلى.
+                يتم عرض المدن إذا كان مؤشر المطر 25% أو أعلى
             </div>
         `;
         return;
