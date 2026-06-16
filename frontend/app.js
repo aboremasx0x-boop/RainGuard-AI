@@ -1,3 +1,6 @@
+// ===== RainGuard AI frontend/app.js fixed - PART 1 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
 const API_BASE_URL = "https://rainguard-ai.onrender.com";
 
 const APP_VERSION = "RainGuard AI V12 Stable";
@@ -998,6 +1001,9 @@ function estimateCloudMovement(cityName, currentScore, forecast24Score) {
             etaMinutes: null,
             confidence: 30
         };
+// ===== RainGuard AI frontend/app.js fixed - PART 2 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
     }
 
     const delta =
@@ -1255,6 +1261,7 @@ function classifyForecastTiming(scoreNow, score24, score72) {
     return "منخفض";
 }
 
+
 function updateTopCityCard(results) {
     const nameEl = document.getElementById("topRiskCity");
     const scoreEl = document.getElementById("topRiskScore");
@@ -1263,9 +1270,9 @@ function updateTopCityCard(results) {
     if (!results || !results.length) return;
 
     const filtered = results.filter(city =>
-        Number(city.score || 0) >= 25 ||
-        Number(city.forecast24Score || 0) >= 25 ||
-        Number(city.forecast72Score || 0) >= 25
+        Number(city.score || 0) >= 20 ||
+        Number(city.forecast24Score || 0) >= 20 ||
+        Number(city.forecast72Score || 0) >= 20
     );
 
     if (!filtered.length) {
@@ -1284,11 +1291,11 @@ function updateTopCityCard(results) {
     if (!top) return;
 
     if (nameEl) nameEl.innerText = top.name || "غير محدد";
-    if (scoreEl) scoreEl.innerText =
-        `${top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? "--"}%`;
-    if (detailsEl) detailsEl.innerText =
-        top.alertLevel || top.terrainSummary || "تم تحديث البيانات";
+    if (scoreEl) scoreEl.innerText = `${top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? "--"}%`;
+    if (detailsEl) detailsEl.innerText = top.alertLevel || top.terrainSummary || "تم تحديث البيانات";
 }
+
+
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (!force) {
         if (!isSmartMultiCityEnabled()) return;
@@ -1394,7 +1401,7 @@ alertLevel:
             });
 
         } catch (error) {
-            console.warn("Smart city skipped:", city.name, error.message);
+            console.warn("Smart city skipped:", city.name, error?.message || error);
         }
     }
 
@@ -1415,9 +1422,9 @@ alertLevel:
     const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
     const topCityNow = results
     .filter(city =>
-        Number(city.score || 0) >= 25 ||
-        Number(city.forecast24Score || 0) >= 25 ||
-        Number(city.forecast72Score || 0) >= 30
+        Number(city.score || 0) >= 20 ||
+        Number(city.forecast24Score || 0) >= 20 ||
+        Number(city.forecast72Score || 0) >= 20
     )
     .sort((a, b) =>
         Number(b.actualRiskScore || 0) - Number(a.actualRiskScore || 0)
@@ -1431,7 +1438,7 @@ alertLevel:
 
     window.lastMultiCityResults = results;
     updateTopCityCard(results);
-     
+
     window.openCityForecastPopup = openCityForecastPopup;
 
     const setTopRiskText = (id, value) => {
@@ -1454,6 +1461,7 @@ alertLevel:
     renderSmartMultiCityTopPanel(results);
     renderFloodWatchCitiesPanel(results);
     renderSmartMultiCityForecastPanel(results);
+    renderFloodPredictionPanel(results);
     updateNationalStatus(results);
     updateNationalWeatherSummary(results);
     renderNationalTrendPanel(results);
@@ -1649,33 +1657,24 @@ function renderSmartMultiCityTopPanel(results) {
     }
 
     const rainCities = [...results]
-    .filter(city => {
-        const rainNow = Number(city.score || 0);
-        const rain24 = Number(city.forecast24Score || 0);
-        const rain72 = Number(city.forecast72Score || 0);
-
-        return (
-            rainNow >= 25 ||
-            rain24 >= 25 ||
-            rain72 >= 25
-        );
-    })
-        .sort((a, b) =>
-            Number(b.forecast24Score || 0) - Number(a.forecast24Score || 0)
-        )
+        .filter(city => {
+            const rainNow = Number(city.score || 0);
+            const rain24 = Number(city.forecast24Score || 0);
+            const rain72 = Number(city.forecast72Score || 0);
+            return rainNow >= 20 || rain24 >= 20 || rain72 >= 20;
+        })
+        .sort((a, b) => {
+            const aMax = Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0));
+            const bMax = Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0));
+            return bMax - aMax;
+        })
         .slice(0, 10);
 
     if (rainCities.length === 0) {
         box.innerHTML = `
-            <div style="
-                padding:18px;
-                text-align:center;
-                color:#94a3b8;
-                line-height:2;
-            ">
-                🌤️ لا توجد مدن عليها أمطار تستدعي التنبيه حالياً
-                <br>
-                يتم عرض المدن إذا كان مؤشر المطر 25% أو أعلى
+            <div style="padding:18px;text-align:center;color:#94a3b8;line-height:2;">
+                🌤️ لا توجد مدن عليها مؤشرات مطر حالياً<br>
+                يتم عرض المدن إذا كان مؤشر المطر 20% أو أعلى.
             </div>
         `;
         return;
@@ -1685,41 +1684,25 @@ function renderSmartMultiCityTopPanel(results) {
         const rainNow = Number(city.score || 0);
         const forecast24 = Number(city.forecast24Score || 0);
         const forecast72 = Number(city.forecast72Score || 0);
-        const style = getRainPanelStyle(forecast24);
+        const displayScore = Math.max(rainNow, forecast24, forecast72);
+        const style = getRainPanelStyle(displayScore);
+        const arrival = calculateRainArrivalV12(city);
 
         return `
-            <div
-                onclick="openRainCityByName('${city.name}')"
-                style="
-                    padding:14px;
-                    margin-bottom:12px;
-                    border-radius:16px;
-                    background:#0f172a;
-                    border:1px solid ${style.color};
-                    cursor:pointer;
-                "
-            >
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:center;
-                    gap:10px;
-                ">
+            <div onclick="openRainCityByName('${safeCityName(city.name)}')" style="
+                padding:14px;margin-bottom:12px;border-radius:16px;background:#0f172a;
+                border:1px solid ${style.color};cursor:pointer;
+            ">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
                     <strong>${index + 1}. ${style.icon} ${city.name}</strong>
-                    <strong style="color:${style.color};font-size:22px;">${forecast24}%</strong>
+                    <strong style="color:${style.color};font-size:22px;">${displayScore}%</strong>
                 </div>
-
-                <div style="
-                    margin-top:8px;
-                    color:#cbd5e1;
-                    line-height:1.8;
-                    font-size:14px;
-                ">
+                <div style="margin-top:8px;color:#cbd5e1;line-height:1.8;font-size:14px;">
                     التصنيف: ${style.label}<br>
+                    المطر الحالي: ${rainNow}%<br>
                     توقع المطر خلال 24 ساعة: ${forecast24}%<br>
                     توقع المطر خلال 72 ساعة: ${forecast72}%<br>
-                    المطر الحالي: ${rainNow}%<br>
-                    وقت وصول المطر: ${calculateRainArrivalV12(city).label}<br>
+                    وقت وصول المطر: ${arrival.label}<br>
                     خطر السيول: ${city.floodRiskScore ?? "--"}%
                 </div>
             </div>
@@ -1727,12 +1710,13 @@ function renderSmartMultiCityTopPanel(results) {
     }).join("");
 }
 
+
 function renderFloodWatchCitiesPanel(results) {
     const box = document.getElementById("floodWatchCitiesBox");
     if (!box) return;
 
     if (!results || results.length === 0) {
-        box.innerHTML = "لا توجد بيانات متابعة حالياً.";
+        box.innerHTML = "لا توجد بيانات سيول حالياً.";
         return;
     }
 
@@ -1743,60 +1727,45 @@ function renderFloodWatchCitiesPanel(results) {
             const rain24 = Number(city.forecast24Score || 0);
             const rain72 = Number(city.forecast72Score || 0);
 
-            return flood >= 30 && (
-                rainNow >= 25 ||
-                rain24 >= 25 ||
-                rain72 >= 30
-            );
+            return (
+    flood >= 30 &&
+    (
+        rainNow >= 25 ||
+        rain24 >= 25 ||
+        rain72 >= 30
+    )
+);
         })
-        .sort((a, b) => {
-    const aFlood = Number(a.floodRiskScore || 0);
-    const bFlood = Number(b.floodRiskScore || 0);
-    const aRain = Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0));
-    const bRain = Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0));
-
-    return (bFlood * 0.7 + bRain * 0.3) - (aFlood * 0.7 + aRain * 0.3);
-})
+        .sort((a, b) =>
+            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
+        );
 
     if (floodCities.length === 0) {
         box.innerHTML = `
             <div style="color:#94a3b8;line-height:1.8;">
-                لا توجد مدن تحت المتابعة حالياً مع وجود مؤشرات مطر كافية.
+                لا توجد مدن معرضة للسيول حالياً مع وجود مؤشرات مطر كافية.
             </div>
         `;
         return;
     }
-    const uniqueCities = [];
-const used = new Set();
 
-floodCities.forEach(city => {
-    const key =
-        Math.round(Number(city.lat) * 10) +
-        "_" +
-        Math.round(Number(city.lon) * 10);
-
-    if (!used.has(key)) {
-        used.add(key);
-        uniqueCities.push(city);
-    }
-});
-    box.innerHTML = uniqueCities.slice(0, 8).map(city => {
+    box.innerHTML = floodCities.slice(0, 8).map(city => {
         const floodScore = Number(city.floodRiskScore || 0);
         const rainScore = Number(city.score || 0);
         const forecast24 = Number(city.forecast24Score || 0);
 
         let color = "#38bdf8";
         let icon = "🔵";
-        let level = "متابعة";
+        let label = "قابلية تجمع مياه";
 
         if (floodScore >= 80) {
             color = "#ef4444";
             icon = "🔴";
-            level = "إنذار";
+            label = "خطر سيول مرتفع";
         } else if (floodScore >= 60) {
             color = "#f59e0b";
             icon = "🟠";
-            level = "تنبيه";
+            label = "خطر سيول متوسط";
         }
 
         return `
@@ -1808,7 +1777,6 @@ floodCities.forEach(city => {
                     border-radius:14px;
                     background:#0f172a;
                     border:1px solid ${color};
-                    box-shadow:0 0 14px ${color}44;
                     cursor:pointer;
                 "
             >
@@ -1826,77 +1794,102 @@ floodCities.forEach(city => {
                     margin-top:8px;
                     color:#cbd5e1;
                     font-size:13px;
-                    line-height:1.8;
+                    line-height:1.7;
                 ">
-                    المستوى: <strong style="color:${color};">${level}</strong><br>
+                    ${label}<br>
                     مؤشر المطر الآن: ${rainScore}%<br>
                     توقع المطر 24 ساعة: ${forecast24}%<br>
-                    عوامل المتابعة: ${city.terrainSummary || "أودية / مناطق منخفضة / قابلية تجمع مياه"}
+                    سبب الخطورة: ${city.terrainSummary || "حساسية تضاريسية / سيول"}
                 </div>
             </div>
         `;
     }).join("");
 }
-function openCityDetailsDirect(city) {
-    if (!city) return;
+function renderFloodPredictionPanel(results) {
+    const box = document.getElementById("floodPredictionBox");
+    if (!box) return;
 
-    closeCityForecastPopup();
-
-    const peakTime = city.peakHour?.time
-        ? city.peakHour.time.replace("T", " ")
-        : "غير متوفر";
-
-    const etaText =
-        city.rainArrival?.label ||
-        city.rainArrival?.etaText ||
-        peakTime;
-
-    document.body.insertAdjacentHTML("beforeend", `
-        <div id="cityForecastModal" class="rg-modal" style="display:flex !important;">
-            <div class="rg-modal-content">
-                <button class="rg-modal-close" onclick="closeCityForecastPopup()">×</button>
-
-                <h2>تفاصيل ${city.name}</h2>
-
-                <div class="rg-modal-score">
-                    مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.floodRiskScore ?? city.score ?? "--"}%
-                </div>
-
-                <div class="rg-modal-grid">
-                    <div>المطر الآن: <strong>${city.score ?? "--"}%</strong></div>
-                    <div>24 ساعة: <strong>${city.forecast24Score ?? "--"}%</strong></div>
-                    <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
-                    <div>السيول: <strong>${city.floodRiskScore ?? "--"}%</strong></div>
-                    <div>التضاريس: <strong>${city.terrainRiskScore ?? "--"}%</strong></div>
-                    <div>وصول المطر: <strong>${etaText}</strong></div>
-                </div>
-
-                <div class="rg-modal-note">
-                    اتجاه السحب: ${city.cloudMovement?.direction || "غير معروف"}<br>
-                    سرعة السحب: ${city.cloudMovement?.speed || 0} كم/س<br>
-                    وقت الذروة: ${peakTime}<br>
-                    المصدر: ${city.source || "Unknown"}<br>
-                    الحالة: ${city.alertLevel || "غير متوفر"}
-                </div>
-            </div>
-        </div>
-    `);
-}
-
-window.openCityDetailsDirect = openCityDetailsDirect;
-
-window.rgOpenCityDetails = function (cityName) {
-    const city = (window.lastMultiCityResults || []).find(c =>
-        String(c.name || "").trim() === String(cityName || "").trim()
-    );
-
-    if (!city) {
-        showActionMessage("لا توجد بيانات لهذه المدينة حالياً", "warning");
+    if (!results || results.length === 0) {
+        box.innerHTML = "لا توجد بيانات سيول حالياً.";
         return;
     }
 
-    openCityDetailsDirect(city);
-};
+    const ranked = [...results]
+    .filter(city =>
+        Number(city.floodRiskScore || 0) >= 30 &&
+        (
+            Number(city.score || 0) >= 25 ||
+            Number(city.forecast24Score || 0) >= 25 ||
+            Number(city.forecast72Score || 0) >= 30
+        )
+    )
+
+    box.innerHTML = ranked.map((city, index) => {
+        const floodScore = Number(city.floodRiskScore) || 0;
+        const icon = getFloodRiskIcon(floodScore);
+        const label = getFloodRiskLabel(floodScore);
+        const cityWeight = floodCityWeights[city.name] || 0;
+
+        let color = "#22c55e";
+        let action = "المتابعة الدورية كافية.";
+
+        if (floodScore >= 80) {
+            color = "#ef4444";
+            action = "تجنب الأودية والأنفاق والمناطق المنخفضة فوراً.";
+        } else if (floodScore >= 60) {
+            color = "#f59e0b";
+            action = "راقب الحالة وتجنب مجاري السيول عند هطول المطر.";
+        } else if (floodScore >= 30) {
+            color = "#38bdf8";
+            action = "احتمال تجمعات مياه محدود، تابع التحديثات.";
+        }
+
+        return `
+            <div style="
+                padding:14px;
+                margin-bottom:12px;
+                border-radius:16px;
+                background:#0f172a;
+                border:1px solid #334155;
+            ">
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                ">
+                    <strong
+                        onclick="openRainCityByName('${city.name}')"
+                        style="font-size:18px; cursor:pointer;"
+                    >
+                        ${index + 1}. ${icon} ${city.name}
+                    </strong>
+
+                    <strong style="color:${color};font-size:22px;">
+                        ${floodScore}%
+                    </strong>
+                </div>
+
+                <div style="
+                    margin-top:8px;
+                    color:#cbd5e1;
+                    font-size:14px;
+                    line-height:1.8;
+                ">
+                    التصنيف: ${label}<br>
+                    مؤشر المطر الآن: ${city.score}%<br>
+                    توقع 24 ساعة: ${city.forecast24Score}%<br>
+                    توقع 72 ساعة: ${city.forecast72Score}%<br>
+                    وزن حساسية المدينة: ${cityWeight}<br>
+                    عامل التضاريس ${TERRAIN_ENGINE_VERSION}: ${city.terrainRiskScore || 0}<br>
+                    سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
+                    الإجراء المقترح: ${action}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
 function updateNationalWeatherSummary(results) {
     const rainEl = document.getElementById("rainCitiesCount");
     const floodEl = document.getElementById("floodCitiesCount");
@@ -1921,98 +1914,6 @@ function updateNationalWeatherSummary(results) {
         );
     });
 
-    const sourceResults = window.lastMultiCityResults || results;
-
-const watchFloodCities = sourceResults.filter(city => {
-    const flood = Number(city.floodRiskScore || 0);
-    const rainNow = Number(city.score || 0);
-    const rain24 = Number(city.forecast24Score || 0);
-    const rain72 = Number(city.forecast72Score || 0);
-
-    return flood >= 30 && (
-        rainNow >= 25 ||
-        rain24 >= 25 ||
-        rain72 >= 30
-    );
-});
-
-const highFloodCities = watchFloodCities.filter(city =>
-    Number(city.floodRiskScore || 0) >= 60
-);
-
-const extremeFloodCities = watchFloodCities.filter(city =>
-    Number(city.floodRiskScore || 0) >= 80
-);
-
-    const cloudCities = results.filter(city => {
-        const rainNow = Number(city.score || 0);
-        const rain24 = Number(city.forecast24Score || 0);
-
-        return (
-            rainNow >= 10 &&
-            rainNow < 30 &&
-            rain24 < 30
-        );
-    });
-
-    if (rainEl) rainEl.innerText = rainCities.length;
-
-if (floodEl) {
-    let floodBoxColor = "#3b82f6";
-
-    if (extremeFloodCities.length > 0) {
-        floodBoxColor = "#ef4444";
-    } else if (highFloodCities.length > 0) {
-        floodBoxColor = "#f59e0b";
-    }
-
-    floodEl.innerHTML = `
-<div style="
-display:flex;
-justify-content:center;
-gap:12px;
-flex-wrap:wrap;
-font-size:14px;
-font-weight:700;
-">
-<span style="color:#3b82f6;">🔵 متابعة ${watchFloodCities.length}</span>
-<span style="color:#f59e0b;">🟠 تنبيه ${highFloodCities.length}</span>
-<span style="color:#ef4444;">🔴 إنذار ${extremeFloodCities.length}</span>
-</div>
-`;
-
-    const parentBox = floodEl.closest(
-        ".status-card, .map-stat, .national-box, .risk-card, div"
-    );
-
-    if (parentBox) {
-        parentBox.style.borderColor = floodBoxColor;
-        parentBox.style.boxShadow = `0 0 18px ${floodBoxColor}55`;
-    }
-}
-
-if (cloudEl) cloudEl.innerText = cloudCities.length;
-}
-
-function updateNationalStatus(results) {
-    const box = document.getElementById("nationalWeatherStatus");
-    if (!box) return;
-
-    if (!results || !results.length) {
-        box.innerHTML = "⚪ الحالة الوطنية: لا توجد بيانات";
-        box.style.borderColor = "#64748b";
-        updateNationalWeatherSummary([]);
-        return;
-    }
-
-    const rainCities = results.filter(city => {
-        const rainNow = Number(city.score || 0);
-        const rain24 = Number(city.forecast24Score || 0);
-        const rain72 = Number(city.forecast72Score || 0);
-
-        return rainNow >= 30 || rain24 >= 30 || rain72 >= 30;
-    });
-
     const watchFloodCities = results.filter(city => {
         const flood = Number(city.floodRiskScore || 0);
         const rainNow = Number(city.score || 0);
@@ -2034,44 +1935,132 @@ function updateNationalStatus(results) {
         Number(city.floodRiskScore || 0) >= 80
     );
 
+    const cloudCities = results.filter(city => {
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+
+        return (
+            rainNow >= 10 &&
+            rainNow < 30 &&
+            rain24 < 30
+        );
+    });
+
+    if (rainEl) rainEl.innerText = rainCities.length;
+
+    if (floodEl) {
+        floodEl.innerText =
+            `متابعة ${watchFloodCities.length} | مرتفع ${highFloodCities.length} | حرج ${extremeFloodCities.length}`;
+    }
+
+    if (cloudEl) cloudEl.innerText = cloudCities.length;
+}
+
+function updateNationalStatus(results) {
+    const box = document.getElementById("nationalWeatherStatus");
+    if (!box) return;
+
+    if (!results || !results.length) {
+        box.innerHTML = "⚪ الحالة الوطنية: لا توجد بيانات";
+        box.style.borderColor = "#64748b";
+        updateNationalWeatherSummary([]);
+        return;
+    }
+
+    const rainCities = results.filter(city => {
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
+
+        return (
+            rainNow >= 40 ||
+            rain24 >= 40 ||
+            rain72 >= 40
+        );
+    });
+
+    const floodCities = results.filter(city => {
+        const flood = Number(city.floodRiskScore || 0);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
+
+        return flood >= 55 && (
+            rainNow >= 30 ||
+            rain24 >= 30 ||
+            rain72 >= 30
+        );
+    });
+
     updateNationalWeatherSummary(results);
 
-    if (extremeFloodCities.length > 0) {
+    if (rainCities.length === 0 && floodCities.length === 0) {
+        box.innerHTML = "🟢 الحالة الوطنية: مستقرة";
+        box.style.borderColor = "#22c55e";
+        return;
+    }
+
+    const maxFlood = Math.max(
+        ...results
+            .filter(city =>
+                Number(city.score || 0) >= 30 ||
+                Number(city.forecast24Score || 0) >= 30 ||
+                Number(city.forecast72Score || 0) >= 30
+            )
+            .map(city => Number(city.floodRiskScore || 0)),
+        0
+    );
+
+    const maxRain = Math.max(
+        ...results.map(city =>
+            Math.max(
+                Number(city.score || 0),
+                Number(city.forecast24Score || 0),
+                Number(city.forecast72Score || 0)
+            )
+        ),
+        0
+// ===== RainGuard AI frontend/app.js fixed - PART 3 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
+
+    );
+
+    if (maxFlood >= 80) {
         box.innerHTML = `
-            🔴 الحالة الوطنية: إنذار
+            🚨 الحالة الوطنية: خطر مرتفع
             <div style="font-size:13px;color:#fecaca;margin-top:6px;">
-                توجد مدن وصلت إلى مستوى إنذار وتحتاج متابعة عاجلة.
+                توجد مؤشرات سيول شديدة في بعض المدن.
             </div>
         `;
         box.style.borderColor = "#ef4444";
         return;
     }
 
-    if (highFloodCities.length > 0) {
+    if (maxFlood >= 70) {
         box.innerHTML = `
-            🟠 الحالة الوطنية: تنبيه
+            🔴 الحالة الوطنية: تحذير سيول
+            <div style="font-size:13px;color:#fecaca;margin-top:6px;">
+                توجد مدينة أو أكثر بمؤشر سيول مرتفع يحتاج متابعة عاجلة.
+            </div>
+        `;
+        box.style.borderColor = "#ef4444";
+        return;
+    }
+
+    if (maxFlood >= 55) {
+        box.innerHTML = `
+            🟠 الحالة الوطنية: مراقبة سيول
             <div style="font-size:13px;color:#fde68a;margin-top:6px;">
-                توجد مدن بمؤشرات مرتفعة تحتاج متابعة دقيقة.
+                توجد مدن تستحق المتابعة بسبب أمطار متوقعة ومؤشرات سيول.
             </div>
         `;
         box.style.borderColor = "#f59e0b";
         return;
     }
 
-    if (watchFloodCities.length > 0) {
+    if (maxRain >= 30) {
         box.innerHTML = `
-            🔵 الحالة الوطنية: متابعة
-            <div style="font-size:13px;color:#bfdbfe;margin-top:6px;">
-                توجد مدن تحت المتابعة بسبب مؤشرات مطر وتجمع مياه.
-            </div>
-        `;
-        box.style.borderColor = "#3b82f6";
-        return;
-    }
-
-    if (rainCities.length > 0) {
-        box.innerHTML = `
-            🔵 الحالة الوطنية: أمطار
+            🔵 الحالة الوطنية: مراقبة أمطار
             <div style="font-size:13px;color:#bfdbfe;margin-top:6px;">
                 توجد مدن عليها مؤشرات مطر تحتاج متابعة.
             </div>
@@ -2211,19 +2200,11 @@ function renderRainArrivalCitiesPanel(results) {
         const strength = Math.max(rainNow, rain24, rain72);
 
         return `
-            <div onclick="openRainCityByName('${city.name}')" style="
-                padding:14px;
-                margin-bottom:12px;
-                border-radius:14px;
-                background:#0f172a;
-                border:1px solid #38bdf8;
-                cursor:pointer;
-                line-height:1.9;
+            <div onclick="openRainCityByName('${safeCityName(city.name)}')" style="
+                padding:14px;margin-bottom:12px;border-radius:14px;background:#0f172a;
+                border:1px solid #38bdf8;cursor:pointer;line-height:1.9;
             ">
-                <strong style="font-size:18px;color:#e0f2fe;">
-                    ${index + 1}. ${city.name}
-                </strong><br>
-
+                <strong style="font-size:18px;color:#e0f2fe;">${index + 1}. ${city.name}</strong><br>
                 وقت الوصول: <strong>${arrival.label}</strong><br>
                 قوة الوصول: <strong>${strength}%</strong> |
                 المطر: <strong>${rainNow}%</strong> |
@@ -2233,6 +2214,7 @@ function renderRainArrivalCitiesPanel(results) {
         `;
     }).join("");
 }
+
 
 function renderSmartMultiCityForecastPanel(results) {
     const box = document.getElementById("smartMultiCityForecastBox");
@@ -2344,84 +2326,22 @@ function clearFloodMapLayer() {
     floodMapLayer = [];
 }
 
-function safeCityName(name) {
-    return String(name || "").replace(/'/g, "\\'");
-}
-
-window.openPopupCityDetails = function (cityName) {
-    const city = (window.lastMultiCityResults || []).find(c => c.name === cityName);
-    console.log("CITY DETAILS FOUND:", city);
-
-    if (!city) {
-        showActionMessage("لا توجد بيانات تفصيلية لهذه المدينة حالياً", "warning");
-        return;
-    }
-
-    openCityForecastPopup(city.name);
-};
-
-function rgNormalizeCityName(name) {
-    return String(name || "")
-        .trim()
-        .replace(/\s+/g, "")
-        .replace(/[أإآ]/g, "ا")
-        .replace(/ة/g, "ه");
-}
-
-function rgGetCityByName(cityName) {
-    const target = rgNormalizeCityName(cityName);
-
-    return (window.lastMultiCityResults || []).find(c => {
-        const current = rgNormalizeCityName(c.name);
-        return current === target || current.includes(target) || target.includes(current);
-    });
-}
-
-window.rgOpenCityDetails = function (cityName) {
-    const city =
-        (window.lastMultiCityResults || []).find(c => String(c.name).trim() === String(cityName).trim()) ||
-        { name: cityName };
-
-    closeCityForecastPopup();
-
-    const modal = document.createElement("div");
-    modal.id = "cityForecastModal";
-    modal.className = "rg-modal";
-
-    modal.innerHTML = `
-        <div class="rg-modal-content">
-            <button class="rg-modal-close" onclick="closeCityForecastPopup()">×</button>
-
-            <h2>تفاصيل ${city.name}</h2>
-
-            <div class="rg-modal-score">
-                مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.floodRiskScore ?? city.score ?? "--"}%
-            </div>
-
-            <div class="rg-modal-grid">
-                <div>المطر الآن: <strong>${city.score ?? "--"}%</strong></div>
-                <div>24 ساعة: <strong>${city.forecast24Score ?? "--"}%</strong></div>
-                <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
-                <div>السيول: <strong>${city.floodRiskScore ?? "--"}%</strong></div>
-                <div>التضاريس: <strong>${city.terrainRiskScore ?? "--"}%</strong></div>
-            </div>
-
-            <div style="margin-top:14px;line-height:1.8;color:#cbd5e1;">
-                سبب الخطورة: ${city.terrainSummary || "غير محدد"}
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-};
 function updateFloodRiskMap(results) {
     if (!map || !results || results.length === 0) return;
 
     clearFloodMapLayer();
 
+    const unique = [];
+    const used = new Set();
     results.forEach(city => {
         if (!city.lat || !city.lon) return;
+        const key = `${String(city.name || "").trim()}_${Math.round(Number(city.lat) * 100)}_${Math.round(Number(city.lon) * 100)}`;
+        if (used.has(key)) return;
+        used.add(key);
+        unique.push(city);
+    });
 
+    unique.forEach(city => {
         const floodScore = Number(city.floodRiskScore || 0);
         if (floodScore < 30) return;
 
@@ -2441,37 +2361,40 @@ function updateFloodRiskMap(results) {
         popupDiv.innerHTML = `
             <b>${city.name}</b><br>
             التصنيف: ${label}<br>
-            المطر الآن: ${city.score}%<br>
-            24 ساعة: ${city.forecast24Score}%<br>
-            72 ساعة: ${city.forecast72Score}%<br>
+            المطر الآن: ${city.score ?? 0}%<br>
+            24 ساعة: ${city.forecast24Score ?? 0}%<br>
+            72 ساعة: ${city.forecast72Score ?? 0}%<br>
             السيول: ${floodScore}%<br><br>
         `;
 
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.innerText = "عرض التفاصيل";
-        btn.style.cssText = `
-            padding:8px 14px;
-            border-radius:8px;
-            border:1px solid #38bdf8;
-            background:#082f49;
-            color:white;
-            cursor:pointer;
-            font-weight:bold;
+        const detailsBtn = document.createElement("button");
+        detailsBtn.type = "button";
+        detailsBtn.innerText = "عرض التفاصيل";
+        detailsBtn.style.cssText = `
+            padding:8px 14px;border-radius:8px;border:1px solid #38bdf8;
+            background:#082f49;color:white;cursor:pointer;font-weight:bold;
         `;
 
-        btn.onclick = function (e) {
-            e.preventDefault();
-            e.stopPropagation();
+        const openDetailsFromPopup = function (e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             openCityDetailsDirect(city);
         };
 
-        popupDiv.appendChild(btn);
-        circle.bindPopup(popupDiv);
+        detailsBtn.onclick = openDetailsFromPopup;
+        detailsBtn.onmousedown = openDetailsFromPopup;
+        detailsBtn.ontouchstart = openDetailsFromPopup;
+        popupDiv.appendChild(detailsBtn);
 
-        circle.on("dblclick", function () {
-            openCityDetailsDirect(city);
-        });
+        if (window.L?.DomEvent) {
+            L.DomEvent.disableClickPropagation(popupDiv);
+            L.DomEvent.disableScrollPropagation(popupDiv);
+        }
+
+        circle.bindPopup(popupDiv);
+        circle.on("dblclick", () => openCityDetailsDirect(city));
 
         if (floodMapEnabled) circle.addTo(map);
         floodMapLayer.push(circle);
@@ -2496,80 +2419,90 @@ function updateCloudRainMapLayer(results) {
 
     clearCloudRainMapLayer();
 
+    const unique = [];
+    const used = new Set();
     results.forEach(city => {
         if (!city.lat || !city.lon) return;
+        const key = `${String(city.name || "").trim()}_${Math.round(Number(city.lat) * 100)}_${Math.round(Number(city.lon) * 100)}`;
+        if (used.has(key)) return;
+        used.add(key);
+        unique.push(city);
+    });
 
+    unique.forEach(city => {
         const rainScore = Number(city.score || 0);
         const forecast24 = Number(city.forecast24Score || 0);
-        const cloudScore = Math.max(rainScore, forecast24);
-
-        if (cloudScore < 30) return;
+        const forecast72 = Number(city.forecast72Score || 0);
+        const cloudScore = Math.max(rainScore, forecast24, forecast72);
+        if (cloudScore < 20) return;
 
         let color = "#38bdf8";
-        let label = "تنبيه مطر";
-
+        let label = "متابعة مطر";
         if (cloudScore >= 85) {
             color = "#ef4444";
             label = "تنبيه مطر مرتفع";
         } else if (cloudScore >= 60) {
             color = "#f97316";
             label = "احتمال مطر مرتفع";
+        } else if (cloudScore >= 30) {
+            color = "#38bdf8";
+            label = "تنبيه مطر";
         }
 
+        const radius = Math.min(12000, 2500 + cloudScore * 70);
         const rainCircle = L.circle([city.lat, city.lon], {
             color,
             fillColor: color,
             fillOpacity: 0.18,
             opacity: 0.65,
-            radius: 3000 + cloudScore * 55
+            radius
         });
 
         const popupDiv = document.createElement("div");
+        popupDiv.innerHTML = `
+            <b>${city.name}</b><br>
+            ${label}<br>
+            المطر الآن: ${rainScore}%<br>
+            خلال 24 ساعة: ${forecast24}%<br>
+            خلال 72 ساعة: ${forecast72}%<br>
+            السحب/المؤشر العام: ${cloudScore}%<br>
+            السيول: ${city.floodRiskScore ?? "--"}%<br><br>
+        `;
 
-popupDiv.innerHTML = `
-    <b>${city.name}</b><br>
-    ${label}<br>
-    المطر الآن: ${rainScore}%<br>
-    خلال 24 ساعة: ${forecast24}%<br>
-    السحب/المؤشر العام: ${cloudScore}%<br>
-    السيول: ${city.floodRiskScore ?? "--"}%<br><br>
-`;
+        const detailsBtn = document.createElement("button");
+        detailsBtn.type = "button";
+        detailsBtn.innerText = "عرض التفاصيل";
+        detailsBtn.style.cssText = `
+            padding:8px 14px;border-radius:8px;border:1px solid #38bdf8;
+            background:#082f49;color:white;cursor:pointer;font-weight:bold;
+        `;
 
-const detailsBtn = document.createElement("button");
-detailsBtn.innerText = "عرض التفاصيل";
-detailsBtn.style.cssText = `
-    padding:8px 14px;
-    border-radius:8px;
-    border:1px solid #38bdf8;
-    background:#082f49;
-    color:white;
-    cursor:pointer;
-    font-weight:bold;
-`;
+        const openDetailsFromPopup = function (e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            openCityDetailsDirect(city);
+        };
 
-detailsBtn.addEventListener("click", function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    window.rgOpenCityDetails(city.name);
-});
+        detailsBtn.onclick = openDetailsFromPopup;
+        detailsBtn.onmousedown = openDetailsFromPopup;
+        detailsBtn.ontouchstart = openDetailsFromPopup;
+        popupDiv.appendChild(detailsBtn);
 
-popupDiv.appendChild(detailsBtn);
+        if (window.L?.DomEvent) {
+            L.DomEvent.disableClickPropagation(popupDiv);
+            L.DomEvent.disableScrollPropagation(popupDiv);
+        }
 
-rainCircle.bindPopup(popupDiv);
-        
-rainCircle.on("dblclick", function () {
-    window.rgOpenCityDetails(city.name);
-});
+        rainCircle.bindPopup(popupDiv);
+        rainCircle.on("dblclick", () => openCityDetailsDirect(city));
 
-if (cloudRainMapEnabled) {
-    rainCircle.addTo(map);
+        if (cloudRainMapEnabled) rainCircle.addTo(map);
+        cloudRainMapLayer.push(rainCircle);
+    });
 }
 
-cloudRainMapLayer.push(rainCircle);
-
-    }); // نهاية results.forEach
-
-} // نهاية updateCloudRainMapLayer
 
 function toggleFloodRiskMap() {
     floodMapEnabled = !floodMapEnabled;
@@ -2768,7 +2701,7 @@ function openCityForecastPopup(cityName) {
 
                 <div class="rg-modal-score">
                     ${APP_VERSION}
-                   مؤشر تجمع المياه: ${city.floodRiskScore ?? city.actualRiskScore ?? city.score}%
+                    مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score}%
                 </div>
 
                 <button id="refreshCityBtn" onclick="refreshCityForecastPopup('${city.name}')" style="
@@ -2926,8 +2859,20 @@ window.openCityForecastPopup = openCityForecastPopup;
 
 function closeCityForecastPopup() {
     const modal = document.getElementById("cityForecastModal");
-    if (modal) modal.remove();
+    if (!modal) return;
+
+    if (window.activeCityMiniMap && typeof window.activeCityMiniMap.remove === "function") {
+        try {
+            window.activeCityMiniMap.remove();
+        } catch (error) {
+            console.warn("Mini map cleanup skipped:", error.message);
+        }
+        window.activeCityMiniMap = null;
+    }
+
+    modal.remove();
 }
+
 
 function closeCityForecastPopupOnOutsideClick(event) {
     const modal = document.getElementById("cityForecastModal");
@@ -3052,35 +2997,16 @@ function focusCloudCityOnMap(cityName) {
 
     closeCloudCities();
 
-    const lat = Number(city.lat);
-    const lon = Number(city.lon);
-    const flood = Number(city.floodRiskScore || 0);
-
-    let level = "متابعة";
-    let levelColor = "#38bdf8";
-
-    if (flood >= 80) {
-        level = "إنذار";
-        levelColor = "#ef4444";
-    } else if (flood >= 60) {
-        level = "تنبيه";
-        levelColor = "#f59e0b";
-    }
-
-    const reason = city.terrainSummary || "أودية + مناطق منخفضة + قابلية تجمع مياه";
-
-    map.setView([lat, lon], 9);
+    map.setView([city.lat, city.lon], 9);
 
     L.popup()
-        .setLatLng([lat, lon])
+        .setLatLng([city.lat, city.lon])
         .setContent(`
             <b>${city.name}</b><br>
-            <span style="color:${levelColor};font-weight:bold;">المستوى: ${level}</span><br>
-            مؤشر تجمع المياه: ${flood}%<br>
             المطر الآن: ${city.score || 0}%<br>
             24 ساعة: ${city.forecast24Score || 0}%<br>
             72 ساعة: ${city.forecast72Score || 0}%<br>
-            سبب الخطورة: ${reason}
+            السيول: ${city.floodRiskScore || 0}%
         `)
         .openOn(map);
 
@@ -3163,6 +3089,8 @@ function applyAlertCardColor(score) {
     let alertBoxClass = "alert-green";
 
     if (score >= 80) {
+// ===== RainGuard AI frontend/app.js fixed - PART 4 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
 
         alertBoxClass = "alert-red";
     } else if (score >= 60) {
@@ -3581,7 +3509,7 @@ function initMap(lat = 21.4858, lon = 39.1925) {
     if (!map) {
         map = L.map("map", {
             minZoom: 4,
-            maxZoom: 13
+            maxZoom: 10
         }).setView([lat, lon], 6);
 
         window.map = map;
@@ -3643,7 +3571,7 @@ async function loadRainRadar() {
 
         rainLayer = L.tileLayer(radarUrl, {
             minZoom: 4,
-            maxZoom: 13,
+            maxZoom: 8,
             opacity: 0.65,
             zIndex: 500,
             attribution: "RainViewer"
@@ -3653,7 +3581,9 @@ async function loadRainRadar() {
             rainLayer.addTo(map);
         }
 
-
+        if (map.getZoom() > 8) {
+            map.setZoom(8);
+        }
 
     } catch (error) {
         console.error("loadRainRadar error:", error);
@@ -3911,16 +3841,11 @@ async function updateRainHeatmap() {
                 مؤشر المطر: ${score}%<br>
                 التصنيف: ${getRainPanelStyle(score).label}
             `);
-            circle.on("click", function () {
-    if (typeof openCityForecastPopup === "function") {
-        openCityForecastPopup(city.name);
-    }
-});
 
             heatmapLayer.push(circle);
 
         } catch (error) {
-            console.warn("Heatmap city skipped:", error.message);
+            console.error(error);
         }
     }
 }
@@ -4187,6 +4112,9 @@ function recheckHistoryItem(index) {
     } else {
         detectRain();
     }
+
+// ===== RainGuard AI frontend/app.js fixed - PART 5 =====
+// انسخ الأجزاء بالترتيب داخل frontend/app.js
 
     window.scrollTo({
         top: 0,
@@ -4700,20 +4628,17 @@ let lightningInterval = null;
 
 function startWeatherEffects() {
     if (!weatherEffectsEnabled) return;
-
-    const oldLayer = document.getElementById("weatherFx");
-    if (oldLayer) oldLayer.remove();
+    if (document.getElementById("weatherFx")) return;
 
     const layer = document.createElement("div");
     layer.id = "weatherFx";
-
     layer.innerHTML = `
         <div class="cloud-layer"></div>
         <div class="rain-layer"></div>
     `;
-
     document.body.appendChild(layer);
 }
+
 
 function stopWeatherEffects() {
     const oldLayer = document.getElementById("weatherFx");
@@ -4856,7 +4781,7 @@ function openFirstFloodCity() {
     });
 
     if (!city) {
-        showActionMessage("لا توجد مدن تحت المتابعة حالياً", "warning");
+        showActionMessage("لا توجد مدن معرضة للسيول حالياً", "warning");
         return;
     }
 
@@ -4898,85 +4823,24 @@ window.onload = function () {
     renderSmartMultiCityHistory();
 };
 
-window.openFirstRainCity = function () {
-    if (!window.lastMultiCityResults || window.lastMultiCityResults.length === 0) {
-        showActionMessage("لا توجد بيانات مدن حالياً", "warning");
-        return;
-    }
 
-    const city =
-        window.lastMultiCityResults.find(c =>
-            Number(c.score || 0) >= 30 ||
-            Number(c.forecast24Score || 0) >= 30 ||
-            Number(c.forecast72Score || 0) >= 30
-        )
-        ||
-        window.lastMultiCityResults
-            .slice()
-            .sort((a, b) =>
-                Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0)) -
-                Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0))
-            )[0];
+function normalizeCityNameForSearch(name) {
+    return String(name || "")
+        .trim()
+        .replace(/\s+/g, "")
+        .replace(/[أإآ]/g, "ا")
+        .replace(/ة/g, "ه");
+}
 
-    openCityForecastPopup(city.name);
-};
-
-window.openFirstFloodCity = function () {
-    if (!window.lastMultiCityResults || window.lastMultiCityResults.length === 0) {
-        showActionMessage("لا توجد بيانات مدن حالياً", "warning");
-        return;
-    }
-
-    const city =
-        window.lastMultiCityResults.find(c =>
-            Number(c.floodRiskScore || 0) >= 30
-        )
-        ||
-        window.lastMultiCityResults
-            .slice()
-            .sort((a, b) => {
-    const aPower =
-        Number(a.floodRiskScore || 0) * 0.5 +
-        Number(a.score || 0) * 0.3 +
-        Number(a.forecast24Score || 0) * 0.2;
-
-    const bPower =
-        Number(b.floodRiskScore || 0) * 0.5 +
-        Number(b.score || 0) * 0.3 +
-        Number(b.forecast24Score || 0) * 0.2;
-
-    return bPower - aPower;
-})
-
-    openCityForecastPopup(city.name);
-};
-console.log("APP LOADED");
-
-window.openFirstRainCity = function () {
-    const results = window.lastMultiCityResults || [];
-
-    const city = results.find(c => {
-        const rainNow = Number(c.score || 0);
-        const rain24 = Number(c.forecast24Score || 0);
-        const rain72 = Number(c.forecast72Score || 0);
-
-        return rainNow >= 30 || rain24 >= 30 || rain72 >= 30;
+function getCityByNameFlexible(cityName) {
+    const target = normalizeCityNameForSearch(cityName);
+    return (window.lastMultiCityResults || []).find(city => {
+        const current = normalizeCityNameForSearch(city.name);
+        return current === target || current.includes(target) || target.includes(current);
     });
+}
 
-    if (!city) {
-        showActionMessage("لا توجد مدن عليها تنبيه مطر حالياً", "warning");
-        return;
-    }
-
-    openCityForecastPopup(city.name);
-};
-
-window.closeCityForecastPopup = function () {
-    const modal = document.getElementById("cityForecastModal");
-    if (modal) modal.remove();
-};
-
-window.openCityDetailsDirect = function (city) {
+function openCityDetailsDirect(city) {
     if (!city) {
         showActionMessage("لا توجد بيانات لهذه المدينة", "warning");
         return;
@@ -4984,82 +4848,52 @@ window.openCityDetailsDirect = function (city) {
 
     closeCityForecastPopup();
 
-    const peakTime =
-        city.peakHour?.time
-            ? city.peakHour.time.replace("T", " ")
-            : "غير متوفر";
-
-   const etaText =
-    city.rainArrival?.label
-    || city.rainArrival?.etaText
-    || (
-        city.cloudMovement?.etaMinutes
-            ? city.cloudMovement.etaMinutes + " دقيقة"
-            : peakTime
-    );
+    const peakTime = city.peakHour?.time ? city.peakHour.time.replace("T", " ") : "غير متوفر";
+    const etaText = city.rainArrival?.label || city.rainArrival?.etaText ||
+        (city.cloudMovement?.etaMinutes ? city.cloudMovement.etaMinutes + " دقيقة" : peakTime);
 
     document.body.insertAdjacentHTML("beforeend", `
         <div id="cityForecastModal" class="rg-modal" style="display:flex !important;">
             <div class="rg-modal-content">
                 <button class="rg-modal-close" onclick="closeCityForecastPopup()">×</button>
-
                 <h2>تفاصيل ${city.name}</h2>
-
                 <div class="rg-modal-score">
-                    مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.score ?? 0}%
+                    مؤشر الخطر الفعلي: ${city.actualRiskScore ?? city.floodRiskScore ?? city.score ?? "--"}%
                 </div>
-
                 <div class="rg-modal-grid">
-                    <div>المطر الآن: <strong>${city.score ?? 0}%</strong></div>
-                    <div>24 ساعة: <strong>${city.forecast24Score ?? 0}%</strong></div>
-                    <div>72 ساعة: <strong>${city.forecast72Score ?? 0}%</strong></div>
-                    <div>السيول: <strong>${city.floodRiskScore ?? 0}%</strong></div>
-                    <div>التضاريس: <strong>${city.terrainRiskScore ?? 0}%</strong></div>
+                    <div>المطر الآن: <strong>${city.score ?? "--"}%</strong></div>
+                    <div>24 ساعة: <strong>${city.forecast24Score ?? "--"}%</strong></div>
+                    <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
+                    <div>السيول: <strong>${city.floodRiskScore ?? "--"}%</strong></div>
+                    <div>التضاريس: <strong>${city.terrainRiskScore ?? "--"}%</strong></div>
                     <div>وقت وصول المطر: <strong>${etaText}</strong></div>
                 </div>
-
                 <div class="rg-modal-note">
                     اتجاه السحب: ${city.cloudMovement?.direction || "غير معروف"}<br>
                     سرعة السحب: ${city.cloudMovement?.speed || 0} كم/س<br>
                     وقت الذروة المتوقع: ${peakTime}<br>
+                    سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
                     المصدر: ${city.source || "Unknown"}<br>
                     الحالة: ${city.alertLevel || "غير متوفر"}
                 </div>
             </div>
         </div>
     `);
-};
+}
 
-window.openFirstRainCity = function () {
-    const results = window.lastMultiCityResults || [];
+window.openCityDetailsDirect = openCityDetailsDirect;
 
-    const city = results
-        .filter(c => {
-            const rain = Math.max(
-                Number(c.score || 0),
-                Number(c.forecast24Score || 0),
-                Number(c.forecast72Score || 0)
-            );
-            return rain >= 10;
-        })
-        .sort((a, b) => {
-            const rainA = Math.max(+a.score || 0, +a.forecast24Score || 0, +a.forecast72Score || 0);
-            const rainB = Math.max(+b.score || 0, +b.forecast24Score || 0, +b.forecast72Score || 0);
-            return rainB - rainA;
-        })[0];
-
+window.rgOpenCityDetails = function (cityName) {
+    const city = getCityByNameFlexible(cityName);
     if (!city) {
-        showActionMessage("لا توجد مدن مطر حالياً", "warning");
+        showActionMessage("لا توجد بيانات لهذه المدينة حالياً", "warning");
         return;
     }
-
     openCityDetailsDirect(city);
 };
 
 window.openRainCityByName = function (cityName) {
-    const city = (window.lastMultiCityResults || [])
-        .find(c => c.name === cityName);
-
+    const city = getCityByNameFlexible(cityName);
     if (!city) {
         showActionMessage("لا توجد بيانات لهذه المدينة حالياً", "warning");
         return;
@@ -5067,10 +4901,8 @@ window.openRainCityByName = function (cityName) {
 
     const lat = Number(city.lat);
     const lon = Number(city.lon);
-
-    if (window.map && lat && lon) {
+    if (window.map && Number.isFinite(lat) && Number.isFinite(lon)) {
         window.map.setView([lat, lon], 9);
-
         L.popup()
             .setLatLng([lat, lon])
             .setContent(`
@@ -5085,3 +4917,62 @@ window.openRainCityByName = function (cityName) {
     openCityDetailsDirect(city);
 };
 
+window.openFirstRainCity = function () {
+    const results = window.lastMultiCityResults || [];
+    const city = results
+        .map(c => ({
+            ...c,
+            maxRain: Math.max(Number(c.score || 0), Number(c.forecast24Score || 0), Number(c.forecast72Score || 0))
+        }))
+        .filter(c => c.maxRain >= 10)
+        .sort((a, b) => b.maxRain - a.maxRain)[0];
+
+    if (!city) {
+        showActionMessage("لا توجد مدن مطر حالياً", "warning");
+        return;
+    }
+
+    openCityDetailsDirect(city);
+};
+
+window.openFirstFloodCity = function () {
+    const results = window.lastMultiCityResults || [];
+    const city = results
+        .map(c => ({
+            ...c,
+            floodPower: Number(c.floodRiskScore || 0) * 0.6 +
+                Math.max(Number(c.score || 0), Number(c.forecast24Score || 0), Number(c.forecast72Score || 0)) * 0.4
+        }))
+        .filter(c => c.floodPower >= 10)
+        .sort((a, b) => b.floodPower - a.floodPower)[0];
+
+    if (!city) {
+        showActionMessage("لا توجد مدن تحت المتابعة حالياً", "warning");
+        return;
+    }
+
+    openCityDetailsDirect(city);
+};
+
+setTimeout(() => {
+    const rainCard = document.querySelector(".summary-card.rain");
+    const floodCard = document.querySelector(".summary-card.flood");
+    const cloudCard = document.querySelector(".summary-card.cloud");
+
+    if (rainCard) {
+        rainCard.onclick = () => window.openFirstRainCity();
+        rainCard.style.cursor = "pointer";
+    }
+
+    if (floodCard) {
+        floodCard.onclick = () => window.openFirstFloodCity();
+        floodCard.style.cursor = "pointer";
+    }
+
+    if (cloudCard) {
+        cloudCard.onclick = () => showCloudCities();
+        cloudCard.style.cursor = "pointer";
+    }
+}, 2000);
+
+console.log("APP LOADED");
