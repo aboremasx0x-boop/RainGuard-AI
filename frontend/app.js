@@ -1295,6 +1295,51 @@ function updateTopCityCard(results) {
     if (detailsEl) detailsEl.innerText = top.alertLevel || top.terrainSummary || "تم تحديث البيانات";
 }
 
+function updateNationalProStatus(results) {
+    if (!results || !results.length) return;
+
+    const topRain = [...results].sort(
+        (a, b) =>
+            Number(b.forecast24Score || 0) -
+            Number(a.forecast24Score || 0)
+    )[0];
+
+    const topFlood = [...results].sort(
+        (a, b) =>
+            Number(b.floodRiskScore || 0) -
+            Number(a.floodRiskScore || 0)
+    )[0];
+
+    const rainCities = results.filter(city =>
+        Number(city.score || 0) >= 20 ||
+        Number(city.forecast24Score || 0) >= 20 ||
+        Number(city.forecast72Score || 0) >= 20
+    );
+
+    const now = new Date().toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    const rainEl = document.getElementById("nationalTopRainCity");
+    const floodEl = document.getElementById("nationalTopFloodCity");
+    const countEl = document.getElementById("nationalRainCount");
+    const updateEl = document.getElementById("nationalLastUpdate");
+
+    if (rainEl)
+        rainEl.innerText =
+            `${topRain?.name || "--"} (${topRain?.forecast24Score || 0}%)`;
+
+    if (floodEl)
+        floodEl.innerText =
+            `${topFlood?.name || "--"} (${topFlood?.floodRiskScore || 0}%)`;
+
+    if (countEl)
+        countEl.innerText = rainCities.length;
+
+    if (updateEl)
+        updateEl.innerText = now;
+}
 
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (!force) {
@@ -1460,6 +1505,7 @@ alertLevel:
 
     renderSmartMultiCityTopPanel(results);
     renderFloodWatchCitiesPanel(results);
+    updateNationalProStatus(results);
     renderSmartMultiCityForecastPanel(results);
     renderFloodPredictionPanel(results);
     updateNationalStatus(results);
