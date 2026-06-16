@@ -1968,6 +1968,23 @@ function updateNationalWeatherSummary(results) {
         );
     });
 
+    const rainCitiesListEl =
+    document.getElementById("nationalRainCitiesList");
+
+if (rainCitiesListEl) {
+    rainCitiesListEl.innerHTML = rainCities
+        .slice(0, 5)
+        .map(city => `
+            <span
+                class="rain-city-link"
+                onclick="rgOpenCityDetails('${city.name}')"
+            >
+                ${city.name}
+            </span>
+        `)
+        .join(" • ");
+}
+
     const watchFloodCities = results.filter(city => {
         const flood = Number(city.floodRiskScore || 0);
         const rainNow = Number(city.score || 0);
