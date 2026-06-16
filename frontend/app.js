@@ -1886,7 +1886,16 @@ function openCityDetailsDirect(city) {
 window.openCityDetailsDirect = openCityDetailsDirect;
 
 window.rgOpenCityDetails = function (cityName) {
-    openRainCityByName(cityName);
+    const city = (window.lastMultiCityResults || []).find(c =>
+        String(c.name || "").trim() === String(cityName || "").trim()
+    );
+
+    if (!city) {
+        showActionMessage("لا توجد بيانات لهذه المدينة حالياً", "warning");
+        return;
+    }
+
+    openCityDetailsDirect(city);
 };
 function updateNationalWeatherSummary(results) {
     const rainEl = document.getElementById("rainCitiesCount");
