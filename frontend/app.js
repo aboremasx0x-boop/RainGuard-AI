@@ -1394,7 +1394,7 @@ alertLevel:
             });
 
         } catch (error) {
-            console.error("Smart city error:", city.name, error);
+            console.warn("Smart city skipped:", city.name, error.message);
         }
     }
 
@@ -3908,7 +3908,7 @@ async function updateRainHeatmap() {
             heatmapLayer.push(circle);
 
         } catch (error) {
-            console.error(error);
+            console.warn("Heatmap city skipped:", error.message);
         }
     }
 }
