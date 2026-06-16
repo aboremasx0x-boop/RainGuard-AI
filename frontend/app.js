@@ -2008,34 +2008,35 @@ function updateNationalWeatherSummary(results) {
     }
 
     if (cloudEl) cloudEl.innerText = cloudCities.length;
-const topRainCity =
+
+const proTopRainCity =
     [...results]
         .sort((a, b) =>
             (b.actualRiskScore || b.score || 0) -
             (a.actualRiskScore || a.score || 0)
         )[0];
 
-const topFloodCity =
+const proTopFloodCity =
     [...results]
         .sort((a, b) =>
             (b.floodRiskScore || 0) -
             (a.floodRiskScore || 0)
         )[0];
 
-const rainCount =
+const proRainCount =
     results.filter(r =>
         (r.actualRiskScore || r.score || 0) >= 30
     ).length;
 
-window.topRainCityName = topRainCity?.name || null;
-window.topFloodCityName = topFloodCity?.name || null;
+window.topRainCityName = proTopRainCity?.name || null;
+window.topFloodCityName = proTopFloodCity?.name || null;
 
 const nationalTopRainEl =
     document.getElementById("nationalTopRainCity");
 
 if (nationalTopRainEl) {
     nationalTopRainEl.innerText =
-        topRainCity?.name || "--";
+        proTopRainCity?.name || "--";
     nationalTopRainEl.style.cursor = "pointer";
     nationalTopRainEl.onclick = openTopRainCity;
 }
@@ -2045,7 +2046,7 @@ const nationalTopFloodEl =
 
 if (nationalTopFloodEl) {
     nationalTopFloodEl.innerText =
-        topFloodCity?.name || "--";
+        proTopFloodCity?.name || "--";
     nationalTopFloodEl.style.cursor = "pointer";
     nationalTopFloodEl.onclick = openTopFloodCity;
 }
@@ -2054,7 +2055,7 @@ const nationalRainCountEl =
     document.getElementById("nationalRainCount");
 
 if (nationalRainCountEl) {
-    nationalRainCountEl.innerText = rainCount;
+    nationalRainCountEl.innerText = proRainCount;
 }
 
 const nationalUpdateEl =
@@ -2064,6 +2065,8 @@ if (nationalUpdateEl) {
     nationalUpdateEl.innerText =
         new Date().toLocaleTimeString("ar-SA");
 }
+
+} // نهاية updateNationalWeatherSummary
 
 function openTopRainCity() {
     if (window.topRainCityName) {
