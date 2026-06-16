@@ -2015,17 +2015,27 @@ function updateNationalWeatherSummary(results) {
         (a.actualRiskScore || a.score || 0)
     )[0];
 
+const topRainCity =
+    [...results]
+        .sort((a, b) =>
+            (b.actualRiskScore || b.score || 0) -
+            (a.actualRiskScore || a.score || 0)
+        )[0];
+
 const topFloodCity =
     [...results]
-    .sort((a,b)=>
-        (b.floodRiskScore || 0) -
-        (a.floodRiskScore || 0)
-    )[0];
+        .sort((a, b) =>
+            (b.floodRiskScore || 0) -
+            (a.floodRiskScore || 0)
+        )[0];
 
 const rainCount =
     results.filter(r =>
         (r.actualRiskScore || r.score || 0) >= 30
     ).length;
+
+window.topRainCityName = topRainCity?.name || null;
+window.topFloodCityName = topFloodCity?.name || null;
 
 const nationalTopRainEl =
     document.getElementById("nationalTopRainCity");
@@ -2033,6 +2043,8 @@ const nationalTopRainEl =
 if (nationalTopRainEl) {
     nationalTopRainEl.innerText =
         topRainCity?.name || "--";
+    nationalTopRainEl.style.cursor = "pointer";
+    nationalTopRainEl.onclick = openTopRainCity;
 }
 
 const nationalTopFloodEl =
@@ -2041,16 +2053,18 @@ const nationalTopFloodEl =
 if (nationalTopFloodEl) {
     nationalTopFloodEl.innerText =
         topFloodCity?.name || "--";
+    nationalTopFloodEl.style.cursor = "pointer";
+    nationalTopFloodEl.onclick = openTopFloodCity;
 }
 
 const nationalRainCountEl =
     document.getElementById("nationalRainCount");
 
 if (nationalRainCountEl) {
-    nationalRainCountEl.innerText =
-        rainCount;
+    nationalRainCountEl.innerText = rainCount;
 }
-    const nationalUpdateEl =
+
+const nationalUpdateEl =
     document.getElementById("nationalLastUpdate");
 
 if (nationalUpdateEl) {
@@ -2058,9 +2072,16 @@ if (nationalUpdateEl) {
         new Date().toLocaleTimeString("ar-SA");
 }
 
-const updateEl = document.getElementById("nationalLastUpdate");
-if (updateEl) {
-    updateEl.innerText = new Date().toLocaleTimeString("ar-SA");
+function openTopRainCity() {
+    if (window.topRainCityName) {
+        rgOpenCityDetails(window.topRainCityName);
+    }
+}
+
+function openTopFloodCity() {
+    if (window.topFloodCityName) {
+        rgOpenCityDetails(window.topFloodCityName);
+    }
 }
 }
 
