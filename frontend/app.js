@@ -2027,7 +2027,7 @@ const rainCount =
         (r.actualRiskScore || r.score || 0) >= 30
     ).length;
 
-cconst nationalTopRainEl =
+const nationalTopRainEl =
     document.getElementById("nationalTopRainCity");
 
 if (nationalTopRainEl) {
