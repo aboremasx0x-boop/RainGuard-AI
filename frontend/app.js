@@ -2083,7 +2083,6 @@ function openTopFloodCity() {
         rgOpenCityDetails(window.topFloodCityName);
     }
 }
-}
 
 function updateNationalStatus(results) {
     const box = document.getElementById("nationalWeatherStatus");
