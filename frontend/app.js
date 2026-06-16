@@ -2451,37 +2451,7 @@ function updateFloodRiskMap(results) {
     });
 }
 
-function openDetailsFromPopup(e) {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
 
-    window.rgOpenCityDetails(city.name);
-}
-
-detailsBtn.onclick = openDetailsFromPopup;
-detailsBtn.onmousedown = openDetailsFromPopup;
-detailsBtn.ontouchstart = openDetailsFromPopup;
-popupDiv.appendChild(detailsBtn);
-
-L.DomEvent.disableClickPropagation(popupDiv);
-L.DomEvent.disableScrollPropagation(popupDiv);
-
-circle.bindPopup(popupDiv);
-
-circle.on("dblclick", function () {
-    window.rgOpenCityDetails(city.name);
-});
-
-if (floodMapEnabled) {
-    circle.addTo(map);
-}
-
-floodMapLayer.push(circle);
-
-    });
-}
 function clearCloudRainMapLayer() {
     if (!map || !cloudRainMapLayer) return;
 
