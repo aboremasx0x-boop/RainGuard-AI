@@ -2171,55 +2171,58 @@ function renderRainArrivalCitiesPanel(results) {
     if (!box) return;
 
     if (!results || !results.length) {
-        box.innerHTML = "لا توجد بيانات وقت وصول المطر حالياً.";
+        box.innerHTML = "لا توجد بيانات وصول مطر حالياً.";
         return;
     }
 
-    const cities = results
-    .filter(city =>
-        Number(city.score || 0) >= 25 ||
-        Number(city.forecast24Score || 0) >= 25 ||
-        Number(city.forecast72Score || 0) >= 30
-    )
-    .sort((a, b) => {
-    const aPower =
-    Number(a.score || 0) * 0.5 +
-    Number(a.forecast24Score || 0) * 0.3 +
-    Number(a.forecast72Score || 0) * 0.2;
-
-const bPower =
-    Number(b.score || 0) * 0.5 +
-    Number(b.forecast24Score || 0) * 0.3 +
-    Number(b.forecast72Score || 0) * 0.2;
-    return bPower - aPower;
-})
-    .slice(0, 10);
+    const cities = [...results]
+        .filter(city => {
+            const rainNow = Number(city.score || 0);
+            const rain24 = Number(city.forecast24Score || 0);
+            const rain72 = Number(city.forecast72Score || 0);
+            return rainNow >= 20 || rain24 >= 20 || rain72 >= 20;
+        })
+        .sort((a, b) => {
+            const aScore = Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0));
+            const bScore = Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0));
+            return bScore - aScore;
+        })
+        .slice(0, 8);
 
     if (!cities.length) {
-        box.innerHTML = "لا توجد مدن لديها وقت وصول مطر واضح حالياً.";
+        box.innerHTML = "لا توجد مدن قريبة لوصول المطر حالياً.";
         return;
     }
 
-    box.innerHTML = cities.map((city, index) => `
-        <div
-            onclick="openRainCityByName('${city.name}')"
-            style="
-                padding:12px;
-                margin-bottom:10px;
+    box.innerHTML = cities.map((city, index) => {
+        const arrival = calculateRainArrivalV12(city);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
+        const strength = Math.max(rainNow, rain24, rain72);
+
+        return `
+            <div onclick="openRainCityByName('${city.name}')" style="
+                padding:14px;
+                margin-bottom:12px;
                 border-radius:14px;
                 background:#0f172a;
-                border:1px solid #334155;
+                border:1px solid #38bdf8;
                 cursor:pointer;
-                line-height:1.8;
-            "
-        >
-           وقت الوصول: <strong>${city.rainArrival?.label || "غير متوفر"}</strong><br>
-قوة الوصول: ${Math.round(
-    Number(city.score || 0) * 0.5 +
-    Number(city.forecast24Score || 0) * 0.3 +
-    Number(city.forecast72Score || 0) * 0.2
-)}% | المطر: ${city.score}% | 24 ساعة: ${city.forecast24Score}%
-    `).join("");
+                line-height:1.9;
+            ">
+                <strong style="font-size:18px;color:#e0f2fe;">
+                    ${index + 1}. ${city.name}
+                </strong><br>
+
+                وقت الوصول: <strong>${arrival.label}</strong><br>
+                قوة الوصول: <strong>${strength}%</strong> |
+                المطر: <strong>${rainNow}%</strong> |
+                24 ساعة: <strong>${rain24}%</strong> |
+                72 ساعة: <strong>${rain72}%</strong>
+            </div>
+        `;
+    }).join("");
 }
 
 function renderSmartMultiCityForecastPanel(results) {
