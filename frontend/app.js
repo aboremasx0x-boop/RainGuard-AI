@@ -1944,6 +1944,27 @@ function renderFloodPredictionPanel(results) {
     }).join("");
 }
 
+function calculateCloudMotionForCity(city) {
+    const windSpeed = Number(city.windSpeed || city.wind_speed || city.wind || 0);
+    const windDirection = Number(city.windDirection || city.wind_direction || city.windDeg || 0);
+
+    let directionText = "غير معروف";
+
+    if (windDirection >= 337.5 || windDirection < 22.5) directionText = "شمالية";
+    else if (windDirection >= 22.5 && windDirection < 67.5) directionText = "شمالية شرقية";
+    else if (windDirection >= 67.5 && windDirection < 112.5) directionText = "شرقية";
+    else if (windDirection >= 112.5 && windDirection < 157.5) directionText = "جنوبية شرقية";
+    else if (windDirection >= 157.5 && windDirection < 202.5) directionText = "جنوبية";
+    else if (windDirection >= 202.5 && windDirection < 247.5) directionText = "جنوبية غربية";
+    else if (windDirection >= 247.5 && windDirection < 292.5) directionText = "غربية";
+    else if (windDirection >= 292.5 && windDirection < 337.5) directionText = "شمالية غربية";
+
+    return {
+        direction: directionText,
+        speed: Math.round(windSpeed)
+    };
+}
+
 function updateNationalWeatherSummary(results) {
     const rainEl = document.getElementById("rainCitiesCount");
     const floodEl = document.getElementById("floodCitiesCount");
@@ -4993,6 +5014,9 @@ function openCityDetailsDirect(city) {
     const etaText = city.rainArrival?.label || city.rainArrival?.etaText ||
         (city.cloudMovement?.etaMinutes ? city.cloudMovement.etaMinutes + " دقيقة" : peakTime);
 
+    const cloudMotion =
+    city.cloudMovement || calculateCloudMotionForCity(city);
+
     document.body.insertAdjacentHTML("beforeend", `
         <div id="cityForecastModal" class="rg-modal" style="display:flex !important;">
             <div class="rg-modal-content">
@@ -5010,8 +5034,8 @@ function openCityDetailsDirect(city) {
                     <div>وقت وصول المطر: <strong>${etaText}</strong></div>
                 </div>
                 <div class="rg-modal-note">
-                    اتجاه السحب: ${city.cloudMovement?.direction || "غير معروف"}<br>
-                    سرعة السحب: ${city.cloudMovement?.speed || 0} كم/س<br>
+                    اتجاه السحب: ${cloudMotion.direction || "غير معروف"}<br>
+                   سرعة السحب: ${cloudMotion.speed || 0} كم/س<br>
                     وقت الذروة المتوقع: ${peakTime}<br>
                     سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
                     المصدر: ${city.source || "Unknown"}<br>
