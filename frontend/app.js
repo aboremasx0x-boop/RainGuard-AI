@@ -2455,7 +2455,6 @@ function openDetailsFromPopup(e) {
     if (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     }
 
     window.rgOpenCityDetails(city.name);
@@ -2464,7 +2463,6 @@ function openDetailsFromPopup(e) {
 detailsBtn.onclick = openDetailsFromPopup;
 detailsBtn.onmousedown = openDetailsFromPopup;
 detailsBtn.ontouchstart = openDetailsFromPopup;
-
 popupDiv.appendChild(detailsBtn);
 
 L.DomEvent.disableClickPropagation(popupDiv);
