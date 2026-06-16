@@ -1828,7 +1828,7 @@ floodCities.forEach(city => {
         `;
     }).join("");
 }
-ffunction openCityDetailsDirect(city) {
+function openCityDetailsDirect(city) {
     if (!city) return;
 
     closeCityForecastPopup();
