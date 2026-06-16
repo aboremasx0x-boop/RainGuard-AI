@@ -2008,6 +2008,44 @@ function updateNationalWeatherSummary(results) {
     }
 
     if (cloudEl) cloudEl.innerText = cloudCities.length;
+    const topRainCity =
+    [...results]
+    .sort((a,b)=>
+        (b.actualRiskScore || b.score || 0) -
+        (a.actualRiskScore || a.score || 0)
+    )[0];
+
+const topFloodCity =
+    [...results]
+    .sort((a,b)=>
+        (b.floodRiskScore || 0) -
+        (a.floodRiskScore || 0)
+    )[0];
+
+const rainCount =
+    results.filter(r =>
+        (r.actualRiskScore || r.score || 0) >= 30
+    ).length;
+
+const rainEl = document.getElementById("nationalTopRainCity");
+if (rainEl) {
+    rainEl.innerText = topRainCity?.name || "--";
+}
+
+const floodEl = document.getElementById("nationalTopFloodCity");
+if (floodEl) {
+    floodEl.innerText = topFloodCity?.name || "--";
+}
+
+const countEl = document.getElementById("nationalRainCount");
+if (countEl) {
+    countEl.innerText = rainCount;
+}
+
+const updateEl = document.getElementById("nationalLastUpdate");
+if (updateEl) {
+    updateEl.innerText = new Date().toLocaleTimeString("ar-SA");
+}
 }
 
 function updateNationalStatus(results) {
