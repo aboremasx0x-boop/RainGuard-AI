@@ -2407,7 +2407,7 @@ function renderRainArrivalCitiesPanel(results) {
                 border:1px solid #38bdf8;cursor:pointer;line-height:1.9;
             ">
                 <strong style="font-size:18px;color:#e0f2fe;">${index + 1}. ${city.name}</strong><br>
-                وقت الوصول: <strong>${arrival.label}</strong><br>
+               وقت الوصول: ${formatEtaText(arrival.label)}
                 قوة الوصول: <strong>${strength}%</strong> |
                 المطر: <strong>${rainNow}%</strong> |
                 24 ساعة: <strong>${rain24}%</strong> |
