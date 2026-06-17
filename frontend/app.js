@@ -1796,7 +1796,7 @@ function renderSmartMultiCityTopPanel(results) {
                     المطر الحالي: ${rainNow}%<br>
                     توقع المطر خلال 24 ساعة: ${forecast24}%<br>
                     توقع المطر خلال 72 ساعة: ${forecast72}%<br>
-                    وقت وصول المطر: ${arrival.label}<br>
+                   وقت وصول المطر: ${formatEtaText(arrival.label)}<br>
                     خطر السيول: ${city.floodRiskScore ?? "--"}%
                 </div>
             </div>
@@ -2376,17 +2376,31 @@ function renderRainArrivalCitiesPanel(results) {
     }
 
     const cities = [...results]
+        .map(city => {
+            const arrival = calculateRainArrivalV12(city);
+            const eta =
+                Number(arrival?.etaMinutes) ||
+                Number(city.cloudMovement?.etaMinutes) ||
+                99999;
+
+            return {
+                ...city,
+                arrival,
+                eta
+            };
+        })
         .filter(city => {
             const rainNow = Number(city.score || 0);
             const rain24 = Number(city.forecast24Score || 0);
             const rain72 = Number(city.forecast72Score || 0);
-            return rainNow >= 20 || rain24 >= 20 || rain72 >= 20;
+
+            return (
+                rainNow >= 20 ||
+                rain24 >= 20 ||
+                rain72 >= 20
+            );
         })
-        .sort((a, b) => {
-            const aScore = Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0));
-            const bScore = Math.max(Number(b.score || 0), Number(b.forecast24Score || 0), Number(b.forecast72Score || 0));
-            return bScore - aScore;
-        })
+        .sort((a, b) => a.eta - b.eta)
         .slice(0, 8);
 
     if (!cities.length) {
@@ -2395,19 +2409,37 @@ function renderRainArrivalCitiesPanel(results) {
     }
 
     box.innerHTML = cities.map((city, index) => {
-        const arrival = calculateRainArrivalV12(city);
         const rainNow = Number(city.score || 0);
         const rain24 = Number(city.forecast24Score || 0);
         const rain72 = Number(city.forecast72Score || 0);
         const strength = Math.max(rainNow, rain24, rain72);
 
+        const arrivalText = formatEtaText(
+            city.arrival?.label ||
+            city.rainArrival?.label ||
+            (
+                city.cloudMovement?.etaMinutes
+                    ? city.cloudMovement.etaMinutes + " دقيقة"
+                    : "غير متوفر"
+            )
+        );
+
         return `
             <div onclick="openRainCityByName('${safeCityName(city.name)}')" style="
-                padding:14px;margin-bottom:12px;border-radius:14px;background:#0f172a;
-                border:1px solid #38bdf8;cursor:pointer;line-height:1.9;
+                padding:14px;
+                margin-bottom:12px;
+                border-radius:14px;
+                background:#0f172a;
+                border:1px solid #38bdf8;
+                cursor:pointer;
+                line-height:1.9;
             ">
-                <strong style="font-size:18px;color:#e0f2fe;">${index + 1}. ${city.name}</strong><br>
-               وقت الوصول: ${formatEtaText(arrival.label)}
+                <strong style="font-size:18px;color:#e0f2fe;">
+                    ${index + 1}. ${city.name}
+                </strong><br>
+
+                وقت الوصول: <strong>${arrivalText}</strong><br>
+
                 قوة الوصول: <strong>${strength}%</strong> |
                 المطر: <strong>${rainNow}%</strong> |
                 24 ساعة: <strong>${rain24}%</strong> |
@@ -2884,6 +2916,25 @@ function renderSubZonesHTML(subZones) {
         </div>
     `;
 }
+
+function formatEtaText(value) {
+    if (!value) return "غير متوفر";
+
+    const text = String(value);
+    const match = text.match(/(\d+)/);
+
+    if (!match) return text;
+
+    const minutes = Number(match[1]);
+
+    if (minutes >= 60) {
+        const hours = Math.round(minutes / 60);
+        return `خلال ${hours} ساعات تقريباً`;
+    }
+
+    return `خلال ${minutes} دقيقة تقريباً`;
+}
+
 function openCityForecastPopup(cityName) {
     closeCityForecastPopup();
 
@@ -5057,26 +5108,7 @@ function openCityDetailsDirect(city) {
     const cloudMotion =
     city.cloudMovement || calculateCloudMotionForCity(city);
 
-    function formatEtaText(value) {
-    if (!value) return "غير متوفر";
-
-    const text = String(value);
-
-    const minutesMatch = text.match(/(\d+)\s*دقيقة/);
-    if (minutesMatch) {
-        const minutes = Number(minutesMatch[1]);
-
-        if (minutes >= 60) {
-            const hours = Math.round(minutes / 60);
-            return `خلال ${hours} ساعات تقريباً`;
-        }
-
-        return `خلال ${minutes} دقيقة تقريباً`;
-    }
-
-    return text;
-}
-
+    
 const etaTextFormatted = formatEtaText(etaText);
 
     document.body.insertAdjacentHTML("beforeend", `
