@@ -5057,6 +5057,28 @@ function openCityDetailsDirect(city) {
     const cloudMotion =
     city.cloudMovement || calculateCloudMotionForCity(city);
 
+    function formatEtaText(value) {
+    if (!value) return "غير متوفر";
+
+    const text = String(value);
+
+    const minutesMatch = text.match(/(\d+)\s*دقيقة/);
+    if (minutesMatch) {
+        const minutes = Number(minutesMatch[1]);
+
+        if (minutes >= 60) {
+            const hours = Math.round(minutes / 60);
+            return `خلال ${hours} ساعات تقريباً`;
+        }
+
+        return `خلال ${minutes} دقيقة تقريباً`;
+    }
+
+    return text;
+}
+
+const etaTextFormatted = formatEtaText(etaText);
+
     document.body.insertAdjacentHTML("beforeend", `
         <div id="cityForecastModal" class="rg-modal" style="display:flex !important;">
             <div class="rg-modal-content">
@@ -5071,7 +5093,7 @@ function openCityDetailsDirect(city) {
                     <div>72 ساعة: <strong>${city.forecast72Score ?? "--"}%</strong></div>
                     <div>السيول: <strong>${city.floodRiskScore ?? "--"}%</strong></div>
                     <div>التضاريس: <strong>${city.terrainRiskScore ?? "--"}%</strong></div>
-                    <div>وقت وصول المطر: <strong>${etaText}</strong></div>
+                    <div>وقت وصول المطر: <strong>${etaTextFormatted}</strong></div>
                 </div>
                 <div class="rg-modal-note">
                     اتجاه السحب: ${cloudMotion.direction || "غير معروف"}<br>
