@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
 import os
+import sqlite3
+from datetime import datetime
 from datetime import datetime, timedelta
 
 app = FastAPI(title="RainGuard AI API", version="6.3")
@@ -27,6 +29,76 @@ SOURCE_STATE = {
     "openweather_failures": 0
 }
 
+DB_NAME = "rainguard_predictions.db"
+
+
+def init_prediction_db():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS prediction_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            city TEXT,
+            lat REAL,
+            lon REAL,
+            prediction_time TEXT,
+            rain_score REAL,
+            forecast24 REAL,
+            forecast72 REAL,
+            flood_score REAL,
+            source TEXT,
+            verified INTEGER DEFAULT 0,
+            actual_rain REAL DEFAULT NULL,
+            result TEXT DEFAULT 'pending'
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+def save_prediction_history(
+    city,
+    lat,
+    lon,
+    rain_score,
+    forecast24,
+    forecast72,
+    flood_score,
+    source
+):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+
+        cur.execute("""
+            INSERT INTO prediction_history (
+                city, lat, lon, prediction_time,
+                rain_score, forecast24, forecast72,
+                flood_score, source
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            city,
+            lat,
+            lon,
+            datetime.utcnow().isoformat(),
+            rain_score,
+            forecast24,
+            forecast72,
+            flood_score,
+            source
+        ))
+
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        print("Prediction history save error:", e)
+
+
+init_prediction_db()
 
 def now_utc():
     return datetime.utcnow()
