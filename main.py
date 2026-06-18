@@ -985,3 +985,51 @@ def verify_prediction(
         "actual_rain": actual_rain,
         "result": result
     }
+
+@app.get("/accuracy")
+def accuracy_report():
+
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM prediction_history
+    """)
+    total_predictions = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM prediction_history
+        WHERE verified=1
+    """)
+    verified = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM prediction_history
+        WHERE result='success'
+    """)
+    successes = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM prediction_history
+        WHERE result='failed'
+    """)
+    failures = cur.fetchone()[0]
+
+    conn.close()
+
+    accuracy = round(
+        (successes / verified * 100),
+        2
+    ) if verified > 0 else 0
+
+    return {
+        "total_predictions": total_predictions,
+        "verified_predictions": verified,
+        "successful_predictions": successes,
+        "failed_predictions": failures,
+        "accuracy_percent": accuracy
+    }
