@@ -5139,6 +5139,49 @@ const etaTextFormatted = formatEtaText(etaText);
         </div>
     `);
 }
+async function loadPredictionAnalytics() {
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/prediction-analytics`
+        );
+
+        const data = await response.json();
+
+        const container = document.getElementById("aiAccuracyCard");
+
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="analytics-card">
+                <h3>🧠 دقة الذكاء الاصطناعي</h3>
+
+                <div>إجمالي التنبؤات: ${data.total_predictions}</div>
+                <div>تم التحقق: ${data.verified_predictions}</div>
+                <div>نجاح: ${data.successful_predictions}</div>
+                <div>فشل: ${data.failed_predictions}</div>
+
+                <hr>
+
+                <div>
+                    الدقة الحالية:
+                    <strong>${data.accuracy_percent}%</strong>
+                </div>
+
+                <div>
+                    متوسط Rain Score:
+                    ${data.average_rain_score}
+                </div>
+
+                <div>
+                    متوسط المطر الفعلي:
+                    ${data.average_actual_rain}
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        console.error("Prediction analytics error:", err);
+    }
+}
 
 window.openCityDetailsDirect = openCityDetailsDirect;
 
@@ -5233,5 +5276,6 @@ setTimeout(() => {
         cloudCard.style.cursor = "pointer";
     }
 }, 2000);
+loadPredictionAnalytics();
 
 console.log("APP LOADED");
