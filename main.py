@@ -986,9 +986,8 @@ def verify_prediction(
         "result": result
     }
 
-@app.get("/accuracy")
-def accuracy_report():
-
+@app.get("/prediction-analytics")
+def prediction_analytics():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
@@ -1005,17 +1004,44 @@ def accuracy_report():
     cur.execute("""
         SELECT COUNT(*)
         FROM prediction_history
-        WHERE result = 'success'
+        WHERE verified = 1 AND result = 'success'
     """)
     successful_predictions = cur.fetchone()[0]
 
     cur.execute("""
         SELECT COUNT(*)
         FROM prediction_history
-        WHERE result = 'failed'
+        WHERE verified = 1 AND result = 'failed'
     """)
     failed_predictions = cur.fetchone()[0]
-    conn.commit()
+
+    cur.execute("""
+        SELECT AVG(rain_score)
+        FROM prediction_history
+        WHERE verified = 1
+    """)
+    avg_rain_score = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT AVG(actual_rain)
+        FROM prediction_history
+        WHERE verified = 1
+    """)
+    avg_actual_rain = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT
+            city,
+            COUNT(*) as total,
+            SUM(CASE WHEN verified = 1 THEN 1 ELSE 0 END) as verified_count,
+            SUM(CASE WHEN verified = 1 AND result = 'success' THEN 1 ELSE 0 END) as success_count,
+            SUM(CASE WHEN verified = 1 AND result = 'failed' THEN 1 ELSE 0 END) as failed_count
+        FROM prediction_history
+        GROUP BY city
+        ORDER BY total DESC
+    """)
+    city_rows = cur.fetchall()
+
     conn.close()
 
     accuracy_percent = (
@@ -1024,10 +1050,65 @@ def accuracy_report():
         else 0
     )
 
+    city_accuracy = []
+    for row in city_rows:
+        city = row[0]
+        total = row[1] or 0
+        verified_count = row[2] or 0
+        success_count = row[3] or 0
+        failed_count = row[4] or 0
+
+        city_accuracy_percent = (
+            round(success_count * 100 / verified_count, 2)
+            if verified_count > 0
+            else 0
+        )
+
+        city_accuracy.append({
+            "city": city,
+            "total_predictions": total,
+            "verified_predictions": verified_count,
+            "successful_predictions": success_count,
+            "failed_predictions": failed_count,
+            "accuracy_percent": city_accuracy_percent
+        })
+
     return {
         "total_predictions": total_predictions,
         "verified_predictions": verified_predictions,
         "successful_predictions": successful_predictions,
         "failed_predictions": failed_predictions,
-        "accuracy_percent": accuracy_percent
+        "accuracy_percent": accuracy_percent,
+        "average@app.get("/prediction-debug")
+def prediction_debug():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, city, rain_score, verified, actual_rain, result
+        FROM prediction_history
+        ORDER BY id DESC
+        LIMIT 10
+    """)
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return {
+        "records": [
+            {
+                "id": r[0],
+                "city": r[1],
+                "rain_score": r[2],
+                "verified": r[3],
+                "actual_rain": r[4],
+                "result": r[5]
+            }
+            for r in rows
+        ]
+    }_rain_score": round(avg_rain_score, 2) if avg_rain_score is not None else 0,
+        "average_actual_rain": round(avg_actual_rain, 2) if avg_actual_rain is not None else 0,
+        "city_accuracy": city_accuracy
     }
+
+
