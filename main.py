@@ -994,39 +994,19 @@ def prediction_analytics():
     cur.execute("SELECT COUNT(*) FROM prediction_history")
     total_predictions = cur.fetchone()[0]
 
-    cur.execute("""
-        SELECT COUNT(*)
-        FROM prediction_history
-        WHERE verified = 1
-    """)
+    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1")
     verified_predictions = cur.fetchone()[0]
 
-    cur.execute("""
-        SELECT COUNT(*)
-        FROM prediction_history
-        WHERE verified = 1 AND result = 'success'
-    """)
+    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1 AND result = 'success'")
     successful_predictions = cur.fetchone()[0]
 
-    cur.execute("""
-        SELECT COUNT(*)
-        FROM prediction_history
-        WHERE verified = 1 AND result = 'failed'
-    """)
+    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1 AND result = 'failed'")
     failed_predictions = cur.fetchone()[0]
 
-    cur.execute("""
-        SELECT AVG(rain_score)
-        FROM prediction_history
-        WHERE verified = 1
-    """)
+    cur.execute("SELECT AVG(rain_score) FROM prediction_history WHERE verified = 1")
     avg_rain_score = cur.fetchone()[0]
 
-    cur.execute("""
-        SELECT AVG(actual_rain)
-        FROM prediction_history
-        WHERE verified = 1
-    """)
+    cur.execute("SELECT AVG(actual_rain) FROM prediction_history WHERE verified = 1")
     avg_actual_rain = cur.fetchone()[0]
 
     cur.execute("""
@@ -1040,17 +1020,17 @@ def prediction_analytics():
         GROUP BY city
         ORDER BY total DESC
     """)
-    city_rows = cur.fetchall()
 
+    city_rows = cur.fetchall()
     conn.close()
 
     accuracy_percent = (
         round(successful_predictions * 100 / verified_predictions, 2)
-        if verified_predictions > 0
-        else 0
+        if verified_predictions > 0 else 0
     )
 
     city_accuracy = []
+
     for row in city_rows:
         city = row[0]
         total = row[1] or 0
@@ -1060,8 +1040,7 @@ def prediction_analytics():
 
         city_accuracy_percent = (
             round(success_count * 100 / verified_count, 2)
-            if verified_count > 0
-            else 0
+            if verified_count > 0 else 0
         )
 
         city_accuracy.append({
@@ -1079,7 +1058,13 @@ def prediction_analytics():
         "successful_predictions": successful_predictions,
         "failed_predictions": failed_predictions,
         "accuracy_percent": accuracy_percent,
-        "average@app.get("/prediction-debug")
+        "average_rain_score": round(avg_rain_score, 2) if avg_rain_score is not None else 0,
+        "average_actual_rain": round(avg_actual_rain, 2) if avg_actual_rain is not None else 0,
+        "city_accuracy": city_accuracy
+    }
+
+
+@app.get("/prediction-debug")
 def prediction_debug():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -1106,9 +1091,4 @@ def prediction_debug():
             }
             for r in rows
         ]
-    }_rain_score": round(avg_rain_score, 2) if avg_rain_score is not None else 0,
-        "average_actual_rain": round(avg_actual_rain, 2) if avg_actual_rain is not None else 0,
-        "city_accuracy": city_accuracy
     }
-
-
