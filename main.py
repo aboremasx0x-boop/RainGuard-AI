@@ -753,6 +753,40 @@ def get_load_balancer_status():
         "openweather_failures": SOURCE_STATE.get("openweather_failures", 0),
         "strategy": "Open-Meteo primary, OpenWeatherMap always verification, recovery after 429"
     }
+    @app.get("/prediction-history")
+def prediction_history(limit: int = Query(20)):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT city, prediction_time, rain_score, forecast24, forecast72,
+               flood_score, source, verified, actual_rain, result
+        FROM prediction_history
+        ORDER BY id DESC
+        LIMIT ?
+    """, (limit,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return {
+        "count": len(rows),
+        "records": [
+            {
+                "city": r[0],
+                "prediction_time": r[1],
+                "rain_score": r[2],
+                "forecast24": r[3],
+                "forecast72": r[4],
+                "flood_score": r[5],
+                "source": r[6],
+                "verified": r[7],
+                "actual_rain": r[8],
+                "result": r[9]
+            }
+            for r in rows
+        ]
+    }
 
 
 @app.get("/")
