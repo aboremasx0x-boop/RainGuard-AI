@@ -809,6 +809,7 @@ async def rain_alert(
                 open_meteo_result["data"],
                 hours
             )
+            store_prediction_from_result(result, name, lat, lon)
 
             save_cache(key, result)
 
@@ -829,6 +830,7 @@ async def rain_alert(
                     f"Open-Meteo parse error: {str(e)}",
                     hours
                 )
+                store_prediction_from_result(result, name, lat, lon)
 
                 save_cache(key, result)
 
@@ -859,6 +861,7 @@ async def rain_alert(
             open_meteo_result["reason"],
             hours
         )
+        store_prediction_from_result(result, name, lat, lon)
 
         save_cache(key, result)
 
