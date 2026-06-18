@@ -992,44 +992,42 @@ def accuracy_report():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
-    cur.execute("""
-        SELECT COUNT(*)
-        FROM prediction_history
-    """)
+    cur.execute("SELECT COUNT(*) FROM prediction_history")
     total_predictions = cur.fetchone()[0]
 
     cur.execute("""
         SELECT COUNT(*)
         FROM prediction_history
-        WHERE verified=1
+        WHERE verified = 1
     """)
-    verified = cur.fetchone()[0]
+    verified_predictions = cur.fetchone()[0]
 
     cur.execute("""
         SELECT COUNT(*)
         FROM prediction_history
-        WHERE result='success'
+        WHERE result = 'success'
     """)
-    successes = cur.fetchone()[0]
+    successful_predictions = cur.fetchone()[0]
 
     cur.execute("""
         SELECT COUNT(*)
         FROM prediction_history
-        WHERE result='failed'
+        WHERE result = 'failed'
     """)
-    failures = cur.fetchone()[0]
+    failed_predictions = cur.fetchone()[0]
 
     conn.close()
 
-    accuracy = round(
-        (successes / verified * 100),
-        2
-    ) if verified > 0 else 0
+    accuracy_percent = (
+        round(successful_predictions * 100 / verified_predictions, 2)
+        if verified_predictions > 0
+        else 0
+    )
 
     return {
         "total_predictions": total_predictions,
-        "verified_predictions": verified,
-        "successful_predictions": successes,
-        "failed_predictions": failures,
-        "accuracy_percent": accuracy
+        "verified_predictions": verified_predictions,
+        "successful_predictions": successful_predictions,
+        "failed_predictions": failed_predictions,
+        "accuracy_percent": accuracy_percent
     }
