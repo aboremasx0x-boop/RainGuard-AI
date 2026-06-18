@@ -4,7 +4,6 @@ from fastapi.responses import JSONResponse
 import httpx
 import os
 import sqlite3
-from datetime import datetime
 from datetime import datetime, timedelta
 
 app = FastAPI(title="RainGuard AI API", version="6.3")
