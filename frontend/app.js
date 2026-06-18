@@ -1725,12 +1725,14 @@ function getRainPanelStyle(score) {
             label: "تنبيه مطر"
         };
     }
-
+    
     return {
-        color: "#22c55e",
-        icon: "🟢",
-        label: "مستقر"
-    };
+    color: "#22c55e",
+    icon: "🟢",
+    label: "مستقر"
+};
+ 
+    
 }
 
 function safeCityName(name) {
