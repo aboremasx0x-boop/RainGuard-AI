@@ -753,6 +753,8 @@ def get_load_balancer_status():
         "openweather_failures": SOURCE_STATE.get("openweather_failures", 0),
         "strategy": "Open-Meteo primary, OpenWeatherMap always verification, recovery after 429"
     }
+
+    
     @app.get("/prediction-history")
 def prediction_history(limit: int = Query(20)):
     conn = sqlite3.connect(DB_NAME)
