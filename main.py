@@ -58,16 +58,7 @@ def init_prediction_db():
     conn.close()
 
 
-def save_prediction_history(
-    city,
-    lat,
-    lon,
-    rain_score,
-    forecast24,
-    forecast72,
-    flood_score,
-    source
-):
+def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
     try:
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
@@ -96,7 +87,9 @@ def save_prediction_history(
 
     except Exception as e:
         print("Prediction history save error:", e)
-        def store_prediction_from_result(result, name, lat, lon):
+
+
+def store_prediction_from_result(result, name, lat, lon):
     try:
         best = result.get("best_hour") or {}
         current = result.get("current") or {}
@@ -754,8 +747,8 @@ def get_load_balancer_status():
         "strategy": "Open-Meteo primary, OpenWeatherMap always verification, recovery after 429"
     }
 
-    
-    @app.get("/prediction-history")
+
+@app.get("/prediction-history")
 def prediction_history(limit: int = Query(20)):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
