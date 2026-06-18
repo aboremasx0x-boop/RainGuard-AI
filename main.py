@@ -946,44 +946,55 @@ def verify_prediction(
     cur.execute("""
         SELECT rain_score
         FROM prediction_history
-        WHERE id=?
+        WHERE id = ?
     """, (prediction_id,))
 
     row = cur.fetchone()
 
     if not row:
         conn.close()
-        return {"status": "not_found"}
+        return {"status": "not_found", "prediction_id": prediction_id}
 
-    predicted = row[0]
+    predicted_score = float(row[0] or 0)
 
-    result = "success" if (
-        predicted >= 50 and actual_rain > 0
-    ) or (
-        predicted < 50 and actual_rain == 0
-    ) else "failed"
+    if predicted_score >= 50 and actual_rain > 0:
+        result = "success"
+    elif predicted_score < 50 and actual_rain == 0:
+        result = "success"
+    else:
+        result = "failed"
 
     cur.execute("""
         UPDATE prediction_history
-        SET verified=1,
-            actual_rain=?,
-            result=?
-        WHERE id=?
-    """, (
-        actual_rain,
-        result,
-        prediction_id
-    ))
+        SET verified = 1,
+            actual_rain = ?,
+            result = ?
+        WHERE id = ?
+    """, (actual_rain, result, prediction_id))
 
     conn.commit()
+
+    cur.execute("""
+        SELECT id, verified, actual_rain, result
+        FROM prediction_history
+        WHERE id = ?
+    """, (prediction_id,))
+
+    updated = cur.fetchone()
     conn.close()
 
     return {
         "status": "verified",
         "prediction_id": prediction_id,
-        "predicted_score": predicted,
+        "predicted_score": predicted_score,
         "actual_rain": actual_rain,
-        "result": result
+        "result": result,
+        "saved_check": {
+            "id": updated[0],
+            "verified": updated[1],
+            "actual_rain": updated[2],
+            "result": updated[3]
+        }
     }
 
 @app.get("/prediction-analytics")
