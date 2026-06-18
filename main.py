@@ -753,8 +753,18 @@ def prediction_history(limit: int = Query(20)):
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT city, prediction_time, rain_score, forecast24, forecast72,
-               flood_score, source, verified, actual_rain, result
+        SELECT
+            id,
+            city,
+            prediction_time,
+            rain_score,
+            forecast24,
+            forecast72,
+            flood_score,
+            source,
+            verified,
+            actual_rain,
+            result
         FROM prediction_history
         ORDER BY id DESC
         LIMIT ?
@@ -767,21 +777,21 @@ def prediction_history(limit: int = Query(20)):
         "count": len(rows),
         "records": [
             {
-                "city": r[0],
-                "prediction_time": r[1],
-                "rain_score": r[2],
-                "forecast24": r[3],
-                "forecast72": r[4],
-                "flood_score": r[5],
-                "source": r[6],
-                "verified": r[7],
-                "actual_rain": r[8],
-                "result": r[9]
+                "id": r[0],
+                "city": r[1],
+                "prediction_time": r[2],
+                "rain_score": r[3],
+                "forecast24": r[4],
+                "forecast72": r[5],
+                "flood_score": r[6],
+                "source": r[7],
+                "verified": r[8],
+                "actual_rain": r[9],
+                "result": r[10]
             }
             for r in rows
         ]
     }
-
 
 @app.get("/")
 def root():
