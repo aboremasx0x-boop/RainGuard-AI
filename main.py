@@ -1015,7 +1015,7 @@ def accuracy_report():
         WHERE result = 'failed'
     """)
     failed_predictions = cur.fetchone()[0]
-
+    conn.commit()
     conn.close()
 
     accuracy_percent = (
