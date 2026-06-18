@@ -1404,4 +1404,15 @@ button.cloud-modal-close {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+.analytics-card{
+    background: rgba(255,255,255,0.08);
+    border-radius:16px;
+    padding:15px;
+    margin-top:12px;
+    backdrop-filter: blur(8px);
+}
+
+.analytics-card h3{
+    margin-bottom:10px;
+}
 
