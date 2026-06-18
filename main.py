@@ -825,6 +825,56 @@ async def rain_alert(
             content=cached,
             media_type="application/json; charset=utf-8"
         )
+        @app.post("/verify-prediction")
+def verify_prediction(
+    prediction_id: int,
+    actual_rain: float
+):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT rain_score
+        FROM prediction_history
+        WHERE id=?
+    """, (prediction_id,))
+
+    row = cur.fetchone()
+
+    if not row:
+        conn.close()
+        return {"status": "not_found"}
+
+    predicted = row[0]
+
+    result = "success" if (
+        predicted >= 50 and actual_rain > 0
+    ) or (
+        predicted < 50 and actual_rain == 0
+    ) else "failed"
+
+    cur.execute("""
+        UPDATE prediction_history
+        SET verified=1,
+            actual_rain=?,
+            result=?
+        WHERE id=?
+    """, (
+        actual_rain,
+        result,
+        prediction_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "verified",
+        "prediction_id": prediction_id,
+        "predicted_score": predicted,
+        "actual_rain": actual_rain,
+        "result": result
+    }
 
     open_meteo_result = await fetch_open_meteo(lat, lon, hours)
 
