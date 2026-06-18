@@ -2120,7 +2120,6 @@ function updateNationalWeatherSummary(results) {
     }
 }
 
-} // نهاية updateNationalWeatherSummary
 
 function openTopRainCity() {
     if (window.topRainCityName) {
