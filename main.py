@@ -96,6 +96,40 @@ def save_prediction_history(
 
     except Exception as e:
         print("Prediction history save error:", e)
+        def store_prediction_from_result(result, name, lat, lon):
+    try:
+        best = result.get("best_hour") or {}
+        current = result.get("current") or {}
+        next_hours = result.get("next_hours") or []
+
+        rain_score = float(best.get("rain_score") or current.get("rain_score") or 0)
+
+        forecast24 = max(
+            [float(h.get("rain_score") or 0) for h in next_hours[:24]],
+            default=0
+        )
+
+        forecast72 = max(
+            [float(h.get("rain_score") or 0) for h in next_hours[:72]],
+            default=0
+        )
+
+        flood_score = float(result.get("floodRiskScore") or 0)
+        source = result.get("source", "Unknown")
+
+        save_prediction_history(
+            name,
+            lat,
+            lon,
+            rain_score,
+            forecast24,
+            forecast72,
+            flood_score,
+            source
+        )
+
+    except Exception as e:
+        print("Prediction history hook error:", e)
 
 
 init_prediction_db()
