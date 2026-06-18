@@ -1757,7 +1757,7 @@ function renderSmartMultiCityTopPanel(results) {
             const rainNow = Number(city.score || 0);
             const rain24 = Number(city.forecast24Score || 0);
             const rain72 = Number(city.forecast72Score || 0);
-            return rainNow >= 20 || rain24 >= 20 || rain72 >= 20;
+            return rainNow >= 30 || rain24 >= 30 || rain72 >= 30;
         })
         .sort((a, b) => {
             const aMax = Math.max(Number(a.score || 0), Number(a.forecast24Score || 0), Number(a.forecast72Score || 0));
@@ -1770,7 +1770,7 @@ function renderSmartMultiCityTopPanel(results) {
         box.innerHTML = `
             <div style="padding:18px;text-align:center;color:#94a3b8;line-height:2;">
                 🌤️ لا توجد مدن عليها مؤشرات مطر حالياً<br>
-                يتم عرض المدن إذا كان مؤشر المطر 20% أو أعلى.
+يتم عرض المدن إذا كان مؤشر المطر 30% أو أعلى.
             </div>
         `;
         return;
