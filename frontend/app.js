@@ -5276,6 +5276,8 @@ setTimeout(() => {
         cloudCard.style.cursor = "pointer";
     }
 }, 2000);
-loadPredictionAnalytics();
+setTimeout(() => {
+    loadPredictionAnalytics();
+}, 3000);
 
 console.log("APP LOADED");
