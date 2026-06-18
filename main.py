@@ -825,7 +825,7 @@ async def rain_alert(
             content=cached,
             media_type="application/json; charset=utf-8"
         )
-        @app.post("/verify-prediction")
+ @app.post("/verify-prediction")
 def verify_prediction(
     prediction_id: int,
     actual_rain: float
