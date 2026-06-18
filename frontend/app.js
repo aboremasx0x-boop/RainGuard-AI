@@ -2009,9 +2009,13 @@ function updateNationalWeatherSummary(results) {
     const rainEl = document.getElementById("rainCitiesCount");
     const floodEl = document.getElementById("floodCitiesCount");
     const cloudEl = document.getElementById("cloudCitiesCount");
+    const rainCitiesListEl = document.getElementById("nationalRainCitiesList");
+    const nationalRainCountEl = document.getElementById("nationalRainCount");
 
     if (!results || !results.length) {
         if (rainEl) rainEl.innerText = "0";
+        if (nationalRainCountEl) nationalRainCountEl.innerText = "0";
+        if (rainCitiesListEl) rainCitiesListEl.innerHTML = "--";
         if (floodEl) floodEl.innerText = "متابعة 0 | مرتفع 0 | حرج 0";
         if (cloudEl) cloudEl.innerText = "0";
         return;
@@ -2021,25 +2025,32 @@ function updateNationalWeatherSummary(results) {
         const rainNow = Number(city.score || 0);
         const rain24 = Number(city.forecast24Score || 0);
         const rain72 = Number(city.forecast72Score || 0);
+        const actual = Number(city.actualRiskScore || 0);
 
         return (
             rainNow >= 30 ||
             rain24 >= 30 ||
-            rain72 >= 30
+            rain72 >= 30 ||
+            actual >= 30
         );
     });
 
-    const rainCitiesListEl =
-    document.getElementById("nationalRainCitiesList");
+    if (rainEl) rainEl.innerText = rainCities.length;
+    if (nationalRainCountEl) nationalRainCountEl.innerText = rainCities.length;
 
-if (rainCitiesListEl) {
-    rainCitiesListEl.innerHTML = rainCities.length
-        ? rainCities
-            .slice(0, 5)
-            .map(city => city.name || city.city || "مدينة غير معروفة")
-            .join("، ")
-        : "--";
-}
+    if (rainCitiesListEl) {
+        rainCitiesListEl.innerHTML = rainCities.length
+            ? rainCities
+                .slice(0, 5)
+                .map(city => `
+                    <span style="cursor:pointer;color:#38bdf8;font-weight:bold;"
+                          onclick="openRainCityByName('${city.name}')">
+                        ${city.name}
+                    </span>
+                `)
+                .join("، ")
+            : "--";
+    }
 
     const watchFloodCities = results.filter(city => {
         const flood = Number(city.floodRiskScore || 0);
@@ -2066,14 +2077,8 @@ if (rainCitiesListEl) {
         const rainNow = Number(city.score || 0);
         const rain24 = Number(city.forecast24Score || 0);
 
-        return (
-            rainNow >= 10 &&
-            rainNow < 30 &&
-            rain24 < 30
-        );
+        return rainNow >= 10 && rainNow < 30 && rain24 < 30;
     });
-
-    if (rainEl) rainEl.innerText = rainCities.length;
 
     if (floodEl) {
         floodEl.innerText =
@@ -2082,61 +2087,37 @@ if (rainCitiesListEl) {
 
     if (cloudEl) cloudEl.innerText = cloudCities.length;
 
-const proTopRainCity =
-    [...results]
-        .sort((a, b) =>
-            (b.actualRiskScore || b.score || 0) -
-            (a.actualRiskScore || a.score || 0)
-        )[0];
+    const proTopRainCity = [...results].sort((a, b) =>
+        Number(b.actualRiskScore || b.score || 0) -
+        Number(a.actualRiskScore || a.score || 0)
+    )[0];
 
-const proTopFloodCity =
-    [...results]
-        .sort((a, b) =>
-            (b.floodRiskScore || 0) -
-            (a.floodRiskScore || 0)
-        )[0];
+    const proTopFloodCity = [...results].sort((a, b) =>
+        Number(b.floodRiskScore || 0) -
+        Number(a.floodRiskScore || 0)
+    )[0];
 
-const proRainCount =
-    results.filter(r =>
-        (r.actualRiskScore || r.score || 0) >= 30
-    ).length;
+    window.topRainCityName = proTopRainCity?.name || null;
+    window.topFloodCityName = proTopFloodCity?.name || null;
 
-window.topRainCityName = proTopRainCity?.name || null;
-window.topFloodCityName = proTopFloodCity?.name || null;
+    const nationalTopRainEl = document.getElementById("nationalTopRainCity");
+    if (nationalTopRainEl) {
+        nationalTopRainEl.innerText = proTopRainCity?.name || "--";
+        nationalTopRainEl.style.cursor = "pointer";
+        nationalTopRainEl.onclick = openTopRainCity;
+    }
 
-const nationalTopRainEl =
-    document.getElementById("nationalTopRainCity");
+    const nationalTopFloodEl = document.getElementById("nationalTopFloodCity");
+    if (nationalTopFloodEl) {
+        nationalTopFloodEl.innerText = proTopFloodCity?.name || "--";
+        nationalTopFloodEl.style.cursor = "pointer";
+        nationalTopFloodEl.onclick = openTopFloodCity;
+    }
 
-if (nationalTopRainEl) {
-    nationalTopRainEl.innerText =
-        proTopRainCity?.name || "--";
-    nationalTopRainEl.style.cursor = "pointer";
-    nationalTopRainEl.onclick = openTopRainCity;
-}
-
-const nationalTopFloodEl =
-    document.getElementById("nationalTopFloodCity");
-
-if (nationalTopFloodEl) {
-    nationalTopFloodEl.innerText =
-        proTopFloodCity?.name || "--";
-    nationalTopFloodEl.style.cursor = "pointer";
-    nationalTopFloodEl.onclick = openTopFloodCity;
-}
-
-const nationalRainCountEl =
-    document.getElementById("nationalRainCount");
-
-if (nationalRainCountEl) {
-    nationalRainCountEl.innerText = proRainCount;
-}
-
-const nationalUpdateEl =
-    document.getElementById("nationalLastUpdate");
-
-if (nationalUpdateEl) {
-    nationalUpdateEl.innerText =
-        new Date().toLocaleTimeString("ar-SA");
+    const nationalUpdateEl = document.getElementById("nationalLastUpdate");
+    if (nationalUpdateEl) {
+        nationalUpdateEl.innerText = new Date().toLocaleTimeString("ar-SA");
+    }
 }
 
 } // نهاية updateNationalWeatherSummary
