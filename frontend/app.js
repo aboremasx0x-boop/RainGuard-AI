@@ -2038,7 +2038,7 @@ if (rainCitiesListEl) {
         .map(city => `
             <span
                 class="rain-city-link"
-                onclick="rgOpenCityDetails('${city.name}')"
+                onclick="rgOpenCityDetails('${safeCityName(city.name)}')"
             >
                 ${city.name}
             </span>
