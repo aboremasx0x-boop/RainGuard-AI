@@ -825,7 +825,107 @@ async def rain_alert(
             content=cached,
             media_type="application/json; charset=utf-8"
         )
- @app.post("/verify-prediction")
+
+    open_meteo_result = await fetch_open_meteo(lat, lon, hours)
+
+    if open_meteo_result["ok"]:
+        try:
+            result = await build_open_meteo_result(
+                lat,
+                lon,
+                name,
+                open_meteo_result["data"],
+                hours
+            )
+
+            store_prediction_from_result(result, name, lat, lon)
+            save_cache(key, result)
+
+            return JSONResponse(
+                content=result,
+                media_type="application/json; charset=utf-8"
+            )
+
+        except Exception as e:
+            openweather_data = await fetch_openweather(lat, lon)
+
+            if openweather_data.get("available"):
+                result = build_hybrid_recovery_result(
+                    lat,
+                    lon,
+                    name,
+                    openweather_data,
+                    f"Open-Meteo parse error: {str(e)}",
+                    hours
+                )
+
+                store_prediction_from_result(result, name, lat, lon)
+                save_cache(key, result)
+
+                return JSONResponse(
+                    content=result,
+                    media_type="application/json; charset=utf-8"
+                )
+
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "error": True,
+                    "message": "تعذر معالجة بيانات Open-Meteo ولا يوجد مصدر احتياطي متاح",
+                    "parse_error": str(e),
+                    "load_balancer": get_load_balancer_status()
+                },
+                media_type="application/json; charset=utf-8"
+            )
+
+    openweather_data = await fetch_openweather(lat, lon)
+
+    if openweather_data.get("available"):
+        result = build_hybrid_recovery_result(
+            lat,
+            lon,
+            name,
+            openweather_data,
+            open_meteo_result["reason"],
+            hours
+        )
+
+        store_prediction_from_result(result, name, lat, lon)
+        save_cache(key, result)
+
+        return JSONResponse(
+            content=result,
+            media_type="application/json; charset=utf-8"
+        )
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "error": True,
+            "location_name": name,
+            "latitude": lat,
+            "longitude": lon,
+            "generated_at": now_utc().isoformat() + "Z",
+            "message": "تعذر جلب بيانات الطقس من كل المصادر المتاحة",
+            "open_meteo_error": open_meteo_result["reason"],
+            "openweather": openweather_data,
+            "current": None,
+            "best_hour": None,
+            "next_hours": [],
+            "daily_forecast": [],
+            "verification": {
+                "verified": False,
+                "confidence": "لا توجد بيانات كافية",
+                "confidence_score": 0,
+                "note": "تعذر الاتصال بمصادر الطقس"
+            },
+            "load_balancer": get_load_balancer_status()
+        },
+        media_type="application/json; charset=utf-8"
+    )
+
+
+@app.post("/verify-prediction")
 def verify_prediction(
     prediction_id: int,
     actual_rain: float
@@ -875,101 +975,3 @@ def verify_prediction(
         "actual_rain": actual_rain,
         "result": result
     }
-
-    open_meteo_result = await fetch_open_meteo(lat, lon, hours)
-
-    if open_meteo_result["ok"]:
-        try:
-            result = await build_open_meteo_result(
-                lat,
-                lon,
-                name,
-                open_meteo_result["data"],
-                hours
-            )
-            store_prediction_from_result(result, name, lat, lon)
-
-            save_cache(key, result)
-
-            return JSONResponse(
-                content=result,
-                media_type="application/json; charset=utf-8"
-            )
-
-        except Exception as e:
-            openweather_data = await fetch_openweather(lat, lon)
-
-            if openweather_data.get("available"):
-                result = build_hybrid_recovery_result(
-                    lat,
-                    lon,
-                    name,
-                    openweather_data,
-                    f"Open-Meteo parse error: {str(e)}",
-                    hours
-                )
-                store_prediction_from_result(result, name, lat, lon)
-
-                save_cache(key, result)
-
-                return JSONResponse(
-                    content=result,
-                    media_type="application/json; charset=utf-8"
-                )
-
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "error": True,
-                    "message": "تعذر معالجة بيانات Open-Meteo ولا يوجد مصدر احتياطي متاح",
-                    "parse_error": str(e),
-                    "load_balancer": get_load_balancer_status()
-                },
-                media_type="application/json; charset=utf-8"
-            )
-
-    openweather_data = await fetch_openweather(lat, lon)
-
-    if openweather_data.get("available"):
-        result = build_hybrid_recovery_result(
-            lat,
-            lon,
-            name,
-            openweather_data,
-            open_meteo_result["reason"],
-            hours
-        )
-        store_prediction_from_result(result, name, lat, lon)
-
-        save_cache(key, result)
-
-        return JSONResponse(
-            content=result,
-            media_type="application/json; charset=utf-8"
-        )
-
-    return JSONResponse(
-        status_code=200,
-        content={
-            "error": True,
-            "location_name": name,
-            "latitude": lat,
-            "longitude": lon,
-            "generated_at": now_utc().isoformat() + "Z",
-            "message": "تعذر جلب بيانات الطقس من كل المصادر المتاحة",
-            "open_meteo_error": open_meteo_result["reason"],
-            "openweather": openweather_data,
-            "current": None,
-            "best_hour": None,
-            "next_hours": [],
-            "daily_forecast": [],
-            "verification": {
-                "verified": False,
-                "confidence": "لا توجد بيانات كافية",
-                "confidence_score": 0,
-                "note": "تعذر الاتصال بمصادر الطقس"
-            },
-            "load_balancer": get_load_balancer_status()
-        },
-        media_type="application/json; charset=utf-8"
-    )
