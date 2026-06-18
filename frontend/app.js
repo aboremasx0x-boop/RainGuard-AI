@@ -2033,17 +2033,12 @@ function updateNationalWeatherSummary(results) {
     document.getElementById("nationalRainCitiesList");
 
 if (rainCitiesListEl) {
-    rainCitiesListEl.innerHTML = rainCities
-        .slice(0, 5)
-        .map(city => `
-            <span
-                class="rain-city-link"
-                onclick="rgOpenCityDetails('${safeCityName(city.name)}')"
-            >
-                ${city.name}
-            </span>
-        `)
-        .join(" • ");
+    rainCitiesListEl.innerHTML = rainCities.length
+        ? rainCities
+            .slice(0, 5)
+            .map(city => city.name || city.city || "مدينة غير معروفة")
+            .join("، ")
+        : "--";
 }
 
     const watchFloodCities = results.filter(city => {
