@@ -1693,12 +1693,6 @@ function renderSmartMultiCityHistory() {
     }).join("");
 }
 
-function clearSmartMultiCityHistory() {
-    localStorage.removeItem(SMART_MULTI_CITY_HISTORY_KEY);
-    renderSmartMultiCityHistory();
-    showActionMessage("تم مسح سجل مراقبة المدن الذكية", "warning");
-}
-
 function getRainPanelStyle(score) {
     score = Number(score) || 0;
 
@@ -1725,14 +1719,20 @@ function getRainPanelStyle(score) {
             label: "تنبيه مطر"
         };
     }
-    
+
+    if (score >= 20) {
+        return {
+            color: "#22c55e",
+            icon: "🟢",
+            label: "مؤشرات خفيفة"
+        };
+    }
+
     return {
-    color: "#22c55e",
-    icon: "🟢",
-    label: "مستقر"
-};
- 
-    
+        color: "#22c55e",
+        icon: "🟢",
+        label: "مستقر"
+    };
 }
 
 function safeCityName(name) {
