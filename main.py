@@ -28,7 +28,8 @@ SOURCE_STATE = {
     "openweather_failures": 0
 }
 
-DB_NAME = "rainguard_predictions.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "rainguard_predictions.db")
 
 
 def init_prediction_db():
@@ -1091,6 +1092,7 @@ def prediction_debug():
     conn.close()
 
     return {
+        "db_path": DB_NAME,
         "records": [
             {
                 "id": r[0],
