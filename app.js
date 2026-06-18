@@ -1877,24 +1877,25 @@ function updateNationalWeatherSummary(results) {
     const floodEl = document.getElementById("floodCitiesCount");
     const cloudEl = document.getElementById("cloudCitiesCount");
 
+    const nationalRainCount = document.getElementById("nationalRainCount");
+    const nationalRainCitiesList = document.getElementById("nationalRainCitiesList");
+
     if (!results || !results.length) {
         if (rainEl) rainEl.innerText = "0";
         if (floodEl) floodEl.innerText = "0";
         if (cloudEl) cloudEl.innerText = "0";
+        if (nationalRainCount) nationalRainCount.innerText = "0";
+        if (nationalRainCitiesList) nationalRainCitiesList.innerText = "--";
         return;
     }
 
     const rainCities = results.filter(city => {
-    const rainNow = Number(city.score || 0);
-    const rain24 = Number(city.forecast24Score || 0);
-    const rain72 = Number(city.forecast72Score || 0);
+        const rainNow = Number(city.score || 0);
+        const rain24 = Number(city.forecast24Score || 0);
+        const rain72 = Number(city.forecast72Score || 0);
 
-    return (
-        rainNow >= 30 ||
-        rain24 >= 30 ||
-        rain72 >= 30
-    );
-});
+        return rainNow >= 30 || rain24 >= 30 || rain72 >= 30;
+    });
 
     const floodCities = results.filter(city => {
         const flood = Number(city.floodRiskScore || 0);
@@ -1909,67 +1910,42 @@ function updateNationalWeatherSummary(results) {
         );
     });
 
-    const highFloodCities = floodCities.filter(city =>
-    Number(city.floodRiskScore || 0) >= 55
-);
-    const extremeFloodCities = floodCities.filter(
-    city => Number(city.floodRiskScore || 0) >= 70
-);
-
     const cloudCities = results.filter(city => {
         const rainNow = Number(city.score || 0);
         const rain24 = Number(city.forecast24Score || 0);
 
-        return (
-            rainNow >= 10 &&
-            rainNow < 30 &&
-            rain24 < 30
-        );
+        return rainNow >= 10 && rainNow < 30 && rain24 < 30;
     });
+
+    const highFloodCities = floodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 55
+    );
+
+    const extremeFloodCities = floodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 70
+    );
 
     if (rainEl) rainEl.innerText = rainCities.length;
-    if (floodEl) {
-    floodEl.innerText = `${highFloodCities.length} مرتفع | ${extremeFloodCities.length} حرج ${highFloodCities.length}`;
-}
     if (cloudEl) cloudEl.innerText = cloudCities.length;
-}
 
-function updateNationalStatus(results) {
-    const box = document.getElementById("nationalWeatherStatus");
-    if (!box) return;
-
-    if (!results || !results.length) {
-        box.innerHTML = "⚪ الحالة الوطنية: لا توجد بيانات";
-        box.style.borderColor = "#64748b";
-        updateNationalWeatherSummary([]);
-        return;
+    if (floodEl) {
+        floodEl.innerText =
+            `${highFloodCities.length} مرتفع | ${extremeFloodCities.length} حرج`;
     }
 
-    const rainCities = results.filter(city => {
-        const rainNow = Number(city.score || 0);
-        const rain24 = Number(city.forecast24Score || 0);
-        const rain72 = Number(city.forecast72Score || 0);
+    if (nationalRainCount) {
+        nationalRainCount.innerText = rainCities.length;
+    }
 
-        return (
-            rainNow >= 40 ||
-            rain24 >= 40 ||
-            rain72 >= 40
-        );
-    });
-
-    const floodCities = results.filter(city => {
-        const flood = Number(city.floodRiskScore || 0);
-        const rainNow = Number(city.score || 0);
-        const rain24 = Number(city.forecast24Score || 0);
-        const rain72 = Number(city.forecast72Score || 0);
-
-        return flood >= 55 && (
-            rainNow >= 30 ||
-            rain24 >= 30 ||
-            rain72 >= 30
-        );
-    });
-
+    if (nationalRainCitiesList) {
+        nationalRainCitiesList.innerHTML = rainCities.length
+            ? rainCities
+                .map(city => city.name || city.city || "مدينة غير معروفة")
+                .slice(0, 6)
+                .join("، ")
+            : "--";
+    }
+}
     updateNationalWeatherSummary(results);
 
     if (rainCities.length === 0 && floodCities.length === 0) {
