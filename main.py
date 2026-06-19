@@ -1066,35 +1066,35 @@ def auto_verify_predictions():
     }
 
 
-@app.get("/auto-verify-predictions")
-def auto_verify_predictions_get():
-    return auto_verify_predictions()
-
 @app.get("/prediction-analytics")
 def prediction_analytics():
-    return {
-    "test": "NEW_ANALYTICS_V1"
-}
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
-    cur.execute("SELECT COUNT(*) FROM prediction_history")
-    total_predictions = cur.fetchone()[0]
+    cur.execute("""
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN verified = 1 THEN 1 ELSE 0 END) as verified_count,
+            SUM(CASE WHEN verified = 1 AND result = 'success' THEN 1 ELSE 0 END) as success_count,
+            SUM(CASE WHEN verified = 1 AND result = 'failed' THEN 1 ELSE 0 END) as failed_count,
+            AVG(CASE WHEN verified = 1 THEN rain_score END) as avg_rain_score,
+            AVG(CASE WHEN verified = 1 THEN actual_rain END) as avg_actual_rain
+        FROM prediction_history
+    """)
 
-    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1")
-    verified_predictions = cur.fetchone()[0]
+    row = cur.fetchone()
 
-    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1 AND result = 'success'")
-    successful_predictions = cur.fetchone()[0]
+    total_predictions = row[0] or 0
+    verified_predictions = row[1] or 0
+    successful_predictions = row[2] or 0
+    failed_predictions = row[3] or 0
+    avg_rain_score = row[4]
+    avg_actual_rain = row[5]
 
-    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1 AND result = 'failed'")
-    failed_predictions = cur.fetchone()[0]
-
-    cur.execute("SELECT AVG(rain_score) FROM prediction_history WHERE verified = 1")
-    avg_rain_score = cur.fetchone()[0]
-
-    cur.execute("SELECT AVG(actual_rain) FROM prediction_history WHERE verified = 1")
-    avg_actual_rain = cur.fetchone()[0]
+    accuracy_percent = (
+        round(successful_predictions * 100 / verified_predictions, 2)
+        if verified_predictions > 0 else 0
+    )
 
     cur.execute("""
         SELECT
@@ -1111,35 +1111,23 @@ def prediction_analytics():
     city_rows = cur.fetchall()
     conn.close()
 
-    accuracy_percent = (
-        round(successful_predictions * 100 / verified_predictions, 2)
-        if verified_predictions > 0 else 0
-    )
-
     city_accuracy = []
-
-    for row in city_rows:
-        city = row[0]
-        total = row[1] or 0
-        verified_count = row[2] or 0
-        success_count = row[3] or 0
-        failed_count = row[4] or 0
-
-        city_accuracy_percent = (
-            round(success_count * 100 / verified_count, 2)
-            if verified_count > 0 else 0
-        )
+    for city, total, verified_count, success_count, failed_count in city_rows:
+        verified_count = verified_count or 0
+        success_count = success_count or 0
+        failed_count = failed_count or 0
 
         city_accuracy.append({
             "city": city,
-            "total_predictions": total,
+            "total_predictions": total or 0,
             "verified_predictions": verified_count,
             "successful_predictions": success_count,
             "failed_predictions": failed_count,
-            "accuracy_percent": city_accuracy_percent
+            "accuracy_percent": round(success_count * 100 / verified_count, 2) if verified_count > 0 else 0
         })
 
     return {
+        "db_name": DB_NAME,
         "total_predictions": total_predictions,
         "verified_predictions": verified_predictions,
         "successful_predictions": successful_predictions,
