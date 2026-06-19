@@ -3166,7 +3166,8 @@ function showCloudCities() {
         `).join("")
         : "لا توجد مدن غائمة حالياً";
 
-   modal.classList.add("show");
+  modal.style.display = "flex";
+  modal.classList.add("show");
 }
 
 function closeCloudCities() {
