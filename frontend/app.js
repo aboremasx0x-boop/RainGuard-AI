@@ -5023,6 +5023,9 @@ async function loadPredictionAnalytics() {
         const response = await fetch(`${API_BASE_URL}/prediction-analytics`);
         const data = await response.json();
 
+console.log("Prediction Analytics:", data);
+alert(JSON.stringify(data));
+
         const container = document.getElementById("aiAccuracyCard");
         if (!container) return;
 
@@ -5166,6 +5169,7 @@ setTimeout(() => {
     }
 }, 2000);
 setTimeout(() => {
+    console.log("Calling loadPredictionAnalytics...");
     loadPredictionAnalytics();
 }, 3000);
 
