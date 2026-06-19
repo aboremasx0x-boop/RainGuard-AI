@@ -1003,6 +1003,10 @@ def verify_prediction(
             "result": updated[3]
         }
     }
+@app.get("/verify-prediction")
+def verify_prediction_get(prediction_id: int, actual_rain: float):
+    return verify_prediction(prediction_id, actual_rain)
+    
 @app.post("/auto-verify-predictions")
 def auto_verify_predictions():
     conn = sqlite3.connect(DB_NAME)
