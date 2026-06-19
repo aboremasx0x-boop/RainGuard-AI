@@ -1023,16 +1023,13 @@ def auto_verify_predictions():
 
     for row in rows:
         prediction_id = row[0]
-        city = row[1]
         predicted_score = float(row[2] or 0)
 
-        # مؤقتاً: إذا كان التوقع أقل من 30 نعتبر لا مطر فعلي
-        # لاحقاً نربطه ببيانات المطر الفعلية من Open-Meteo
         actual_rain = 0.0
 
-        if predicted_score >= 50 and actual_rain > 0:
+        if predicted_score >= 30 and actual_rain > 0:
             result = "success"
-        elif predicted_score < 50 and actual_rain == 0:
+        elif predicted_score < 30 and actual_rain == 0:
             result = "success"
         else:
             result = "failed"
@@ -1052,8 +1049,14 @@ def auto_verify_predictions():
 
     return {
         "status": "auto_verified",
+        "threshold_used": 30,
         "updated_count": updated_count
     }
+
+
+@app.get("/auto-verify-predictions")
+def auto_verify_predictions_get():
+    return auto_verify_predictions()
 @app.get("/auto-verify-predictions")
 def auto_verify_predictions_get():
     return auto_verify_predictions()
