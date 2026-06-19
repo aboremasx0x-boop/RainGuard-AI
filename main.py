@@ -54,8 +54,20 @@ def init_prediction_db():
         )
     """)
 
-    conn.commit()
+        conn.commit()
+
+    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1")
+    verified_after = cur.fetchone()[0]
+
     conn.close()
+
+    return {
+        "status": "auto_verified",
+        "threshold_used": 30,
+        "updated_count": updated_count,
+        "verified_after": verified_after,
+        "db_name": DB_NAME
+    }
 
 
 def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
@@ -1054,9 +1066,6 @@ def auto_verify_predictions():
     }
 
 
-@app.get("/auto-verify-predictions")
-def auto_verify_predictions_get():
-    return auto_verify_predictions()
 @app.get("/auto-verify-predictions")
 def auto_verify_predictions_get():
     return auto_verify_predictions()
