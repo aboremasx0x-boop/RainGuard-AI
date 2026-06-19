@@ -2280,7 +2280,7 @@ function renderNationalTrendPanel(results) {
     panel.innerHTML = `
         <div style="line-height:2;">
             <div style="font-weight:800;margin-bottom:10px;color:#38bdf8;">
-                🌦️ توقعات المطر خلال 72 ساعة فقط
+                🌦️ أعلى توقعات المطر خلال 72 ساعة
             </div>
 
             ${topCities.map((city, index) => {
