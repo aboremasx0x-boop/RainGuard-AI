@@ -2269,9 +2269,21 @@ function renderNationalTrendPanel(results) {
     );
     return score >= 30;
 })
-        .sort((a, b) =>
-            Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
-        )
+        .sort((a, b) => {
+    const aScore = Math.max(
+        Number(a.forecast72Score || 0),
+        Number(a.forecast24Score || 0),
+        Number(a.score || 0)
+    );
+
+    const bScore = Math.max(
+        Number(b.forecast72Score || 0),
+        Number(b.forecast24Score || 0),
+        Number(b.score || 0)
+    );
+
+    return bScore - aScore;
+})
         .slice(0, 20);
 
     if (topCities.length === 0) {
