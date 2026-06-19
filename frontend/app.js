@@ -2415,9 +2415,9 @@ function renderRainArrivalCitiesPanel(results) {
                     ${index + 1}. ${city.name}
                 </strong><br>
 
-                وقت الوصول: <strong>${arrivalText}</strong><br>
+                وقت المتابعة: <strong>${arrivalText}</strong><br>
 
-                قوة الوصول: <strong>${strength}%</strong> |
+                قوة المتابعة: <strong>${strength}%</strong> |
                 المطر: <strong>${rainNow}%</strong> |
                 24 ساعة: <strong>${rain24}%</strong> |
                 72 ساعة: <strong>${rain72}%</strong>
