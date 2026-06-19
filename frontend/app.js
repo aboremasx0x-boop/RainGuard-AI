@@ -2261,42 +2261,17 @@ function renderNationalTrendPanel(results) {
     }
 
     const topCities = [...results]
-        .filter(city => {
-    const score = Math.max(
-        Number(city.forecast72Score || 0),
-        Number(city.forecast24Score || 0),
-        Number(city.score || 0)
-    );
-    return score >= 30;
-})
-        .sort((a, b) => {
-    const aScore = Math.max(
-        Number(a.forecast72Score || 0),
-        Number(a.forecast24Score || 0),
-        Number(a.score || 0)
-    );
+        .filter(city => Number(city.forecast72Score || 0) >= 30)
+        .sort((a, b) =>
+            Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
+        )
+        .slice(0, 10);
 
-    const bScore = Math.max(
-        Number(b.forecast72Score || 0),
-        Number(b.forecast24Score || 0),
-        Number(b.score || 0)
-    );
-
-    return bScore - aScore;
-})
-        .slice(0, 20);
-
-    if (topCities.length === 0) {
+    if (!topCities.length) {
         panel.innerHTML = `
-            <div style="
-                text-align:center;
-                padding:30px;
-                color:#94a3b8;
-                line-height:2;
-            ">
-                🌤️ لا توجد مدن بتوقعات مطر مهمة خلال 72 ساعة
-                <br>
-                يتم عرض المدن فقط إذا كان المؤشر 30% أو أعلى.
+            <div style="text-align:center;padding:30px;color:#94a3b8;line-height:2;">
+                🌤️ لا توجد توقعات مطر مهمة خلال 72 ساعة<br>
+                يتم العرض إذا كان توقع 72 ساعة 30% أو أعلى.
             </div>
         `;
         return;
@@ -2304,60 +2279,31 @@ function renderNationalTrendPanel(results) {
 
     panel.innerHTML = `
         <div style="line-height:2;">
-            <div style="
-                font-weight:800;
-                margin-bottom:10px;
-                color:#38bdf8;
-            ">
-                🌦️ أعلى المدن مطراً / غيوماً خلال 72 ساعة
+            <div style="font-weight:800;margin-bottom:10px;color:#38bdf8;">
+                🌦️ توقعات المطر خلال 72 ساعة فقط
             </div>
 
             ${topCities.map((city, index) => {
-                const score = Math.max(
-    Number(city.forecast72Score || 0),
-    Number(city.forecast24Score || 0),
-    Number(city.score || 0)
-);
+                const score = Number(city.forecast72Score || 0);
                 const style = getRainPanelStyle(score);
 
                 return `
-                    <div
-                        onclick="openRainCityByName('${city.name}')"
-                        style="
-                            cursor:pointer;
-                            padding:8px 0;
-                            border-bottom:1px solid rgba(51,65,85,.6);
-                        "
-                    >
-                        <div style="
-                            display:flex;
-                            justify-content:space-between;
-                            align-items:center;
-                        ">
+                    <div onclick="openRainCityByName('${safeCityName(city.name)}')" style="
+                        cursor:pointer;
+                        padding:8px 0;
+                        border-bottom:1px solid rgba(51,65,85,.6);
+                    ">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span>${index + 1}. ${style.icon} ${city.name}</span>
                             <strong style="color:${style.color};">${score}%</strong>
                         </div>
 
-                        <div style="
-                            margin-top:5px;
-                            height:7px;
-                            background:#1e293b;
-                            border-radius:999px;
-                            overflow:hidden;
-                        ">
-                            <div style="
-                                width:${score}%;
-                                height:100%;
-                                background:${style.color};
-                            "></div>
+                        <div style="margin-top:5px;height:7px;background:#1e293b;border-radius:999px;overflow:hidden;">
+                            <div style="width:${score}%;height:100%;background:${style.color};"></div>
                         </div>
 
-                        <div style="
-                            color:#94a3b8;
-                            font-size:12px;
-                            margin-top:4px;
-                        ">
-                            ${style.label}
+                        <div style="color:#94a3b8;font-size:12px;margin-top:4px;">
+                            توقع 72 ساعة: ${style.label}
                         </div>
                     </div>
                 `;
