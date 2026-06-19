@@ -1072,6 +1072,9 @@ def auto_verify_predictions_get():
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
+    return {
+    "test": "NEW_ANALYTICS_V1"
+}
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
