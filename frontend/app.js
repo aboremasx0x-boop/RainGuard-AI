@@ -2261,7 +2261,14 @@ function renderNationalTrendPanel(results) {
     }
 
     const topCities = [...results]
-        .filter(city => Number(city.forecast72Score || city.forecast24Score || city.score || 0) >= 10)
+        .filter(city => {
+    const score = Math.max(
+        Number(city.forecast72Score || 0),
+        Number(city.forecast24Score || 0),
+        Number(city.score || 0)
+    );
+    return score >= 30;
+})
         .sort((a, b) =>
             Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
         )
@@ -2294,7 +2301,11 @@ function renderNationalTrendPanel(results) {
             </div>
 
             ${topCities.map((city, index) => {
-                const score = Number(city.forecast72Score || 0);
+                const score = Math.max(
+    Number(city.forecast72Score || 0),
+    Number(city.forecast24Score || 0),
+    Number(city.score || 0)
+);
                 const style = getRainPanelStyle(score);
 
                 return `
