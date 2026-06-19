@@ -29,7 +29,7 @@ SOURCE_STATE = {
 }
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(BASE_DIR, "rainguard_predictions.db")
+DB_NAME = "/var/data/rainguard_predictions.db"
 
 
 def init_prediction_db():
