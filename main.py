@@ -1050,6 +1050,9 @@ def auto_verify_predictions():
         "status": "auto_verified",
         "updated_count": updated_count
     }
+@app.get("/auto-verify-predictions")
+def auto_verify_predictions_get():
+    return auto_verify_predictions()
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
