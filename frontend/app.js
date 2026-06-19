@@ -2007,7 +2007,113 @@ function calculateCloudMotionForCity(city) {
     };
 }
 
-function updateNationalWeatherSummary(results)
+function updateNationalWeatherSummary(results) {
+    const rainEl = document.getElementById("rainCitiesCount");
+    const floodEl = document.getElementById("floodCitiesCount");
+    const cloudEl = document.getElementById("cloudCitiesCount");
+    const rainCitiesListEl = document.getElementById("nationalRainCitiesList");
+    const nationalRainCountEl = document.getElementById("nationalRainCount");
+
+    if (!results || !results.length) {
+        if (rainEl) rainEl.innerText = "0";
+        if (nationalRainCountEl) nationalRainCountEl.innerText = "0";
+        if (rainCitiesListEl) rainCitiesListEl.innerHTML = "--";
+        if (floodEl) floodEl.innerText = "متابعة 0 | مرتفع 0 | حرج 0";
+        if (cloudEl) cloudEl.innerText = "0";
+        return;
+    }
+
+    const rainCities = results.filter(city =>
+        Number(city.score || 0) >= 30 ||
+        Number(city.forecast24Score || 0) >= 30 ||
+        Number(city.forecast72Score || 0) >= 30
+    );
+
+    const watchFloodCities = results.filter(city =>
+        Number(city.floodRiskScore || 0) >= 30 &&
+        (
+            Number(city.score || 0) >= 25 ||
+            Number(city.forecast24Score || 0) >= 25 ||
+            Number(city.forecast72Score || 0) >= 30
+        )
+    );
+
+    const highFloodCities = watchFloodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 60
+    );
+
+    const extremeFloodCities = watchFloodCities.filter(city =>
+        Number(city.floodRiskScore || 0) >= 80
+    );
+
+    const cloudCities = results.filter(city =>
+        Number(city.score || 0) >= 10 &&
+        Number(city.score || 0) < 30 &&
+        Number(city.forecast24Score || 0) < 30
+    );
+
+    if (rainEl) rainEl.innerText = rainCities.length;
+    if (nationalRainCountEl) nationalRainCountEl.innerText = rainCities.length;
+
+    if (rainCitiesListEl) {
+        rainCitiesListEl.innerHTML = rainCities.length
+            ? rainCities.slice(0, 5).map(city => `
+                <span style="cursor:pointer;color:#38bdf8;font-weight:bold;"
+                      onclick="openRainCityByName('${safeCityName(city.name)}')">
+                    ${city.name}
+                </span>
+            `).join("، ")
+            : "--";
+    }
+
+    if (floodEl) {
+        floodEl.innerText =
+            `متابعة ${watchFloodCities.length} | مرتفع ${highFloodCities.length} | حرج ${extremeFloodCities.length}`;
+    }
+
+    if (cloudEl) cloudEl.innerText = cloudCities.length;
+
+    const proTopRainCity = [...results]
+        .map(city => ({
+            ...city,
+            maxRain: Math.max(
+                Number(city.score || 0),
+                Number(city.forecast24Score || 0),
+                Number(city.forecast72Score || 0)
+            )
+        }))
+        .sort((a, b) => b.maxRain - a.maxRain)[0];
+
+    const proTopFloodCity = [...results].sort((a, b) =>
+        Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
+    )[0];
+
+    window.topRainCityName = proTopRainCity?.name || null;
+    window.topFloodCityName = proTopFloodCity?.name || null;
+
+    const nationalTopRainEl = document.getElementById("nationalTopRainCity");
+    if (nationalTopRainEl) {
+        nationalTopRainEl.innerText = proTopRainCity
+            ? `${proTopRainCity.name} (${proTopRainCity.maxRain}%)`
+            : "--";
+        nationalTopRainEl.style.cursor = "pointer";
+        nationalTopRainEl.onclick = openTopRainCity;
+    }
+
+    const nationalTopFloodEl = document.getElementById("nationalTopFloodCity");
+    if (nationalTopFloodEl) {
+        nationalTopFloodEl.innerText = proTopFloodCity
+            ? `${proTopFloodCity.name} (${proTopFloodCity.floodRiskScore || 0}%)`
+            : "--";
+        nationalTopFloodEl.style.cursor = "pointer";
+        nationalTopFloodEl.onclick = openTopFloodCity;
+    }
+
+    const nationalUpdateEl = document.getElementById("nationalLastUpdate");
+    if (nationalUpdateEl) {
+        nationalUpdateEl.innerText = new Date().toLocaleTimeString("ar-SA");
+    }
+}
 
 function openTopRainCity() {
     if (window.topRainCityName) {
