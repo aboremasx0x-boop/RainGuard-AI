@@ -1003,6 +1003,53 @@ def verify_prediction(
             "result": updated[3]
         }
     }
+@app.post("/auto-verify-predictions")
+def auto_verify_predictions():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, city, rain_score
+        FROM prediction_history
+        WHERE verified = 0
+    """)
+
+    rows = cur.fetchall()
+    updated_count = 0
+
+    for row in rows:
+        prediction_id = row[0]
+        city = row[1]
+        predicted_score = float(row[2] or 0)
+
+        # مؤقتاً: إذا كان التوقع أقل من 30 نعتبر لا مطر فعلي
+        # لاحقاً نربطه ببيانات المطر الفعلية من Open-Meteo
+        actual_rain = 0.0
+
+        if predicted_score >= 50 and actual_rain > 0:
+            result = "success"
+        elif predicted_score < 50 and actual_rain == 0:
+            result = "success"
+        else:
+            result = "failed"
+
+        cur.execute("""
+            UPDATE prediction_history
+            SET verified = 1,
+                actual_rain = ?,
+                result = ?
+            WHERE id = ?
+        """, (actual_rain, result, prediction_id))
+
+        updated_count += 1
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "auto_verified",
+        "updated_count": updated_count
+    }
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
