@@ -5088,40 +5088,51 @@ const etaTextFormatted = formatEtaText(etaText);
 }
 async function loadPredictionAnalytics() {
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/prediction-analytics`
-        );
-
+        const response = await fetch(`${API_BASE_URL}/prediction-analytics`);
         const data = await response.json();
 
         const container = document.getElementById("aiAccuracyCard");
-
         if (!container) return;
+
+        const accuracyText =
+            Number(data.verified_predictions || 0) > 0 && data.accuracy_percent !== null
+                ? `${data.accuracy_percent}%`
+                : "لم يتم التحقق بعد";
+
+        const avgRainText =
+            data.average_rain_score !== null && data.average_rain_score !== undefined
+                ? data.average_rain_score
+                : "--";
+
+        const avgActualText =
+            data.average_actual_rain !== null && data.average_actual_rain !== undefined
+                ? data.average_actual_rain
+                : "--";
 
         container.innerHTML = `
             <div class="analytics-card">
                 <h3>🧠 دقة الذكاء الاصطناعي</h3>
 
-                <div>إجمالي التنبؤات: ${data.total_predictions}</div>
-                <div>تم التحقق: ${data.verified_predictions}</div>
-                <div>نجاح: ${data.successful_predictions}</div>
-                <div>فشل: ${data.failed_predictions}</div>
+                <div>إجمالي التنبؤات: ${data.total_predictions || 0}</div>
+                <div>تم التحقق: ${data.verified_predictions || 0}</div>
+                <div>نجاح: ${data.successful_predictions || 0}</div>
+                <div>فشل: ${data.failed_predictions || 0}</div>
 
                 <hr>
 
                 <div>
                     الدقة الحالية:
-                    <strong>${data.accuracy_percent}%</strong>
+                    <strong>${accuracyText}</strong>
                 </div>
 
                 <div>
                     متوسط Rain Score:
-                    ${data.average_rain_score}
+                    ${avgRainText}
                 </div>
 
                 <div>
                     متوسط المطر الفعلي:
-                    ${data.average_actual_rain}
+                    ${avgActualText}
                 </div>
             </div>
         `;
@@ -5129,7 +5140,6 @@ async function loadPredictionAnalytics() {
         console.error("Prediction analytics error:", err);
     }
 }
-
 window.openCityDetailsDirect = openCityDetailsDirect;
 
 window.rgOpenCityDetails = function (cityName) {
