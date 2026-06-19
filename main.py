@@ -957,10 +957,15 @@ def verify_prediction(
         return {"status": "not_found", "prediction_id": prediction_id}
 
     predicted_score = float(row[0] or 0)
+    actual_rain = float(actual_rain or 0)
 
-    if predicted_score >= 50 and actual_rain > 0:
+    # تقييم أدق:
+    # إذا التوقع 30% أو أعلى وحدث مطر فعلي = نجاح
+    # إذا التوقع أقل من 30% ولم يحدث مطر = نجاح
+    # غير ذلك = فشل
+    if predicted_score >= 30 and actual_rain > 0:
         result = "success"
-    elif predicted_score < 50 and actual_rain == 0:
+    elif predicted_score < 30 and actual_rain == 0:
         result = "success"
     else:
         result = "failed"
@@ -989,6 +994,7 @@ def verify_prediction(
         "prediction_id": prediction_id,
         "predicted_score": predicted_score,
         "actual_rain": actual_rain,
+        "threshold_used": 30,
         "result": result,
         "saved_check": {
             "id": updated[0],
