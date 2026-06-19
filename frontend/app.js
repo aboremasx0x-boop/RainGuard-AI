@@ -1723,7 +1723,7 @@ function getRainPanelStyle(score) {
     if (score >= 20) {
         return {
             color: "#facc15";
-            icon: "🟢",
+            icon: "🟡",
             label: "مؤشرات خفيفة"
         };
     }
