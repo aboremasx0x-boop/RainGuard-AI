@@ -3796,112 +3796,45 @@ function getRadarPixelIntensity(r, g, b, a) {
 
 async function getRainViewerRadarFusionV1(lat, lon) {
     try {
-        lat = Number(lat);
-        lon = Number(lon);
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-            return {
-                radarAvailable: false,
-                radarIntensity: 0,
-                radarSource: "RainViewer",
-                radarError: "Invalid coordinates"
-            };
-        }
-
-        const zoom = 6;
         const response = await fetch("https://api.rainviewer.com/public/weather-maps.json");
-
-        if (!response.ok) {
-            return {
-                radarAvailable: false,
-                radarIntensity: 0,
-                radarSource: "RainViewer",
-                radarError: "RainViewer metadata unavailable"
-            };
-        }
-
         const data = await response.json();
 
-        if (!data?.radar?.past || data.radar.past.length === 0 || !data.host) {
+        if (!data.radar || !data.radar.past || data.radar.past.length === 0) {
             return {
                 radarAvailable: false,
                 radarIntensity: 0,
                 radarSource: "RainViewer",
-                radarError: "No radar frames"
+                note: "لا توجد بيانات رادار متاحة"
             };
         }
 
         const latestRadar = data.radar.past[data.radar.past.length - 1];
-        const x = lonToTileX(lon, zoom);
-        const y = latToTileY(lat, zoom);
 
-        const tileUrl = `${data.host}${latestRadar.path}/256/${zoom}/${x}/${y}/2/1_1.png`;
+        const z = 6;
+        const x = lonToTileX(lon, z);
+        const y = latToTileY(lat, z);
 
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-
-        const imageLoaded = await new Promise(resolve => {
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = tileUrl;
-        });
-
-        if (!imageLoaded) {
-            return {
-                radarAvailable: true,
-                radarIntensity: 0,
-                radarSource: "RainViewer",
-                radarTime: latestRadar.time,
-                radarPath: latestRadar.path,
-                tileUrl,
-                radarError: "Radar tile image failed to load"
-            };
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = 256;
-        canvas.height = 256;
-
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, 256, 256);
-
-        const n = Math.pow(2, zoom);
-        const tileXFloat = ((lon + 180) / 360) * n;
-        const latRad = lat * Math.PI / 180;
-        const tileYFloat =
-            (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
-
-        const pixelX = Math.max(0, Math.min(255, Math.floor((tileXFloat - x) * 256)));
-        const pixelY = Math.max(0, Math.min(255, Math.floor((tileYFloat - y) * 256)));
-
-        const pixel = ctx.getImageData(pixelX, pixelY, 1, 1).data;
-        const intensity = getRadarPixelIntensity(pixel[0], pixel[1], pixel[2], pixel[3]);
+        const tileUrl =
+            `https://tilecache.rainviewer.com${latestRadar.path}/256/${z}/${x}/${y}/1/1_1.png`;
 
         return {
             radarAvailable: true,
-            radarIntensity: intensity,
+            radarIntensity: 0,
             radarSource: "RainViewer",
             radarTime: latestRadar.time,
             radarPath: latestRadar.path,
             tileUrl,
-            pixel: {
-                x: pixelX,
-                y: pixelY,
-                r: pixel[0],
-                g: pixel[1],
-                b: pixel[2],
-                a: pixel[3]
-            }
+            note: "الرادار متاح"
         };
 
     } catch (error) {
-        console.error("RainViewer Radar Fusion V1 error:", error);
+        console.error("Radar Fusion V1 Error:", error);
 
         return {
             radarAvailable: false,
             radarIntensity: 0,
             radarSource: "RainViewer",
-            radarError: error?.message || String(error)
+            note: "فشل الاتصال بالرادار"
         };
     }
 }
