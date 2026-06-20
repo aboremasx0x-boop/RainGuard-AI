@@ -519,9 +519,9 @@ def apply_adaptive_rain_score(
     )
 
     if base_score > 0:
-    final_score = (base_score * 0.50) + (adaptive_score * 0.50)
-else:
-    final_score = adaptive_score
+        final_score = (base_score * 0.50) + (adaptive_score * 0.50)
+    else:
+        final_score = adaptive_score
 
     return {
         "rain_score": round(clamp(final_score, 0, 100), 2),
