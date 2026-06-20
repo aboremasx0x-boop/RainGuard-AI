@@ -1330,9 +1330,28 @@ function updateTopCityCard(results) {
 
     if (!top) return;
 
-    if (nameEl) nameEl.innerText = top.name || "غير محدد";
-    if (scoreEl) scoreEl.innerText = `${top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? "--"}%`;
-    if (detailsEl) detailsEl.innerText = top.alertLevel || top.terrainSummary || "تم تحديث البيانات";
+    const peak = top.peakHour || {};
+
+    if (nameEl) {
+        nameEl.innerText = top.name || "غير محدد";
+    }
+
+    if (scoreEl) {
+        scoreEl.innerText =
+            `${Math.round(top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? 0)}%`;
+    }
+
+    if (detailsEl) {
+        detailsEl.innerHTML = `
+            ${top.alertLevel || top.terrainSummary || "تم تحديث البيانات"}
+            <br>
+            💧 الرطوبة: ${Math.round(peak.humidity || 0)}%
+            <br>
+            ☁️ السحب: ${Math.round(peak.cloud_cover || top.cloudScore || 0)}%
+            <br>
+            🌧️ احتمال المطر: ${Math.round(peak.rain_probability || 0)}%
+        `;
+    }
 }
 
 function updateNationalProStatus(results) {
