@@ -86,6 +86,7 @@ def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, 
 
     except Exception as e:
         print("Supabase prediction history save error:", e)
+        
 def store_prediction_from_result(result, name, lat, lon):
     try:
         best = result.get("best_hour") or {}
