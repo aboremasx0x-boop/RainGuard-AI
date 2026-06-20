@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from statistics import mean
 
 
-app = FastAPI(title="RainGuard AI API", version="6.6")
+app = FastAPI(title="RainGuard AI API", version="6.7")
 
 
 app.add_middleware(
@@ -56,6 +56,12 @@ DEFAULT_ADAPTIVE_WEIGHTS = {
     "humidity": 0.20,
     "flood_score": 0.20
 }
+
+ADAPTIVE_CACHE = {
+    "time": None,
+    "data": None
+}
+ADAPTIVE_CACHE_MINUTES = 10
 
 
 def now_utc():
@@ -221,22 +227,142 @@ def calculate_factor_accuracy(predicted_value, actual_rain):
     return clamp(accuracy, 0, 100)
 
 
-def adaptive_learning_v1(limit=300):
+def adaptive_learning_v1(limit=300, use_cache=True):
     """
-    Adaptive Learning Engine V1
+    Adaptive Learning Engine V1.1
 
-    يتعلم من جدول prediction_history ويحسب أوزانًا ديناميكية لـ:
+    يتعلم من جدول prediction_history ويحسب أوزانًا ديناميكية للعوامل:
     - precipitation_probability
     - cloud_cover
     - humidity
     - flood_score
-    """
-    rows = get_verified_predictions(limit=limit)
 
-    if not rows:
+    ملاحظة مهمة:
+    الأعمدة الجديدة قد تكون قيمها 0 في السجلات القديمة؛ لذلك لا نحسب
+    cloud_cover / humidity / flood_score من السجلات التي لا تحتوي قيمة فعلية.
+    """
+    try:
+        if use_cache and ADAPTIVE_CACHE.get("data") and ADAPTIVE_CACHE.get("time"):
+            if now_utc() - ADAPTIVE_CACHE["time"] <= timedelta(minutes=ADAPTIVE_CACHE_MINUTES):
+                return ADAPTIVE_CACHE["data"]
+
+        rows = get_verified_predictions(limit=limit)
+
+        if not rows:
+            result = {
+                "ok": False,
+                "reason": "No verified predictions found",
+                "samples": 0,
+                "engine": "Adaptive Learning Engine V1.1",
+                "weights": DEFAULT_ADAPTIVE_WEIGHTS,
+                "factor_accuracy": {
+                    "precipitation_probability": 0,
+                    "cloud_cover": 0,
+                    "humidity": 0,
+                    "flood_score": 0
+                },
+                "factor_samples": {
+                    "precipitation_probability": 0,
+                    "cloud_cover": 0,
+                    "humidity": 0,
+                    "flood_score": 0
+                }
+            }
+            ADAPTIVE_CACHE["time"] = now_utc()
+            ADAPTIVE_CACHE["data"] = result
+            return result
+
+        factor_scores = {
+            "precipitation_probability": [],
+            "cloud_cover": [],
+            "humidity": [],
+            "flood_score": []
+        }
+
+        for row in rows:
+            actual_rain = safe_number(row.get("actual_rain"))
+
+            # precipitation_probability:
+            # في السجلات القديمة قد لا يكون موجودًا، لذلك نستخدم rain_score كبديل منطقي.
+            precipitation_probability = row.get("precipitation_probability")
+            if precipitation_probability in [None, ""]:
+                precipitation_probability = row.get("rain_probability")
+            if precipitation_probability in [None, "", 0, 0.0]:
+                precipitation_probability = row.get("rain_score")
+
+            factor_scores["precipitation_probability"].append(
+                calculate_factor_accuracy(
+                    precipitation_probability,
+                    actual_rain
+                )
+            )
+
+            # الأعمدة التالية جديدة؛ نتجنب احتساب أصفار السجلات القديمة كأنها بيانات حقيقية.
+            cloud_cover = row.get("cloud_cover")
+            if cloud_cover not in [None, "", 0, 0.0]:
+                factor_scores["cloud_cover"].append(
+                    calculate_factor_accuracy(cloud_cover, actual_rain)
+                )
+
+            humidity = row.get("humidity")
+            if humidity not in [None, "", 0, 0.0]:
+                factor_scores["humidity"].append(
+                    calculate_factor_accuracy(humidity, actual_rain)
+                )
+
+            flood_score = row.get("flood_score")
+            if flood_score not in [None, "", 0, 0.0]:
+                factor_scores["flood_score"].append(
+                    calculate_factor_accuracy(flood_score, actual_rain)
+                )
+
+        factor_accuracy = {
+            key: round(mean(values), 2) if values else 0
+            for key, values in factor_scores.items()
+        }
+
+        factor_samples = {
+            key: len(values)
+            for key, values in factor_scores.items()
+        }
+
+        min_samples = 5
+
+        raw_weights = {}
+
+        for key in DEFAULT_ADAPTIVE_WEIGHTS:
+            if factor_samples[key] >= min_samples:
+                # نمزج الوزن الأساسي مع الدقة المتعلمة حتى لا يحدث تغير حاد.
+                learned_part = factor_accuracy[key] / 100
+                base_part = DEFAULT_ADAPTIVE_WEIGHTS[key]
+                raw_weights[key] = (base_part * 0.50) + (learned_part * 0.50)
+            else:
+                # إذا لا توجد عينات كافية، نحافظ على الوزن الافتراضي.
+                raw_weights[key] = DEFAULT_ADAPTIVE_WEIGHTS[key]
+
+        weights = normalize_weights(raw_weights)
+
+        result = {
+            "ok": True,
+            "engine": "Adaptive Learning Engine V1.1",
+            "samples": len(rows),
+            "min_samples_per_factor": min_samples,
+            "factor_samples": factor_samples,
+            "factor_accuracy": factor_accuracy,
+            "weights": weights
+        }
+
+        ADAPTIVE_CACHE["time"] = now_utc()
+        ADAPTIVE_CACHE["data"] = result
+
+        return result
+
+    except Exception as e:
+        print("Adaptive learning v1.1 error:", repr(e))
         return {
             "ok": False,
-            "reason": "No verified predictions found",
+            "reason": str(e),
+            "engine": "Adaptive Learning Engine V1.1",
             "samples": 0,
             "weights": DEFAULT_ADAPTIVE_WEIGHTS,
             "factor_accuracy": {
@@ -244,77 +370,14 @@ def adaptive_learning_v1(limit=300):
                 "cloud_cover": 0,
                 "humidity": 0,
                 "flood_score": 0
+            },
+            "factor_samples": {
+                "precipitation_probability": 0,
+                "cloud_cover": 0,
+                "humidity": 0,
+                "flood_score": 0
             }
         }
-
-    factor_scores = {
-        "precipitation_probability": [],
-        "cloud_cover": [],
-        "humidity": [],
-        "flood_score": []
-    }
-
-    for row in rows:
-        actual_rain = safe_number(row.get("actual_rain"))
-
-        precipitation_probability = safe_number(
-            row.get("precipitation_probability")
-            or row.get("rain_probability")
-            or row.get("rain_score")
-        )
-
-        cloud_cover = safe_number(row.get("cloud_cover"))
-        humidity = safe_number(row.get("humidity"))
-        flood_score = safe_number(row.get("flood_score"))
-
-        factor_scores["precipitation_probability"].append(
-            calculate_factor_accuracy(
-                precipitation_probability,
-                actual_rain
-            )
-        )
-
-        factor_scores["cloud_cover"].append(
-            calculate_factor_accuracy(
-                cloud_cover,
-                actual_rain
-            )
-        )
-
-        factor_scores["humidity"].append(
-            calculate_factor_accuracy(
-                humidity,
-                actual_rain
-            )
-        )
-
-        factor_scores["flood_score"].append(
-            calculate_factor_accuracy(
-                flood_score,
-                actual_rain
-            )
-        )
-
-    factor_accuracy = {
-        key: round(mean(values), 2) if values else 0
-        for key, values in factor_scores.items()
-    }
-
-    raw_weights = {
-        key: clamp(value / 100, 0.05, 0.60)
-        for key, value in factor_accuracy.items()
-    }
-
-    weights = normalize_weights(raw_weights)
-
-    return {
-        "ok": True,
-        "engine": "Adaptive Learning Engine V1",
-        "samples": len(rows),
-        "factor_accuracy": factor_accuracy,
-        "weights": weights
-    }
-
 
 def apply_adaptive_rain_score(
     precipitation_probability,
@@ -357,7 +420,14 @@ def apply_adaptive_rain_score(
 
 @app.get("/adaptive-learning")
 def adaptive_learning_endpoint(limit: int = Query(300)):
-    return adaptive_learning_v1(limit=limit)
+    return adaptive_learning_v1(limit=limit, use_cache=True)
+
+
+@app.get("/adaptive-learning-debug")
+def adaptive_learning_debug(limit: int = Query(300)):
+    ADAPTIVE_CACHE["time"] = None
+    ADAPTIVE_CACHE["data"] = None
+    return adaptive_learning_v1(limit=limit, use_cache=False)
 
 
 def calculate_rain_score(row):
@@ -1531,7 +1601,7 @@ async def auto_verify_predictions():
 
 @app.get("/auto-verify-predictions")
 async def auto_verify_predictions_get():
-    return await auto_verify_predictions()()
+    return await auto_verify_predictions()
     
 
     
@@ -1760,7 +1830,7 @@ def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "6.6",
+        "version": "6.7",
         "cache_minutes": CACHE_MINUTES,
         "smart_api_load_balancer": True,
         "hybrid_recovery": True,
@@ -1781,7 +1851,7 @@ def health():
     return {
         "status": "ok",
         "service": "RainGuard AI",
-        "version": "6.6",
+        "version": "6.7",
         "openweather_always_verify": True,
         "supabase_learning": True,
         "actual_rain_verification": True,
