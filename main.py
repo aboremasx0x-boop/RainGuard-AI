@@ -61,14 +61,6 @@ def init_prediction_db():
     
     conn.close()
     
-    return {
-        "status": "auto_verified",
-        "threshold_used": 30,
-        "updated_count": updated_count,
-        "verified_after": verified_after,
-        "db_name": DB_NAME
-    }
-
 
 def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
     try:
