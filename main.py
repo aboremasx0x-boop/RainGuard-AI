@@ -7,7 +7,7 @@ import sqlite3
 from supabase import create_client
 from datetime import datetime, timedelta
 
-app = FastAPI(title="RainGuard AI API", version="6.3")
+app = FastAPI(title="RainGuard AI API", version="6.4")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,11 +16,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
+
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 CACHE = {}
@@ -37,34 +41,34 @@ DB_NAME = os.path.join(BASE_DIR, "rainguard_predictions.db")
 
 
 def init_prediction_db():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
+    # SQLite احتياطي فقط، الحفظ الفعلي الآن في Supabase
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS prediction_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        city TEXT,
-        lat REAL,
-        lon REAL,
-        prediction_time TEXT,
-        rain_score REAL,
-        forecast24 REAL,
-        forecast72 REAL,
-        flood_score REAL,
-        source TEXT,
-        verified INTEGER DEFAULT 0,
-        actual_rain REAL DEFAULT NULL,
-        result TEXT DEFAULT 'pending'
-    )
-""")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS prediction_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                city TEXT,
+                lat REAL,
+                lon REAL,
+                prediction_time TEXT,
+                rain_score REAL,
+                forecast24 REAL,
+                forecast72 REAL,
+                flood_score REAL,
+                source TEXT,
+                verified INTEGER DEFAULT 0,
+                actual_rain REAL DEFAULT NULL,
+                result TEXT DEFAULT 'pending'
+            )
+        """)
 
-    conn.commit()
-    
-    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1")
-    verified_after = cur.fetchone()[0]
-    
-    conn.close()
-    
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("SQLite init skipped:", repr(e))
+
 
 def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
     try:
@@ -93,7 +97,8 @@ def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, 
     except Exception as e:
         print("Supabase prediction history save error:", repr(e))
         return False
-        
+
+
 def store_prediction_from_result(result, name, lat, lon):
     try:
         best = result.get("best_hour") or {}
@@ -127,10 +132,11 @@ def store_prediction_from_result(result, name, lat, lon):
         )
 
     except Exception as e:
-        print("Prediction history hook error:", e)
+        print("Prediction history hook error:", repr(e))
 
 
 init_prediction_db()
+
 
 def now_utc():
     return datetime.utcnow()
@@ -194,7 +200,6 @@ def classify(score):
         "level": "لا يوجد تنبيه مطر",
         "advice": "فرصة المطر منخفضة حاليًا."
     }
-
 
 def calculate_rain_score(row):
     humidity = safe_number(row.get("humidity"))
@@ -337,6 +342,42 @@ async def fetch_open_meteo(lat, lon, hours):
             "data": None
         }
 
+
+async def get_actual_rain_from_open_meteo(lat, lon, prediction_time):
+    try:
+        if lat is None or lon is None or not prediction_time:
+            return 0.0
+
+        dt = datetime.fromisoformat(str(prediction_time).replace("Z", ""))
+        date_value = dt.date().isoformat()
+
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "start_date": date_value,
+            "end_date": date_value,
+            "hourly": "precipitation",
+            "timezone": "auto"
+        }
+
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(
+                OPEN_METEO_ARCHIVE_URL,
+                params=params
+            )
+
+        if response.status_code != 200:
+            print("Archive API status:", response.status_code, response.text[:200])
+            return 0.0
+
+        data = response.json()
+        precipitation = (data.get("hourly") or {}).get("precipitation") or []
+
+        return float(max(precipitation or [0]) or 0)
+
+    except Exception as e:
+        print("Actual rain fetch error:", repr(e))
+        return 0.0
 
 async def fetch_openweather(lat, lon):
     if not OPENWEATHER_API_KEY:
@@ -563,7 +604,6 @@ def build_hybrid_next_hours(openweather_data, hours=12):
 
     return rows
 
-
 def build_hybrid_daily_forecast(openweather_data):
     base = build_current_from_openweather(openweather_data)
 
@@ -624,138 +664,17 @@ def build_hybrid_recovery_result(lat, lon, name, openweather_data, reason, hours
         "openweather": openweather_data,
         "verification": {
             "verified": True,
-            "confidence": "Hybrid Recovery - تم بناء توقعات تقديرية من OpenWeatherMap",
+            "confidence": "Hybrid Recovery - تم استخدام OpenWeatherMap",
             "confidence_score": best_hour["rain_score"],
-            "note": "تم استخدام OpenWeatherMap لبناء توقعات 12 ساعة و7 أيام عند تعذر Open-Meteo"
+            "note": "تم بناء التوقعات عند تعذر Open-Meteo"
         },
         "load_balancer": get_load_balancer_status(),
-        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
-    }
-
-
-async def build_open_meteo_result(lat, lon, name, weather, hours):
-    h = weather.get("hourly", {})
-    all_times = h.get("time", [])
-
-    if not all_times:
-        raise ValueError("No hourly time data")
-
-    now_local = datetime.now()
-    start_index = 0
-
-    for i, time_str in enumerate(all_times):
-        try:
-            forecast_time = datetime.fromisoformat(time_str)
-            if forecast_time >= now_local:
-                start_index = i
-                break
-        except Exception:
-            continue
-
-    next_hours = []
-    end_index = min(start_index + hours, len(all_times))
-
-    for i in range(start_index, end_index):
-        row = {
-            "time": h.get("time", [])[i],
-            "temperature": safe_number(h.get("temperature_2m", [])[i]),
-            "humidity": safe_number(h.get("relative_humidity_2m", [])[i]),
-            "dew_point": safe_number(h.get("dew_point_2m", [])[i]),
-            "rain_probability": safe_number(h.get("precipitation_probability", [])[i]),
-            "precipitation_mm": safe_number(h.get("precipitation", [])[i]),
-            "cloud_cover": safe_number(h.get("cloud_cover", [])[i]),
-            "pressure_hpa": safe_number(h.get("pressure_msl", [])[i], 1013),
-            "wind_speed": safe_number(h.get("wind_speed_10m", [])[i])
-        }
-
-        score = calculate_rain_score(row)
-        alert = classify(score)
-
-        row["rain_score"] = score
-        row["alert_level"] = alert["level"]
-        row["advice"] = alert["advice"]
-
-        next_hours.append(row)
-
-    if not next_hours:
-        raise ValueError("No next hour data")
-
-    best_hour = max(next_hours, key=lambda x: x["rain_score"])
-
-    # ✅ التعديل المهم: OpenWeatherMap يعمل دائمًا
-    openweather_data = await fetch_openweather(lat, lon)
-
-    verification = verify_with_openweather(
-        best_hour["rain_score"],
-        openweather_data
-    )
-
-    d = weather.get("daily", {})
-    daily_forecast = []
-
-    for i in range(len(d.get("time", []))):
-        day = {
-            "date": d.get("time", [])[i],
-            "temperature_max": safe_number(d.get("temperature_2m_max", [])[i]),
-            "temperature_min": safe_number(d.get("temperature_2m_min", [])[i]),
-            "rain_probability_max": safe_number(d.get("precipitation_probability_max", [])[i]),
-            "precipitation_sum": safe_number(d.get("precipitation_sum", [])[i]),
-            "rain_sum": safe_number(d.get("rain_sum", [])[i]),
-            "wind_speed_max": safe_number(d.get("wind_speed_10m_max", [])[i])
-        }
-
-        daily_score = calculate_daily_score(day)
-        daily_alert = classify(daily_score)
-
-        day["daily_rain_score"] = daily_score
-        day["alert_level"] = daily_alert["level"]
-        day["advice"] = daily_alert["advice"]
-
-        daily_forecast.append(day)
-
-    return {
-        "error": False,
-        "location_name": name,
-        "latitude": lat,
-        "longitude": lon,
-        "generated_at": now_utc().isoformat() + "Z",
-        "cache_status": "fresh",
-        "source": "Open-Meteo Forecast API",
-        "current": next_hours[0],
-        "best_hour": best_hour,
-        "next_hours": next_hours,
-        "daily_forecast": daily_forecast,
-        "openweather": openweather_data,
-        "verification": verification,
-        "load_balancer": get_load_balancer_status(),
-        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر ولا يغني عن التنبيهات الرسمية."
-    }
-
-
-def get_load_balancer_status():
-    cooldown_until = SOURCE_STATE.get("open_meteo_cooldown_until")
-
-    cooldown_active = False
-    cooldown_seconds = 0
-
-    if cooldown_until:
-        cooldown_seconds = max(0, int((cooldown_until - now_utc()).total_seconds()))
-        cooldown_active = cooldown_seconds > 0
-
-    return {
-        "open_meteo_available": is_open_meteo_available(),
-        "open_meteo_cooldown_active": cooldown_active,
-        "open_meteo_cooldown_seconds": cooldown_seconds,
-        "open_meteo_failures": SOURCE_STATE.get("open_meteo_failures", 0),
-        "openweather_enabled": bool(OPENWEATHER_API_KEY),
-        "openweather_failures": SOURCE_STATE.get("openweather_failures", 0),
-        "strategy": "Open-Meteo primary, OpenWeatherMap always verification, recovery after 429"
+        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر."
     }
 
 
 @app.get("/prediction-history")
 def prediction_history(limit: int = Query(20)):
-
     try:
         response = (
             supabase
@@ -779,158 +698,15 @@ def prediction_history(limit: int = Query(20)):
             "records": [],
             "error": str(e)
         }
-@app.get("/")
-def root():
-    return {
-        "name": "RainGuard AI API",
-        "status": "running",
-        "version": "6.3",
-        "cache_minutes": CACHE_MINUTES,
-        "smart_api_load_balancer": True,
-        "hybrid_recovery": True,
-        "openweather_always_verify": True,
-        "load_balancer": get_load_balancer_status(),
-        "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
-    }
-
-
-@app.get("/health")
-def health():
-    return {
-        "status": "ok",
-        "service": "RainGuard AI",
-        "version": "6.3",
-        "openweather_always_verify": True,
-        "load_balancer": get_load_balancer_status()
-    }
-
-
-@app.get("/rain-alert")
-async def rain_alert(
-    lat: float = Query(...),
-    lon: float = Query(...),
-    name: str = Query("Unknown Location"),
-    hours: int = Query(12)
-):
-    hours = max(1, min(int(hours), 48))
-    key = cache_key(lat, lon, hours)
-
-    cached = get_cached(key)
-    if cached:
-        return JSONResponse(
-            content=cached,
-            media_type="application/json; charset=utf-8"
-        )
-
-    open_meteo_result = await fetch_open_meteo(lat, lon, hours)
-
-    if open_meteo_result["ok"]:
-        try:
-            result = await build_open_meteo_result(
-                lat,
-                lon,
-                name,
-                open_meteo_result["data"],
-                hours
-            )
-
-            store_prediction_from_result(result, name, lat, lon)
-            save_cache(key, result)
-
-            return JSONResponse(
-                content=result,
-                media_type="application/json; charset=utf-8"
-            )
-
-        except Exception as e:
-            openweather_data = await fetch_openweather(lat, lon)
-
-            if openweather_data.get("available"):
-                result = build_hybrid_recovery_result(
-                    lat,
-                    lon,
-                    name,
-                    openweather_data,
-                    f"Open-Meteo parse error: {str(e)}",
-                    hours
-                )
-
-                store_prediction_from_result(result, name, lat, lon)
-                save_cache(key, result)
-
-                return JSONResponse(
-                    content=result,
-                    media_type="application/json; charset=utf-8"
-                )
-
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "error": True,
-                    "message": "تعذر معالجة بيانات Open-Meteo ولا يوجد مصدر احتياطي متاح",
-                    "parse_error": str(e),
-                    "load_balancer": get_load_balancer_status()
-                },
-                media_type="application/json; charset=utf-8"
-            )
-
-    openweather_data = await fetch_openweather(lat, lon)
-
-    if openweather_data.get("available"):
-        result = build_hybrid_recovery_result(
-            lat,
-            lon,
-            name,
-            openweather_data,
-            open_meteo_result["reason"],
-            hours
-        )
-
-        store_prediction_from_result(result, name, lat, lon)
-        save_cache(key, result)
-
-        return JSONResponse(
-            content=result,
-            media_type="application/json; charset=utf-8"
-        )
-
-    return JSONResponse(
-        status_code=200,
-        content={
-            "error": True,
-            "location_name": name,
-            "latitude": lat,
-            "longitude": lon,
-            "generated_at": now_utc().isoformat() + "Z",
-            "message": "تعذر جلب بيانات الطقس من كل المصادر المتاحة",
-            "open_meteo_error": open_meteo_result["reason"],
-            "openweather": openweather_data,
-            "current": None,
-            "best_hour": None,
-            "next_hours": [],
-            "daily_forecast": [],
-            "verification": {
-                "verified": False,
-                "confidence": "لا توجد بيانات كافية",
-                "confidence_score": 0,
-                "note": "تعذر الاتصال بمصادر الطقس"
-            },
-            "load_balancer": get_load_balancer_status()
-        },
-        media_type="application/json; charset=utf-8"
-    )
 
 
 @app.post("/verify-prediction")
-def verify_prediction(
-    prediction_id: int,
-    actual_rain: float
-):
+def verify_prediction(prediction_id: int, actual_rain: float):
     try:
         response = (
             supabase
             .table("prediction_history")
-            .select("id, rain_score")
+            .select("id,rain_score")
             .eq("id", prediction_id)
             .limit(1)
             .execute()
@@ -939,7 +715,10 @@ def verify_prediction(
         rows = response.data or []
 
         if not rows:
-            return {"status": "not_found", "prediction_id": prediction_id}
+            return {
+                "status": "not_found",
+                "prediction_id": prediction_id
+            }
 
         predicted_score = float(rows[0].get("rain_score") or 0)
         actual_rain = float(actual_rain or 0)
@@ -970,7 +749,6 @@ def verify_prediction(
             "prediction_id": prediction_id,
             "predicted_score": predicted_score,
             "actual_rain": actual_rain,
-            "threshold_used": 30,
             "result": result,
             "saved_check": updated
         }
@@ -978,7 +756,6 @@ def verify_prediction(
     except Exception as e:
         return {
             "status": "error",
-            "prediction_id": prediction_id,
             "error": str(e)
         }
 
@@ -987,25 +764,30 @@ def verify_prediction(
 def verify_prediction_get(prediction_id: int, actual_rain: float):
     return verify_prediction(prediction_id, actual_rain)
 
-
 @app.post("/auto-verify-predictions")
-def auto_verify_predictions():
+async def auto_verify_predictions():
     try:
         response = (
             supabase
             .table("prediction_history")
-            .select("id, city, rain_score")
+            .select("id,city,rain_score,lat,lon,prediction_time,created_at")
             .eq("verified", 0)
             .execute()
         )
 
         rows = response.data or []
         updated_count = 0
+        failed_count = 0
 
         for row in rows:
             prediction_id = row.get("id")
             predicted_score = float(row.get("rain_score") or 0)
-            actual_rain = 0.0
+
+            actual_rain = await get_actual_rain_from_open_meteo(
+                row.get("lat"),
+                row.get("lon"),
+                row.get("prediction_time") or row.get("created_at")
+            )
 
             if predicted_score >= 30 and actual_rain > 0:
                 result = "success"
@@ -1020,12 +802,18 @@ def auto_verify_predictions():
                 "result": result
             }).eq("id", prediction_id).execute()
 
-            updated_count += 1
+            if result == "success":
+                updated_count += 1
+            else:
+                failed_count += 1
 
         return {
             "status": "auto_verified",
+            "source": "open_meteo_archive",
             "threshold_used": 30,
-            "updated_count": updated_count
+            "checked_count": len(rows),
+            "successful_count": updated_count,
+            "failed_count": failed_count
         }
 
     except Exception as e:
@@ -1036,8 +824,9 @@ def auto_verify_predictions():
 
 
 @app.get("/auto-verify-predictions")
-def auto_verify_predictions_get():
-    return auto_verify_predictions()
+async def auto_verify_predictions_get():
+    return await auto_verify_predictions()
+
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
@@ -1166,32 +955,82 @@ def prediction_analytics():
             "city_accuracy": []
         }
 
+
 @app.get("/prediction-debug")
-def prediction_debug():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
+def prediction_debug(limit: int = Query(10)):
+    try:
+        response = (
+            supabase
+            .table("prediction_history")
+            .select("id,city,rain_score,verified,actual_rain,result,lat,lon,prediction_time,created_at")
+            .order("id", desc=True)
+            .limit(limit)
+            .execute()
+        )
 
-    cur.execute("""
-        SELECT id, city, rain_score, verified, actual_rain, result
-        FROM prediction_history
-        ORDER BY id DESC
-        LIMIT 10
-    """)
+        records = response.data or []
 
-    rows = cur.fetchall()
-    conn.close()
+        return {
+            "source": "supabase",
+            "count": len(records),
+            "records": records
+        }
+
+    except Exception as e:
+        return {
+            "source": "supabase",
+            "count": 0,
+            "records": [],
+            "error": str(e)
+        }
+
+
+def get_load_balancer_status():
+    cooldown_until = SOURCE_STATE.get("open_meteo_cooldown_until")
+
+    cooldown_active = False
+    cooldown_seconds = 0
+
+    if cooldown_until:
+        cooldown_seconds = max(0, int((cooldown_until - now_utc()).total_seconds()))
+        cooldown_active = cooldown_seconds > 0
 
     return {
-        "db_path": DB_NAME,
-        "records": [
-            {
-                "id": r[0],
-                "city": r[1],
-                "rain_score": r[2],
-                "verified": r[3],
-                "actual_rain": r[4],
-                "result": r[5]
-            }
-            for r in rows
-        ]
+        "open_meteo_available": is_open_meteo_available(),
+        "open_meteo_cooldown_active": cooldown_active,
+        "open_meteo_cooldown_seconds": cooldown_seconds,
+        "open_meteo_failures": SOURCE_STATE.get("open_meteo_failures", 0),
+        "openweather_enabled": bool(OPENWEATHER_API_KEY),
+        "openweather_failures": SOURCE_STATE.get("openweather_failures", 0),
+        "strategy": "Open-Meteo primary, OpenWeatherMap always verification, recovery after 429, Supabase learning enabled"
+    }
+
+
+@app.get("/")
+def root():
+    return {
+        "name": "RainGuard AI API",
+        "status": "running",
+        "version": "6.4",
+        "cache_minutes": CACHE_MINUTES,
+        "smart_api_load_balancer": True,
+        "hybrid_recovery": True,
+        "openweather_always_verify": True,
+        "supabase_learning": True,
+        "actual_rain_verification": True,
+        "load_balancer": get_load_balancer_status(),
+        "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "RainGuard AI",
+        "version": "6.4",
+        "openweather_always_verify": True,
+        "supabase_learning": True,
+        "actual_rain_verification": True,
+        "load_balancer": get_load_balancer_status()
     }
