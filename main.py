@@ -1971,6 +1971,14 @@ def root():
         "load_balancer": get_load_balancer_status()
     }
 
+@app.get("/ai-status")
+def ai_status():
+    return {
+        "adaptive_learning": adaptive_learning_v1(),
+        "adaptive_thresholds": adaptive_thresholds_v2(),
+        "message": "RainGuard AI learning system is active"
+    }
+
 
 @app.get("/health")
 def health():
