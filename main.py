@@ -37,25 +37,24 @@ def init_prediction_db():
     cur = conn.cursor()
 
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS prediction_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            city TEXT,
-            lat REAL,
-            lon REAL,
-            prediction_time TEXT,
-            rain_score REAL,
-            forecast24 REAL,
-            forecast72 REAL,
-            flood_score REAL,
-            source TEXT,
-            verified INTEGER DEFAULT 0,
-            actual_rain REAL DEFAULT NULL,
-            result TEXT DEFAULT 'pending'
-        )
-    """)
+    CREATE TABLE IF NOT EXISTS prediction_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        city TEXT,
+        lat REAL,
+        lon REAL,
+        prediction_time TEXT,
+        rain_score REAL,
+        forecast24 REAL,
+        forecast72 REAL,
+        flood_score REAL,
+        source TEXT,
+        verified INTEGER DEFAULT 0,
+        actual_rain REAL DEFAULT NULL,
+        result TEXT DEFAULT 'pending'
+    )
+""")
 
-        conn.commit()
-
+conn.commit()
     cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1")
     verified_after = cur.fetchone()[0]
 
