@@ -1041,76 +1041,130 @@ def auto_verify_predictions_get():
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
+    try:
+        response = (
+            supabase
+            .table("prediction_history")
+            .select("*")
+            .execute()
+        )
 
-    cur.execute("""
-        SELECT
-            COUNT(*) as total,
-            SUM(CASE WHEN verified = 1 THEN 1 ELSE 0 END) as verified_count,
-            SUM(CASE WHEN verified = 1 AND result = 'success' THEN 1 ELSE 0 END) as success_count,
-            SUM(CASE WHEN verified = 1 AND result = 'failed' THEN 1 ELSE 0 END) as failed_count,
-            AVG(CASE WHEN verified = 1 THEN rain_score END) as avg_rain_score,
-            AVG(CASE WHEN verified = 1 THEN actual_rain END) as avg_actual_rain
-        FROM prediction_history
-    """)
+        rows = response.data or []
 
-    row = cur.fetchone()
+        total_predictions = len(rows)
 
-    total_predictions = row[0] or 0
-    verified_predictions = row[1] or 0
-    successful_predictions = row[2] or 0
-    failed_predictions = row[3] or 0
-    avg_rain_score = row[4]
-    avg_actual_rain = row[5]
+        verified_rows = [
+            r for r in rows
+            if int(r.get("verified") or 0) == 1
+        ]
 
-    accuracy_percent = (
-        round(successful_predictions * 100 / verified_predictions, 2)
-        if verified_predictions > 0 else 0
-    )
+        success_rows = [
+            r for r in verified_rows
+            if r.get("result") == "success"
+        ]
 
-    cur.execute("""
-        SELECT
-            city,
-            COUNT(*) as total,
-            SUM(CASE WHEN verified = 1 THEN 1 ELSE 0 END) as verified_count,
-            SUM(CASE WHEN verified = 1 AND result = 'success' THEN 1 ELSE 0 END) as success_count,
-            SUM(CASE WHEN verified = 1 AND result = 'failed' THEN 1 ELSE 0 END) as failed_count
-        FROM prediction_history
-        GROUP BY city
-        ORDER BY total DESC
-    """)
+        failed_rows = [
+            r for r in verified_rows
+            if r.get("result") == "failed"
+        ]
 
-    city_rows = cur.fetchall()
-    conn.close()
+        verified_predictions = len(verified_rows)
+        successful_predictions = len(success_rows)
+        failed_predictions = len(failed_rows)
 
-    city_accuracy = []
-    for city, total, verified_count, success_count, failed_count in city_rows:
-        verified_count = verified_count or 0
-        success_count = success_count or 0
-        failed_count = failed_count or 0
+        accuracy_percent = (
+            round(successful_predictions * 100 / verified_predictions, 2)
+            if verified_predictions > 0 else 0
+        )
 
-        city_accuracy.append({
-            "city": city,
-            "total_predictions": total or 0,
-            "verified_predictions": verified_count,
-            "successful_predictions": success_count,
-            "failed_predictions": failed_count,
-            "accuracy_percent": round(success_count * 100 / verified_count, 2) if verified_count > 0 else 0
-        })
+        avg_rain_score = (
+            round(
+                sum(float(r.get("rain_score") or 0) for r in verified_rows) /
+                verified_predictions,
+                2
+            )
+            if verified_predictions > 0 else 0
+        )
 
-    return {
-        "db_name": DB_NAME,
-        "total_predictions": total_predictions,
-        "verified_predictions": verified_predictions,
-        "successful_predictions": successful_predictions,
-        "failed_predictions": failed_predictions,
-        "accuracy_percent": accuracy_percent,
-        "average_rain_score": round(avg_rain_score, 2) if avg_rain_score is not None else 0,
-        "average_actual_rain": round(avg_actual_rain, 2) if avg_actual_rain is not None else 0,
-        "city_accuracy": city_accuracy
-    }
+        avg_actual_rain = (
+            round(
+                sum(float(r.get("actual_rain") or 0) for r in verified_rows) /
+                verified_predictions,
+                2
+            )
+            if verified_predictions > 0 else 0
+        )
 
+        city_map = {}
+
+        for r in rows:
+            city = r.get("city") or "Unknown"
+
+            if city not in city_map:
+                city_map[city] = {
+                    "city": city,
+                    "total_predictions": 0,
+                    "verified_predictions": 0,
+                    "successful_predictions": 0,
+                    "failed_predictions": 0,
+                    "accuracy_percent": 0
+                }
+
+            city_map[city]["total_predictions"] += 1
+
+            if int(r.get("verified") or 0) == 1:
+                city_map[city]["verified_predictions"] += 1
+
+                if r.get("result") == "success":
+                    city_map[city]["successful_predictions"] += 1
+
+                if r.get("result") == "failed":
+                    city_map[city]["failed_predictions"] += 1
+
+        city_accuracy = []
+
+        for city_data in city_map.values():
+            verified = city_data["verified_predictions"]
+            success = city_data["successful_predictions"]
+
+            city_data["accuracy_percent"] = (
+                round(success * 100 / verified, 2)
+                if verified > 0 else 0
+            )
+
+            city_accuracy.append(city_data)
+
+        city_accuracy.sort(
+            key=lambda x: x["total_predictions"],
+            reverse=True
+        )
+
+        return {
+            "source": "supabase",
+            "total_predictions": total_predictions,
+            "verified_predictions": verified_predictions,
+            "successful_predictions": successful_predictions,
+            "failed_predictions": failed_predictions,
+            "accuracy_percent": accuracy_percent,
+            "average_rain_score": avg_rain_score,
+            "average_actual_rain": avg_actual_rain,
+            "city_accuracy": city_accuracy
+        }
+
+    except Exception as e:
+        return {
+            "source": "supabase",
+            "status": "error",
+            "error": str(e),
+            "total_predictions": 0,
+            "verified_predictions": 0,
+            "successful_predictions": 0,
+            "failed_predictions": 0,
+            "accuracy_percent": 0,
+            "average_rain_score": 0,
+            "average_actual_rain": 0,
+            "city_accuracy": []
+        }
 
 @app.get("/prediction-debug")
 def prediction_debug():
