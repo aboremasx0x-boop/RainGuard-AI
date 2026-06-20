@@ -548,9 +548,6 @@ def adaptive_thresholds_endpoint(limit: int = Query(300)):
 
 
 def calculate_rain_score(row):
-    """
-    حساب rain_score مع دعم Adaptive Learning.
-    """
     humidity = safe_number(row.get("humidity"))
     rain_probability = safe_number(row.get("rain_probability"))
     cloud_cover = safe_number(row.get("cloud_cover"))
@@ -558,26 +555,26 @@ def calculate_rain_score(row):
     dew_point = safe_number(row.get("dew_point"))
     pressure = safe_number(row.get("pressure_hpa"), 1013)
     wind_speed = safe_number(row.get("wind_speed"))
-    flood_score = safe_number(row.get("flood_score"))
 
-    base_score = 0
-    base_score += rain_probability * 0.45
-    base_score += humidity * 0.13
-    base_score += cloud_cover * 0.15
+    score = 0
+
+    score += rain_probability * 0.45
+    score += humidity * 0.13
+    score += cloud_cover * 0.15
 
     if precipitation > 0:
-        base_score += 16
+        score += 16
 
     if dew_point >= 18:
-        base_score += 7
+        score += 7
 
     if pressure < 1010:
-        base_score += 4
+        score += 4
 
     if wind_speed >= 15:
-        base_score += 3
+        score += 3
 
-    base_score = min(round(base_score), 100)
+    return min(round(score), 100)
 
     adaptive_result = apply_adaptive_rain_score(
         precipitation_probability=rain_probability,
