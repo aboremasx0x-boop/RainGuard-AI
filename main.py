@@ -1532,12 +1532,9 @@ async def auto_verify_predictions():
 @app.get("/auto-verify-predictions")
 async def auto_verify_predictions_get():
     return await auto_verify_predictions()()
-    }
+    
 
-    return JSONResponse(
-        content=result,
-        media_type="application/json; charset=utf-8"
-    )
+    
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
