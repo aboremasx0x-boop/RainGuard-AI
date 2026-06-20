@@ -90,7 +90,26 @@ def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, 
         conn.close()
 
     except Exception as e:
-        print("Prediction history save error:", e)
+        print("Prediction history save error:", e)def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
+    try:
+        data = {
+            "city": city,
+            "lat": lat,
+            "lon": lon,
+            "prediction_time": datetime.utcnow().isoformat(),
+            "rain_score": rain_score,
+            "forecast24": forecast24,
+            "forecast72": forecast72,
+            "flood_score": flood_score,
+            "source": source,
+            "verified": 0,
+            "result": "pending"
+        }
+
+        supabase.table("prediction_history").insert(data).execute()
+
+    except Exception as e:
+        print("Supabase prediction history save error:", e)
 
 
 def store_prediction_from_result(result, name, lat, lon):
