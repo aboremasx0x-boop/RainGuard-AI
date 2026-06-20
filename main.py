@@ -1329,20 +1329,18 @@ async def rain_alert(
         "message": "تعذر جلب بيانات الطقس من Open-Meteo و OpenWeatherMap",
         "open_meteo": open_meteo_response,
         "openweather": openweather_data,
-        "load_balancer": @app.get("/prediction-history")
-def prediction_history(limit: int = Query(20)):
-    """        "verification": verification,
-        "load_balancer": get_load_balancer_status(),
-        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر."
+        "load_balancer": get_load_balancer_status()
     }
 
-    store_prediction_from_result(result, name, lat, lon)
-
-    return result
+    return JSONResponse(
+        content=result,
+        media_type="application/json; charset=utf-8"
+    )
 
 
 @app.get("/prediction-history")
 def prediction_history(limit: int = Query(20)):
+    """
     عرض آخر سجلات prediction_history من Supabase.
     """
     try:
@@ -1377,7 +1375,6 @@ def prediction_history(limit: int = Query(20)):
             "records": [],
             "error": str(e)
         }
-
 
 @app.post("/verify-prediction")
 def verify_prediction(prediction_id: int, actual_rain: float):
