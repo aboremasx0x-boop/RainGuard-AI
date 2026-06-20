@@ -51,10 +51,10 @@ DB_NAME = os.path.join(BASE_DIR, "rainguard_predictions.db")
 
 
 DEFAULT_ADAPTIVE_WEIGHTS = {
-    "precipitation_probability": 0.40,
-    "cloud_cover": 0.20,
-    "humidity": 0.20,
-    "flood_score": 0.20
+    "precipitation_probability": 0.35,
+    "cloud_cover": 0.30,
+    "humidity": 0.25,
+    "flood_score": 0.10
 }
 
 ADAPTIVE_CACHE = {
