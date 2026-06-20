@@ -1015,17 +1015,18 @@ def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "6.4",
+        "version": "6.5",
         "cache_minutes": CACHE_MINUTES,
         "smart_api_load_balancer": True,
         "hybrid_recovery": True,
         "openweather_always_verify": True,
         "supabase_learning": True,
         "actual_rain_verification": True,
+        "adaptive_learning_v1": True,
+        "adaptive_learning_endpoint": "/adaptive-learning",
         "load_balancer": get_load_balancer_status(),
         "example": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah"
     }
-
 
 @app.get("/health")
 def health():
