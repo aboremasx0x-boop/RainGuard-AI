@@ -6,6 +6,10 @@ import os
 import sqlite3
 from supabase import create_client
 from datetime import datetime, timedelta
+from adaptive_learning import (
+    adaptive_learning_v1,
+    apply_adaptive_rain_score
+)
 
 app = FastAPI(title="RainGuard AI API", version="6.4")
 
