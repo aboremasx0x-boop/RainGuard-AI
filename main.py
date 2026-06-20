@@ -159,22 +159,42 @@ def save_cache(key, data):
 def classify(score):
     score = safe_number(score)
 
-    if score >= 80:
+    try:
+        thresholds = adaptive_thresholds_v2().get("thresholds", {})
+
+        watch = thresholds.get("watch", 30)
+        medium = thresholds.get("medium", 50)
+        high = thresholds.get("high", 70)
+        danger = thresholds.get("danger", 80)
+
+    except Exception:
+        watch = 30
+        medium = 50
+        high = 70
+        danger = 80
+
+    if score >= danger:
         return {
             "level": "تحذير مطر مرتفع",
             "advice": "احتمال هطول أمطار قوية. تابع التنبيهات الرسمية."
         }
 
-    if score >= 60:
+    if score >= high:
         return {
             "level": "تنبيه مطر متوسط",
             "advice": "فرصة المطر متوسطة إلى مرتفعة. يفضل متابعة التحديثات."
         }
 
-    if score >= 40:
+    if score >= medium:
         return {
             "level": "احتمال مطر ضعيف إلى متوسط",
-            "advice": "توجد مؤشرات ضعيفة إلى متوسطة لاحتمال المطر."
+            "advice": "توجد مؤشرات جيدة لاحتمال المطر."
+        }
+
+    if score >= watch:
+        return {
+            "level": "متابعة جوية",
+            "advice": "توجد مؤشرات أولية تستحق المتابعة."
         }
 
     return {
