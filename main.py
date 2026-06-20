@@ -432,14 +432,14 @@ def apply_adaptive_rain_score(
 
 @app.get("/adaptive-learning")
 def adaptive_learning_endpoint(limit: int = Query(300)):
-    return adaptive_learning_v1(limit=limit, use_cache=True)
+    return adaptive_learning_v1(limit=limit)
 
 
 @app.get("/adaptive-learning-debug")
 def adaptive_learning_debug(limit: int = Query(300)):
     ADAPTIVE_CACHE["time"] = None
     ADAPTIVE_CACHE["data"] = None
-    return adaptive_learning_v1(limit=limit, use_cache=False)
+    return adaptive_learning_v1(limit=limit)
 
 
 def calculate_rain_score(row):
