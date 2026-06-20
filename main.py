@@ -392,6 +392,86 @@ def adaptive_learning_v1(limit=300, force_refresh=False):
             }
         }
 
+def adaptive_thresholds_v2(limit=300):
+    """
+    Adaptive Learning V2
+    يضبط حدود التنبيه تلقائيًا حسب أداء التوقعات السابقة.
+    """
+
+    rows = get_verified_predictions(limit=limit)
+
+    if not rows:
+        return {
+            "ok": False,
+            "engine": "Adaptive Thresholds V2",
+            "thresholds": {
+                "watch": 30,
+                "medium": 50,
+                "high": 70,
+                "danger": 80
+            },
+            "reason": "No verified predictions"
+        }
+
+    false_alerts = 0
+    missed_rain = 0
+    total = len(rows)
+
+    for row in rows:
+        rain_score = safe_number(row.get("rain_score"))
+        actual_rain = safe_number(row.get("actual_rain"))
+
+        if rain_score >= 30 and actual_rain == 0:
+            false_alerts += 1
+
+        if rain_score < 30 and actual_rain > 0:
+            missed_rain += 1
+
+    false_alert_rate = false_alerts / total
+    missed_rain_rate = missed_rain / total
+
+    watch = 30
+    medium = 50
+    high = 70
+    danger = 80
+
+    if false_alert_rate > 0.30:
+        watch += 5
+        medium += 5
+
+    if false_alert_rate > 0.50:
+        watch += 10
+        medium += 10
+
+    if missed_rain_rate > 0.15:
+        watch -= 5
+        medium -= 5
+
+    if missed_rain_rate > 0.30:
+        watch -= 10
+        medium -= 10
+
+    watch = int(clamp(watch, 20, 45))
+    medium = int(clamp(medium, 40, 65))
+    high = int(clamp(high, 65, 80))
+    danger = int(clamp(danger, 80, 90))
+
+    return {
+        "ok": True,
+        "engine": "Adaptive Thresholds V2",
+        "samples": total,
+        "false_alerts": false_alerts,
+        "missed_rain": missed_rain,
+        "false_alert_rate": round(false_alert_rate, 3),
+        "missed_rain_rate": round(missed_rain_rate, 3),
+        "thresholds": {
+            "watch": watch,
+            "medium": medium,
+            "high": high,
+            "danger": danger
+        }
+    }
+
 def apply_adaptive_rain_score(
     precipitation_probability,
     cloud_cover,
