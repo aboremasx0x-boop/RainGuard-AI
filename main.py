@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 import httpx
 import os
 import sqlite3
+from supabase import create_client
 from datetime import datetime, timedelta
 
 app = FastAPI(title="RainGuard AI API", version="6.3")
@@ -18,6 +19,9 @@ app.add_middleware(
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 CACHE = {}
 CACHE_MINUTES = 10
