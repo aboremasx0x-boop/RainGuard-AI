@@ -55,18 +55,19 @@ def init_prediction_db():
 """)
 
 conn.commit()
-    cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1")
-    verified_after = cur.fetchone()[0]
 
-    conn.close()
+cur.execute("SELECT COUNT(*) FROM prediction_history WHERE verified = 1")
+verified_after = cur.fetchone()[0]
 
-    return {
-        "status": "auto_verified",
-        "threshold_used": 30,
-        "updated_count": updated_count,
-        "verified_after": verified_after,
-        "db_name": DB_NAME
-    }
+conn.close()
+
+return {
+    "status": "auto_verified",
+    "threshold_used": 30,
+    "updated_count": updated_count,
+    "verified_after": verified_after,
+    "db_name": DB_NAME
+}
 
 
 def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
