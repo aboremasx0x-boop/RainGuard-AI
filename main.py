@@ -68,34 +68,6 @@ def init_prediction_db():
 
 def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
     try:
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-
-        cur.execute("""
-            INSERT INTO prediction_history (
-                city, lat, lon, prediction_time,
-                rain_score, forecast24, forecast72,
-                flood_score, source
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            city,
-            lat,
-            lon,
-            datetime.utcnow().isoformat(),
-            rain_score,
-            forecast24,
-            forecast72,
-            flood_score,
-            source
-        ))
-
-        conn.commit()
-        conn.close()
-
-    except Exception as e:
-        print("Prediction history save error:", e)def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
-    try:
         data = {
             "city": city,
             "lat": lat,
@@ -114,8 +86,6 @@ def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, 
 
     except Exception as e:
         print("Supabase prediction history save error:", e)
-
-
 def store_prediction_from_result(result, name, lat, lon):
     try:
         best = result.get("best_hour") or {}
