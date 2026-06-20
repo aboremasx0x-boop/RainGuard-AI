@@ -522,6 +522,10 @@ def adaptive_learning_debug(limit: int = Query(300)):
     ADAPTIVE_CACHE["data"] = None
     return adaptive_learning_v1(limit=limit)
 
+@app.get("/adaptive-thresholds")
+def adaptive_thresholds_endpoint(limit: int = Query(300)):
+    return adaptive_thresholds_v2(limit=limit)
+
 
 def calculate_rain_score(row):
     """
