@@ -511,7 +511,7 @@ def apply_adaptive_rain_score(
     flood_score = safe_number(flood_score)
     base_score = safe_number(base_score)
 
-    adaptive_score = (
+adaptive_score = (
     precipitation_probability * weights["precipitation_probability"]
     + cloud_cover * weights["cloud_cover"]
     + humidity * weights["humidity"]
@@ -521,17 +521,17 @@ def apply_adaptive_rain_score(
 if adaptive_score >= 25 and cloud_cover >= 35 and humidity >= 35:
     adaptive_score += 5
 
-    if base_score > 0:
-        final_score = (base_score * 0.30) + (adaptive_score * 0.70)
-    else:
-        final_score = adaptive_score
+if base_score > 0:
+    final_score = (base_score * 0.30) + (adaptive_score * 0.70)
+else:
+    final_score = adaptive_score
 
-    return {
-        "rain_score": round(clamp(final_score, 0, 100), 2),
-        "adaptive_score": round(clamp(adaptive_score, 0, 100), 2),
-        "base_score": round(base_score, 2),
-        "adaptive_learning": learning
-    }
+return {
+    "rain_score": round(clamp(final_score, 0, 100), 2),
+    "adaptive_score": round(clamp(adaptive_score, 0, 100), 2),
+    " base_score": round(base_score, 2),
+    "adaptive_learning": learning
+}
 
 
 @app.get("/adaptive-learning")
