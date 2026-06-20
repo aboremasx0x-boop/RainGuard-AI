@@ -1550,67 +1550,53 @@ alertLevel:
 
     const topForecastCity = forecastRanked[0];
 
-    window.lastMultiCityResults = results;
-    updateTopCityCard(results);
+    window.lastMultiCityResults = results || [];
 
-    window.openCityForecastPopup = openCityForecastPopup;
+updateTopCityCard(window.lastMultiCityResults);
 
-    const setTopRiskText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = value;
-    };
+window.openCityForecastPopup = openCityForecastPopup;
 
-    if (topCityNow) {
-        setTopRiskText("topRiskCity", topCityNow.name || "غير محدد");
-        setTopRiskText(
-            "topRiskScore",
-            `${topCityNow.actualRiskScore ?? topCityNow.score ?? "--"}%`
-        );
-        setTopRiskText(
-            "topRiskDetails",
-            topCityNow.alertLevel || "تم تحديث البيانات"
-        );
-    }
+renderSmartMultiCityTopPanel(results);
+renderFloodWatchCitiesPanel(results);
+updateNationalProStatus(results);
+renderSmartMultiCityForecastPanel(results);
+renderFloodPredictionPanel(results);
+updateNationalStatus(results);
+updateNationalWeatherSummary(results);
+renderNationalTrendPanel(results);
+renderRainArrivalCitiesPanel(results);
+updateFloodRiskMap(results);
+updateCloudRainMapLayer(results);
 
-    renderSmartMultiCityTopPanel(results);
-    renderFloodWatchCitiesPanel(results);
-    updateNationalProStatus(results);
-    renderSmartMultiCityForecastPanel(results);
-    renderFloodPredictionPanel(results);
-    updateNationalStatus(results);
-    updateNationalWeatherSummary(results);
-    renderNationalTrendPanel(results);
-    renderRainArrivalCitiesPanel(results);
-    updateFloodRiskMap(results);
-    updateCloudRainMapLayer(results);
+const mapUpdateEl = document.getElementById("mapLastUpdateStatus");
+if (mapUpdateEl) {
+    mapUpdateEl.innerText =
+        "آخر تحديث للخريطة: " +
+        new Date().toLocaleTimeString("ar-SA");
+}
 
-    const mapUpdateEl = document.getElementById("mapLastUpdateStatus");
-    if (mapUpdateEl) {
-        mapUpdateEl.innerText =
-            "آخر تحديث للخريطة: " + new Date().toLocaleTimeString("ar-SA");
-    }
+saveSmartMultiCityHistory(topCities);
 
-    saveSmartMultiCityHistory(topCities);
+if (topCityNow && topForecastCity) {
+    updateBackgroundMonitorStatus(
+        `الآن: ${topCityNow.name} ${Math.round(topCityNow.score || 0)}% | 72 ساعة: ${topForecastCity.name} ${Math.round(topForecastCity.forecast72Score || 0)}%`
+    );
 
-    if (topCityNow && topForecastCity) {
-        updateBackgroundMonitorStatus(
-            `الآن: ${topCityNow.name} ${topCityNow.score}% | 72 ساعة: ${topForecastCity.name} ${topForecastCity.forecast72Score}%`
-        );
+    sendSmartMultiCityAlert(topCityNow);
+    sendEarlyMultiCityAlert(topForecastCity);
+}
 
-        sendSmartMultiCityAlert(topCityNow);
-        sendEarlyMultiCityAlert(topForecastCity);
-    }
+const floodRanked = [...results]
+    .filter(city => city.floodRiskScore !== undefined)
+    .sort(
+        (a, b) =>
+            Number(b.floodRiskScore || 0) -
+            Number(a.floodRiskScore || 0)
+    );
 
-    const floodRanked = [...results]
-        .filter(city => city.floodRiskScore !== undefined)
-        .sort((a, b) =>
-            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
-        );
-
-    if (floodRanked[0]) {
-        sendFloodPredictionAlert(floodRanked[0]);
-        sendV10FloodAlert(floodRanked[0]);
-    }
+if (floodRanked.length > 0) {
+    sendFloodPredictionAlert(floodRanked[0]);
+    sendV10FloodAlert(floodRanked[0]);
 }
 function saveSmartMultiCityHistory(topCities) {
     let saved = [];
