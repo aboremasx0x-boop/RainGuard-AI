@@ -1307,10 +1307,21 @@ function updateTopCityCard(results) {
     const scoreEl = document.getElementById("topRiskScore");
     const detailsEl = document.getElementById("topRiskDetails");
 
-    if (!results || !results.length) return;
+    if (!nameEl && !scoreEl && !detailsEl) return;
+
+    if (!Array.isArray(results) || !results.length) {
+        if (nameEl) nameEl.innerText = "جاري التحليل";
+        if (scoreEl) scoreEl.innerText = "--";
+        if (detailsEl) {
+            detailsEl.innerText = "اضغط تشغيل المراقبة أو انتظر تحميل المدن";
+        }
+        return;
+    }
 
     const filtered = results.filter(city =>
         Number(city.score || 0) >= 20 ||
+        Number(city.actualRiskScore || 0) >= 20 ||
+        Number(city.floodRiskScore || 0) >= 20 ||
         Number(city.forecast24Score || 0) >= 20 ||
         Number(city.forecast72Score || 0) >= 20
     );
@@ -1323,33 +1334,32 @@ function updateTopCityCard(results) {
     }
 
     const top = [...filtered].sort((a, b) => {
-        const aScore = Number(a.actualRiskScore ?? a.floodRiskScore ?? a.score ?? 0);
-        const bScore = Number(b.actualRiskScore ?? b.floodRiskScore ?? b.score ?? 0);
+        const aScore = Number(a.actualRiskScore ?? a.floodRiskScore ?? a.score ?? a.forecast24Score ?? 0);
+        const bScore = Number(b.actualRiskScore ?? b.floodRiskScore ?? b.score ?? b.forecast24Score ?? 0);
         return bScore - aScore;
     })[0];
 
-    if (!top) return;
-
     const peak = top.peakHour || {};
+    const topScore = Math.round(
+        Number(top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? top.forecast24Score ?? 0)
+    );
 
-    if (nameEl) {
-        nameEl.innerText = top.name || "غير محدد";
-    }
+    const humidity = Math.round(Number(peak.humidity ?? top.humidity ?? 0));
+    const cloudCover = Math.round(Number(peak.cloud_cover ?? top.cloudScore ?? top.cloud_cover ?? 0));
+    const rainProbability = Math.round(Number(peak.rain_probability ?? top.rain_probability ?? 0));
 
-    if (scoreEl) {
-        scoreEl.innerText =
-            `${Math.round(top.actualRiskScore ?? top.floodRiskScore ?? top.score ?? 0)}%`;
-    }
+    if (nameEl) nameEl.innerText = top.name || "غير محدد";
+    if (scoreEl) scoreEl.innerText = `${topScore}%`;
 
     if (detailsEl) {
         detailsEl.innerHTML = `
-            ${top.alertLevel || top.terrainSummary || "تم تحديث البيانات"}
+            ${top.alertLevel || top.forecastTiming || top.terrainSummary || "تم تحديث البيانات"}
             <br>
-            💧 الرطوبة: ${Math.round(peak.humidity || 0)}%
+            💧 الرطوبة: ${humidity}%
             <br>
-            ☁️ السحب: ${Math.round(peak.cloud_cover || top.cloudScore || 0)}%
+            ☁️ السحب: ${cloudCover}%
             <br>
-            🌧️ احتمال المطر: ${Math.round(peak.rain_probability || 0)}%
+            🌧️ احتمال المطر: ${rainProbability}%
         `;
     }
 }
