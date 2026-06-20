@@ -227,24 +227,25 @@ def calculate_factor_accuracy(predicted_value, actual_rain):
     return clamp(accuracy, 0, 100)
 
 
-def adaptive_learning_v1(limit=300, use_cache=True):
+def adaptive_learning_v1(limit=300, force_refresh=False):
     """
-    Adaptive Learning Engine V1.1
-
-    يتعلم من جدول prediction_history ويحسب أوزانًا ديناميكية للعوامل:
+    Adaptive Learning Engine V1.2
+    يحلل prediction_history ويحسب أوزان المطر من:
     - precipitation_probability
     - cloud_cover
     - humidity
     - flood_score
-
-    ملاحظة مهمة:
-    الأعمدة الجديدة قد تكون قيمها 0 في السجلات القديمة؛ لذلك لا نحسب
-    cloud_cover / humidity / flood_score من السجلات التي لا تحتوي قيمة فعلية.
     """
+
     try:
-        if use_cache and ADAPTIVE_CACHE.get("data") and ADAPTIVE_CACHE.get("time"):
-            if now_utc() - ADAPTIVE_CACHE["time"] <= timedelta(minutes=ADAPTIVE_CACHE_MINUTES):
-                return ADAPTIVE_CACHE["data"]
+        if not force_refresh:
+            cached = ADAPTIVE_CACHE.get("data")
+            cached_time = ADAPTIVE_CACHE.get("time")
+
+            if cached and cached_time:
+                age_seconds = (now_utc() - cached_time).total_seconds()
+                if age_seconds <= ADAPTIVE_CACHE_SECONDS:
+                    return cached
 
         rows = get_verified_predictions(limit=limit)
 
@@ -252,8 +253,8 @@ def adaptive_learning_v1(limit=300, use_cache=True):
             result = {
                 "ok": False,
                 "reason": "No verified predictions found",
+                "engine": "Adaptive Learning Engine V1.2",
                 "samples": 0,
-                "engine": "Adaptive Learning Engine V1.1",
                 "weights": DEFAULT_ADAPTIVE_WEIGHTS,
                 "factor_accuracy": {
                     "precipitation_probability": 0,
@@ -268,6 +269,7 @@ def adaptive_learning_v1(limit=300, use_cache=True):
                     "flood_score": 0
                 }
             }
+
             ADAPTIVE_CACHE["time"] = now_utc()
             ADAPTIVE_CACHE["data"] = result
             return result
@@ -282,38 +284,46 @@ def adaptive_learning_v1(limit=300, use_cache=True):
         for row in rows:
             actual_rain = safe_number(row.get("actual_rain"))
 
-            # precipitation_probability:
-            # في السجلات القديمة قد لا يكون موجودًا، لذلك نستخدم rain_score كبديل منطقي.
             precipitation_probability = row.get("precipitation_probability")
             if precipitation_probability in [None, ""]:
                 precipitation_probability = row.get("rain_probability")
-            if precipitation_probability in [None, "", 0, 0.0]:
+            if precipitation_probability in [None, ""]:
                 precipitation_probability = row.get("rain_score")
 
-            factor_scores["precipitation_probability"].append(
-                calculate_factor_accuracy(
-                    precipitation_probability,
-                    actual_rain
-                )
-            )
-
-            # الأعمدة التالية جديدة؛ نتجنب احتساب أصفار السجلات القديمة كأنها بيانات حقيقية.
             cloud_cover = row.get("cloud_cover")
-            if cloud_cover not in [None, "", 0, 0.0]:
-                factor_scores["cloud_cover"].append(
-                    calculate_factor_accuracy(cloud_cover, actual_rain)
-                )
-
             humidity = row.get("humidity")
-            if humidity not in [None, "", 0, 0.0]:
-                factor_scores["humidity"].append(
-                    calculate_factor_accuracy(humidity, actual_rain)
+            flood_score = row.get("flood_score")
+
+            if precipitation_probability not in [None, ""]:
+                factor_scores["precipitation_probability"].append(
+                    calculate_factor_accuracy(
+                        precipitation_probability,
+                        actual_rain
+                    )
                 )
 
-            flood_score = row.get("flood_score")
-            if flood_score not in [None, "", 0, 0.0]:
+            if cloud_cover not in [None, ""]:
+                factor_scores["cloud_cover"].append(
+                    calculate_factor_accuracy(
+                        cloud_cover,
+                        actual_rain
+                    )
+                )
+
+            if humidity not in [None, ""]:
+                factor_scores["humidity"].append(
+                    calculate_factor_accuracy(
+                        humidity,
+                        actual_rain
+                    )
+                )
+
+            if flood_score not in [None, ""]:
                 factor_scores["flood_score"].append(
-                    calculate_factor_accuracy(flood_score, actual_rain)
+                    calculate_factor_accuracy(
+                        flood_score,
+                        actual_rain
+                    )
                 )
 
         factor_accuracy = {
@@ -327,24 +337,25 @@ def adaptive_learning_v1(limit=300, use_cache=True):
         }
 
         min_samples = 5
-
         raw_weights = {}
 
         for key in DEFAULT_ADAPTIVE_WEIGHTS:
             if factor_samples[key] >= min_samples:
-                # نمزج الوزن الأساسي مع الدقة المتعلمة حتى لا يحدث تغير حاد.
                 learned_part = factor_accuracy[key] / 100
                 base_part = DEFAULT_ADAPTIVE_WEIGHTS[key]
-                raw_weights[key] = (base_part * 0.50) + (learned_part * 0.50)
+
+                raw_weights[key] = (
+                    base_part * 0.40
+                    + learned_part * 0.60
+                )
             else:
-                # إذا لا توجد عينات كافية، نحافظ على الوزن الافتراضي.
                 raw_weights[key] = DEFAULT_ADAPTIVE_WEIGHTS[key]
 
         weights = normalize_weights(raw_weights)
 
         result = {
             "ok": True,
-            "engine": "Adaptive Learning Engine V1.1",
+            "engine": "Adaptive Learning Engine V1.2",
             "samples": len(rows),
             "min_samples_per_factor": min_samples,
             "factor_samples": factor_samples,
@@ -358,11 +369,12 @@ def adaptive_learning_v1(limit=300, use_cache=True):
         return result
 
     except Exception as e:
-        print("Adaptive learning v1.1 error:", repr(e))
+        print("Adaptive learning v1.2 error:", repr(e))
+
         return {
             "ok": False,
             "reason": str(e),
-            "engine": "Adaptive Learning Engine V1.1",
+            "engine": "Adaptive Learning Engine V1.2",
             "samples": 0,
             "weights": DEFAULT_ADAPTIVE_WEIGHTS,
             "factor_accuracy": {
