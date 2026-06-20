@@ -926,91 +926,23 @@ def verify_prediction(
     prediction_id: int,
     actual_rain: float
 ):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
+    try:
+        response = (
+            supabase
+            .table("prediction_history")
+            .select("id, rain_score")
+            .eq("id", prediction_id)
+            .limit(1)
+            .execute()
+        )
 
-    cur.execute("""
-        SELECT rain_score
-        FROM prediction_history
-        WHERE id = ?
-    """, (prediction_id,))
+        rows = response.data or []
 
-    row = cur.fetchone()
+        if not rows:
+            return {"status": "not_found", "prediction_id": prediction_id}
 
-    if not row:
-        conn.close()
-        return {"status": "not_found", "prediction_id": prediction_id}
-
-    predicted_score = float(row[0] or 0)
-    actual_rain = float(actual_rain or 0)
-
-    # تقييم أدق:
-    # إذا التوقع 30% أو أعلى وحدث مطر فعلي = نجاح
-    # إذا التوقع أقل من 30% ولم يحدث مطر = نجاح
-    # غير ذلك = فشل
-    if predicted_score >= 30 and actual_rain > 0:
-        result = "success"
-    elif predicted_score < 30 and actual_rain == 0:
-        result = "success"
-    else:
-        result = "failed"
-
-    cur.execute("""
-        UPDATE prediction_history
-        SET verified = 1,
-            actual_rain = ?,
-            result = ?
-        WHERE id = ?
-    """, (actual_rain, result, prediction_id))
-
-    conn.commit()
-
-    cur.execute("""
-        SELECT id, verified, actual_rain, result
-        FROM prediction_history
-        WHERE id = ?
-    """, (prediction_id,))
-
-    updated = cur.fetchone()
-    conn.close()
-
-    return {
-        "status": "verified",
-        "prediction_id": prediction_id,
-        "predicted_score": predicted_score,
-        "actual_rain": actual_rain,
-        "threshold_used": 30,
-        "result": result,
-        "saved_check": {
-            "id": updated[0],
-            "verified": updated[1],
-            "actual_rain": updated[2],
-            "result": updated[3]
-        }
-    }
-@app.get("/verify-prediction")
-def verify_prediction_get(prediction_id: int, actual_rain: float):
-    return verify_prediction(prediction_id, actual_rain)
-    
-@app.post("/auto-verify-predictions")
-def auto_verify_predictions():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT id, city, rain_score
-        FROM prediction_history
-        WHERE verified = 0
-    """)
-
-    rows = cur.fetchall()
-    updated_count = 0
-
-    for row in rows:
-        prediction_id = row[0]
-        predicted_score = float(row[2] or 0)
-
-        actual_rain = 0.0
+        predicted_score = float(rows[0].get("rain_score") or 0)
+        actual_rain = float(actual_rain or 0)
 
         if predicted_score >= 30 and actual_rain > 0:
             result = "success"
@@ -1019,25 +951,93 @@ def auto_verify_predictions():
         else:
             result = "failed"
 
-        cur.execute("""
-            UPDATE prediction_history
-            SET verified = 1,
-                actual_rain = ?,
-                result = ?
-            WHERE id = ?
-        """, (actual_rain, result, prediction_id))
+        update_response = (
+            supabase
+            .table("prediction_history")
+            .update({
+                "verified": 1,
+                "actual_rain": actual_rain,
+                "result": result
+            })
+            .eq("id", prediction_id)
+            .execute()
+        )
 
-        updated_count += 1
+        updated = (update_response.data or [{}])[0]
 
-    conn.commit()
-    conn.close()
+        return {
+            "status": "verified",
+            "prediction_id": prediction_id,
+            "predicted_score": predicted_score,
+            "actual_rain": actual_rain,
+            "threshold_used": 30,
+            "result": result,
+            "saved_check": updated
+        }
 
-    return {
-        "status": "auto_verified",
-        "threshold_used": 30,
-        "updated_count": updated_count
-    }
+    except Exception as e:
+        return {
+            "status": "error",
+            "prediction_id": prediction_id,
+            "error": str(e)
+        }
 
+
+@app.get("/verify-prediction")
+def verify_prediction_get(prediction_id: int, actual_rain: float):
+    return verify_prediction(prediction_id, actual_rain)
+
+
+@app.post("/auto-verify-predictions")
+def auto_verify_predictions():
+    try:
+        response = (
+            supabase
+            .table("prediction_history")
+            .select("id, city, rain_score")
+            .eq("verified", 0)
+            .execute()
+        )
+
+        rows = response.data or []
+        updated_count = 0
+
+        for row in rows:
+            prediction_id = row.get("id")
+            predicted_score = float(row.get("rain_score") or 0)
+            actual_rain = 0.0
+
+            if predicted_score >= 30 and actual_rain > 0:
+                result = "success"
+            elif predicted_score < 30 and actual_rain == 0:
+                result = "success"
+            else:
+                result = "failed"
+
+            supabase.table("prediction_history").update({
+                "verified": 1,
+                "actual_rain": actual_rain,
+                "result": result
+            }).eq("id", prediction_id).execute()
+
+            updated_count += 1
+
+        return {
+            "status": "auto_verified",
+            "threshold_used": 30,
+            "updated_count": updated_count
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@app.get("/auto-verify-predictions")
+def auto_verify_predictions_get():
+    return auto_verify_predictions()
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
