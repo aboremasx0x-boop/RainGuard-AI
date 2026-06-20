@@ -1015,7 +1015,7 @@ if base_cloud <= 0:
 
         rows.append(row)
 
-    return rows
+        return rows
 
 
 def build_hybrid_daily_forecast(openweather_data):
