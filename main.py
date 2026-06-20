@@ -964,6 +964,15 @@ def build_hybrid_next_hours(openweather_data, hours=12):
     base_temp = safe_number(base["temperature"])
     base_humidity = safe_number(base["humidity"])
     base_cloud = safe_number(base["cloud_cover"])
+
+if base_cloud <= 0:
+    base_cloud = min(
+        100,
+        max(
+            safe_number(base["rain_probability"]) * 2,
+            safe_number(base["humidity"]) * 0.8
+        )
+    )
     base_wind = safe_number(base["wind_speed"])
     base_pressure = safe_number(base["pressure_hpa"], 1013)
     base_rain = safe_number(base["precipitation_mm"])
