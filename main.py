@@ -68,6 +68,10 @@ def init_prediction_db():
 
 def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, flood_score, source):
     try:
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            print("Supabase env missing:", bool(SUPABASE_URL), bool(SUPABASE_KEY))
+            return False
+
         data = {
             "city": city,
             "lat": lat,
@@ -82,10 +86,13 @@ def save_prediction_history(city, lat, lon, rain_score, forecast24, forecast72, 
             "result": "pending"
         }
 
-        supabase.table("prediction_history").insert(data).execute()
+        response = supabase.table("prediction_history").insert(data).execute()
+        print("Supabase save success:", response)
+        return True
 
     except Exception as e:
-        print("Supabase prediction history save error:", e)
+        print("Supabase prediction history save error:", repr(e))
+        return False
         
 def store_prediction_from_result(result, name, lat, lon):
     try:
