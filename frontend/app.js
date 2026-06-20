@@ -3275,6 +3275,81 @@ function refreshNow() {
     updateRefreshStatus("تم طلب تحديث يدوي");
 }
 
+function showActionMessage(message, type = "success") {
+    const box = document.getElementById("actionMessage");
+
+    if (!box) {
+        console.log(message);
+        return;
+    }
+
+    let background = "#064e3b";
+    let color = "#d1fae5";
+
+    if (type === "warning") {
+        background = "#78350f";
+        color = "#fde68a";
+    }
+
+    if (type === "danger") {
+        background = "#7f1d1d";
+        color = "#fecaca";
+    }
+
+    box.innerText = message;
+    box.style.background = background;
+    box.style.color = color;
+    box.style.display = "block";
+
+    setTimeout(() => {
+        box.style.display = "none";
+    }, 5000);
+}
+
+function saveLastSuccessfulWeather(data, lat, lon, name) {
+    if (!data || data.error) return;
+
+    const item = {
+        data,
+        lat,
+        lon,
+        name,
+        savedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(
+        OFFLINE_CACHE_KEY,
+        JSON.stringify(item)
+    );
+}
+
+function getLastSuccessfulWeather() {
+    try {
+        return JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY));
+    } catch {
+        return null;
+    }
+}
+
+function isBackgroundMonitorEnabled() {
+    return localStorage.getItem(BACKGROUND_MONITOR_KEY) === "true";
+}
+
+function updateBackgroundMonitorStatus(message = "") {
+    const box = document.getElementById("backgroundMonitorStatus");
+    if (!box) return;
+
+    const state = isBackgroundMonitorEnabled() ? "مفعلة" : "متوقفة";
+
+    const now = new Date().toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    box.innerText =
+        `المراقبة الخلفية: ${state} | آخر فحص: ${now}${message ? " | " + message : ""}`;
+}
+
 function startAutoRefresh() {
     if (autoRefreshInterval) clearInterval(autoRefreshInterval);
 
