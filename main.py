@@ -755,50 +755,30 @@ def get_load_balancer_status():
 
 @app.get("/prediction-history")
 def prediction_history(limit: int = Query(20)):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
 
-    cur.execute("""
-        SELECT
-            id,
-            city,
-            prediction_time,
-            rain_score,
-            forecast24,
-            forecast72,
-            flood_score,
-            source,
-            verified,
-            actual_rain,
-            result
-        FROM prediction_history
-        ORDER BY id DESC
-        LIMIT ?
-    """, (limit,))
+    try:
+        response = (
+            supabase
+            .table("prediction_history")
+            .select("*")
+            .order("id", desc=True)
+            .limit(limit)
+            .execute()
+        )
 
-    rows = cur.fetchall()
-    conn.close()
+        records = response.data or []
 
-    return {
-        "count": len(rows),
-        "records": [
-            {
-                "id": r[0],
-                "city": r[1],
-                "prediction_time": r[2],
-                "rain_score": r[3],
-                "forecast24": r[4],
-                "forecast72": r[5],
-                "flood_score": r[6],
-                "source": r[7],
-                "verified": r[8],
-                "actual_rain": r[9],
-                "result": r[10]
-            }
-            for r in rows
-        ]
-    }
+        return {
+            "count": len(records),
+            "records": records
+        }
 
+    except Exception as e:
+        return {
+            "count": 0,
+            "records": [],
+            "error": str(e)
+        }
 @app.get("/")
 def root():
     return {
