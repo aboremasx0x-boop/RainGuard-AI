@@ -1331,7 +1331,18 @@ async def rain_alert(
         "openweather": openweather_data,
         "load_balancer": @app.get("/prediction-history")
 def prediction_history(limit: int = Query(20)):
-    """
+    """        "verification": verification,
+        "load_balancer": get_load_balancer_status(),
+        "disclaimer": "نظام تجريبي للتنبؤ المحلي بالمطر."
+    }
+
+    store_prediction_from_result(result, name, lat, lon)
+
+    return result
+
+
+@app.get("/prediction-history")
+def prediction_history(limit: int = Query(20)):
     عرض آخر سجلات prediction_history من Supabase.
     """
     try:
