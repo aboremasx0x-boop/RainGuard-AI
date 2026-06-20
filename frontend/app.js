@@ -693,6 +693,50 @@ function updateNationalProStatus(results) {
     if (updateEl) updateEl.innerText = now;
 }
 
+function updateLightningStormMode(score) {
+    score = Number(score) || 0;
+
+    document.body.classList.remove(
+        "weather-safe",
+        "weather-watch",
+        "weather-storm",
+        "weather-danger"
+    );
+
+    if (score >= 85) {
+        document.body.classList.add("weather-danger");
+    } else if (score >= 70) {
+        document.body.classList.add("weather-storm");
+    } else if (score >= 45) {
+        document.body.classList.add("weather-watch");
+    } else {
+        document.body.classList.add("weather-safe");
+    }
+}
+
+function getTerrainRiskProfile(cityName) {
+    return terrainRiskProfiles[cityName] || {
+        valley: 5,
+        mountain: 0,
+        lowArea: 5,
+        coastal: 0,
+        history: 5
+    };
+}
+
+function calculateTerrainRisk(cityName) {
+    const profile = getTerrainRiskProfile(cityName);
+
+    const terrainScore =
+        Number(profile.valley || 0) +
+        Number(profile.mountain || 0) +
+        Number(profile.lowArea || 0) +
+        Number(profile.coastal || 0) +
+        Number(profile.history || 0);
+
+    return Math.min(Math.round(terrainScore), 50);
+}
+
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (!force) {
         if (!isSmartMultiCityEnabled()) return;
