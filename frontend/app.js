@@ -4303,6 +4303,10 @@ setTimeout(async () => {
     }, 5000);
 
     setTimeout(() => {
+    runSmartMultiCityBackgroundCheck(true);
+}, 5000);
+
+    setTimeout(() => {
         const rainCard = document.querySelector(".summary-card.rain");
         const floodCard = document.querySelector(".summary-card.flood");
         const cloudCard = document.querySelector(".summary-card.cloud");
