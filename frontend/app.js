@@ -3918,6 +3918,8 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
 
     for (const city of smartMultiCityMonitorList) {
         try {
+            await sleep(600);
+
             const data = await fetchAPI(
                 `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=72`
             );
@@ -3928,62 +3930,10 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
             const best = data.best_hour || current;
             const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
 
-            const score = Number(best.rain_score ?? current.rain_score ?? 0);
+            const score = Number(best.rain_score || current.rain_score || 0);
             const forecast24Score = getMaxScoreByRange(nextHours, 24);
             const forecast72Score = getMaxScoreByRange(nextHours, 72);
             const peakHour = getPeakHourByRange(nextHours, 72);
-
-            const cloudScore = Number(current.cloud_cover ?? peakHour?.cloud_cover ?? 0);
-            const humidity = Number(current.humidity ?? peakHour?.humidity ?? 0);
-            const rainProbability = Number(current.rain_probability ?? peakHour?.rain_probability ?? 0);
-
-            const floodRiskScore =
-                typeof calculateV9FloodRisk === "function"
-                    ? calculateV9FloodRisk({
-                        name: city.name,
-                        score,
-                        forecast24Score,
-                        forecast72Score,
-                        cloudScore,
-                        radarRainIntensity: 0
-                    })
-                    : Number(data.floodRiskScore ?? 0);
-
-            const terrainRiskScore =
-                typeof calculateTerrainRisk === "function"
-                    ? calculateTerrainRisk(city.name)
-                    : 0;
-
-            const actualRiskScore = Math.round(
-                Math.max(score, forecast24Score, forecast72Score, floodRiskScore)
-            );
-
-            const cloudMovement =
-                typeof estimateCloudMovement === "function"
-                    ? estimateCloudMovement(city.name, score, forecast24Score)
-                    : {
-                        direction: "غير معروف",
-                        speed: 0,
-                        etaMinutes: null,
-                        confidence: 0
-                    };
-
-            const rainArrival =
-                typeof calculateRainArrivalV12 === "function"
-                    ? calculateRainArrivalV12({
-                        name: city.name,
-                        score,
-                        forecast24Score,
-                        forecast72Score,
-                        cloudMovement,
-                        peakHour
-                    })
-                    : {
-                        etaMinutes: null,
-                        label: "غير متوفر",
-                        confidence: 0,
-                        direction: "غير معروف"
-                    };
 
             results.push({
                 name: city.name,
@@ -3992,20 +3942,11 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 score,
                 forecast24Score,
                 forecast72Score,
-                cloudScore,
-                humidity,
-                rainProbability,
-                floodRiskScore,
-                terrainRiskScore,
-                actualRiskScore,
+                cloudScore: Number(current.cloud_cover || peakHour?.cloud_cover || 0),
+                floodRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score) * 0.6),
+                actualRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score)),
                 peakHour,
-                cloudMovement,
-                rainArrival,
                 alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
-                forecastTiming:
-                    typeof classifyForecastTiming === "function"
-                        ? classifyForecastTiming(score, forecast24Score, forecast72Score)
-                        : "متابعة",
                 source: data.source || "Unknown",
                 current
             });
@@ -4015,7 +3956,7 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
         }
     }
 
-    window.lastMultiCityResults = results || [];
+    window.lastMultiCityResults = results;
 
     updateTopCityCard?.(results);
     renderSmartMultiCityTopPanel?.(results);
@@ -4024,10 +3965,10 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     updateNationalStatus?.(results);
     renderNationalTrendPanel?.(results);
     renderRainArrivalCitiesPanel?.(results);
-    renderSmartMultiCityForecastPanel?.(results);
-    renderFloodPredictionPanel?.(results);
     updateFloodRiskMap?.(results);
     updateCloudRainMapLayer?.(results);
+
+    console.log("Smart MultiCity Results:", results);
 
     return results;
 }
@@ -4477,3 +4418,35 @@ window.toggleSmartMultiCityMonitoring = async function () {
         await runSmartMultiCityBackgroundCheck(true);
     }
 };
+
+async function fetchAPI(path, retries = 2) {
+    const url = path.startsWith("http")
+        ? path
+        : `${API_BASE_URL}${path}`;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const response = await fetch(url, {
+                method: "GET",
+                cache: "no-store"
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            return await response.json();
+
+        } catch (error) {
+            if (attempt === retries) {
+                throw error;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 1200));
+        }
+    }
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
