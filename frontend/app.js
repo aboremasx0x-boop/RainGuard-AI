@@ -845,6 +845,26 @@ function calculateRainArrivalV12(city) {
     };
 }
 
+async function fetchAPI(path) {
+    const separator = path.includes("?") ? "&" : "?";
+    const url = `${API_BASE_URL}${path}${separator}t=${Date.now()}`;
+
+    const response = await fetch(url, {
+        method: "GET",
+        mode: "cors",
+        cache: "no-store",
+        headers: {
+            "Accept": "application/json"
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    return await response.json();
+}
+
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (!force) {
         if (typeof isSmartMultiCityEnabled === "function" && !isSmartMultiCityEnabled()) return;
