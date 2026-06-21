@@ -4626,3 +4626,45 @@ window.onload = function () {
 
     console.log("APP LOADED");
 };
+
+window.toggleSmartMultiCityMonitoring = function () {
+    const current =
+        localStorage.getItem(SMART_MULTI_CITY_KEY) === "true";
+
+    const next = !current;
+
+    localStorage.setItem(
+        SMART_MULTI_CITY_KEY,
+        next ? "true" : "false"
+    );
+
+    if (next) {
+        showActionMessage?.("تم تشغيل مراقبة المدن الذكية", "success");
+        runSmartMultiCityBackgroundCheck?.(true);
+    } else {
+        showActionMessage?.("تم إيقاف مراقبة المدن الذكية", "warning");
+    }
+
+    console.log("Smart MultiCity Monitoring:", next);
+};
+
+window.toggleBackgroundRainMonitoring = function () {
+    const current =
+        localStorage.getItem(BACKGROUND_MONITOR_KEY) === "true";
+
+    const next = !current;
+
+    localStorage.setItem(
+        BACKGROUND_MONITOR_KEY,
+        next ? "true" : "false"
+    );
+
+    if (next) {
+        showActionMessage?.("تم تشغيل المراقبة المباشرة", "success");
+        runSmartMultiCityBackgroundCheck?.(true);
+    } else {
+        showActionMessage?.("تم إيقاف المراقبة المباشرة", "warning");
+    }
+
+    console.log("Background Monitoring:", next);
+};
