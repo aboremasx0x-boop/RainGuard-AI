@@ -866,242 +866,54 @@ async function fetchAPI(path) {
 }
 
 async function runSmartMultiCityBackgroundCheck(force = false) {
-    if (!force) {
-        if (typeof isSmartMultiCityEnabled === "function" && !isSmartMultiCityEnabled()) return;
-        if (typeof isBackgroundMonitorEnabled === "function" && !isBackgroundMonitorEnabled()) return;
-    }
+    const jobs = smartMultiCityMonitorList.map(async (city) => {
+        const data = await fetchAPI(
+            `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=72`
+        );
 
-    const results = [];
+        if (!data || data.error) return null;
 
-    for (const city of smartMultiCityMonitorList) {
-        try {
-            const url =
-                `${API_BASE_URL}/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=${SMART_MULTI_CITY_FORECAST_HOURS}`;
+        const current = data.current || {};
+        const best = data.best_hour || current;
+        const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
 
-            const response = await fetch(url, {
-    method: "GET",
-    mode: "cors",
-    cache: "no-store",
-    headers: {
-        "Accept": "application/json"
-    }
-});
+        const score = Number(best.rain_score ?? current.rain_score ?? 0);
+        const forecast24Score = getMaxScoreByRange(nextHours, 24);
+        const forecast72Score = getMaxScoreByRange(nextHours, 72);
+        const peakHour = getPeakHourByRange(nextHours, 72);
 
-            if (!response.ok) {
-                console.warn("City API failed:", city.name, response.status);
-                continue;
-            }
+        return {
+            name: city.name,
+            lat: city.lat,
+            lon: city.lon,
+            score,
+            forecast24Score,
+            forecast72Score,
+            cloudScore: Number(current.cloud_cover ?? peakHour?.cloud_cover ?? 0),
+            humidity: Number(current.humidity ?? peakHour?.humidity ?? 0),
+            rainProbability: Number(current.rain_probability ?? peakHour?.rain_probability ?? 0),
+            floodRiskScore: Number(data.floodRiskScore ?? 0),
+            actualRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score)),
+            peakHour,
+            alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
+            source: data.source || "Unknown",
+            current
+        };
+    });
 
-            const data = await response.json();
+    const settled = await Promise.allSettled(jobs);
 
-            if (data.error) {
-                console.warn("City data error:", city.name, data);
-                continue;
-            }
+    const results = settled
+        .filter(r => r.status === "fulfilled" && r.value)
+        .map(r => r.value);
 
-            const best = data.best_hour || data.current || {};
-            const current = data.current || {};
-            const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
+    window.lastMultiCityResults = results;
 
-            const score =
-                Number(best.rain_score) ||
-                Number(current.rain_score) ||
-                0;
-
-            const forecast24Score = getMaxScoreByRange(nextHours, 24);
-            const forecast72Score = getMaxScoreByRange(nextHours, 72);
-            const peakHour = getPeakHourByRange(nextHours, 72);
-
-            const cloudScore = Number(
-                current.cloud_cover ??
-                peakHour?.cloud_cover ??
-                0
-            );
-
-            const terrainRiskScore =
-                typeof calculateTerrainRisk === "function"
-                    ? calculateTerrainRisk(city.name)
-                    : 0;
-
-            const terrainSummary =
-                typeof getTerrainRiskSummary === "function"
-                    ? getTerrainRiskSummary(city.name)
-                    : "غير محدد";
-
-            let radarRainIntensity = 0;
-            let radarFusion = null;
-
-            if (typeof getLiveRadarIntensity === "function") {
-                radarRainIntensity = await getLiveRadarIntensity(city.lat, city.lon);
-            }
-
-            if (typeof getRainViewerRadarFusionV1 === "function") {
-                radarFusion = await getRainViewerRadarFusionV1(city.lat, city.lon);
-            }
-
-            const floodRiskScore =
-                typeof calculateV9FloodRisk === "function"
-                    ? calculateV9FloodRisk({
-                        name: city.name,
-                        score,
-                        forecast24Score,
-                        forecast72Score,
-                        cloudScore,
-                        radarRainIntensity
-                    })
-                    : 0;
-
-            const actualRiskScore = Math.round(
-                score * 0.5 +
-                forecast24Score * 0.15 +
-                floodRiskScore * 0.25 +
-                terrainRiskScore * 0.10
-            );
-
-            const subZones =
-                typeof analyzeSubCityRainZones === "function"
-                    ? await analyzeSubCityRainZones(city.name)
-                    : [];
-
-            const cloudMovement =
-                typeof estimateCloudMovement === "function"
-                    ? estimateCloudMovement(city.name, score, forecast24Score)
-                    : {
-                        direction: "غير معروف",
-                        speed: 0,
-                        etaMinutes: null,
-                        confidence: 0
-                    };
-
-            const rainArrival =
-                typeof calculateRainArrivalV12 === "function"
-                    ? calculateRainArrivalV12({
-                        name: city.name,
-                        score,
-                        forecast24Score,
-                        forecast72Score,
-                        cloudMovement,
-                        peakHour
-                    })
-                    : {
-                        etaMinutes: null,
-                        label: "غير متوفر",
-                        confidence: 0,
-                        direction: "غير معروف"
-                    };
-
-            results.push({
-                name: city.name,
-                lat: city.lat,
-                lon: city.lon,
-                score,
-                forecast24Score,
-                forecast72Score,
-                cloudScore,
-                radarRainIntensity,
-                radarFusion,
-                terrainRiskScore,
-                terrainSummary,
-                floodRiskScore,
-                actualRiskScore,
-                peakHour,
-                cloudMovement,
-                rainArrival,
-                forecastTiming:
-                    typeof classifyForecastTiming === "function"
-                        ? classifyForecastTiming(score, forecast24Score, forecast72Score)
-                        : "متابعة",
-                alertLevel:
-                    best.alert_level ||
-                    current.alert_level ||
-                    "متابعة جوية",
-                source: data.source || "Unknown",
-                subZones
-            });
-
-        } catch (error) {
-            console.error("Smart city real error:", city.name, error);
-        }
-    }
-
-    console.log("Smart MultiCity Final Results:", results);
-
-    window.lastMultiCityResults = results || [];
-    updateTopCityCard(window.lastMultiCityResults);
-
-    if (results.length === 0) {
-        updateBackgroundMonitorStatus?.("تعذر فحص المدن الذكية");
-        renderSmartMultiCityTopPanel?.([]);
-        renderSmartMultiCityForecastPanel?.([]);
-        renderFloodPredictionPanel?.([]);
-        updateNationalStatus?.([]);
-        renderNationalTrendPanel?.([]);
-        return;
-    }
-
-    results.sort((a, b) =>
-        Number(b.actualRiskScore || 0) - Number(a.actualRiskScore || 0)
-    );
-
-    const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
-
-    const topCityNow = results
-        .filter(city =>
-            Number(city.score || 0) >= 20 ||
-            Number(city.forecast24Score || 0) >= 20 ||
-            Number(city.forecast72Score || 0) >= 20
-        )
-        .sort((a, b) =>
-            Number(b.actualRiskScore || 0) - Number(a.actualRiskScore || 0)
-        )[0];
-
-    const topForecastCity = [...results].sort((a, b) =>
-        Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
-    )[0];
-
-    window.openCityForecastPopup = openCityForecastPopup;
-
+    updateTopCityCard?.(results);
     renderSmartMultiCityTopPanel?.(results);
-    renderFloodWatchCitiesPanel?.(results);
-    updateNationalProStatus?.(results);
-    renderSmartMultiCityForecastPanel?.(results);
-    renderFloodPredictionPanel?.(results);
-    updateNationalStatus?.(results);
     updateNationalWeatherSummary?.(results);
+    updateNationalStatus?.(results);
     renderNationalTrendPanel?.(results);
-    renderRainArrivalCitiesPanel?.(results);
-    updateFloodRiskMap?.(results);
-    updateCloudRainMapLayer?.(results);
-
-    const mapUpdateEl = document.getElementById("mapLastUpdateStatus");
-    if (mapUpdateEl) {
-        mapUpdateEl.innerText =
-            "آخر تحديث للخريطة: " + new Date().toLocaleTimeString("ar-SA");
-    }
-
-    if (typeof saveSmartMultiCityHistory === "function") {
-        saveSmartMultiCityHistory(topCities);
-    }
-
-    if (topCityNow && topForecastCity) {
-        updateBackgroundMonitorStatus?.(
-            `الآن: ${topCityNow.name} ${Math.round(topCityNow.score || 0)}% | 72 ساعة: ${topForecastCity.name} ${Math.round(topForecastCity.forecast72Score || 0)}%`
-        );
-
-        sendSmartMultiCityAlert?.(topCityNow);
-        sendEarlyMultiCityAlert?.(topForecastCity);
-    }
-
-    const floodRanked = [...results]
-        .filter(city => city.floodRiskScore !== undefined)
-        .sort((a, b) =>
-            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
-        );
-
-        if (floodRanked.length > 0) {
-        sendFloodPredictionAlert?.(floodRanked[0]);
-        sendV10FloodAlert?.(floodRanked[0]);
-    }
 
     return results;
 }
