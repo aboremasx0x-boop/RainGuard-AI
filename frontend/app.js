@@ -4668,3 +4668,9 @@ window.toggleBackgroundRainMonitoring = function () {
 
     console.log("Background Monitoring:", next);
 };
+
+window.toggleSmartMultiCityMonitoring = async function () {
+    localStorage.setItem(SMART_MULTI_CITY_KEY, "true");
+    console.log("Smart MultiCity Monitoring: true");
+    await runSmartMultiCityBackgroundCheck(true);
+};
