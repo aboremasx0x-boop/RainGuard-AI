@@ -3932,6 +3932,11 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 continue;
             }
 
+            if (data.error === true) {
+                console.warn("Skipped city:", city.name);
+                continue;
+            }
+
             const current = data.current || {};
             const best = data.best_hour || current;
             const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
@@ -3961,6 +3966,8 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
             console.warn("Smart city skipped:", city.name, err.message);
         }
     }
+
+    console.log("RESULTS COUNT:", results.length);
 
     window.lastMultiCityResults = results;
 
