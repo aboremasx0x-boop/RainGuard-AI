@@ -3969,7 +3969,12 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 current
            });
 
-           console.log("PUSHED CITY:", city.name, results.length);
+                       console.log("PUSHED CITY:", city.name, results.length);
+
+        } catch (err) {
+            console.warn("Smart city skipped:", city.name, err);
+        }
+    }
 
     window.lastMultiCityResults = results;
 
@@ -3986,7 +3991,8 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     console.log("Smart MultiCity Results:", results);
 
     return results;
-   }
+}
+
 async function detectRain() {
     const input = document.getElementById("cityInput");
     if (!input) return;
