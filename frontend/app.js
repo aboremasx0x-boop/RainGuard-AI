@@ -858,7 +858,14 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
             const url =
                 `${API_BASE_URL}/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=${SMART_MULTI_CITY_FORECAST_HOURS}`;
 
-            const response = await fetch(url);
+            const response = await fetch(url, {
+    method: "GET",
+    mode: "cors",
+    cache: "no-store",
+    headers: {
+        "Accept": "application/json"
+    }
+});
 
             if (!response.ok) {
                 console.warn("City API failed:", city.name, response.status);
@@ -1071,10 +1078,12 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
             Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
         );
 
-    if (floodRanked.length > 0) {
+        if (floodRanked.length > 0) {
         sendFloodPredictionAlert?.(floodRanked[0]);
         sendV10FloodAlert?.(floodRanked[0]);
     }
+
+    return results;
 }
 
 // ===== RainGuard AI frontend/app.js fixed - PART 4/9 =====
@@ -3506,23 +3515,18 @@ function showActionMessage(message, type = "success") {
 function saveLastSuccessfulWeather(data, lat, lon, name) {
     if (!data || data.error) return;
 
-    const item = {
+    localStorage.setItem("rainguard_last_success_data", JSON.stringify({
         data,
         lat,
         lon,
         name,
         savedAt: new Date().toISOString()
-    };
-
-    localStorage.setItem(
-        OFFLINE_CACHE_KEY,
-        JSON.stringify(item)
-    );
+    }));
 }
 
 function getLastSuccessfulWeather() {
     try {
-        return JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY));
+        return JSON.parse(localStorage.getItem("rainguard_last_success_data"));
     } catch {
         return null;
     }
@@ -3839,29 +3843,29 @@ function updateMainWeatherValues(current) {
 
 // ===== RainGuard AI frontend/app.js fixed - PART 10 FINAL =====
 
-function checkPushRainAlert(score, cityName, level = "") {
+function checkPushRainAlert(score, locationName, alertLevel) {
     score = Number(score) || 0;
-    if (score < 30) return;
-
-    console.log("Rain alert checked:", cityName, score, level);
+    if (score >= 30) {
+        console.log(`تنبيه: ${locationName} - ${score}% - ${alertLevel}`);
+    }
 }
 
 function buildOfflineEmergencyHTML(saved) {
     if (!saved || !saved.data) return "";
 
-    const data = saved.data;
-    const current = data.current || {};
-    const best = data.best_hour || current;
+    const current = saved.data.current || {};
+    const best = saved.data.best_hour || current;
 
     return `
         <div class="forecast-section">
             <h3>⚠️ وضع الطوارئ</h3>
-            <div style="padding:15px;border-radius:14px;background:#451a03;color:#fde68a;">
+            <div style="padding:16px;border-radius:16px;background:#451a03;color:#fde68a;line-height:1.8;">
                 يتم عرض آخر بيانات محفوظة.<br>
-                الموقع: ${saved.name || data.location_name || "غير معروف"}<br>
+                الموقع: ${saved.name || saved.data.location_name || "--"}<br>
                 مؤشر المطر: ${best.rain_score ?? "--"}%<br>
-                الحرارة: ${current.temperature ?? "--"}°C<br>
-                الرطوبة: ${current.humidity ?? "--"}%
+                الرطوبة: ${current.humidity ?? "--"}%<br>
+                السحب: ${current.cloud_cover ?? "--"}%<br>
+                احتمال المطر: ${current.rain_probability ?? "--"}%
             </div>
         </div>
     `;
@@ -3886,243 +3890,117 @@ function calculateCityFloodRisk(city) {
     return Math.min(Math.round(risk), 100);
 }
 
-async function checkRain(lat, lon, name = "موقع محدد", silent = false, retryCount = 0) {
+async function checkRain(lat, lon, name = "موقع محدد", silent = false) {
     const cityName = document.getElementById("cityName");
     const statusText = document.getElementById("statusText");
     const adviceText = document.getElementById("adviceText");
 
-    if (!cityName || !statusText || !adviceText) return;
-
-    cityName.innerText = name;
-
-    if (!silent) {
-        statusText.innerText = "جاري تحليل المطر...";
-        statusText.className = "";
-        adviceText.innerHTML = "";
-    }
-
-    initMap(lat, lon);
+    if (cityName) cityName.innerText = name;
+    if (statusText && !silent) statusText.innerText = "جاري تحليل المطر...";
+    if (adviceText && !silent) adviceText.innerHTML = "";
 
     lastLat = lat;
     lastLon = lon;
     lastName = name;
 
     try {
-        const url =
-            `${API_BASE_URL}/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`;
+        const data = await fetchAPI(
+            `/rain-alert?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}&hours=12`
+        );
 
-        const response = await fetch(url);
-
-        if (!response.ok) throw new Error("فشل الاتصال بالخادم");
-
-        const data = await response.json();
         if (data.error) throw new Error(data.message || "فشل جلب البيانات");
 
         saveLastSuccessfulWeather(data, lat, lon, name);
 
         const current = data.current || {};
         const best = data.best_hour || current;
-        const score = Number(best.rain_score) || 0;
-
-        let rainArrivalText = "غير متوفر";
-
-        if (data.next_hours && data.next_hours.length > 0) {
-            const nextRain = data.next_hours.find(h => Number(h.rain_score || 0) >= 30);
-            if (nextRain) {
-                rainArrivalText = nextRain.time ? nextRain.time.replace("T", " ") : "قريباً";
-            }
-        }
+        const score = Math.round(Number(best.rain_score || 0));
 
         updateMainWeatherValues(current);
-        updateProDashboardWidgets(data, name, score, best);
-        updateAIWidgets(data, score, name);
-
-        const sourceStatusHTML = buildSourceStatusHTML(data);
-        const forecastHTML = buildForecastHTML(data.next_hours);
-        const dailyForecastHTML = buildDailyForecastHTML(data.daily_forecast);
-        const confidenceHTML = buildConfidenceHTML(data);
-        const radarFusionHTML = buildRadarFusionHTML(data);
-        const arrivalTrackerHTML = buildRainArrivalTrackerHTML(data);
-        const floodRiskHTML = buildFloodRiskHTML(data, name);
-
-        const forecast12Box = document.getElementById("forecast12InlineBox");
-        if (forecast12Box) forecast12Box.innerHTML = forecastHTML;
-
-        const forecastDaysBox = document.getElementById("forecastDaysInlineBox");
-        if (forecastDaysBox) forecastDaysBox.innerHTML = dailyForecastHTML;
-
-        const sourceStatusBox = document.getElementById("sourceStatusBox");
-        if (sourceStatusBox) sourceStatusBox.innerHTML = sourceStatusHTML;
-
-        const confidenceBox = document.getElementById("confidenceBox");
-        if (confidenceBox) confidenceBox.innerHTML = confidenceHTML;
-
-        const radarFusionBox = document.getElementById("radarFusionBox");
-        if (radarFusionBox) radarFusionBox.innerHTML = radarFusionHTML;
-
-        const style = getRainPanelStyle(score);
-
-        applyAlertCardColor(score);
         updateRiskBar(score);
-        updateLightningStormMode(score);
-        applyAdaptiveRefresh(score);
-        updateWeatherEffectsByRisk(score);
 
-        statusText.className =
-            score >= 80 ? "rain-high" :
-            score >= 60 ? "rain-medium" :
-            "rain-low";
-
-        statusText.innerText =
-            `${best.alert_level || style.label || "تحليل المطر"} - ${score}%`;
-
-        checkSmartAlert(score, best.alert_level || "تحليل المطر", name);
-        checkPushRainAlert(score, name, best.alert_level || "تحليل المطر");
-
-        savePredictionHistory(
-            name,
-            score,
-            best.alert_level || "تحليل المطر",
-            lat,
-            lon
-        );
-
-        adviceText.innerHTML = `
-            <p>${best.advice || ""}</p>
-
-            <div class="forecast-section">
-                <h3>⏰ موعد وصول المطر المتوقع</h3>
-                <div style="
-                    padding:16px;
-                    border-radius:16px;
-                    background:#020617;
-                    border:1px solid #334155;
-                    color:#38bdf8;
-                    font-size:20px;
-                    font-weight:bold;
-                    text-align:center;
-                ">
-                    ${rainArrivalText}
-                </div>
-            </div>
-
-            ${sourceStatusHTML}
-            ${confidenceHTML}
-            ${radarFusionHTML}
-            ${arrivalTrackerHTML}
-            ${floodRiskHTML}
-
-            <div class="info-grid">
-                <div class="info-box">
-                    <span>درجة الحرارة</span>
-                    <strong>${current.temperature ?? "--"}°C</strong>
-                </div>
-
-                <div class="info-box">
-                    <span>الرطوبة</span>
-                    <strong>${current.humidity ?? "--"}%</strong>
-                </div>
-
-                <div class="info-box">
-                    <span>السحب</span>
-                    <strong>${current.cloud_cover ?? "--"}%</strong>
-                </div>
-
-                <div class="info-box">
-                    <span>احتمال المطر</span>
-                    <strong>${current.rain_probability ?? "--"}%</strong>
-                </div>
-
-                <div class="info-box">
-                    <span>الضغط</span>
-                    <strong>${current.pressure_hpa ?? "--"}</strong>
-                </div>
-
-                <div class="info-box">
-                    <span>الرياح</span>
-                    <strong>${current.wind_speed ?? "--"} كم/س</strong>
-                </div>
-            </div>
-
-            ${forecastHTML}
-            ${dailyForecastHTML}
-        `;
-
-        if (marker) {
-            marker.bindPopup(`
-                <b>${name}</b><br>
-                مؤشر المطر: ${score}%<br>
-                ${best.alert_level || ""}
-            `);
-        }
-
-        updateRefreshStatus("تم تحديث البيانات");
-
-    } catch (error) {
-        console.error(error);
-
-        if (retryCount < 1) {
-            showActionMessage("الخادم يستجيب ببطء... جاري إعادة المحاولة", "warning");
-            await new Promise(resolve => setTimeout(resolve, 2500));
-            return checkRain(lat, lon, name, silent, retryCount + 1);
-        }
-
-        const saved = getLastSuccessfulWeather();
-
-        if (saved && saved.data) {
-            const data = saved.data;
-            const current = data.current || {};
-            const best = data.best_hour || current;
-            const score = Number(best.rain_score) || 0;
-
-            updateMainWeatherValues(current);
-            updateRiskBar(score);
-            updateLightningStormMode(score);
-            updateWeatherEffectsByRisk(score);
-
+        if (statusText) {
             statusText.className =
                 score >= 80 ? "rain-high" :
                 score >= 60 ? "rain-medium" :
                 "rain-low";
 
-            statusText.innerText =
-                `وضع الطوارئ - آخر بيانات محفوظة - ${score}%`;
-
-            adviceText.innerHTML = `
-                ${buildOfflineEmergencyHTML(saved)}
-                ${buildForecastHTML(data.next_hours)}
-                ${buildDailyForecastHTML(data.daily_forecast)}
-            `;
-
-            showActionMessage(
-                "تعذر الاتصال، تم تشغيل وضع الطوارئ وعرض آخر بيانات محفوظة",
-                "warning"
-            );
-
-            updateRefreshStatus("Offline Emergency Mode");
-            return;
+            statusText.innerText = `${best.alert_level || "تحليل المطر"} - ${score}%`;
         }
 
-        statusText.className = "rain-high";
-        statusText.innerText = "تعذر الاتصال";
+        if (adviceText) {
+            adviceText.innerHTML = `
+                <p>${best.advice || ""}</p>
+                ${buildForecastHTML(data.next_hours || [])}
+                ${buildDailyForecastHTML(data.daily_forecast || [])}
+            `;
+        }
 
-        adviceText.innerHTML = `
-            <div style="
-                color:#fecaca;
-                background:#7f1d1d;
-                padding:16px;
-                border-radius:16px;
-                margin-top:15px;
-                line-height:1.8;
-            ">
-                تعذر جلب البيانات ولا توجد بيانات محفوظة للطوارئ.<br>
-                حاول مرة أخرى بعد دقيقة.
-            </div>
-        `;
+        checkPushRainAlert(score, name, best.alert_level || "تحليل المطر");
 
-        showActionMessage("فشل جلب البيانات", "danger");
-        updateRefreshStatus("فشل التحديث");
+    } catch (error) {
+        console.error("checkRain error:", error);
+
+        const saved = getLastSuccessfulWeather();
+
+        if (saved && adviceText) {
+            adviceText.innerHTML = buildOfflineEmergencyHTML(saved);
+        }
+
+        if (statusText) {
+            statusText.className = "rain-high";
+            statusText.innerText = "تعذر الاتصال - تم عرض المحفوظ";
+        }
     }
+}
+
+async function runSmartMultiCityBackgroundCheck(force = false) {
+    const results = [];
+
+    for (const city of smartMultiCityMonitorList) {
+        try {
+            const data = await fetchAPI(
+                `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=72`
+            );
+
+            if (data.error) continue;
+
+            const current = data.current || {};
+            const best = data.best_hour || current;
+            const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
+
+            const score = Number(best.rain_score || current.rain_score || 0);
+            const forecast24Score = getMaxScoreByRange(nextHours, 24);
+            const forecast72Score = getMaxScoreByRange(nextHours, 72);
+
+            results.push({
+                name: city.name,
+                lat: city.lat,
+                lon: city.lon,
+                score,
+                forecast24Score,
+                forecast72Score,
+                cloudScore: Number(current.cloud_cover || 0),
+                floodRiskScore: Number(data.floodRiskScore || 0),
+                actualRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score)),
+                peakHour: getPeakHourByRange(nextHours, 72),
+                alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
+                source: data.source || "Unknown",
+                current
+            });
+
+        } catch (err) {
+            console.warn("Smart city skipped:", city.name, err.message);
+        }
+    }
+
+    window.lastMultiCityResults = results;
+    updateTopCityCard(results);
+    renderSmartMultiCityTopPanel(results);
+    updateNationalWeatherSummary(results);
+    updateNationalStatus(results);
+
+    return results;
 }
 
 function getMyLocation() {
