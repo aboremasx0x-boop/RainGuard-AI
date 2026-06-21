@@ -3986,7 +3986,7 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     console.log("Smart MultiCity Results:", results);
 
     return results;
-  }
+   }
 async function detectRain() {
     const input = document.getElementById("cityInput");
     if (!input) return;
