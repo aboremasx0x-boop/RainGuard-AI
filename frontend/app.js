@@ -865,58 +865,6 @@ async function fetchAPI(path) {
     return await response.json();
 }
 
-async function runSmartMultiCityBackgroundCheck(force = false) {
-    const jobs = smartMultiCityMonitorList.map(async (city) => {
-        const data = await fetchAPI(
-            `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=72`
-        );
-
-        if (!data || data.error) return null;
-
-        const current = data.current || {};
-        const best = data.best_hour || current;
-        const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
-
-        const score = Number(best.rain_score ?? current.rain_score ?? 0);
-        const forecast24Score = getMaxScoreByRange(nextHours, 24);
-        const forecast72Score = getMaxScoreByRange(nextHours, 72);
-        const peakHour = getPeakHourByRange(nextHours, 72);
-
-        return {
-            name: city.name,
-            lat: city.lat,
-            lon: city.lon,
-            score,
-            forecast24Score,
-            forecast72Score,
-            cloudScore: Number(current.cloud_cover ?? peakHour?.cloud_cover ?? 0),
-            humidity: Number(current.humidity ?? peakHour?.humidity ?? 0),
-            rainProbability: Number(current.rain_probability ?? peakHour?.rain_probability ?? 0),
-            floodRiskScore: Number(data.floodRiskScore ?? 0),
-            actualRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score)),
-            peakHour,
-            alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
-            source: data.source || "Unknown",
-            current
-        };
-    });
-
-    const settled = await Promise.allSettled(jobs);
-
-    const results = settled
-        .filter(r => r.status === "fulfilled" && r.value)
-        .map(r => r.value);
-
-    window.lastMultiCityResults = results;
-
-    updateTopCityCard?.(results);
-    renderSmartMultiCityTopPanel?.(results);
-    updateNationalWeatherSummary?.(results);
-    updateNationalStatus?.(results);
-    renderNationalTrendPanel?.(results);
-
-    return results;
-}
 
 // ===== RainGuard AI frontend/app.js fixed - PART 4/9 =====
 
@@ -4483,12 +4431,6 @@ window.toggleBackgroundRainMonitoring = function () {
     }
 
     console.log("Background Monitoring:", next);
-};
-
-window.toggleSmartMultiCityMonitoring = async function () {
-    localStorage.setItem(SMART_MULTI_CITY_KEY, "true");
-    console.log("Smart MultiCity Monitoring: true");
-    await runSmartMultiCityBackgroundCheck(true);
 };
 
 window.startBackgroundRainMonitoring = async function () {
