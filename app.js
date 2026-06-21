@@ -4932,3 +4932,56 @@ window.openRainCityByName = function (cityName) {
         `;
     }).join("");
 }
+
+function forceUpdateTopCityNow() {
+    const results = window.lastMultiCityResults || [];
+
+    const nameEl = document.getElementById("topRiskCity");
+    const scoreEl = document.getElementById("topRiskScore");
+    const detailsEl = document.getElementById("topRiskDetails");
+
+    if (!nameEl || !scoreEl || !detailsEl) {
+        console.warn("Top city elements not found");
+        return;
+    }
+
+    if (!results.length) {
+        nameEl.innerText = "جاري التحليل";
+        scoreEl.innerText = "--%";
+        detailsEl.innerText = "يتم فحص المدن الآن...";
+        return;
+    }
+
+    const top = results
+        .map(city => ({
+            ...city,
+            topScore: Math.max(
+                Number(city.score || 0),
+                Number(city.forecast24Score || 0),
+                Number(city.forecast72Score || 0),
+                Number(city.actualRiskScore || 0)
+            )
+        }))
+        .sort((a, b) => b.topScore - a.topScore)[0];
+
+    if (!top) return;
+
+    nameEl.innerText = top.name || "غير محدد";
+    scoreEl.innerText = `${Math.round(top.topScore)}%`;
+    detailsEl.innerText =
+        `${top.alertLevel || "متابعة جوية"} | 24 ساعة: ${Math.round(top.forecast24Score || 0)}%`;
+}
+
+const oldRunSmartMultiCityBackgroundCheck = window.runSmartMultiCityBackgroundCheck;
+
+window.runSmartMultiCityBackgroundCheck = async function (force = true) {
+    const results = await oldRunSmartMultiCityBackgroundCheck(force);
+    window.lastMultiCityResults = results || window.lastMultiCityResults || [];
+    forceUpdateTopCityNow();
+    return window.lastMultiCityResults;
+};
+
+setTimeout(async () => {
+    await window.runSmartMultiCityBackgroundCheck(true);
+    forceUpdateTopCityNow();
+}, 1500);
