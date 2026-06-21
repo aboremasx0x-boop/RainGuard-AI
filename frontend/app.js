@@ -3686,6 +3686,53 @@ function updateMainWeatherValues(current) {
 
 // ===== RainGuard AI frontend/app.js fixed - PART 10 FINAL =====
 
+function checkPushRainAlert(score, cityName, level = "") {
+    score = Number(score) || 0;
+    if (score < 30) return;
+
+    console.log("Rain alert checked:", cityName, score, level);
+}
+
+function buildOfflineEmergencyHTML(saved) {
+    if (!saved || !saved.data) return "";
+
+    const data = saved.data;
+    const current = data.current || {};
+    const best = data.best_hour || current;
+
+    return `
+        <div class="forecast-section">
+            <h3>⚠️ وضع الطوارئ</h3>
+            <div style="padding:15px;border-radius:14px;background:#451a03;color:#fde68a;">
+                يتم عرض آخر بيانات محفوظة.<br>
+                الموقع: ${saved.name || data.location_name || "غير معروف"}<br>
+                مؤشر المطر: ${best.rain_score ?? "--"}%<br>
+                الحرارة: ${current.temperature ?? "--"}°C<br>
+                الرطوبة: ${current.humidity ?? "--"}%
+            </div>
+        </div>
+    `;
+}
+
+function calculateCityFloodRisk(city) {
+    if (!city) return 0;
+
+    const rainScore = Number(city.score || 0);
+    const forecast24 = Number(city.forecast24Score || 0);
+    const forecast72 = Number(city.forecast72Score || 0);
+    const cloudScore = Number(city.cloudScore || 0);
+    const cityWeight = floodCityWeights?.[city.name] || 0;
+
+    const risk =
+        rainScore * 0.30 +
+        forecast24 * 0.22 +
+        forecast72 * 0.20 +
+        cloudScore * 0.13 +
+        cityWeight;
+
+    return Math.min(Math.round(risk), 100);
+}
+
 async function checkRain(lat, lon, name = "موقع محدد", silent = false, retryCount = 0) {
     const cityName = document.getElementById("cityName");
     const statusText = document.getElementById("statusText");
