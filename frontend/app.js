@@ -792,6 +792,61 @@ async function analyzeSubCityRainZones(cityName) {
     }
 }
 
+function calculateRainArrivalV12(city) {
+    if (!city) {
+        return {
+            etaMinutes: null,
+            label: "غير متوفر",
+            confidence: 0,
+            direction: "غير معروف"
+        };
+    }
+
+    const now = Number(city.score || 0);
+    const score24 = Number(city.forecast24Score || 0);
+    const score72 = Number(city.forecast72Score || 0);
+    const movement = city.cloudMovement || {};
+
+    let etaMinutes = Number(movement.etaMinutes || 0) || null;
+    let confidence = Number(movement.confidence || 40);
+    let label = "لا يوجد وصول مطر واضح حالياً";
+
+    if (now >= 60) {
+        etaMinutes = 0;
+        label = "المطر حاضر الآن";
+        confidence = Math.max(confidence, 85);
+    } else if (etaMinutes) {
+        label = `خلال ${etaMinutes} دقيقة تقريباً`;
+    } else if (score24 >= 60) {
+        etaMinutes = 180;
+        label = "خلال 3 ساعات القادمة";
+        confidence = Math.max(confidence, 65);
+    } else if (score24 >= 50) {
+        etaMinutes = 240;
+        label = "خلال 4 ساعات";
+        confidence = Math.max(confidence, 60);
+    } else if (score24 >= 40) {
+        etaMinutes = 360;
+        label = "خلال 6 ساعات";
+        confidence = Math.max(confidence, 55);
+    } else if (score24 >= 30) {
+        etaMinutes = 480;
+        label = "خلال 8 ساعات";
+        confidence = Math.max(confidence, 50);
+    } else if (score24 >= 25 || score72 >= 30 || now >= 25) {
+        etaMinutes = 720;
+        label = "احتمال خلال 12 ساعة";
+        confidence = Math.max(confidence, 45);
+    }
+
+    return {
+        etaMinutes,
+        label,
+        confidence,
+        direction: movement.direction || "غير معروف"
+    };
+}
+
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (!force) {
         if (!isSmartMultiCityEnabled()) return;
