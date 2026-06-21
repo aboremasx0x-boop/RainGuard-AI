@@ -4396,10 +4396,14 @@ window.onload = function () {
     renderPredictionHistory();
 
     setTimeout(() => {
-        startAutoRefresh();
-        updateMultiCityMonitor();
-        runSmartMultiCityBackgroundCheck(true);
-    }, 3000);
+    startAutoRefresh?.();
+    updateMultiCityMonitor?.();
+}, 1500);
+
+setTimeout(async () => {
+    await runSmartMultiCityBackgroundCheck(true);
+    updateTopCityCard?.(window.lastMultiCityResults || []);
+}, 2000);
 
     setTimeout(() => {
         if (isBackgroundMonitorEnabled()) {
