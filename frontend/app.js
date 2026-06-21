@@ -4315,45 +4315,46 @@ setTimeout(async () => {
 }, 2000);
 
     setTimeout(() => {
-        if (isBackgroundMonitorEnabled()) {
-            startBackgroundRainMonitoring();
-        } else {
-            updateBackgroundMonitorStatus("جاهزة للتشغيل");
-        }
-    }, 5000);
-
-    setTimeout(() => {
-    runSmartMultiCityBackgroundCheck(true);
+    if (isBackgroundMonitorEnabled()) {
+        startBackgroundRainMonitoring();
+    } else {
+        updateBackgroundMonitorStatus("جاهزة للتشغيل");
+    }
 }, 5000);
 
-    setTimeout(() => {
-        const rainCard = document.querySelector(".summary-card.rain");
-        const floodCard = document.querySelector(".summary-card.flood");
-        const cloudCard = document.querySelector(".summary-card.cloud");
+setTimeout(() => {
+    const rainCard = document.querySelector(".summary-card.rain");
+    const floodCard = document.querySelector(".summary-card.flood");
+    const cloudCard = document.querySelector(".summary-card.cloud");
 
-        if (rainCard) {
-            rainCard.onclick = () => window.openFirstRainCity();
-            rainCard.style.cursor = "pointer";
-        }
+    if (rainCard) {
+        rainCard.onclick = () => window.openFirstRainCity();
+        rainCard.style.cursor = "pointer";
+    }
 
-        if (floodCard) {
-            floodCard.onclick = () => window.openFirstFloodCity();
-            floodCard.style.cursor = "pointer";
-        }
+    if (floodCard) {
+        floodCard.onclick = () => window.openFirstFloodCity();
+        floodCard.style.cursor = "pointer";
+    }
 
-        if (cloudCard) {
-            cloudCard.onclick = () => showCloudCities();
-            cloudCard.style.cursor = "pointer";
-        }
-    }, 2000);
+    if (cloudCard) {
+        cloudCard.onclick = () => showCloudCities();
+        cloudCard.style.cursor = "pointer";
+    }
+}, 2000);
 
-    renderSmartMultiCityHistory();
+setTimeout(async () => {
+    await runSmartMultiCityBackgroundCheck(true);
+    updateTopCityCard?.(window.lastMultiCityResults || []);
+}, 8000);
 
-    setTimeout(() => {
-        loadPredictionAnalytics();
-    }, 3000);
+renderSmartMultiCityHistory();
 
-    console.log("APP LOADED");
+setTimeout(() => {
+    loadPredictionAnalytics();
+}, 3000);
+
+console.log("APP LOADED");
 };
 
 window.toggleSmartMultiCityMonitoring = function () {
