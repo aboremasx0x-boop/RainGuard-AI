@@ -737,6 +737,61 @@ function calculateTerrainRisk(cityName) {
     return Math.min(Math.round(terrainScore), 50);
 }
 
+async function analyzeSubCityRainZones(cityName) {
+    try {
+        const zones = subCityRainZones?.[cityName];
+
+        if (!zones || !zones.length) {
+            return [];
+        }
+
+        const results = [];
+
+        for (const zone of zones) {
+            try {
+                const url =
+                    `${API_BASE_URL}/rain-alert?lat=${zone.lat}&lon=${zone.lon}&name=${encodeURIComponent(zone.name)}&hours=72`;
+
+                const response = await fetch(url);
+                if (!response.ok) continue;
+
+                const data = await response.json();
+                const best = data.best_hour || data.current || {};
+                const current = data.current || {};
+                const nextHours = Array.isArray(data.next_hours)
+                    ? data.next_hours
+                    : [];
+
+                const score =
+                    Number(best.rain_score) ||
+                    Number(current.rain_score) ||
+                    0;
+
+                results.push({
+                    name: zone.name,
+                    lat: zone.lat,
+                    lon: zone.lon,
+                    score,
+                    rainNow: score,
+                    forecast24Score: getMaxScoreByRange(nextHours, 24),
+                    forecast72Score: getMaxScoreByRange(nextHours, 72),
+                    floodRiskScore: Number(data.floodRiskScore || 0),
+                    terrainRiskScore: Number(data.terrainRiskScore || 0)
+                });
+
+            } catch (err) {
+                console.warn("Sub zone skipped:", zone.name, err?.message || err);
+            }
+        }
+
+        return results;
+
+    } catch (err) {
+        console.warn("analyzeSubCityRainZones error:", err?.message || err);
+        return [];
+    }
+}
+
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (!force) {
         if (!isSmartMultiCityEnabled()) return;
