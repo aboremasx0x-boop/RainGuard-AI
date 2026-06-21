@@ -3921,7 +3921,7 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
             await sleep(600);
 
             const data = await fetchAPI(
-                `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=72`
+                `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=12`
             );
 
             console.log("CITY DATA:", city.name, data);
