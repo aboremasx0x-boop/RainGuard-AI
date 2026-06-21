@@ -1467,72 +1467,112 @@ async def rain_alert(
     """
     Endpoint الرئيسي لتوقع المطر.
     """
-    hours = max(1, min(int(hours), 72))
-    key = cache_key(lat, lon, hours)
+    try:
+        hours = max(1, min(int(hours), 72))
+        key = cache_key(lat, lon, hours)
 
-    cached = get_cached(key)
-    if cached:
-        return JSONResponse(
-            content=cached,
-            media_type="application/json; charset=utf-8"
-        )
+        cached = get_cached(key)
+        if cached:
+            return JSONResponse(
+                content=cached,
+                media_type="application/json; charset=utf-8",
+                status_code=200
+            )
 
-    openweather_data = await fetch_openweather(lat, lon)
-    open_meteo_response = await fetch_open_meteo(lat, lon, hours)
+        openweather_data = None
+        open_meteo_response = {"ok": False, "reason": "Not called"}
 
-    if open_meteo_response.get("ok"):
-        result = build_open_meteo_result(
-            lat=lat,
-            lon=lon,
-            name=name,
-            open_meteo_data=open_meteo_response.get("data") or {},
-            openweather_data=openweather_data,
-            hours=hours
-        )
+        try:
+            openweather_data = await fetch_openweather(lat, lon)
+        except Exception as e:
+            openweather_data = {
+                "available": False,
+                "error": str(e)
+            }
 
-        save_cache(key, result)
+        try:
+            open_meteo_response = await fetch_open_meteo(lat, lon, hours)
+        except Exception as e:
+            open_meteo_response = {
+                "ok": False,
+                "reason": str(e),
+                "data": None
+            }
+
+        if open_meteo_response.get("ok"):
+            result = build_open_meteo_result(
+                lat=lat,
+                lon=lon,
+                name=name,
+                open_meteo_data=open_meteo_response.get("data") or {},
+                openweather_data=openweather_data,
+                hours=hours
+            )
+
+            save_cache(key, result)
+
+            return JSONResponse(
+                content=result,
+                media_type="application/json; charset=utf-8",
+                status_code=200
+            )
+
+        if openweather_data and openweather_data.get("available"):
+            result = build_hybrid_recovery_result(
+                lat=lat,
+                lon=lon,
+                name=name,
+                openweather_data=openweather_data,
+                reason=open_meteo_response.get("reason", "Open-Meteo unavailable"),
+                hours=hours
+            )
+
+            save_cache(key, result)
+
+            return JSONResponse(
+                content=result,
+                media_type="application/json; charset=utf-8",
+                status_code=200
+            )
+
+        result = {
+            "error": True,
+            "location_name": name,
+            "latitude": lat,
+            "longitude": lon,
+            "generated_at": now_utc().isoformat() + "Z",
+            "cache_status": "fresh",
+            "source": "No source available",
+            "message": "تعذر جلب بيانات الطقس من Open-Meteo و OpenWeatherMap",
+            "open_meteo": open_meteo_response,
+            "openweather": openweather_data,
+            "load_balancer": get_load_balancer_status()
+        }
 
         return JSONResponse(
             content=result,
-            media_type="application/json; charset=utf-8"
+            media_type="application/json; charset=utf-8",
+            status_code=200
         )
 
-    if openweather_data and openweather_data.get("available"):
-        result = build_hybrid_recovery_result(
-            lat=lat,
-            lon=lon,
-            name=name,
-            openweather_data=openweather_data,
-            reason=open_meteo_response.get("reason", "Open-Meteo unavailable"),
-            hours=hours
-        )
-
-        save_cache(key, result)
+    except Exception as e:
+        result = {
+            "error": True,
+            "location_name": name,
+            "latitude": lat,
+            "longitude": lon,
+            "generated_at": now_utc().isoformat() + "Z",
+            "cache_status": "failed",
+            "source": "Backend Safe Fallback",
+            "message": "حدث خطأ داخلي في /rain-alert",
+            "detail": str(e)
+        }
 
         return JSONResponse(
             content=result,
-            media_type="application/json; charset=utf-8"
+            media_type="application/json; charset=utf-8",
+            status_code=200
         )
-
-    result = {
-        "error": True,
-        "location_name": name,
-        "latitude": lat,
-        "longitude": lon,
-        "generated_at": now_utc().isoformat() + "Z",
-        "cache_status": "fresh",
-        "source": "No source available",
-        "message": "تعذر جلب بيانات الطقس من Open-Meteo و OpenWeatherMap",
-        "open_meteo": open_meteo_response,
-        "openweather": openweather_data,
-        "load_balancer": get_load_balancer_status()
-    }
-
-    return JSONResponse(
-        content=result,
-        media_type="application/json; charset=utf-8"
-    )
-
 
 @app.get("/prediction-history")
 def prediction_history(limit: int = Query(20)):
