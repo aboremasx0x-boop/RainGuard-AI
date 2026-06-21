@@ -3924,11 +3924,13 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=72`
             );
 
+            console.log("CITY DATA:", city.name, data);
+
             if (!data) continue;
 
-if (data.error && !data.current && !data.best_hour && !data.next_hours) {
-    continue;
-}
+            if (data.error && !data.current && !data.best_hour && !data.next_hours) {
+                continue;
+            }
 
             const current = data.current || {};
             const best = data.best_hour || current;
