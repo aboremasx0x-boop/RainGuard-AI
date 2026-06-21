@@ -1488,7 +1488,7 @@ function openTopFloodCity() {
 }
 
 function updateNationalStatus(results) {
-    const box = document.getElementById("nationalWeatherStatus");
+    const box = document.getElementById("nationalProStatus");
     if (!box) return;
 
     if (!results || !results.length) {
