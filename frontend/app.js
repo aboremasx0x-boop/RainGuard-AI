@@ -4674,3 +4674,48 @@ window.toggleSmartMultiCityMonitoring = async function () {
     console.log("Smart MultiCity Monitoring: true");
     await runSmartMultiCityBackgroundCheck(true);
 };
+
+window.startBackgroundRainMonitoring = async function () {
+    localStorage.setItem(BACKGROUND_MONITOR_KEY, "true");
+
+    console.log("Background Monitoring: true");
+
+    if (typeof updateBackgroundMonitorStatus === "function") {
+        updateBackgroundMonitorStatus("تم تشغيل المراقبة المباشرة");
+    }
+
+    if (typeof runSmartMultiCityBackgroundCheck === "function") {
+        await runSmartMultiCityBackgroundCheck(true);
+    }
+};
+
+window.stopBackgroundRainMonitoring = function () {
+    localStorage.setItem(BACKGROUND_MONITOR_KEY, "false");
+
+    console.log("Background Monitoring: false");
+
+    if (typeof updateBackgroundMonitorStatus === "function") {
+        updateBackgroundMonitorStatus("تم إيقاف المراقبة المباشرة");
+    }
+};
+
+window.toggleBackgroundRainMonitoring = async function () {
+    const current =
+        localStorage.getItem(BACKGROUND_MONITOR_KEY) === "true";
+
+    if (current) {
+        window.stopBackgroundRainMonitoring();
+    } else {
+        await window.startBackgroundRainMonitoring();
+    }
+};
+
+window.toggleSmartMultiCityMonitoring = async function () {
+    localStorage.setItem(SMART_MULTI_CITY_KEY, "true");
+
+    console.log("Smart MultiCity Monitoring: true");
+
+    if (typeof runSmartMultiCityBackgroundCheck === "function") {
+        await runSmartMultiCityBackgroundCheck(true);
+    }
+};
