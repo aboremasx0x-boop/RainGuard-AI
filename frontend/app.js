@@ -3942,32 +3942,34 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
             const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
 
             const score = Number(best.rain_score || current.rain_score || 0);
-            const forecast24Score = getMaxScoreByRange(nextHours, 24);
-            const forecast72Score = getMaxScoreByRange(nextHours, 72);
-            const peakHour = getPeakHourByRange(nextHours, 72);
+const forecast24Score = getMaxScoreByRange(nextHours, 24);
+const forecast72Score = getMaxScoreByRange(nextHours, 72);
 
-            results.push({
-                name: city.name,
-                lat: city.lat,
-                lon: city.lon,
-                score,
-                forecast24Score,
-                forecast72Score,
-                cloudScore: Number(current.cloud_cover || peakHour?.cloud_cover || 0),
-                floodRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score) * 0.6),
-                actualRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score)),
-                peakHour,
-                alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
-                source: data.source || "Unknown",
-                current
-            });
+let peakHour = null;
+try {
+    peakHour = getPeakHourByRange(nextHours, 72);
+} catch (e) {
+    console.warn("Peak hour error:", city.name, e);
+    peakHour = current;
+}
 
-        } catch (err) {
-            console.warn("Smart city skipped:", city.name, err.message);
-        }
-    }
+results.push({
+    name: city.name,
+    lat: city.lat,
+    lon: city.lon,
+    score,
+    forecast24Score,
+    forecast72Score,
+    cloudScore: Number(current.cloud_cover || peakHour?.cloud_cover || 0),
+    floodRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score) * 0.6),
+    actualRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score)),
+    peakHour,
+    alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
+    source: data.source || "Unknown",
+    current
+});
 
-    console.log("RESULTS COUNT:", results.length);
+console.log("PUSHED CITY:", city.name, results.length);
 
     window.lastMultiCityResults = results;
 
