@@ -1690,10 +1690,16 @@ def verify_prediction_get(prediction_id: int, actual_rain: float):
     return verify_prediction(prediction_id, actual_rain)
 
 
+@app.get("/auto-verify-predictions")
+async def auto_verify_predictions_get(limit: int = 25):
+    return await auto_verify_predictions(limit=limit)
+
+
 @app.post("/auto-verify-predictions")
-async def auto_verify_predictions():
+async def auto_verify_predictions(limit: int = 25):
     """
-    تحقق تلقائي من السجلات غير المتحققة باستخدام Open-Meteo Archive.
+    تحقق تلقائي تدريجي من السجلات غير المتحققة باستخدام Open-Meteo Archive.
+    V13 - Safe Batch Auto Verification
     """
     try:
         if not supabase:
@@ -1702,11 +1708,15 @@ async def auto_verify_predictions():
                 "error": "Supabase not configured"
             }
 
+        limit = max(1, min(int(limit), 100))
+
         response = (
             supabase
             .table("prediction_history")
             .select("id,city,rain_score,lat,lon,prediction_time,created_at")
             .eq("verified", 0)
+            .order("id", desc=False)
+            .limit(limit)
             .execute()
         )
 
@@ -1714,16 +1724,44 @@ async def auto_verify_predictions():
 
         updated_count = 0
         failed_count = 0
+        skipped_count = 0
+        details = []
 
         for row in rows:
             prediction_id = row.get("id")
+            city = row.get("city") or "Unknown"
             predicted_score = safe_number(row.get("rain_score"))
+            lat = row.get("lat")
+            lon = row.get("lon")
+            prediction_time = row.get("prediction_time") or row.get("created_at")
 
-            actual_rain = await get_actual_rain_from_open_meteo(
-                row.get("lat"),
-                row.get("lon"),
-                row.get("prediction_time") or row.get("created_at")
-            )
+            if not prediction_id or lat is None or lon is None or not prediction_time:
+                skipped_count += 1
+                details.append({
+                    "id": prediction_id,
+                    "city": city,
+                    "status": "skipped",
+                    "reason": "missing required fields"
+                })
+                continue
+
+            try:
+                actual_rain = await get_actual_rain_from_open_meteo(
+                    lat,
+                    lon,
+                    prediction_time
+                )
+            except Exception as e:
+                skipped_count += 1
+                details.append({
+                    "id": prediction_id,
+                    "city": city,
+                    "status": "skipped",
+                    "reason": str(e)
+                })
+                continue
+
+            actual_rain = safe_number(actual_rain)
 
             if predicted_score >= 30 and actual_rain > 0:
                 result = "success"
@@ -1749,28 +1787,33 @@ async def auto_verify_predictions():
             else:
                 failed_count += 1
 
+            details.append({
+                "id": prediction_id,
+                "city": city,
+                "predicted_score": predicted_score,
+                "actual_rain": actual_rain,
+                "result": result
+            })
+
         return {
-            "status": "auto_verified",
+            "status": "auto_verified_batch",
+            "version": "V13 Safe Batch",
             "source": "open_meteo_archive",
             "threshold_used": 30,
+            "requested_limit": limit,
             "checked_count": len(rows),
             "successful_count": updated_count,
-            "failed_count": failed_count
+            "failed_count": failed_count,
+            "skipped_count": skipped_count,
+            "details": details[:20]
         }
 
     except Exception as e:
         return {
             "status": "error",
+            "version": "V13 Safe Batch",
             "error": str(e)
         }
-
-
-@app.get("/auto-verify-predictions")
-async def auto_verify_predictions_get():
-    return await auto_verify_predictions()
-    
-
-    
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
