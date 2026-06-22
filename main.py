@@ -2117,18 +2117,6 @@ def ai_status():
         "message": "RainGuard AI learning system is active"
     }
 
-@app.get("/test-archive")
-async def test_archive():
-    rain = await get_actual_rain_from_open_meteo(
-        21.5433,
-        39.1728,
-        "2026-06-01T12:00:00"
-    )
-
-    return {
-        "actual_rain": rain
-    }
-
 
 @app.get("/health")
 def health():
@@ -2142,6 +2130,20 @@ def health():
         "adaptive_learning_v1": True,
         "load_balancer": get_load_balancer_status()
     }
+
+@app.get("/test-archive")
+async def test_archive():
+    rain = await get_actual_rain_from_open_meteo(
+        21.5433,
+        39.1728,
+        "2026-06-01T12:00:00"
+    )
+
+    return {
+        "actual_rain": rain
+    }
+
+
 
 
 init_prediction_db()
