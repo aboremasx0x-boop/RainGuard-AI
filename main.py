@@ -2138,10 +2138,10 @@ def health():
 @app.get("/test-archive")
 async def test_archive():
     tests = [
-        {"city": "Jeddah", "lat": 21.5433, "lon": 39.1728, "time": "2026-06-01T12:00:00"},
-        {"city": "Abha", "lat": 18.2164, "lon": 42.5053, "time": "2026-06-01T12:00:00"},
-        {"city": "Jazan", "lat": 16.8892, "lon": 42.5511, "time": "2026-06-01T12:00:00"},
-        {"city": "Taif", "lat": 21.2703, "lon": 40.4158, "time": "2026-06-01T12:00:00"}
+        {"city": "Abha", "lat": 18.2164, "lon": 42.5053, "time": "2026-04-15T12:00:00"},
+        {"city": "Jazan", "lat": 16.8892, "lon": 42.5511, "time": "2026-04-15T12:00:00"},
+        {"city": "Taif", "lat": 21.2703, "lon": 40.4158, "time": "2026-04-15T12:00:00"},
+        {"city": "Makkah", "lat": 21.3891, "lon": 39.8579, "time": "2026-04-15T12:00:00"}
     ]
 
     results = []
@@ -2162,7 +2162,6 @@ async def test_archive():
     return {
         "results": results
     }
-
 
 init_prediction_db()
 
