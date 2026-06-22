@@ -862,6 +862,7 @@ async def get_actual_rain_from_open_meteo(lat, lon, prediction_time):
             return 0.0
 
         data = response.json()
+        print("ARCHIVE RESPONSE:", data)
         hourly = data.get("hourly") or {}
 
         times = hourly.get("time") or []
