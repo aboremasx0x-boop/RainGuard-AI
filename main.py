@@ -839,8 +839,8 @@ async def get_actual_rain_from_open_meteo(lat, lon, prediction_time):
         raw_time = str(prediction_time).replace("Z", "")
         dt = datetime.fromisoformat(raw_time)
 
-        start_date = dt.date().isoformat()
-        end_date = (dt + timedelta(hours=12)).date().isoformat()
+        start_date = (dt - timedelta(days=1)).date().isoformat()
+        end_date = (dt + timedelta(days=1)).date().isoformat()
 
         params = {
             "latitude": lat,
@@ -871,8 +871,8 @@ async def get_actual_rain_from_open_meteo(lat, lon, prediction_time):
         if not times or not precipitation:
             return 0.0
 
-        window_start = dt
-        window_end = dt + timedelta(hours=12)
+        window_start = dt - timedelta(hours=6)
+        window_end = dt + timedelta(hours=24)
 
         actual_sum = 0.0
 
