@@ -3924,7 +3924,6 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=12`
             );
 
-            console.log("CITY DATA:", city.name, data);
 
             if (!data) continue;
 
@@ -3969,7 +3968,6 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 current
            });
 
-                       console.log("PUSHED CITY:", city.name, results.length);
 
         } catch (err) {
             console.warn("Smart city skipped:", city.name, err);
