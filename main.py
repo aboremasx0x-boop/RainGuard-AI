@@ -836,6 +836,18 @@ async def get_actual_rain_from_open_meteo(lat, lon, prediction_time):
         if lat is None or lon is None or not prediction_time:
             return 0.0
 
+        @app.get("/test-archive")
+async def test_archive():
+    rain = await get_actual_rain_from_open_meteo(
+        21.5433,
+        39.1728,
+        "2026-06-01T12:00:00"
+    )
+
+    return {
+        "actual_rain": rain
+    }
+
         raw_time = str(prediction_time).replace("Z", "")
         dt = datetime.fromisoformat(raw_time)
 
