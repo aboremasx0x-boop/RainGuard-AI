@@ -1800,7 +1800,7 @@ async def auto_verify_predictions(limit: int = 25):
                 else:
                     result = "failed"
 
-                 (
+               (
                 supabase
                 .table("prediction_history")
                 .update({
