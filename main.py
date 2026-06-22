@@ -1845,6 +1845,7 @@ async def auto_verify_predictions(limit: int = 25):
 def prediction_analytics():
     """
     تحليل أداء التوقعات من Supabase.
+    V13 - Enhanced Analytics
     """
     try:
         if not supabase:
@@ -1859,6 +1860,9 @@ def prediction_analytics():
                 "accuracy_percent": 0,
                 "average_rain_score": 0,
                 "average_actual_rain": 0,
+                "average_actual_rain_when_rain": 0,
+                "actual_rain_events": 0,
+                "actual_rain_event_percent": 0,
                 "city_accuracy": []
             }
 
@@ -1905,12 +1909,30 @@ def prediction_analytics():
             if verified_predictions > 0 else 0
         )
 
+        actual_rain_values = [
+            safe_number(r.get("actual_rain"))
+            for r in verified_rows
+        ]
+
+        rainy_actual_values = [
+            value for value in actual_rain_values
+            if value > 0
+        ]
+
         avg_actual_rain = (
-            round(
-                sum(safe_number(r.get("actual_rain")) for r in verified_rows)
-                / verified_predictions,
-                2
-            )
+            round(sum(actual_rain_values) / len(actual_rain_values), 3)
+            if actual_rain_values else 0
+        )
+
+        avg_actual_rain_when_rain = (
+            round(sum(rainy_actual_values) / len(rainy_actual_values), 3)
+            if rainy_actual_values else 0
+        )
+
+        actual_rain_events = len(rainy_actual_values)
+
+        actual_rain_event_percent = (
+            round(actual_rain_events * 100 / verified_predictions, 2)
             if verified_predictions > 0 else 0
         )
 
@@ -1960,6 +1982,7 @@ def prediction_analytics():
 
         return {
             "source": "supabase",
+            "version": "V13 Enhanced Analytics",
             "total_predictions": total_predictions,
             "verified_predictions": verified_predictions,
             "successful_predictions": successful_predictions,
@@ -1967,6 +1990,9 @@ def prediction_analytics():
             "accuracy_percent": accuracy_percent,
             "average_rain_score": avg_rain_score,
             "average_actual_rain": avg_actual_rain,
+            "average_actual_rain_when_rain": avg_actual_rain_when_rain,
+            "actual_rain_events": actual_rain_events,
+            "actual_rain_event_percent": actual_rain_event_percent,
             "city_accuracy": city_accuracy,
             "adaptive_learning": adaptive_learning_v1()
         }
@@ -1974,6 +2000,7 @@ def prediction_analytics():
     except Exception as e:
         return {
             "source": "supabase",
+            "version": "V13 Enhanced Analytics",
             "status": "error",
             "error": str(e),
             "total_predictions": 0,
@@ -1983,9 +2010,11 @@ def prediction_analytics():
             "accuracy_percent": 0,
             "average_rain_score": 0,
             "average_actual_rain": 0,
+            "average_actual_rain_when_rain": 0,
+            "actual_rain_events": 0,
+            "actual_rain_event_percent": 0,
             "city_accuracy": []
         }
-
 
 @app.get("/prediction-debug")
 def prediction_debug(limit: int = Query(10)):
