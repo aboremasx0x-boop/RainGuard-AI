@@ -2137,14 +2137,50 @@ def health():
 
 @app.get("/test-archive")
 async def test_archive():
-    rain = await get_actual_rain_from_open_meteo(
-        21.5433,
-        39.1728,
-        "2026-06-01T12:00:00"
-    )
+    tests = [
+        {
+            "city": "Jeddah",
+            "lat": 21.5433,
+            "lon": 39.1728,
+            "time": "2026-06-01T12:00:00"
+        },
+        {
+            "city": "Abha",
+            "lat": 18.2164,
+            "lon": 42.5053,
+            "time": "2026-06-01T12:00:00"
+        },
+        {
+            "city": "Jazan",
+            "lat": 16.8892,
+            "lon": 42.5511,
+            "time": "2026-06-01T12:00:00"
+        },
+        {
+            "city": "Taif",
+            "lat": 21.2703,
+            "lon": 40.4158,
+            "time": "2026-06-01T12:00:00"
+        }
+    ]
+
+    results = []
+
+    for item in tests:
+        rain = await get_actual_rain_from_open_meteo(
+            item["lat"],
+            item["lon"],
+            item["time"]
+        )
+
+        results.append({
+            "city": item["city"],
+            "time": item["time"],
+            "actual_rain": rain
+        })
 
     return {
-        "actual_rain": rain
+        "results": results
     }
 
 
