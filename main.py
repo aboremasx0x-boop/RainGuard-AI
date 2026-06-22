@@ -1790,8 +1790,6 @@ async def auto_verify_predictions(limit: int = 25):
 
             actual_rain = safe_number(actual_rain)
 
-            actual_rain = safe_number(actual_rain)
-
             if actual_rain > 0:
                 result = "success" if predicted_score >= 30 else "failed"
             else:
@@ -1800,7 +1798,7 @@ async def auto_verify_predictions(limit: int = 25):
                 else:
                     result = "failed"
 
-               (
+            (
                 supabase
                 .table("prediction_history")
                 .update({
@@ -1811,6 +1809,8 @@ async def auto_verify_predictions(limit: int = 25):
                 .eq("id", prediction_id)
                 .execute()
             )
+
+            
 
             if result == "success":
                 updated_count += 1
