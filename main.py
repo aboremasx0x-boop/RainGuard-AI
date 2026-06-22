@@ -1790,15 +1790,13 @@ async def auto_verify_predictions(limit: int = 25):
 
             actual_rain = safe_number(actual_rain)
 
-            if actual_rain > 0:
+                        if actual_rain > 0:
                 result = "success" if predicted_score >= 30 else "failed"
             else:
-                if predicted_score < 40:
+                if predicted_score < 60:
                     result = "success"
-               elif predicted_score < 60:
-                   result = "success"
-               else:
-                   result = "failed"
+                else:
+                    result = "failed"
 
             (
                 supabase
