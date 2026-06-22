@@ -829,21 +829,26 @@ async def fetch_open_meteo(lat, lon, hours):
 async def get_actual_rain_from_open_meteo(lat, lon, prediction_time):
     """
     جلب المطر الفعلي من Open-Meteo Archive للتحقق التلقائي.
+    يحسب مجموع المطر خلال 12 ساعة بعد وقت التنبؤ.
+    V13 - Actual Rain Window Verification
     """
     try:
         if lat is None or lon is None or not prediction_time:
             return 0.0
 
-        dt = datetime.fromisoformat(str(prediction_time).replace("Z", ""))
-        date_value = dt.date().isoformat()
+        raw_time = str(prediction_time).replace("Z", "")
+        dt = datetime.fromisoformat(raw_time)
+
+        start_date = dt.date().isoformat()
+        end_date = (dt + timedelta(hours=12)).date().isoformat()
 
         params = {
             "latitude": lat,
             "longitude": lon,
-            "start_date": date_value,
-            "end_date": date_value,
+            "start_date": start_date,
+            "end_date": end_date,
             "hourly": "precipitation",
-            "timezone": "auto"
+            "timezone": "UTC"
         }
 
         async with httpx.AsyncClient(timeout=20) as client:
@@ -857,9 +862,30 @@ async def get_actual_rain_from_open_meteo(lat, lon, prediction_time):
             return 0.0
 
         data = response.json()
-        precipitation = (data.get("hourly") or {}).get("precipitation") or []
+        hourly = data.get("hourly") or {}
 
-        return float(max(precipitation or [0]) or 0)
+        times = hourly.get("time") or []
+        precipitation = hourly.get("precipitation") or []
+
+        if not times or not precipitation:
+            return 0.0
+
+        window_start = dt
+        window_end = dt + timedelta(hours=12)
+
+        actual_sum = 0.0
+
+        for t, rain in zip(times, precipitation):
+            try:
+                hour_dt = datetime.fromisoformat(str(t))
+                rain_value = safe_number(rain)
+
+                if window_start <= hour_dt <= window_end:
+                    actual_sum += rain_value
+            except Exception:
+                continue
+
+        return round(actual_sum, 3)
 
     except Exception as e:
         print("Actual rain fetch error:", repr(e))
