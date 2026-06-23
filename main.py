@@ -1725,8 +1725,8 @@ async def auto_verify_predictions_get(limit: int = 25):
 @app.post("/auto-verify-predictions")
 async def auto_verify_predictions(limit: int = 25):
     """
-    تحقق تلقائي تدريجي من السجلات غير المتحققة باستخدام Open-Meteo Archive.
-    V13 - Safe Batch Auto Verification
+    V13 Enhanced Auto Verification
+    تحقق تلقائي تدريجي مع حفظ prediction_quality.
     """
     try:
         if not supabase:
@@ -1735,7 +1735,7 @@ async def auto_verify_predictions(limit: int = 25):
                 "error": "Supabase not configured"
             }
 
-        limit = max(1, min(int(limit), 100))
+        limit = max(1, min(int(limit), 500))
 
         response = (
             supabase
@@ -1749,7 +1749,7 @@ async def auto_verify_predictions(limit: int = 25):
 
         rows = response.data or []
 
-        updated_count = 0
+        successful_count = 0
         failed_count = 0
         skipped_count = 0
         details = []
@@ -1772,31 +1772,33 @@ async def auto_verify_predictions(limit: int = 25):
                 })
                 continue
 
-            try:
-                actual_rain = await get_actual_rain_from_open_meteo(
-                    lat,
-                    lon,
-                    prediction_time
-                )
-            except Exception as e:
-                skipped_count += 1
-                details.append({
-                    "id": prediction_id,
-                    "city": city,
-                    "status": "skipped",
-                    "reason": str(e)
-                })
-                continue
+            actual_rain = await get_actual_rain_from_open_meteo(
+                lat,
+                lon,
+                prediction_time
+            )
 
             actual_rain = safe_number(actual_rain)
 
-            if actual_rain > 0:
-                result = "success" if predicted_score >= 30 else "failed"
+            if actual_rain >= 5 and predicted_score >= 70:
+                result = "success"
+                quality = "excellent"
+
+            elif actual_rain > 0 and predicted_score >= 40:
+                result = "success"
+                quality = "good"
+
+            elif actual_rain > 0:
+                result = "failed"
+                quality = "partial"
+
             else:
                 if predicted_score < 60:
                     result = "success"
+                    quality = "good"
                 else:
                     result = "failed"
+                    quality = "failed"
 
             (
                 supabase
@@ -1804,16 +1806,15 @@ async def auto_verify_predictions(limit: int = 25):
                 .update({
                     "verified": 1,
                     "actual_rain": actual_rain,
-                    "result": result
+                    "result": result,
+                    "prediction_quality": quality
                 })
                 .eq("id", prediction_id)
                 .execute()
             )
 
-            
-
             if result == "success":
-                updated_count += 1
+                successful_count += 1
             else:
                 failed_count += 1
 
@@ -1822,17 +1823,18 @@ async def auto_verify_predictions(limit: int = 25):
                 "city": city,
                 "predicted_score": predicted_score,
                 "actual_rain": actual_rain,
-                "result": result
+                "result": result,
+                "quality": quality
             })
 
         return {
             "status": "auto_verified_batch",
-            "version": "V13 Safe Batch",
+            "version": "V13 Enhanced",
             "source": "open_meteo_archive",
             "threshold_used": 30,
             "requested_limit": limit,
             "checked_count": len(rows),
-            "successful_count": updated_count,
+            "successful_count": successful_count,
             "failed_count": failed_count,
             "skipped_count": skipped_count,
             "details": details[:20]
@@ -1841,10 +1843,14 @@ async def auto_verify_predictions(limit: int = 25):
     except Exception as e:
         return {
             "status": "error",
-            "version": "V13 Safe Batch",
+            "version": "V13 Enhanced",
             "error": str(e)
         }
 
+
+@app.get("/auto-verify-predictions")
+async def auto_verify_predictions_get(limit: int = 25):
+    return await auto_verify_predictions(limit=limit)
 @app.get("/prediction-analytics")
 def prediction_analytics():
     """
