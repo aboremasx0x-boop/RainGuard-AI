@@ -4350,6 +4350,7 @@ renderSmartMultiCityHistory();
 
 setTimeout(() => {
     loadPredictionAnalytics();
+    loadInvestorDashboard();
 }, 3000);
 
 console.log("APP LOADED");
@@ -4472,4 +4473,71 @@ async function fetchAPI(path, retries = 2) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function loadInvestorDashboard() {
+
+    try {
+
+        const response = await fetch(
+            "https://rainguard-ai.onrender.com/prediction-analytics"
+        );
+
+        const data = await response.json();
+
+        const box = document.getElementById(
+            "investorDashboardBox"
+        );
+
+        if (!box) return;
+
+        box.innerHTML = `
+            <div class="dashboard-metrics">
+
+                <div class="metric-card">
+                    <span>Overall Accuracy</span>
+                    <strong>${data.overall_accuracy}%</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Rain Detection</span>
+                    <strong>${data.rain_detection_accuracy}%</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>False Alert Rate</span>
+                    <strong>${data.false_alert_rate}%</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Missed Rain Rate</span>
+                    <strong>${data.missed_rain_rate}%</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Adaptive Learning</span>
+                    <strong>${data.adaptive_learning_performance}%</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Verified Predictions</span>
+                    <strong>${data.verified_predictions}</strong>
+                </div>
+
+            </div>
+        `;
+
+    } catch (err) {
+
+        console.error(err);
+
+        const box = document.getElementById(
+            "investorDashboardBox"
+        );
+
+        if (box) {
+            box.innerHTML =
+                "تعذر تحميل مؤشرات الأداء";
+        }
+    }
 }
