@@ -1906,44 +1906,84 @@ async def auto_verify_predictions(limit: int = 25):
         }
 
 
+def fetch_all_prediction_history(page_size=1000, max_rows=20000):
+    """
+    يجلب جميع سجلات prediction_history من Supabase بالصفحات.
+    Supabase قد يرجع أول 1000 سجل فقط عند استخدام execute مباشرة.
+    """
+    all_rows = []
+    start = 0
+
+    while start < max_rows:
+        end = start + page_size - 1
+
+        response = (
+            supabase
+            .table("prediction_history")
+            .select("*")
+            .range(start, end)
+            .execute()
+        )
+
+        batch = response.data or []
+
+        if not batch:
+            break
+
+        all_rows.extend(batch)
+
+        if len(batch) < page_size:
+            break
+
+        start += page_size
+
+    return all_rows
+
+
 @app.get("/prediction-analytics")
 def prediction_analytics():
     """
-    V14 Production Analytics.
-    يعرض الدقة العامة، دقة كشف المطر، الإنذارات الكاذبة، المطر المفقود، وأداء التعلم التكيفي.
+    V14.1 Production Analytics.
+    يحلل جميع سجلات Supabase، وليس أول 1000 فقط.
     """
     try:
         if not supabase:
             return {
                 "source": "supabase",
-                "version": "V14 Production Analytics",
+                "version": "V14.1 Production Analytics",
                 "status": "error",
                 "error": "Supabase not configured",
                 "total_predictions": 0,
                 "verified_predictions": 0,
+                "successful_predictions": 0,
+                "failed_predictions": 0,
                 "overall_accuracy": 0,
                 "rain_detection_accuracy": 0,
                 "false_alert_rate": 0,
                 "missed_rain_rate": 0,
                 "adaptive_learning_performance": 0,
                 "quality_distribution": {label: 0 for label in QUALITY_LABELS},
+                "rain_events": 0,
+                "detected_rain": 0,
+                "missed_rain": 0,
+                "no_rain_events": 0,
+                "false_alerts": 0,
                 "city_accuracy": []
             }
 
-        response = (
-            supabase
-            .table("prediction_history")
-            .select("*")
-            .execute()
-        )
-
-        rows = response.data or []
+        rows = fetch_all_prediction_history(page_size=1000, max_rows=20000)
         total_predictions = len(rows)
 
-        verified_rows = [r for r in rows if int(r.get("verified") or 0) == 1]
+        verified_rows = [
+            r for r in rows
+            if int(r.get("verified") or 0) == 1
+        ]
+
         verified_predictions = len(verified_rows)
 
-        quality_distribution = {label: 0 for label in QUALITY_LABELS}
+        quality_distribution = {
+            label: 0 for label in QUALITY_LABELS
+        }
 
         success_rows = []
         failed_rows = []
@@ -1961,28 +2001,43 @@ def prediction_analytics():
             quality = r.get("prediction_quality")
 
             if not quality:
-                result, quality = classify_prediction_quality_v14(actual_rain, predicted_score)
+                result, quality = classify_prediction_quality_v14(
+                    actual_rain,
+                    predicted_score
+                )
 
             quality = str(quality).strip().lower()
+
             if quality not in quality_distribution:
                 quality = "unknown"
 
             quality_distribution[quality] += 1
             quality_points.append(quality_score_value(quality))
 
-            if result == "success" or quality in ["excellent", "good", "partial"]:
+            is_success = quality in ["excellent", "good", "partial"]
+            is_failed = quality in ["missed_rain", "false_alert"]
+
+            if is_success:
                 success_rows.append(r)
-            elif result == "failed" or quality in ["missed_rain", "false_alert"]:
+            elif is_failed:
+                failed_rows.append(r)
+            elif result == "success":
+                success_rows.append(r)
+            elif result == "failed":
                 failed_rows.append(r)
 
             if actual_rain > 0:
                 rain_rows.append(r)
+
                 if quality in ["excellent", "good", "partial"]:
                     detected_rain_rows.append(r)
+
                 if quality == "missed_rain":
                     missed_rain_rows.append(r)
+
             else:
                 no_rain_rows.append(r)
+
                 if quality == "false_alert":
                     false_alert_rows.append(r)
 
@@ -2015,12 +2070,23 @@ def prediction_analytics():
         )
 
         avg_rain_score = (
-            round(sum(safe_number(r.get("rain_score")) for r in verified_rows) / verified_predictions, 2)
+            round(
+                sum(safe_number(r.get("rain_score")) for r in verified_rows)
+                / verified_predictions,
+                2
+            )
             if verified_predictions > 0 else 0
         )
 
-        actual_rain_values = [safe_number(r.get("actual_rain")) for r in verified_rows]
-        rainy_actual_values = [value for value in actual_rain_values if value > 0]
+        actual_rain_values = [
+            safe_number(r.get("actual_rain"))
+            for r in verified_rows
+        ]
+
+        rainy_actual_values = [
+            value for value in actual_rain_values
+            if value > 0
+        ]
 
         avg_actual_rain = (
             round(sum(actual_rain_values) / len(actual_rain_values), 3)
@@ -2032,7 +2098,7 @@ def prediction_analytics():
             if rainy_actual_values else 0
         )
 
-        actual_rain_events = len(rainy_actual_values)
+        actual_rain_events = len(rain_rows)
         no_rain_events = len(no_rain_rows)
 
         actual_rain_event_percent = (
@@ -2046,12 +2112,19 @@ def prediction_analytics():
             city = r.get("city") or "Unknown"
             actual_rain = safe_number(r.get("actual_rain"))
             predicted_score = safe_number(r.get("rain_score"))
+            result = r.get("result")
             quality = r.get("prediction_quality")
 
             if not quality:
-                _, quality = classify_prediction_quality_v14(actual_rain, predicted_score)
+                result, quality = classify_prediction_quality_v14(
+                    actual_rain,
+                    predicted_score
+                )
 
             quality = str(quality).strip().lower()
+
+            if quality not in QUALITY_LABELS:
+                quality = "unknown"
 
             if city not in city_map:
                 city_map[city] = {
@@ -2076,13 +2149,20 @@ def prediction_analytics():
                 c["successful_predictions"] += 1
             elif quality in ["missed_rain", "false_alert"]:
                 c["failed_predictions"] += 1
+            elif result == "success":
+                c["successful_predictions"] += 1
+            elif result == "failed":
+                c["failed_predictions"] += 1
 
             if actual_rain > 0:
                 c["rain_events"] += 1
+
                 if quality in ["excellent", "good", "partial"]:
                     c["detected_rain"] += 1
+
                 if quality == "missed_rain":
                     c["missed_rain"] += 1
+
             else:
                 if quality == "false_alert":
                     c["false_alerts"] += 1
@@ -2098,14 +2178,17 @@ def prediction_analytics():
                 round(c["successful_predictions"] * 100 / verified, 2)
                 if verified else 0
             )
+
             c["rain_detection_accuracy"] = (
                 round(c["detected_rain"] * 100 / rain_events, 2)
                 if rain_events else 0
             )
+
             c["missed_rain_rate"] = (
                 round(c["missed_rain"] * 100 / rain_events, 2)
                 if rain_events else 0
             )
+
             c["false_alert_rate"] = (
                 round(c["false_alerts"] * 100 / no_rain_events_city, 2)
                 if no_rain_events_city else 0
@@ -2113,11 +2196,14 @@ def prediction_analytics():
 
             city_accuracy.append(c)
 
-        city_accuracy.sort(key=lambda x: x["verified_predictions"], reverse=True)
+        city_accuracy.sort(
+            key=lambda x: x["verified_predictions"],
+            reverse=True
+        )
 
         return {
             "source": "supabase",
-            "version": "V14 Production Analytics",
+            "version": "V14.1 Production Analytics",
             "total_predictions": total_predictions,
             "verified_predictions": verified_predictions,
             "successful_predictions": successful_predictions,
@@ -2144,17 +2230,24 @@ def prediction_analytics():
     except Exception as e:
         return {
             "source": "supabase",
-            "version": "V14 Production Analytics",
+            "version": "V14.1 Production Analytics",
             "status": "error",
             "error": str(e),
             "total_predictions": 0,
             "verified_predictions": 0,
+            "successful_predictions": 0,
+            "failed_predictions": 0,
             "overall_accuracy": 0,
             "rain_detection_accuracy": 0,
             "false_alert_rate": 0,
             "missed_rain_rate": 0,
             "adaptive_learning_performance": 0,
             "quality_distribution": {label: 0 for label in QUALITY_LABELS},
+            "rain_events": 0,
+            "detected_rain": 0,
+            "missed_rain": 0,
+            "no_rain_events": 0,
+            "false_alerts": 0,
             "city_accuracy": []
         }
 
