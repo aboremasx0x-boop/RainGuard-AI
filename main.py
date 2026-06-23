@@ -278,16 +278,17 @@ def calculate_factor_accuracy(predicted_value, actual_rain):
 
 def classify_prediction_quality_v14(actual_rain, predicted_score):
     """
-    V14 Quality-Based Verification.
-    يعيد result و prediction_quality بدل الاعتماد على success/failed فقط.
+    V14.1 Quality-Based Verification.
+    مناسب لبيانات RainGuard الحالية:
+    Min=0.1 mm, Avg=0.735 mm, Max=2.3 mm
     """
     actual_rain = safe_number(actual_rain)
     predicted_score = safe_number(predicted_score)
 
-    if actual_rain >= 5 and predicted_score >= 60:
+    if actual_rain >= 1.5 and predicted_score >= 70:
         return "success", "excellent"
 
-    if actual_rain >= 1 and predicted_score >= 25:
+    if actual_rain >= 0.5 and predicted_score >= 25:
         return "success", "good"
 
     if actual_rain > 0 and predicted_score >= 10:
@@ -296,8 +297,11 @@ def classify_prediction_quality_v14(actual_rain, predicted_score):
     if actual_rain > 0:
         return "failed", "missed_rain"
 
-    if predicted_score < 60:
+    if predicted_score < 25:
         return "success", "good"
+
+    if predicted_score < 60:
+        return "success", "partial"
 
     return "failed", "false_alert"
 
