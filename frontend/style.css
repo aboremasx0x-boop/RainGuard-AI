@@ -1416,3 +1416,30 @@ button.cloud-modal-close {
     margin-bottom:10px;
 }
 
+.dashboard-metrics{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:12px;
+}
+
+.metric-card{
+    background:#0f172a;
+    color:white;
+    border-radius:12px;
+    padding:14px;
+    text-align:center;
+}
+
+.metric-card span{
+    display:block;
+    font-size:13px;
+    opacity:.8;
+}
+
+.metric-card strong{
+    display:block;
+    font-size:24px;
+    margin-top:8px;
+    color:#38bdf8;
+}
+
