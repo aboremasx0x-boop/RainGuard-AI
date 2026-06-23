@@ -4985,3 +4985,65 @@ setTimeout(async () => {
     await window.runSmartMultiCityBackgroundCheck(true);
     forceUpdateTopCityNow();
 }, 1500);
+
+async function loadDashboardData() {
+
+    try {
+
+        const response = await fetch(
+            "https://rainguard-ai.onrender.com/prediction-analytics"
+        );
+
+        const data = await response.json();
+
+        const kpiBox =
+            document.getElementById("dashboardKpiBox");
+
+        if (kpiBox) {
+
+            kpiBox.innerHTML = `
+
+            <div class="dashboard-metrics">
+
+                <div class="metric-card">
+                    <span>Verified</span>
+                    <strong>${data.verified_predictions}</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Rain Events</span>
+                    <strong>${data.rain_events}</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Detected Rain</span>
+                    <strong>${data.detected_rain}</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Missed Rain</span>
+                    <strong>${data.missed_rain}</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>False Alerts</span>
+                    <strong>${data.false_alerts}</strong>
+                </div>
+
+                <div class="metric-card">
+                    <span>Accuracy</span>
+                    <strong>${data.overall_accuracy}%</strong>
+                </div>
+
+            </div>
+            `;
+        }
+
+    } catch (err) {
+
+        console.error(
+            "Dashboard Load Error",
+            err
+        );
+    }
+}
