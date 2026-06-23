@@ -1725,8 +1725,8 @@ async def auto_verify_predictions_get(limit: int = 25):
 @app.post("/auto-verify-predictions")
 async def auto_verify_predictions(limit: int = 25):
     """
-    V13 Enhanced Auto Verification
-    تحقق تلقائي تدريجي مع حفظ prediction_quality.
+    V14 Balanced Auto Verification
+    تحقق تلقائي تدريجي مع تصنيف عادل للمطر الخفيف.
     """
     try:
         if not supabase:
@@ -1780,17 +1780,21 @@ async def auto_verify_predictions(limit: int = 25):
 
             actual_rain = safe_number(actual_rain)
 
-            if actual_rain >= 5 and predicted_score >= 70:
+            if actual_rain >= 5 and predicted_score >= 60:
                 result = "success"
                 quality = "excellent"
 
-            elif actual_rain > 0 and predicted_score >= 40:
+            elif actual_rain >= 1 and predicted_score >= 25:
                 result = "success"
                 quality = "good"
 
+            elif actual_rain > 0 and predicted_score >= 10:
+                result = "success"
+                quality = "partial"
+
             elif actual_rain > 0:
                 result = "failed"
-                quality = "partial"
+                quality = "missed_rain"
 
             else:
                 if predicted_score < 60:
@@ -1798,7 +1802,7 @@ async def auto_verify_predictions(limit: int = 25):
                     quality = "good"
                 else:
                     result = "failed"
-                    quality = "failed"
+                    quality = "false_alert"
 
             (
                 supabase
@@ -1829,9 +1833,8 @@ async def auto_verify_predictions(limit: int = 25):
 
         return {
             "status": "auto_verified_batch",
-            "version": "V13 Enhanced",
+            "version": "V14 Balanced",
             "source": "open_meteo_archive",
-            "threshold_used": 30,
             "requested_limit": limit,
             "checked_count": len(rows),
             "successful_count": successful_count,
@@ -1843,7 +1846,7 @@ async def auto_verify_predictions(limit: int = 25):
     except Exception as e:
         return {
             "status": "error",
-            "version": "V13 Enhanced",
+            "version": "V14 Balanced",
             "error": str(e)
         }
 
@@ -1851,6 +1854,8 @@ async def auto_verify_predictions(limit: int = 25):
 @app.get("/auto-verify-predictions")
 async def auto_verify_predictions_get(limit: int = 25):
     return await auto_verify_predictions(limit=limit)
+
+
 @app.get("/prediction-analytics")
 def prediction_analytics():
     """
