@@ -2236,7 +2236,7 @@ def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "14.0",
+        "version": "14.1",
         "cache_minutes": CACHE_MINUTES,
         "smart_api_load_balancer": True,
         "hybrid_recovery": True,
@@ -2265,7 +2265,7 @@ def health():
     return {
         "status": "ok",
         "service": "RainGuard AI",
-        "version": "14.0",
+        "version": "14.1",
         "openweather_always_verify": True,
         "supabase_learning": True,
         "actual_rain_verification": True,
