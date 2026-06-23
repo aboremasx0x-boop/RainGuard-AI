@@ -4605,6 +4605,7 @@ window.onload = function () {
     initMap();
 
     checkRain(21.4858, 39.1925, "جدة");
+    loadDashboardData();
 
     setTimeout(() => {
         if (map) map.invalidateSize();
