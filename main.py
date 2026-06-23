@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from statistics import mean
 
 
-app = FastAPI(title="RainGuard AI API", version="6.7")
+app = FastAPI(title="RainGuard AI API", version="14.0")
 
 
 app.add_middleware(
@@ -56,6 +56,34 @@ DEFAULT_ADAPTIVE_WEIGHTS = {
     "humidity": 0.25,
     "flood_score": 0.10
 }
+
+QUALITY_LABELS = [
+    "excellent",
+    "good",
+    "partial",
+    "missed_rain",
+    "false_alert",
+    "unknown"
+]
+
+QUALITY_SCORES = {
+    "excellent": 100,
+    "good": 80,
+    "partial": 50,
+    "missed_rain": 0,
+    "false_alert": 0,
+    "unknown": 0
+}
+
+QUALITY_LEARNING_WEIGHTS = {
+    "excellent": 1.00,
+    "good": 0.80,
+    "partial": 0.45,
+    "missed_rain": -0.80,
+    "false_alert": -0.60,
+    "unknown": 0.00
+}
+
 
 ADAPTIVE_CACHE = {
     "time": None,
@@ -248,16 +276,52 @@ def calculate_factor_accuracy(predicted_value, actual_rain):
     return clamp(accuracy, 0, 100)
 
 
+def classify_prediction_quality_v14(actual_rain, predicted_score):
+    """
+    V14 Quality-Based Verification.
+    يعيد result و prediction_quality بدل الاعتماد على success/failed فقط.
+    """
+    actual_rain = safe_number(actual_rain)
+    predicted_score = safe_number(predicted_score)
+
+    if actual_rain >= 5 and predicted_score >= 60:
+        return "success", "excellent"
+
+    if actual_rain >= 1 and predicted_score >= 25:
+        return "success", "good"
+
+    if actual_rain > 0 and predicted_score >= 10:
+        return "success", "partial"
+
+    if actual_rain > 0:
+        return "failed", "missed_rain"
+
+    if predicted_score < 60:
+        return "success", "good"
+
+    return "failed", "false_alert"
+
+
+def quality_score_value(quality):
+    quality = (quality or "unknown").strip().lower()
+    return QUALITY_SCORES.get(quality, 0)
+
+
+def quality_learning_value(quality):
+    quality = (quality or "unknown").strip().lower()
+    return QUALITY_LEARNING_WEIGHTS.get(quality, 0.0)
+
+
 def adaptive_learning_v1(limit=300, force_refresh=False):
     """
-    Adaptive Learning Engine V1.2
-    يحلل prediction_history ويحسب أوزان المطر من:
+    Adaptive Learning Engine V14.
+    يعتمد على prediction_quality بدل Binary success/failed فقط.
+    يحسب أوزان العوامل الأربعة حسب جودة التوقع:
     - precipitation_probability
     - cloud_cover
     - humidity
     - flood_score
     """
-
     try:
         if not force_refresh:
             cached = ADAPTIVE_CACHE.get("data")
@@ -274,8 +338,9 @@ def adaptive_learning_v1(limit=300, force_refresh=False):
             result = {
                 "ok": False,
                 "reason": "No verified predictions found",
-                "engine": "Adaptive Learning Engine V1.2",
+                "engine": "Adaptive Learning Engine V14 Quality-Based",
                 "samples": 0,
+                "adaptive_learning_performance": 0,
                 "weights": DEFAULT_ADAPTIVE_WEIGHTS,
                 "factor_accuracy": {
                     "precipitation_probability": 0,
@@ -288,9 +353,9 @@ def adaptive_learning_v1(limit=300, force_refresh=False):
                     "cloud_cover": 0,
                     "humidity": 0,
                     "flood_score": 0
-                }
+                },
+                "quality_distribution": {label: 0 for label in QUALITY_LABELS}
             }
-
             ADAPTIVE_CACHE["time"] = now_utc()
             ADAPTIVE_CACHE["data"] = result
             return result
@@ -302,8 +367,28 @@ def adaptive_learning_v1(limit=300, force_refresh=False):
             "flood_score": []
         }
 
+        quality_distribution = {label: 0 for label in QUALITY_LABELS}
+        quality_points = []
+
         for row in rows:
             actual_rain = safe_number(row.get("actual_rain"))
+            predicted_score = safe_number(row.get("rain_score"))
+            quality = row.get("prediction_quality")
+
+            if not quality:
+                _, quality = classify_prediction_quality_v14(
+                    actual_rain=actual_rain,
+                    predicted_score=predicted_score
+                )
+
+            quality = str(quality).strip().lower()
+            if quality not in quality_distribution:
+                quality = "unknown"
+
+            quality_distribution[quality] += 1
+            quality_points.append(quality_score_value(quality))
+
+            learning_value = quality_learning_value(quality)
 
             precipitation_probability = row.get("precipitation_probability")
             if precipitation_probability in [None, ""]:
@@ -311,41 +396,32 @@ def adaptive_learning_v1(limit=300, force_refresh=False):
             if precipitation_probability in [None, ""]:
                 precipitation_probability = row.get("rain_score")
 
-            cloud_cover = row.get("cloud_cover")
-            humidity = row.get("humidity")
-            flood_score = row.get("flood_score")
+            factor_values = {
+                "precipitation_probability": precipitation_probability,
+                "cloud_cover": row.get("cloud_cover"),
+                "humidity": row.get("humidity"),
+                "flood_score": row.get("flood_score")
+            }
 
-            if precipitation_probability not in [None, ""]:
-                factor_scores["precipitation_probability"].append(
-                    calculate_factor_accuracy(
-                        precipitation_probability,
-                        actual_rain
-                    )
-                )
+            for factor, value in factor_values.items():
+                if value in [None, ""]:
+                    continue
 
-            if cloud_cover not in [None, ""]:
-                factor_scores["cloud_cover"].append(
-                    calculate_factor_accuracy(
-                        cloud_cover,
-                        actual_rain
-                    )
-                )
+                factor_value = safe_number(value)
 
-            if humidity not in [None, ""]:
-                factor_scores["humidity"].append(
-                    calculate_factor_accuracy(
-                        humidity,
-                        actual_rain
-                    )
-                )
+                # في المطر الحقيقي: ارتفاع العامل يدعم التوقع.
+                # في عدم المطر: انخفاض العامل يدعم التوقع.
+                if actual_rain > 0:
+                    signal_strength = factor_value / 100
+                else:
+                    signal_strength = (100 - factor_value) / 100
 
-            if flood_score not in [None, ""]:
-                factor_scores["flood_score"].append(
-                    calculate_factor_accuracy(
-                        flood_score,
-                        actual_rain
-                    )
-                )
+                signal_strength = clamp(signal_strength, 0, 1)
+
+                # تحويل جودة التوقع إلى درجة 0-100 لكل عامل.
+                # القيم السلبية في missed/false تقلل الوزن لاحقاً.
+                factor_score = 50 + (learning_value * signal_strength * 50)
+                factor_scores[factor].append(clamp(factor_score, 0, 100))
 
         factor_accuracy = {
             key: round(mean(values), 2) if values else 0
@@ -364,39 +440,37 @@ def adaptive_learning_v1(limit=300, force_refresh=False):
             if factor_samples[key] >= min_samples:
                 learned_part = factor_accuracy[key] / 100
                 base_part = DEFAULT_ADAPTIVE_WEIGHTS[key]
-
-                raw_weights[key] = (
-                    base_part * 0.40
-                    + learned_part * 0.60
-                )
+                raw_weights[key] = (base_part * 0.35) + (learned_part * 0.65)
             else:
                 raw_weights[key] = DEFAULT_ADAPTIVE_WEIGHTS[key]
 
         weights = normalize_weights(raw_weights)
+        adaptive_performance = round(mean(quality_points), 2) if quality_points else 0
 
         result = {
             "ok": True,
-            "engine": "Adaptive Learning Engine V1.2",
+            "engine": "Adaptive Learning Engine V14 Quality-Based",
             "samples": len(rows),
             "min_samples_per_factor": min_samples,
+            "adaptive_learning_performance": adaptive_performance,
             "factor_samples": factor_samples,
             "factor_accuracy": factor_accuracy,
-            "weights": weights
+            "weights": weights,
+            "quality_distribution": quality_distribution
         }
 
         ADAPTIVE_CACHE["time"] = now_utc()
         ADAPTIVE_CACHE["data"] = result
-
         return result
 
     except Exception as e:
-        print("Adaptive learning v1.2 error:", repr(e))
-
+        print("Adaptive learning V14 error:", repr(e))
         return {
             "ok": False,
             "reason": str(e),
-            "engine": "Adaptive Learning Engine V1.2",
+            "engine": "Adaptive Learning Engine V14 Quality-Based",
             "samples": 0,
+            "adaptive_learning_performance": 0,
             "weights": DEFAULT_ADAPTIVE_WEIGHTS,
             "factor_accuracy": {
                 "precipitation_probability": 0,
@@ -409,8 +483,10 @@ def adaptive_learning_v1(limit=300, force_refresh=False):
                 "cloud_cover": 0,
                 "humidity": 0,
                 "flood_score": 0
-            }
+            },
+            "quality_distribution": {label: 0 for label in QUALITY_LABELS}
         }
+
 
 def adaptive_thresholds_v2(limit=300):
     """
@@ -551,6 +627,10 @@ def adaptive_thresholds_endpoint(limit: int = Query(300)):
 
 
 def calculate_rain_score(row):
+    """
+    حساب rain_score الأساسي قبل تطبيق Adaptive Learning.
+    ملاحظة: Adaptive Learning يطبق لاحقاً في build_open_meteo_result و build_hybrid_recovery_result.
+    """
     humidity = safe_number(row.get("humidity"))
     rain_probability = safe_number(row.get("rain_probability"))
     cloud_cover = safe_number(row.get("cloud_cover"))
@@ -560,34 +640,22 @@ def calculate_rain_score(row):
     wind_speed = safe_number(row.get("wind_speed"))
 
     score = 0
-
     score += rain_probability * 0.45
     score += humidity * 0.13
     score += cloud_cover * 0.15
 
     if precipitation > 0:
         score += 16
-
+    if precipitation >= 1:
+        score += 4
     if dew_point >= 18:
         score += 7
-
     if pressure < 1010:
         score += 4
-
     if wind_speed >= 15:
         score += 3
 
-    return min(round(score), 100)
-
-    adaptive_result = apply_adaptive_rain_score(
-        precipitation_probability=rain_probability,
-        cloud_cover=cloud_cover,
-        humidity=humidity,
-        flood_score=flood_score,
-        base_score=base_score
-    )
-
-    return min(round(adaptive_result["rain_score"]), 100)
+    return min(round(clamp(score, 0, 100)), 100)
 
 
 def calculate_daily_score(day):
@@ -1642,14 +1710,11 @@ def prediction_history(limit: int = Query(20)):
 @app.post("/verify-prediction")
 def verify_prediction(prediction_id: int, actual_rain: float):
     """
-    تحقق يدوي من توقع واحد.
+    تحقق يدوي V14 من توقع واحد مع prediction_quality.
     """
     try:
         if not supabase:
-            return {
-                "status": "error",
-                "error": "Supabase not configured"
-            }
+            return {"status": "error", "error": "Supabase not configured"}
 
         response = (
             supabase
@@ -1661,22 +1726,12 @@ def verify_prediction(prediction_id: int, actual_rain: float):
         )
 
         rows = response.data or []
-
         if not rows:
-            return {
-                "status": "not_found",
-                "prediction_id": prediction_id
-            }
+            return {"status": "not_found", "prediction_id": prediction_id}
 
         predicted_score = safe_number(rows[0].get("rain_score"))
         actual_rain = safe_number(actual_rain)
-
-        if predicted_score >= 30 and actual_rain > 0:
-            result = "success"
-        elif predicted_score < 30 and actual_rain == 0:
-            result = "success"
-        else:
-            result = "failed"
+        result, quality = classify_prediction_quality_v14(actual_rain, predicted_score)
 
         update_response = (
             supabase
@@ -1684,29 +1739,31 @@ def verify_prediction(prediction_id: int, actual_rain: float):
             .update({
                 "verified": 1,
                 "actual_rain": actual_rain,
-                "result": result
+                "result": result,
+                "prediction_quality": quality
             })
             .eq("id", prediction_id)
             .execute()
         )
 
+        ADAPTIVE_CACHE["time"] = None
+        ADAPTIVE_CACHE["data"] = None
+
         updated = (update_response.data or [{}])[0]
 
         return {
             "status": "verified",
+            "version": "V14 Quality-Based",
             "prediction_id": prediction_id,
             "predicted_score": predicted_score,
             "actual_rain": actual_rain,
-            "threshold_used": 30,
             "result": result,
+            "prediction_quality": quality,
             "saved_check": updated
         }
 
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @app.get("/verify-prediction")
@@ -1725,22 +1782,22 @@ async def auto_verify_predictions_get(limit: int = 25):
 @app.post("/auto-verify-predictions")
 async def auto_verify_predictions(limit: int = 25):
     """
-    V14 Balanced Auto Verification
-    تحقق تلقائي تدريجي مع تصنيف عادل للمطر الخفيف.
+    V14 Production Auto Verification.
+    يتحقق من السجلات غير المحققة ويضيف prediction_quality.
     """
     try:
         if not supabase:
-            return {
-                "status": "error",
-                "error": "Supabase not configured"
-            }
+            return {"status": "error", "error": "Supabase not configured"}
 
         limit = max(1, min(int(limit), 500))
 
         response = (
             supabase
             .table("prediction_history")
-            .select("id,city,rain_score,lat,lon,prediction_time,created_at")
+            .select(
+                "id,city,rain_score,lat,lon,prediction_time,created_at,"
+                "verified,actual_rain,result,prediction_quality"
+            )
             .eq("verified", 0)
             .order("id", desc=False)
             .limit(limit)
@@ -1752,6 +1809,7 @@ async def auto_verify_predictions(limit: int = 25):
         successful_count = 0
         failed_count = 0
         skipped_count = 0
+        quality_counts = {label: 0 for label in QUALITY_LABELS}
         details = []
 
         for row in rows:
@@ -1772,55 +1830,43 @@ async def auto_verify_predictions(limit: int = 25):
                 })
                 continue
 
-            actual_rain = await get_actual_rain_from_open_meteo(
-                lat,
-                lon,
-                prediction_time
-            )
-
+            actual_rain = await get_actual_rain_from_open_meteo(lat, lon, prediction_time)
             actual_rain = safe_number(actual_rain)
 
-            if actual_rain >= 5 and predicted_score >= 60:
-                result = "success"
-                quality = "excellent"
-
-            elif actual_rain >= 1 and predicted_score >= 25:
-                result = "success"
-                quality = "good"
-
-            elif actual_rain > 0 and predicted_score >= 10:
-                result = "success"
-                quality = "partial"
-
-            elif actual_rain > 0:
-                result = "failed"
-                quality = "missed_rain"
-
-            else:
-                if predicted_score < 60:
-                    result = "success"
-                    quality = "good"
-                else:
-                    result = "failed"
-                    quality = "false_alert"
-
-            (
-                supabase
-                .table("prediction_history")
-                .update({
-                    "verified": 1,
-                    "actual_rain": actual_rain,
-                    "result": result,
-                    "prediction_quality": quality
-                })
-                .eq("id", prediction_id)
-                .execute()
+            result, quality = classify_prediction_quality_v14(
+                actual_rain=actual_rain,
+                predicted_score=predicted_score
             )
+
+            try:
+                (
+                    supabase
+                    .table("prediction_history")
+                    .update({
+                        "verified": 1,
+                        "actual_rain": actual_rain,
+                        "result": result,
+                        "prediction_quality": quality
+                    })
+                    .eq("id", prediction_id)
+                    .execute()
+                )
+            except Exception as update_error:
+                skipped_count += 1
+                details.append({
+                    "id": prediction_id,
+                    "city": city,
+                    "status": "update_failed",
+                    "reason": str(update_error)
+                })
+                continue
 
             if result == "success":
                 successful_count += 1
             else:
                 failed_count += 1
+
+            quality_counts[quality] = quality_counts.get(quality, 0) + 1
 
             details.append({
                 "id": prediction_id,
@@ -1828,56 +1874,55 @@ async def auto_verify_predictions(limit: int = 25):
                 "predicted_score": predicted_score,
                 "actual_rain": actual_rain,
                 "result": result,
-                "quality": quality
+                "prediction_quality": quality
             })
+
+        if rows:
+            ADAPTIVE_CACHE["time"] = None
+            ADAPTIVE_CACHE["data"] = None
 
         return {
             "status": "auto_verified_batch",
-            "version": "V14 Balanced",
+            "version": "V14 Production Quality-Based",
             "source": "open_meteo_archive",
             "requested_limit": limit,
             "checked_count": len(rows),
             "successful_count": successful_count,
             "failed_count": failed_count,
             "skipped_count": skipped_count,
+            "quality_counts": quality_counts,
             "details": details[:20]
         }
 
     except Exception as e:
         return {
             "status": "error",
-            "version": "V14 Balanced",
+            "version": "V14 Production Quality-Based",
             "error": str(e)
         }
-
-
-@app.get("/auto-verify-predictions")
-async def auto_verify_predictions_get(limit: int = 25):
-    return await auto_verify_predictions(limit=limit)
 
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
     """
-    تحليل أداء التوقعات من Supabase.
-    V13 - Enhanced Analytics
+    V14 Production Analytics.
+    يعرض الدقة العامة، دقة كشف المطر، الإنذارات الكاذبة، المطر المفقود، وأداء التعلم التكيفي.
     """
     try:
         if not supabase:
             return {
                 "source": "supabase",
+                "version": "V14 Production Analytics",
                 "status": "error",
                 "error": "Supabase not configured",
                 "total_predictions": 0,
                 "verified_predictions": 0,
-                "successful_predictions": 0,
-                "failed_predictions": 0,
-                "accuracy_percent": 0,
-                "average_rain_score": 0,
-                "average_actual_rain": 0,
-                "average_actual_rain_when_rain": 0,
-                "actual_rain_events": 0,
-                "actual_rain_event_percent": 0,
+                "overall_accuracy": 0,
+                "rain_detection_accuracy": 0,
+                "false_alert_rate": 0,
+                "missed_rain_rate": 0,
+                "adaptive_learning_performance": 0,
+                "quality_distribution": {label: 0 for label in QUALITY_LABELS},
                 "city_accuracy": []
             }
 
@@ -1891,48 +1936,87 @@ def prediction_analytics():
         rows = response.data or []
         total_predictions = len(rows)
 
-        verified_rows = [
-            r for r in rows
-            if int(r.get("verified") or 0) == 1
-        ]
-
-        success_rows = [
-            r for r in verified_rows
-            if r.get("result") == "success"
-        ]
-
-        failed_rows = [
-            r for r in verified_rows
-            if r.get("result") == "failed"
-        ]
-
+        verified_rows = [r for r in rows if int(r.get("verified") or 0) == 1]
         verified_predictions = len(verified_rows)
+
+        quality_distribution = {label: 0 for label in QUALITY_LABELS}
+
+        success_rows = []
+        failed_rows = []
+        rain_rows = []
+        no_rain_rows = []
+        detected_rain_rows = []
+        missed_rain_rows = []
+        false_alert_rows = []
+        quality_points = []
+
+        for r in verified_rows:
+            actual_rain = safe_number(r.get("actual_rain"))
+            predicted_score = safe_number(r.get("rain_score"))
+            result = r.get("result")
+            quality = r.get("prediction_quality")
+
+            if not quality:
+                result, quality = classify_prediction_quality_v14(actual_rain, predicted_score)
+
+            quality = str(quality).strip().lower()
+            if quality not in quality_distribution:
+                quality = "unknown"
+
+            quality_distribution[quality] += 1
+            quality_points.append(quality_score_value(quality))
+
+            if result == "success" or quality in ["excellent", "good", "partial"]:
+                success_rows.append(r)
+            elif result == "failed" or quality in ["missed_rain", "false_alert"]:
+                failed_rows.append(r)
+
+            if actual_rain > 0:
+                rain_rows.append(r)
+                if quality in ["excellent", "good", "partial"]:
+                    detected_rain_rows.append(r)
+                if quality == "missed_rain":
+                    missed_rain_rows.append(r)
+            else:
+                no_rain_rows.append(r)
+                if quality == "false_alert":
+                    false_alert_rows.append(r)
+
         successful_predictions = len(success_rows)
         failed_predictions = len(failed_rows)
 
-        accuracy_percent = (
+        overall_accuracy = (
             round(successful_predictions * 100 / verified_predictions, 2)
             if verified_predictions > 0 else 0
         )
 
+        rain_detection_accuracy = (
+            round(len(detected_rain_rows) * 100 / len(rain_rows), 2)
+            if rain_rows else 0
+        )
+
+        missed_rain_rate = (
+            round(len(missed_rain_rows) * 100 / len(rain_rows), 2)
+            if rain_rows else 0
+        )
+
+        false_alert_rate = (
+            round(len(false_alert_rows) * 100 / len(no_rain_rows), 2)
+            if no_rain_rows else 0
+        )
+
+        adaptive_learning_performance = (
+            round(mean(quality_points), 2)
+            if quality_points else 0
+        )
+
         avg_rain_score = (
-            round(
-                sum(safe_number(r.get("rain_score")) for r in verified_rows)
-                / verified_predictions,
-                2
-            )
+            round(sum(safe_number(r.get("rain_score")) for r in verified_rows) / verified_predictions, 2)
             if verified_predictions > 0 else 0
         )
 
-        actual_rain_values = [
-            safe_number(r.get("actual_rain"))
-            for r in verified_rows
-        ]
-
-        rainy_actual_values = [
-            value for value in actual_rain_values
-            if value > 0
-        ]
+        actual_rain_values = [safe_number(r.get("actual_rain")) for r in verified_rows]
+        rainy_actual_values = [value for value in actual_rain_values if value > 0]
 
         avg_actual_rain = (
             round(sum(actual_rain_values) / len(actual_rain_values), 3)
@@ -1945,6 +2029,7 @@ def prediction_analytics():
         )
 
         actual_rain_events = len(rainy_actual_values)
+        no_rain_events = len(no_rain_rows)
 
         actual_rain_event_percent = (
             round(actual_rain_events * 100 / verified_predictions, 2)
@@ -1953,60 +2038,100 @@ def prediction_analytics():
 
         city_map = {}
 
-        for r in rows:
+        for r in verified_rows:
             city = r.get("city") or "Unknown"
+            actual_rain = safe_number(r.get("actual_rain"))
+            predicted_score = safe_number(r.get("rain_score"))
+            quality = r.get("prediction_quality")
+
+            if not quality:
+                _, quality = classify_prediction_quality_v14(actual_rain, predicted_score)
+
+            quality = str(quality).strip().lower()
 
             if city not in city_map:
                 city_map[city] = {
                     "city": city,
-                    "total_predictions": 0,
                     "verified_predictions": 0,
                     "successful_predictions": 0,
                     "failed_predictions": 0,
-                    "accuracy_percent": 0
+                    "rain_events": 0,
+                    "detected_rain": 0,
+                    "missed_rain": 0,
+                    "false_alerts": 0,
+                    "overall_accuracy": 0,
+                    "rain_detection_accuracy": 0,
+                    "false_alert_rate": 0,
+                    "missed_rain_rate": 0
                 }
 
-            city_map[city]["total_predictions"] += 1
+            c = city_map[city]
+            c["verified_predictions"] += 1
 
-            if int(r.get("verified") or 0) == 1:
-                city_map[city]["verified_predictions"] += 1
+            if quality in ["excellent", "good", "partial"]:
+                c["successful_predictions"] += 1
+            elif quality in ["missed_rain", "false_alert"]:
+                c["failed_predictions"] += 1
 
-                if r.get("result") == "success":
-                    city_map[city]["successful_predictions"] += 1
-
-                if r.get("result") == "failed":
-                    city_map[city]["failed_predictions"] += 1
+            if actual_rain > 0:
+                c["rain_events"] += 1
+                if quality in ["excellent", "good", "partial"]:
+                    c["detected_rain"] += 1
+                if quality == "missed_rain":
+                    c["missed_rain"] += 1
+            else:
+                if quality == "false_alert":
+                    c["false_alerts"] += 1
 
         city_accuracy = []
 
-        for city_data in city_map.values():
-            verified = city_data["verified_predictions"]
-            success = city_data["successful_predictions"]
+        for c in city_map.values():
+            verified = c["verified_predictions"]
+            rain_events = c["rain_events"]
+            no_rain_events_city = verified - rain_events
 
-            city_data["accuracy_percent"] = (
-                round(success * 100 / verified, 2)
-                if verified > 0 else 0
+            c["overall_accuracy"] = (
+                round(c["successful_predictions"] * 100 / verified, 2)
+                if verified else 0
+            )
+            c["rain_detection_accuracy"] = (
+                round(c["detected_rain"] * 100 / rain_events, 2)
+                if rain_events else 0
+            )
+            c["missed_rain_rate"] = (
+                round(c["missed_rain"] * 100 / rain_events, 2)
+                if rain_events else 0
+            )
+            c["false_alert_rate"] = (
+                round(c["false_alerts"] * 100 / no_rain_events_city, 2)
+                if no_rain_events_city else 0
             )
 
-            city_accuracy.append(city_data)
+            city_accuracy.append(c)
 
-        city_accuracy.sort(
-            key=lambda x: x["total_predictions"],
-            reverse=True
-        )
+        city_accuracy.sort(key=lambda x: x["verified_predictions"], reverse=True)
 
         return {
             "source": "supabase",
-            "version": "V13 Enhanced Analytics",
+            "version": "V14 Production Analytics",
             "total_predictions": total_predictions,
             "verified_predictions": verified_predictions,
             "successful_predictions": successful_predictions,
             "failed_predictions": failed_predictions,
-            "accuracy_percent": accuracy_percent,
+            "overall_accuracy": overall_accuracy,
+            "rain_detection_accuracy": rain_detection_accuracy,
+            "false_alert_rate": false_alert_rate,
+            "missed_rain_rate": missed_rain_rate,
+            "adaptive_learning_performance": adaptive_learning_performance,
+            "quality_distribution": quality_distribution,
+            "rain_events": actual_rain_events,
+            "detected_rain": len(detected_rain_rows),
+            "missed_rain": len(missed_rain_rows),
+            "no_rain_events": no_rain_events,
+            "false_alerts": len(false_alert_rows),
             "average_rain_score": avg_rain_score,
             "average_actual_rain": avg_actual_rain,
             "average_actual_rain_when_rain": avg_actual_rain_when_rain,
-            "actual_rain_events": actual_rain_events,
             "actual_rain_event_percent": actual_rain_event_percent,
             "city_accuracy": city_accuracy,
             "adaptive_learning": adaptive_learning_v1()
@@ -2015,19 +2140,17 @@ def prediction_analytics():
     except Exception as e:
         return {
             "source": "supabase",
-            "version": "V13 Enhanced Analytics",
+            "version": "V14 Production Analytics",
             "status": "error",
             "error": str(e),
             "total_predictions": 0,
             "verified_predictions": 0,
-            "successful_predictions": 0,
-            "failed_predictions": 0,
-            "accuracy_percent": 0,
-            "average_rain_score": 0,
-            "average_actual_rain": 0,
-            "average_actual_rain_when_rain": 0,
-            "actual_rain_events": 0,
-            "actual_rain_event_percent": 0,
+            "overall_accuracy": 0,
+            "rain_detection_accuracy": 0,
+            "false_alert_rate": 0,
+            "missed_rain_rate": 0,
+            "adaptive_learning_performance": 0,
+            "quality_distribution": {label: 0 for label in QUALITY_LABELS},
             "city_accuracy": []
         }
 
@@ -2052,7 +2175,7 @@ def prediction_debug(limit: int = Query(10)):
                 "id,city,rain_score,forecast24,forecast72,"
                 "flood_score,precipitation_probability,"
                 "cloud_cover,humidity,verified,actual_rain,"
-                "result,lat,lon,prediction_time,created_at"
+                "result,prediction_quality,lat,lon,prediction_time,created_at"
             )
             .order("id", desc=True)
             .limit(limit)
@@ -2099,7 +2222,7 @@ def get_load_balancer_status():
         "strategy": (
             "Open-Meteo primary, OpenWeatherMap verification, "
             "Hybrid Recovery, Supabase prediction history, "
-            "Adaptive Learning V1"
+            "Adaptive Learning V14"
         )
     }
 
@@ -2109,14 +2232,14 @@ def root():
     return {
         "name": "RainGuard AI API",
         "status": "running",
-        "version": "6.7",
+        "version": "14.0",
         "cache_minutes": CACHE_MINUTES,
         "smart_api_load_balancer": True,
         "hybrid_recovery": True,
         "openweather_always_verify": True,
         "supabase_learning": True,
         "actual_rain_verification": True,
-        "adaptive_learning_v1": True,
+        "adaptive_learning_v14": True,
         "adaptive_learning_endpoint": "/adaptive-learning",
         "rain_alert_endpoint": "/rain-alert?lat=21.4858&lon=39.1925&name=Jeddah",
         "prediction_analytics_endpoint": "/prediction-analytics",
@@ -2138,11 +2261,11 @@ def health():
     return {
         "status": "ok",
         "service": "RainGuard AI",
-        "version": "6.7",
+        "version": "14.0",
         "openweather_always_verify": True,
         "supabase_learning": True,
         "actual_rain_verification": True,
-        "adaptive_learning_v1": True,
+        "adaptive_learning_v14": True,
         "load_balancer": get_load_balancer_status()
     }
 
