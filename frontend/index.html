@@ -48,6 +48,12 @@
             <i class="fa-solid fa-brain"></i> الذكاء الاصطناعي
         </button>
 
+        <button class="rg-nav-item"
+    onclick="showProPanel('dashboardPanel', this)">
+    <i class="fa-solid fa-chart-line"></i>
+    Dashboard
+</button>
+
         <button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)">
             <i class="fa-solid fa-bell"></i> التنبيهات
         </button>
@@ -644,6 +650,38 @@
 
         </section>
 
+        <section class="rg-panel" id="dashboardPanel">
+
+    <section class="rg-card">
+
+        <h2>📊 RainGuard AI Dashboard</h2>
+
+        <div id="dashboardKpiBox">
+            جاري تحميل الإحصائيات...
+        </div>
+
+    </section>
+
+    <section class="rg-card">
+
+        <h2>📈 Quality Distribution</h2>
+
+        <canvas id="qualityChart"></canvas>
+
+    </section>
+
+    <section class="rg-card">
+
+        <h2>🏆 Top Cities Performance</h2>
+
+        <div id="topCitiesTable">
+            جاري التحميل...
+        </div>
+
+    </section>
+
+</section>
+
         <!-- التنبيهات -->
 
         <section class="rg-panel" id="alertsPanel">
@@ -779,6 +817,8 @@
 </nav>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script src="/app.js?v=365"></script>
   
