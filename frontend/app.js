@@ -4277,16 +4277,41 @@ async function loadPredictionAnalytics() {
 
         const investorDashboardBox = document.getElementById("investorDashboardBox");
         if (investorDashboardBox) {
-            investorDashboardBox.innerHTML = `
-                <div class="analytics-grid">
-                    <div><span>Overall Accuracy</span><strong>${overallAccuracy.toFixed(2)}%</strong></div>
-                    <div><span>Rain Detection</span><strong>${rainAccuracy.toFixed(2)}%</strong></div>
-                    <div><span>False Alert Rate</span><strong>${falseAlertRate.toFixed(2)}%</strong></div>
-                    <div><span>Missed Rain Rate</span><strong>${missedRainRate.toFixed(2)}%</strong></div>
-                    <div><span>Adaptive Learning</span><strong>${adaptivePerformance.toFixed(2)}%</strong></div>
-                    <div><span>Verified Predictions</span><strong>${verified}</strong></div>
-                </div>
-            `;
+            ininvestorDashboardBox.innerHTML = `
+<div class="kpi-grid">
+
+<div class="kpi-card">
+<h4>Overall Accuracy</h4>
+<span>${overallAccuracy.toFixed(2)}%</span>
+</div>
+
+<div class="kpi-card">
+<h4>Rain Detection</h4>
+<span>${rainAccuracy.toFixed(2)}%</span>
+</div>
+
+<div class="kpi-card">
+<h4>False Alert Rate</h4>
+<span>${falseAlertRate.toFixed(2)}%</span>
+</div>
+
+<div class="kpi-card">
+<h4>Missed Rain Rate</h4>
+<span>${missedRainRate.toFixed(2)}%</span>
+</div>
+
+<div class="kpi-card">
+<h4>Adaptive Learning</h4>
+<span>${adaptivePerformance.toFixed(2)}%</span>
+</div>
+
+<div class="kpi-card">
+<h4>Verified</h4>
+<span>${verified}</span>
+</div>
+
+</div>
+`;
         }
 
         const dashboardKpiBox = document.getElementById("dashboardKpiBox");
