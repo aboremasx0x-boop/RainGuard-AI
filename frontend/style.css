@@ -1459,3 +1459,20 @@ button.cloud-modal-close {
     color: #94a3b8;
 }
 
+.lifecycle-alert-card {
+    padding: 14px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+    background: #0f172a;
+    line-height: 1.9;
+    color: #e2e8f0;
+}
+
+.lifecycle-alert-card strong {
+    font-size: 18px;
+}
+
+.lifecycle-alert-card small {
+    color: #94a3b8;
+}
+
