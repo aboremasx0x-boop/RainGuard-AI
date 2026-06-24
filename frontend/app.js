@@ -4392,46 +4392,41 @@ function renderTopCitiesTableSafe(cities) {
         return;
     }
 
-    const rows = cities
-        .slice(0, 10)
-        .map((city, index) => {
-            const name = city.city || city.name || "--";
-            const verified = city.verified_predictions || city.verified || 0;
-            const accuracy = Number(city.overall_accuracy ?? city.accuracy ?? 0).toFixed(2);
-            const rainDetection = Number(city.rain_detection_accuracy ?? city.rain_detection ?? 0).toFixed(2);
-            const falseAlert = Number(city.false_alert_rate ?? city.false_alert ?? 0).toFixed(2);
+    const rows = cities.slice(0, 10).map((city, index) => {
+        const name = city.city || city.name || "--";
+        const verified = city.verified_predictions || city.verified || 0;
+        const accuracy = Number(city.overall_accuracy ?? city.accuracy ?? 0).toFixed(1);
+        const rainDetection = Number(city.rain_detection_accuracy ?? city.rain_detection ?? 0).toFixed(1);
+        const falseAlert = Number(city.false_alert_rate ?? city.false_alert ?? 0).toFixed(1);
 
-            return `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td class="city-name">${name}</td>
-                    <td>${verified}</td>
-                    <td>${accuracy}%</td>
-                    <td>${rainDetection}%</td>
-                    <td>${falseAlert}%</td>
-                </tr>
-            `;
-        })
-        .join("");
+        return `
+            <tr>
+                <td>${index + 1}</td>
+                <td class="city-name">${name}</td>
+                <td>${verified}</td>
+                <td>
+                    <div class="mini-metrics">
+                        <span>الدقة ${accuracy}%</span>
+                        <span>المطر ${rainDetection}%</span>
+                        <span>كاذب ${falseAlert}%</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join("");
 
     box.innerHTML = `
-        <div class="analytics-table-wrap">
-            <table class="top-cities-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>المدينة</th>
-                        <th>المتحقق</th>
-                        <th>الدقة</th>
-                        <th>كشف المطر</th>
-                        <th>إنذار كاذب</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-            </table>
-        </div>
+        <table class="top-cities-table compact">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>المدينة</th>
+                    <th>المتحقق</th>
+                    <th>الأداء</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
     `;
 }
 const LAST_MULTI_CITY_CACHE_KEY = "rainguard_last_multicity_results";
