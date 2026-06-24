@@ -4564,10 +4564,7 @@ function loadRainAlertLifecycle() {
 }
 
 function renderRainAlertLifecycle(alerts = loadRainAlertLifecycle()) {
-    const box =
-        document.getElementById("rainAlertLifecycleBox") ||
-        document.getElementById("alertsBox");
-
+    const box = document.getElementById("rainAlertLifecycleBox");
     if (!box) return;
 
     if (!Array.isArray(alerts) || alerts.length === 0) {
@@ -4580,26 +4577,21 @@ function renderRainAlertLifecycle(alerts = loadRainAlertLifecycle()) {
     }
 
     box.innerHTML = alerts.map(alert => `
-        <div class="lifecycle-alert-card" style="
-            padding:14px;
-            margin-bottom:12px;
-            border-radius:16px;
-            background:#0f172a;
-            border:1px solid ${alert.color};
-            line-height:1.9;
-        ">
-            <strong style="color:${alert.color};font-size:18px;">
-                ${alert.name}
+        <div class="lifecycle-alert-card" style="border:1px solid ${alert.color || "#38bdf8"};">
+            <strong style="color:${alert.color || "#38bdf8"};">
+                ${alert.name || "--"}
             </strong><br>
-
-            الحالة: <strong>${alert.label}</strong><br>
-            المطر الآن: ${alert.score}%<br>
-            توقع 24 ساعة: ${alert.forecast24Score}%<br>
-            توقع 72 ساعة: ${alert.forecast72Score}%<br>
-            خطر السيول: ${alert.floodRiskScore}%<br>
-
-            <small style="color:#94a3b8;">
-                آخر تحديث: ${new Date(alert.updatedAt).toLocaleTimeString("ar-SA")}
+            الحالة: <strong>${alert.label || alert.stage || "Monitoring"}</strong><br>
+            المطر الآن: ${alert.score ?? 0}%<br>
+            توقع 24 ساعة: ${alert.forecast24Score ?? 0}%<br>
+            توقع 72 ساعة: ${alert.forecast72Score ?? 0}%<br>
+            خطر السيول: ${alert.floodRiskScore ?? 0}%<br>
+            <small>
+                آخر تحديث: ${
+                    alert.updatedAt
+                        ? new Date(alert.updatedAt).toLocaleTimeString("ar-SA")
+                        : "--"
+                }
             </small>
         </div>
     `).join("");
