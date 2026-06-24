@@ -1,3 +1,4 @@
+<!-- ===== RainGuard AI index.html - PART 1/6 ===== -->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -6,8 +7,11 @@
     <title>RainGuard AI</title>
 
     <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-   <link rel="stylesheet" href="/style.css?v=367">
+   <link rel="stylesheet" href="/style.css?v=368">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
@@ -48,11 +52,9 @@
             <i class="fa-solid fa-brain"></i> الذكاء الاصطناعي
         </button>
 
-        <button class="rg-nav-item"
-    onclick="showProPanel('dashboardPanel', this)">
-    <i class="fa-solid fa-chart-line"></i>
-    Dashboard
-</button>
+        <button class="rg-nav-item" onclick="showProPanel('dashboardPanel', this)">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+        </button>
 
         <button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)">
             <i class="fa-solid fa-bell"></i> التنبيهات
@@ -160,6 +162,7 @@
                             <span>المدينة</span>
                             <h1 id="cityName">جدة</h1>
                             <strong id="statusText">جاري التحليل...</strong>
+<!-- ===== RainGuard AI index.html - PART 2/6 ===== -->
                         </div>
                         <i class="fa-solid fa-cloud-rain"></i>
                     </div>
@@ -323,6 +326,7 @@
                                   🌊 مؤشرات تجمع المياه:
                             <span id="floodCitiesCount">0</span>
                           </div>
+<!-- ===== RainGuard AI index.html - PART 3/6 ===== -->
 
                             <div
                                 class="summary-card cloud"
@@ -486,6 +490,7 @@
 
                     <button onclick="openMapAndRun('refresh')">
                         تحديث الخريطة
+<!-- ===== RainGuard AI index.html - PART 4/6 ===== -->
                     </button>
 
                 </div>
@@ -649,6 +654,7 @@
             </section>
 
         </section>
+<!-- ===== RainGuard AI index.html - PART 5/6 ===== -->
 
         <section class="rg-panel" id="dashboardPanel">
 
@@ -812,15 +818,16 @@
         onclick="showProPanel('aiPanel', this, true)">
         <i class="fa-solid fa-brain"></i>
         الذكاء
+<!-- ===== RainGuard AI index.html - PART 6/6 ===== -->
     </button>
 
 </nav>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script defer src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script src="/app.js?v=367"></script>
+<script defer src="/app.js?v=368"></script>
   
 <script>
 function showProPanel(panelId, button, mobile = false) {
@@ -849,8 +856,12 @@ function showProPanel(panelId, button, mobile = false) {
     }
 
     setTimeout(() => {
-        if (window.map && typeof map.invalidateSize === "function") {
-            map.invalidateSize();
+        try {
+            if (window.map && typeof window.map.invalidateSize === "function") {
+                window.map.invalidateSize();
+            }
+        } catch (e) {
+            console.warn("Map resize skipped:", e?.message || e);
         }
     }, 300);
 }
@@ -894,7 +905,11 @@ function startVoiceAssistant() {
             voiceStatus.innerText = `تم التعرف على: ${transcript}`;
         }
 
-        detectRain();
+        if (typeof detectRain === "function") {
+            detectRain();
+        } else {
+            console.warn("detectRain is not ready yet");
+        }
     };
 
     recognition.onerror = function () {
@@ -919,11 +934,16 @@ function speakWeatherSummary() {
 
     const text = `حالة المطر في ${city}. ${status}. مؤشر الخطر ${risk}`;
 
+    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+        return;
+    }
+
     const speech = new SpeechSynthesisUtterance(text);
     speech.lang = "ar-SA";
     speech.rate = 1;
     speech.pitch = 1;
 
+    window.speechSynthesis.cancel();
     window.speechSynthesis.speak(speech);
 }
 </script>
