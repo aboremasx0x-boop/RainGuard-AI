@@ -4577,24 +4577,49 @@ function renderRainAlertLifecycle(alerts = loadRainAlertLifecycle()) {
     }
 
     box.innerHTML = alerts.map(alert => `
-        <div class="lifecycle-alert-card" style="border:1px solid ${alert.color || "#38bdf8"};">
-            <strong style="color:${alert.color || "#38bdf8"};">
-                ${alert.name || "--"}
-            </strong><br>
-            الحالة: <strong>${alert.label || alert.stage || "Monitoring"}</strong><br>
-            المطر الآن: ${alert.score ?? 0}%<br>
-            توقع 24 ساعة: ${alert.forecast24Score ?? 0}%<br>
-            توقع 72 ساعة: ${alert.forecast72Score ?? 0}%<br>
-            خطر السيول: ${alert.floodRiskScore ?? 0}%<br>
-            <small>
-                آخر تحديث: ${
-                    alert.updatedAt
-                        ? new Date(alert.updatedAt).toLocaleTimeString("ar-SA")
-                        : "--"
-                }
-            </small>
-        </div>
-    `).join("");
+    <div class="lifecycle-alert-card" style="border:1px solid ${alert.color || "#38bdf8"};">
+        <strong style="color:${alert.color || "#38bdf8"};">
+            ${alert.name || "--"}
+        </strong><br>
+
+        الحالة: <strong>${alert.label || alert.stage || "Monitoring"}</strong><br>
+        المطر الآن: ${alert.score ?? 0}%<br>
+        توقع 24 ساعة: ${alert.forecast24Score ?? 0}%<br>
+        توقع 72 ساعة: ${alert.forecast72Score ?? 0}%<br>
+        خطر السيول: ${alert.floodRiskScore ?? 0}%<br>
+
+        <button onclick="showRainAlertReason('${alert.name || ""}')">
+            سبب التنبيه
+        </button>
+
+        <small>
+            آخر تحديث: ${
+                alert.updatedAt
+                    ? new Date(alert.updatedAt).toLocaleTimeString("ar-SA")
+                    : "--"
+            }
+        </small>
+    </div>
+`).join("");
+
+function showRainAlertReason(cityName) {
+    const alerts = loadRainAlertLifecycle();
+    const alert = alerts.find(a => a.name === cityName);
+
+    if (!alert) {
+        alert("لا توجد بيانات لهذا التنبيه");
+        return;
+    }
+
+    window.alert(
+        `سبب التنبيه:\n\n` +
+        `المدينة: ${alert.name}\n` +
+        `الحالة: ${alert.label || alert.stage}\n` +
+        `المطر الآن: ${alert.score}%\n` +
+        `توقع 24 ساعة: ${alert.forecast24Score}%\n` +
+        `توقع 72 ساعة: ${alert.forecast72Score}%\n` +
+        `خطر السيول: ${alert.floodRiskScore}%`
+    );
 }
 
 function startRainAlertLifecycleMonitor() {
