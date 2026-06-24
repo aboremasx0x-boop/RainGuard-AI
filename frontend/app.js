@@ -74,6 +74,9 @@ let lastRainScore = 0;
 let multiCityAutoRefresh = null;
 let multiCityAutoRefreshEnabled = false;
 
+let weatherEffectsEnabled = false;
+let lightningInterval = null;
+
 window.lastMultiCityResults = [];
 
 const floodCityWeights = {
@@ -432,6 +435,27 @@ function saveFloodPredictionAlert(cityName, score) {
             time: Date.now()
         })
     );
+}
+
+function sendRainNotification(title, body) {
+    try {
+        if (!("Notification" in window)) return;
+
+        if (Notification.permission === "granted") {
+            new Notification(title, { body });
+            return;
+        }
+
+        if (Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    new Notification(title, { body });
+                }
+            });
+        }
+    } catch (error) {
+        console.warn("Notification skipped:", error?.message || error);
+    }
 }
 
 function sendFloodPredictionAlert(city) {
@@ -843,6 +867,10 @@ function calculateRainArrivalV12(city) {
         confidence,
         direction: movement.direction || "غير معروف"
     };
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function fetchAPI(path, retries = 2) {
@@ -3152,9 +3180,10 @@ function refreshNow() {
     showActionMessage("جاري تحديث البيانات الآن", "success");
 
     checkRain(lastLat, lastLon, lastName, false);
-    updateRainHeatmap();
-    updateMultiCityMonitor();
-    runSmartMultiCityBackgroundCheck(true);
+
+    if (typeof runSmartMultiCityBackgroundCheck === "function") {
+        runSmartMultiCityBackgroundCheck(true);
+    }
 
     updateRefreshStatus("تم طلب تحديث يدوي");
 }
@@ -3392,7 +3421,7 @@ function recheckHistoryItem(index) {
     if (item.lat && item.lon) {
         checkRain(item.lat, item.lon, item.locationName);
     } else {
-        detectRain();
+        checkRain(lastLat, lastLon, lastName);
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3811,27 +3840,6 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false, r
     }
 }
 
-function sortMultiCityResults(results) {
-    return [...(results || [])].sort((a, b) => {
-        const aScore = Math.max(
-            Number(a.actualRiskScore || 0),
-            Number(a.score || 0),
-            Number(a.forecast24Score || 0),
-            Number(a.forecast72Score || 0),
-            Number(a.floodRiskScore || 0)
-        );
-
-        const bScore = Math.max(
-            Number(b.actualRiskScore || 0),
-            Number(b.score || 0),
-            Number(b.forecast24Score || 0),
-            Number(b.forecast72Score || 0),
-            Number(b.floodRiskScore || 0)
-        );
-
-        return bScore - aScore;
-    });
-}
 
 function getCityRiskSortScore(city) {
     if (!city) return 0;
@@ -4290,6 +4298,12 @@ window.onload = function () {
 
 window.startBackgroundRainMonitoring = async function () {
     localStorage.setItem(BACKGROUND_MONITOR_KEY, "true");
+    backgroundMonitorEnabled = true;
+
+    if (backgroundMonitorInterval) {
+        clearInterval(backgroundMonitorInterval);
+        backgroundMonitorInterval = null;
+    }
 
     console.log("Background Monitoring: true");
 
@@ -4300,10 +4314,26 @@ window.startBackgroundRainMonitoring = async function () {
     if (typeof runSmartMultiCityBackgroundCheck === "function") {
         await runSmartMultiCityBackgroundCheck(true);
     }
+
+    backgroundMonitorInterval = setInterval(() => {
+        try {
+            if (localStorage.getItem(BACKGROUND_MONITOR_KEY) === "true") {
+                runSmartMultiCityBackgroundCheck?.(false);
+            }
+        } catch (error) {
+            console.warn("Background monitor interval skipped:", error?.message || error);
+        }
+    }, BACKGROUND_MONITOR_INTERVAL_MINUTES * 60 * 1000);
 };
 
 window.stopBackgroundRainMonitoring = function () {
     localStorage.setItem(BACKGROUND_MONITOR_KEY, "false");
+    backgroundMonitorEnabled = false;
+
+    if (backgroundMonitorInterval) {
+        clearInterval(backgroundMonitorInterval);
+        backgroundMonitorInterval = null;
+    }
 
     console.log("Background Monitoring: false");
 
