@@ -1401,3 +1401,52 @@ button.cloud-modal-close {
 #dashboardPanel .rg-card:has(#qualityChart) {
     height: 360px;
 }
+
+#topCitiesTable {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.analytics-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.analytics-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    color: #e2e8f0;
+    font-size: 14px;
+}
+
+.analytics-table thead tr {
+    background: rgba(37, 99, 235, 0.25);
+}
+
+.analytics-table th {
+    color: #93c5fd;
+    font-weight: 800;
+    padding: 10px 8px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.analytics-table td {
+    background: rgba(15, 23, 42, 0.85);
+    border-top: 1px solid rgba(96, 165, 250, 0.18);
+    border-bottom: 1px solid rgba(96, 165, 250, 0.18);
+    padding: 10px 8px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.analytics-table td:first-child {
+    border-right: 1px solid rgba(96, 165, 250, 0.18);
+    border-radius: 0 10px 10px 0;
+}
+
+.analytics-table td:last-child {
+    border-left: 1px solid rgba(96, 165, 250, 0.18);
+    border-radius: 10px 0 0 10px;
+}
