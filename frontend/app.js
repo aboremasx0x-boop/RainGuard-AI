@@ -439,6 +439,7 @@ function saveFloodPredictionAlert(cityName, score) {
 
 function sendRainNotification(title, body) {
     try {
+// ===== RainGuard AI app.js console-fixed - PART 2/10 =====
         if (!("Notification" in window)) return;
 
         if (Notification.permission === "granted") {
@@ -880,6 +881,7 @@ async function fetchAPI(path, retries = 2) {
         : `${API_BASE_URL}${path}${separator}t=${Date.now()}`;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
+// ===== RainGuard AI app.js console-fixed - PART 3/10 =====
         try {
             const response = await fetch(url, {
                 method: "GET",
@@ -906,10 +908,68 @@ async function fetchAPI(path, retries = 2) {
     }
 }
 
+
+function renderSmartMultiCityHistory() {
+    const box = document.getElementById("smartMultiCityHistoryBox") ||
+                document.getElementById("smartMultiCityHistory") ||
+                document.getElementById("multiCityHistoryBox");
+
+    let history = [];
+
+    try {
+        const raw = localStorage.getItem(SMART_MULTI_CITY_HISTORY_KEY);
+        history = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        console.warn("Smart MultiCity history parse failed:", e);
+        history = [];
+    }
+
+    if (!Array.isArray(history)) history = [];
+
+    if (!box) {
+        return history;
+    }
+
+    if (history.length === 0) {
+        box.innerHTML = `
+            <div style="color:#94a3b8;line-height:1.8;text-align:center;padding:14px;">
+                لا يوجد سجل محفوظ لمراقبة المدن الذكية حالياً.
+            </div>
+        `;
+        return history;
+    }
+
+    const latest = history.slice(-10).reverse();
+
+    box.innerHTML = latest.map((item, index) => {
+        const cityName = item.cityName || item.name || item.city || "مدينة غير محددة";
+        const score = Math.round(Number(item.score || item.rainScore || item.actualRiskScore || 0));
+        const timeValue = item.time || item.date || item.createdAt || Date.now();
+        const timeText = new Date(timeValue).toLocaleString("ar-SA");
+
+        return `
+            <div style="
+                padding:10px;
+                margin-bottom:8px;
+                border-radius:12px;
+                background:#0f172a;
+                border:1px solid #334155;
+                line-height:1.7;
+            ">
+                <strong>${index + 1}. ${cityName}</strong><br>
+                المؤشر: ${score}%<br>
+                الوقت: ${timeText}
+            </div>
+        `;
+    }).join("");
+
+    return history;
+}
+
 function clearSmartMultiCityHistory() {
     localStorage.removeItem(SMART_MULTI_CITY_HISTORY_KEY);
-    renderSmartMultiCityHistory();
-    showActionMessage("تم مسح سجل مراقبة المدن الذكية", "warning");
+    renderSmartMultiCityHistory?.();
+    showActionMessage?.("تم مسح سجل مراقبة المدن الذكية", "warning");
 }
 
 function getRainPanelStyle(score) {
@@ -1263,6 +1323,7 @@ function renderFloodPredictionPanel(results) {
                     توقع 72 ساعة: ${city.forecast72Score}%<br>
                     وزن حساسية المدينة: ${cityWeight}<br>
                     عامل التضاريس ${TERRAIN_ENGINE_VERSION}: ${city.terrainRiskScore || 0}<br>
+// ===== RainGuard AI app.js console-fixed - PART 4/10 =====
                     سبب الخطورة: ${city.terrainSummary || "غير محدد"}<br>
                     الإجراء المقترح: ${action}
                 </div>
@@ -1704,6 +1765,7 @@ function getFloodMapColor(score) {
 function getFloodMapRadius(score) {
     score = Number(score) || 0;
 
+// ===== RainGuard AI app.js console-fixed - PART 5/10 =====
     if (score >= 80) return 11000;
     if (score >= 60) return 8500;
     if (score >= 30) return 6000;
@@ -2145,6 +2207,7 @@ function openCityForecastPopup(cityName) {
             city.cloudMovement?.etaMinutes
                 ? city.cloudMovement.etaMinutes + " دقيقة"
                 : peakTime
+// ===== RainGuard AI app.js console-fixed - PART 6/10 =====
         )
     );
 
@@ -2586,6 +2649,7 @@ function buildForecastHTML(nextHours) {
     });
 
     forecastHTML += `
+// ===== RainGuard AI app.js console-fixed - PART 7/10 =====
             </div>
         </div>
     `;
@@ -3027,6 +3091,7 @@ async function getRainViewerRadarFusionV1(lat, lon) {
             radarPath: latestRadar.path,
             tileUrl,
             note: "الرادار متاح"
+// ===== RainGuard AI app.js console-fixed - PART 8/10 =====
         };
 
     } catch (error) {
@@ -3468,6 +3533,7 @@ function ratePrediction(isCorrect) {
         showActionMessage("تم تسجيل التقييم: التوقع صحيح", "success");
     } else {
         showActionMessage("تم تسجيل التقييم: التوقع غير صحيح", "warning");
+// ===== RainGuard AI app.js console-fixed - PART 9/10 =====
     }
 
     localStorage.setItem(key, JSON.stringify(saved));
@@ -3909,6 +3975,7 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                     source: data.source || "Unknown",
                     current
                 };
+// ===== RainGuard AI app.js console-fixed - PART 10/10 =====
 
                 results.push(cityResult);
 
