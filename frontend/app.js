@@ -4218,47 +4218,187 @@ window.openFirstFloodCity = function () {
 
 async function loadPredictionAnalytics() {
     try {
-        const response = await fetch(`${API_BASE_URL}/prediction-analytics?v=${Date.now()}`);
+        const response = await fetch(`${API_BASE_URL}/prediction-analytics?v=${Date.now()}`, {
+            method: "GET",
+            mode: "cors",
+            cache: "no-store",
+            headers: {
+                "Accept": "application/json"
+            }
+        });
 
-        if (!response.ok) throw new Error("فشل جلب دقة الذكاء الاصطناعي");
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
         const data = await response.json();
-        const container = document.getElementById("aiAccuracyCard");
-        if (!container) return;
+
+        const total = Number(data.total_predictions || 0);
+        const verified = Number(data.verified_predictions || 0);
+        const success = Number(data.successful_predictions || 0);
+        const failed = Number(data.failed_predictions || 0);
+
+        const overallAccuracy = Number(
+            data.overall_accuracy ??
+            data.accuracy_percent ??
+            0
+        );
+
+        const rainAccuracy = Number(data.rain_detection_accuracy || 0);
+        const falseAlertRate = Number(data.false_alert_rate || 0);
+        const missedRainRate = Number(data.missed_rain_rate || 0);
+        const adaptivePerformance = Number(data.adaptive_learning_performance || 0);
+
+        const avgRainScore = Number(data.average_rain_score || 0);
+        const avgActualRain = Number(data.average_actual_rain || 0);
+        const rainEvents = Number(data.rain_events || 0);
 
         const accuracyText =
-            Number(data.verified_predictions || 0) > 0
-                ? `${data.accuracy_percent}%`
+            verified > 0
+                ? `${overallAccuracy.toFixed(2)}%`
                 : "لم يتم التحقق بعد";
 
-        container.innerHTML = `
-            <div class="analytics-card">
-                <h3>🧠 دقة الذكاء الاصطناعي</h3>
-                <div>إجمالي التنبؤات: ${data.total_predictions ?? 0}</div>
-                <div>تم التحقق: ${data.verified_predictions ?? 0}</div>
-                <div>نجاح: ${data.successful_predictions ?? 0}</div>
-                <div>فشل: ${data.failed_predictions ?? 0}</div>
-                <hr>
-                <div>الدقة الحالية: <strong>${accuracyText}</strong></div>
-                <div>متوسط Rain Score: ${data.average_rain_score ?? 0}</div>
-                <div>متوسط المطر الفعلي: ${data.average_actual_rain ?? 0}</div>
-            </div>
-        `;
-    } catch (err) {
-        console.error("Prediction analytics error:", err);
-
-        const container = document.getElementById("aiAccuracyCard");
-        if (container) {
-            container.innerHTML = `
+        const aiAccuracyCard = document.getElementById("aiAccuracyCard");
+        if (aiAccuracyCard) {
+            aiAccuracyCard.innerHTML = `
                 <div class="analytics-card">
                     <h3>🧠 دقة الذكاء الاصطناعي</h3>
-                    <div style="color:#fca5a5;">تعذر تحميل بيانات الدقة حالياً</div>
+                    <div>إجمالي التنبؤات: ${total}</div>
+                    <div>تم التحقق: ${verified}</div>
+                    <div>نجاح: ${success}</div>
+                    <div>فشل: ${failed}</div>
+                    <hr>
+                    <div>الدقة الحالية: <strong>${accuracyText}</strong></div>
+                    <div>متوسط Rain Score: ${avgRainScore}</div>
+                    <div>متوسط المطر الفعلي: ${avgActualRain}</div>
                 </div>
             `;
         }
+
+        const investorDashboardBox = document.getElementById("investorDashboardBox");
+        if (investorDashboardBox) {
+            investorDashboardBox.innerHTML = `
+                <div class="analytics-grid">
+                    <div><span>Overall Accuracy</span><strong>${overallAccuracy.toFixed(2)}%</strong></div>
+                    <div><span>Rain Detection</span><strong>${rainAccuracy.toFixed(2)}%</strong></div>
+                    <div><span>False Alert Rate</span><strong>${falseAlertRate.toFixed(2)}%</strong></div>
+                    <div><span>Missed Rain Rate</span><strong>${missedRainRate.toFixed(2)}%</strong></div>
+                    <div><span>Adaptive Learning</span><strong>${adaptivePerformance.toFixed(2)}%</strong></div>
+                    <div><span>Verified Predictions</span><strong>${verified}</strong></div>
+                </div>
+            `;
+        }
+
+        const dashboardKpiBox = document.getElementById("dashboardKpiBox");
+        if (dashboardKpiBox) {
+            dashboardKpiBox.innerHTML = `
+                <div class="analytics-grid">
+                    <div><span>Total Predictions</span><strong>${total}</strong></div>
+                    <div><span>Verified</span><strong>${verified}</strong></div>
+                    <div><span>Success</span><strong>${success}</strong></div>
+                    <div><span>Failed</span><strong>${failed}</strong></div>
+                    <div><span>Rain Events</span><strong>${rainEvents}</strong></div>
+                    <div><span>Accuracy</span><strong>${accuracyText}</strong></div>
+                </div>
+            `;
+        }
+
+        renderQualityChartSafe(data.quality_distribution || {});
+        renderTopCitiesTableSafe(data.city_accuracy || []);
+
+        return data;
+
+    } catch (err) {
+        console.error("Prediction analytics error:", err);
+
+        const errorHtml = `
+            <div class="analytics-card">
+                <h3>📊 RainGuard AI Dashboard</h3>
+                <div style="color:#fca5a5;">تعذر تحميل بيانات الدقة حالياً</div>
+            </div>
+        `;
+
+        const aiAccuracyCard = document.getElementById("aiAccuracyCard");
+        const investorDashboardBox = document.getElementById("investorDashboardBox");
+        const dashboardKpiBox = document.getElementById("dashboardKpiBox");
+        const topCitiesTable = document.getElementById("topCitiesTable");
+
+        if (aiAccuracyCard) aiAccuracyCard.innerHTML = errorHtml;
+        if (investorDashboardBox) investorDashboardBox.innerHTML = errorHtml;
+        if (dashboardKpiBox) dashboardKpiBox.innerHTML = errorHtml;
+        if (topCitiesTable) topCitiesTable.innerHTML = "تعذر تحميل أداء المدن.";
     }
 }
 
+function renderQualityChartSafe(distribution) {
+    const canvas = document.getElementById("qualityChart");
+    if (!canvas || typeof Chart === "undefined") return;
+
+    const labels = Object.keys(distribution || {});
+    const values = Object.values(distribution || {}).map(v => Number(v || 0));
+
+    if (!labels.length) return;
+
+    if (window.qualityChartInstance) {
+        window.qualityChartInstance.destroy();
+    }
+
+    window.qualityChartInstance = new Chart(canvas, {
+        type: "doughnut",
+        data: {
+            labels,
+            datasets: [{
+                data: values
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function renderTopCitiesTableSafe(cities) {
+    const box = document.getElementById("topCitiesTable");
+    if (!box) return;
+
+    if (!Array.isArray(cities) || cities.length === 0) {
+        box.innerHTML = "لا توجد بيانات أداء للمدن حتى الآن.";
+        return;
+    }
+
+    const rows = cities
+        .slice(0, 10)
+        .map((city, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${city.city || "--"}</td>
+                <td>${city.verified_predictions || 0}</td>
+                <td>${city.overall_accuracy || 0}%</td>
+                <td>${city.rain_detection_accuracy || 0}%</td>
+                <td>${city.false_alert_rate || 0}%</td>
+            </tr>
+        `)
+        .join("");
+
+    box.innerHTML = `
+        <div class="analytics-table-wrap">
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>المدينة</th>
+                        <th>المتحقق</th>
+                        <th>الدقة</th>
+                        <th>كشف المطر</th>
+                        <th>إنذار كاذب</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `;
+}
 const LAST_MULTI_CITY_CACHE_KEY = "rainguard_last_multicity_results";
 
 function saveLastMultiCityResults(results) {
