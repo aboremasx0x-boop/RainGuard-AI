@@ -4580,7 +4580,7 @@ function renderRainAlertLifecycle(alerts = loadRainAlertLifecycle()) {
     }
 
     box.innerHTML = alerts.map(alert => `
-        <div style="
+        <div class="lifecycle-alert-card" style="
             padding:14px;
             margin-bottom:12px;
             border-radius:16px;
