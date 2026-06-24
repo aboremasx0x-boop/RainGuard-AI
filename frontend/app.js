@@ -4294,14 +4294,16 @@ function loadLastMultiCityResults() {
 window.onload = function () {
     console.log("APP LOADED");
 
-    const cachedResults = loadLastMultiCityResults();
+    const cachedResults = loadLastMultiCityResults?.() || [];
 
     if (cachedResults.length > 0) {
         window.lastMultiCityResults = cachedResults;
+
         updateTopCityCard?.(cachedResults);
         renderSmartMultiCityTopPanel?.(cachedResults);
         updateNationalWeatherSummary?.(cachedResults);
         updateNationalStatus?.(cachedResults);
+
         console.log("Loaded cached MultiCity:", cachedResults.length);
     }
 
@@ -4311,25 +4313,26 @@ window.onload = function () {
         console.warn("initMap skipped:", e);
     }
 
-    setTimeout(async () => {
-        try {
-            await runSmartMultiCityBackgroundCheck(true);
-        } catch (e) {
-            console.warn("Initial MultiCity check skipped:", e);
-        }
-    }, 3000);
-};
-    setTimeout(() => {
-        try {
-            if (isBackgroundMonitorEnabled?.()) {
-                startBackgroundRainMonitoring?.();
-            } else {
-                updateBackgroundMonitorStatus?.("جاهزة للتشغيل");
-            }
-        } catch (e) {
-            console.warn("Background rain monitoring skipped:", e);
-        }
-    }, 8000);
+    try {
+        renderSmartMultiCityHistory?.();
+    } catch (e) {
+        console.warn("renderSmartMultiCityHistory skipped:", e);
+    }
+
+    try {
+        updateBackgroundMonitorStatus?.(
+            isBackgroundMonitorEnabled?.()
+                ? "مراقبة مفعلة"
+                : "جاهزة للتشغيل"
+        );
+
+        console.log(
+            "Background Monitoring:",
+            isBackgroundMonitorEnabled?.()
+        );
+    } catch (e) {
+        console.warn("Background monitor status skipped:", e);
+    }
 
     setTimeout(() => {
         try {
@@ -4354,7 +4357,35 @@ window.onload = function () {
         } catch (e) {
             console.warn("Summary card click handlers skipped:", e);
         }
-    }, 2000);
+    }, 1500);
+
+    setTimeout(async () => {
+        try {
+            await runSmartMultiCityBackgroundCheck(true);
+
+            const freshResults = window.lastMultiCityResults || [];
+
+            updateTopCityCard?.(freshResults);
+            renderSmartMultiCityTopPanel?.(freshResults);
+            updateNationalWeatherSummary?.(freshResults);
+            updateNationalStatus?.(freshResults);
+
+        } catch (e) {
+            console.warn("Initial MultiCity check skipped:", e);
+        }
+    }, 2500);
+
+    setTimeout(() => {
+        try {
+            if (isBackgroundMonitorEnabled?.()) {
+                startBackgroundRainMonitoring?.();
+            } else {
+                updateBackgroundMonitorStatus?.("جاهزة للتشغيل");
+            }
+        } catch (e) {
+            console.warn("Background rain monitoring skipped:", e);
+        }
+    }, 10000);
 
     setTimeout(() => {
         try {
@@ -4364,7 +4395,6 @@ window.onload = function () {
         }
     }, 5000);
 };
-
 window.toggleSmartMultiCityMonitoring = function () {
     const current =
         localStorage.getItem(SMART_MULTI_CITY_KEY) === "true";
