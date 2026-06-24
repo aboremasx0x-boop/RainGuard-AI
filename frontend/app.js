@@ -16,6 +16,11 @@ const NOTIFICATION_COOLDOWN_MINUTES = 30;
 const BACKGROUND_MONITOR_KEY = "rainguard_background_monitor_enabled";
 const BACKGROUND_MONITOR_INTERVAL_MINUTES = 10;
 
+const RAIN_ALERT_LIFECYCLE_KEY = "rainguard_rain_alert_lifecycle";
+const RAIN_ALERT_LIFECYCLE_INTERVAL_MINUTES = 10;
+
+let rainAlertLifecycleInterval = null;
+
 let backgroundMonitorInterval = null;
 let backgroundMonitorEnabled = false;
 
@@ -3981,6 +3986,7 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
 
                 const sortedResults = sortMultiCityResults(results);
                 window.lastMultiCityResults = sortedResults;
+                saveRainAlertLifecycle(sortedResults);
 
                 updateTopCityCard?.(sortedResults);
 
@@ -4457,6 +4463,162 @@ function loadLastMultiCityResults() {
         console.warn("Load MultiCity cache failed:", e);
         return [];
     }
+}
+
+function getRainAlertStage(city) {
+    const score = Number(city.score || 0);
+    const forecast24 = Number(city.forecast24Score || 0);
+    const forecast72 = Number(city.forecast72Score || 0);
+    const cloud = Number(city.cloudScore || city.cloud_cover || 0);
+    const humidity = Number(city.humidity || 0);
+
+    const maxScore = Math.max(score, forecast24, forecast72);
+
+    if (score >= 70) {
+        return {
+            stage: "raining",
+            label: "🔴 Raining | المطر حاضر الآن",
+            color: "#ef4444"
+        };
+    }
+
+    if (maxScore >= 70 || (cloud >= 80 && humidity >= 70)) {
+        return {
+            stage: "high_risk",
+            label: "🟠 High Risk | خطر مرتفع",
+            color: "#f59e0b"
+        };
+    }
+
+    if (maxScore >= 50 || (cloud >= 65 && humidity >= 60)) {
+        return {
+            stage: "developing",
+            label: "🟡 Developing | الحالة تتطور",
+            color: "#facc15"
+        };
+    }
+
+    if (maxScore >= 30) {
+        return {
+            stage: "monitoring",
+            label: "🔵 Monitoring | تحت المتابعة",
+            color: "#38bdf8"
+        };
+    }
+
+    return {
+        stage: "cleared",
+        label: "⚪ Cleared | انتهى التنبيه",
+        color: "#94a3b8"
+    };
+}
+
+function saveRainAlertLifecycle(results) {
+    if (!Array.isArray(results)) return;
+
+    const activeAlerts = results
+        .filter(city => {
+            const maxScore = Math.max(
+                Number(city.score || 0),
+                Number(city.forecast24Score || 0),
+                Number(city.forecast72Score || 0)
+            );
+
+            return maxScore >= 30;
+        })
+        .map(city => {
+            const lifecycle = getRainAlertStage(city);
+
+            return {
+                name: city.name,
+                lat: city.lat,
+                lon: city.lon,
+                score: Number(city.score || 0),
+                forecast24Score: Number(city.forecast24Score || 0),
+                forecast72Score: Number(city.forecast72Score || 0),
+                floodRiskScore: Number(city.floodRiskScore || 0),
+                stage: lifecycle.stage,
+                label: lifecycle.label,
+                color: lifecycle.color,
+                updatedAt: Date.now()
+            };
+        });
+
+    localStorage.setItem(
+        RAIN_ALERT_LIFECYCLE_KEY,
+        JSON.stringify(activeAlerts)
+    );
+
+    renderRainAlertLifecycle(activeAlerts);
+}
+
+function loadRainAlertLifecycle() {
+    try {
+        return JSON.parse(
+            localStorage.getItem(RAIN_ALERT_LIFECYCLE_KEY) || "[]"
+        );
+    } catch {
+        return [];
+    }
+}
+
+function renderRainAlertLifecycle(alerts = loadRainAlertLifecycle()) {
+    const box =
+        document.getElementById("rainAlertLifecycleBox") ||
+        document.getElementById("alertsBox");
+
+    if (!box) return;
+
+    if (!Array.isArray(alerts) || alerts.length === 0) {
+        box.innerHTML = `
+            <div style="color:#94a3b8;line-height:1.8;">
+                لا توجد تنبيهات مطر نشطة حالياً.
+            </div>
+        `;
+        return;
+    }
+
+    box.innerHTML = alerts.map(alert => `
+        <div style="
+            padding:14px;
+            margin-bottom:12px;
+            border-radius:16px;
+            background:#0f172a;
+            border:1px solid ${alert.color};
+            line-height:1.9;
+        ">
+            <strong style="color:${alert.color};font-size:18px;">
+                ${alert.name}
+            </strong><br>
+
+            الحالة: <strong>${alert.label}</strong><br>
+            المطر الآن: ${alert.score}%<br>
+            توقع 24 ساعة: ${alert.forecast24Score}%<br>
+            توقع 72 ساعة: ${alert.forecast72Score}%<br>
+            خطر السيول: ${alert.floodRiskScore}%<br>
+
+            <small style="color:#94a3b8;">
+                آخر تحديث: ${new Date(alert.updatedAt).toLocaleTimeString("ar-SA")}
+            </small>
+        </div>
+    `).join("");
+}
+
+function startRainAlertLifecycleMonitor() {
+    if (rainAlertLifecycleInterval) {
+        clearInterval(rainAlertLifecycleInterval);
+        rainAlertLifecycleInterval = null;
+    }
+
+    rainAlertLifecycleInterval = setInterval(async () => {
+        try {
+            if (typeof runSmartMultiCityBackgroundCheck === "function") {
+                await runSmartMultiCityBackgroundCheck(true);
+            }
+        } catch (e) {
+            console.warn("Rain Alert Lifecycle monitor skipped:", e);
+        }
+    }, RAIN_ALERT_LIFECYCLE_INTERVAL_MINUTES * 60 * 1000);
 }
 
 window.onload = function () {
