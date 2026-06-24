@@ -1386,3 +1386,18 @@ button.cloud-modal-close {
     background: rgba(37, 99, 235, 0.35);
     color: #f8fafc;
 }
+
+#dashboardPanel .rg-card {
+    overflow: hidden;
+}
+
+#dashboardPanel canvas#qualityChart {
+    display: block;
+    width: 100% !important;
+    height: 280px !important;
+    max-height: 280px !important;
+}
+
+#dashboardPanel .rg-card:has(#qualityChart) {
+    height: 360px;
+}
