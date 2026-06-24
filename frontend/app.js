@@ -3987,6 +3987,7 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 const sortedResults = sortMultiCityResults(results);
                 window.lastMultiCityResults = sortedResults;
                 saveRainAlertLifecycle(sortedResults);
+                renderRainAlertLifecycle?.();
 
                 updateTopCityCard?.(sortedResults);
 
