@@ -3810,6 +3810,28 @@ async function checkRain(lat, lon, name = "موقع محدد", silent = false, r
     }
 }
 
+function sortMultiCityResults(results) {
+    return [...(results || [])].sort((a, b) => {
+        const aScore = Math.max(
+            Number(a.actualRiskScore || 0),
+            Number(a.score || 0),
+            Number(a.forecast24Score || 0),
+            Number(a.forecast72Score || 0),
+            Number(a.floodRiskScore || 0)
+        );
+
+        const bScore = Math.max(
+            Number(b.actualRiskScore || 0),
+            Number(b.score || 0),
+            Number(b.forecast24Score || 0),
+            Number(b.forecast72Score || 0),
+            Number(b.floodRiskScore || 0)
+        );
+
+        return bScore - aScore;
+    });
+}
+
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (window.isMultiCityRunning) {
         console.log("Smart MultiCity already running...");
@@ -4312,25 +4334,5 @@ window.stopBackgroundRainMonitoring = function () {
     }
 };
 
-window.toggleBackgroundRainMonitoring = async function () {
-    const current =
-        localStorage.getItem(BACKGROUND_MONITOR_KEY) === "true";
-
-    if (current) {
-        window.stopBackgroundRainMonitoring();
-    } else {
-        await window.startBackgroundRainMonitoring();
-    }
-};
-
-window.toggleSmartMultiCityMonitoring = async function () {
-    localStorage.setItem(SMART_MULTI_CITY_KEY, "true");
-
-    console.log("Smart MultiCity Monitoring: true");
-
-    if (typeof runSmartMultiCityBackgroundCheck === "function") {
-        await runSmartMultiCityBackgroundCheck(true);
-    }
-};
 
 
