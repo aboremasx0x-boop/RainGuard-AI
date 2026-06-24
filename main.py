@@ -1962,8 +1962,7 @@ def prediction_analytics_debug():
             "rows": len(rows),
             "sample": rows[:2]
         }
-
-    except Exception as e:
+        except Exception as e:
     import traceback
 
     print("ANALYTICS ERROR")
