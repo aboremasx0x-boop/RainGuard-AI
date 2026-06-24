@@ -2797,7 +2797,8 @@ async function updateMultiCityMonitor() {
             }
         }
 
-        results.sort((a, b) => b.score - a.score);
+        const sortedResults = sortMultiCityResults(results);
+        window.lastMultiCityResults = sortedResults;
 
         if (results.length === 0) {
             box.innerHTML = "تعذر تحليل المدن حالياً.";
