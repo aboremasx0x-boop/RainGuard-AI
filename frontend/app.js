@@ -845,140 +845,37 @@ function calculateRainArrivalV12(city) {
     };
 }
 
-async function fetchAPI(path) {
+async function fetchAPI(path, retries = 2) {
     const separator = path.includes("?") ? "&" : "?";
-    const url = `${API_BASE_URL}${path}${separator}t=${Date.now()}`;
+    const url = path.startsWith("http")
+        ? `${path}${separator}t=${Date.now()}`
+        : `${API_BASE_URL}${path}${separator}t=${Date.now()}`;
 
-    const response = await fetch(url, {
-        method: "GET",
-        mode: "cors",
-        cache: "no-store",
-        headers: {
-            "Accept": "application/json"
-        }
-    });
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const response = await fetch(url, {
+                method: "GET",
+                mode: "cors",
+                cache: "no-store",
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
 
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-    }
-
-    return await response.json();
-}
-
-
-// ===== RainGuard AI frontend/app.js fixed - PART 4/9 =====
-
-function saveSmartMultiCityHistory(topCities) {
-    let saved = [];
-
-    try {
-        saved = JSON.parse(localStorage.getItem(SMART_MULTI_CITY_HISTORY_KEY)) || [];
-    } catch {
-        saved = [];
-    }
-
-    const now = new Date().toLocaleString("ar-SA", {
-        hour: "2-digit",
-        minute: "2-digit",
-        day: "numeric",
-        month: "short"
-    });
-
-    const item = {
-        time: now,
-        cities: topCities.map(city => ({
-            name: city.name,
-            score: city.score,
-            forecast24Score: city.forecast24Score,
-            forecast72Score: city.forecast72Score,
-            floodRiskScore: city.floodRiskScore,
-            actualRiskScore: city.actualRiskScore,
-            alertLevel: city.alertLevel,
-            source: city.source || "Unknown"
-        }))
-    };
-
-    saved.unshift(item);
-
-    localStorage.setItem(
-        SMART_MULTI_CITY_HISTORY_KEY,
-        JSON.stringify(saved.slice(0, 20))
-    );
-
-    renderSmartMultiCityHistory();
-}
-
-function renderSmartMultiCityHistory() {
-    const box = document.getElementById("smartMultiCityHistoryBox");
-    if (!box) return;
-
-    let saved = [];
-
-    try {
-        saved = JSON.parse(localStorage.getItem(SMART_MULTI_CITY_HISTORY_KEY)) || [];
-    } catch {
-        saved = [];
-    }
-
-    if (saved.length === 0) {
-        box.innerHTML = "لا يوجد سجل مراقبة مدن حتى الآن.";
-        return;
-    }
-
-    box.innerHTML = saved.slice(0, 5).map(item => {
-        const rows = item.cities.map(city => {
-            const score = Number(city.forecast24Score ?? city.score ?? 0);
-
-            let color = "#22c55e";
-            let icon = "🟢";
-
-            if (score >= 80) {
-                color = "#ef4444";
-                icon = "🔴";
-            } else if (score >= 60) {
-                color = "#f59e0b";
-                icon = "🟠";
-            } else if (score >= 30) {
-                color = "#38bdf8";
-                icon = "🔵";
-            } else if (score >= 20) {
-                color = "#facc15";
-                icon = "🟡";
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
 
-            return `
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:center;
-                    padding:8px 0;
-                    border-bottom:1px solid #1e293b;
-                ">
-                    <span>${icon} ${city.name}</span>
-                    <strong style="color:${color};">${score}%</strong>
-                </div>
-            `;
-        }).join("");
+            return await response.json();
 
-        return `
-            <div style="
-                margin-bottom:14px;
-                padding:14px;
-                border-radius:16px;
-                background:#020617;
-                border:1px solid #334155;
-            ">
-                <div style="
-                    color:#94a3b8;
-                    margin-bottom:8px;
-                    font-size:14px;
-                ">
-                    ${item.time}
-                </div>
-                ${rows}
-            </div>
-        `;
-    }).join("");
+        } catch (error) {
+            if (attempt === retries) {
+                throw error;
+            }
+
+            await sleep(800);
+        }
+    }
 }
 
 function clearSmartMultiCityHistory() {
@@ -3926,21 +3823,13 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
     try {
         for (const city of smartMultiCityMonitorList) {
             try {
-                await sleep(300);
+                await sleep(120);
 
                 const data = await fetchAPI(
                     `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=12`
                 );
 
-                console.log("CITY DATA:", city.name, data);
-
-                if (!data) continue;
-
-                if (data.error && !data.current && !data.best_hour && !data.next_hours) {
-                    continue;
-                }
-
-                if (data.error === true) {
+                if (!data || data.error === true) {
                     console.warn("Skipped city:", city.name);
                     continue;
                 }
@@ -3952,17 +3841,9 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                 const score = Number(best.rain_score || current.rain_score || 0);
                 const forecast24Score = getMaxScoreByRange(nextHours, 24);
                 const forecast72Score = getMaxScoreByRange(nextHours, 72);
+                const peakHour = getPeakHourByRange(nextHours, 72) || current;
 
-                let peakHour = null;
-
-                try {
-                    peakHour = getPeakHourByRange(nextHours, 72);
-                } catch (e) {
-                    console.warn("Peak hour error:", city.name, e);
-                    peakHour = current;
-                }
-
-                results.push({
+                const cityResult = {
                     name: city.name,
                     lat: city.lat,
                     lon: city.lon,
@@ -3970,47 +3851,48 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
                     forecast24Score,
                     forecast72Score,
                     cloudScore: Number(current.cloud_cover || peakHour?.cloud_cover || 0),
-                    floodRiskScore: Math.round(
-                        Math.max(score, forecast24Score, forecast72Score) * 0.6
-                    ),
-                    actualRiskScore: Math.round(
-                        Math.max(score, forecast24Score, forecast72Score)
-                    ),
+                    humidity: Number(current.humidity || peakHour?.humidity || 0),
+                    rain_probability: Number(current.rain_probability || peakHour?.rain_probability || 0),
+                    floodRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score) * 0.6),
+                    actualRiskScore: Math.round(Math.max(score, forecast24Score, forecast72Score)),
                     peakHour,
                     alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
                     source: data.source || "Unknown",
                     current
-                });
+                };
 
-                window.lastMultiCityResults = results;
+                results.push(cityResult);
 
-                updateTopCityCard?.(results);
+                const sortedResults = sortMultiCityResults(results);
+                window.lastMultiCityResults = sortedResults;
 
-                console.log("PUSHED CITY:", city.name, results.length);
+                updateTopCityCard?.(sortedResults);
+
+                console.log("PUSHED CITY:", city.name, sortedResults.length);
 
             } catch (err) {
-                console.warn("Smart city skipped:", city.name, err.message);
+                console.warn("Smart city skipped:", city.name, err?.message || err);
                 continue;
             }
         }
 
-        window.lastMultiCityResults = results;
+        const sortedResults = sortMultiCityResults(results);
+        window.lastMultiCityResults = sortedResults;
 
-        updateTopCityCard?.(results);
-        renderSmartMultiCityTopPanel?.(results);
-        renderFloodWatchCitiesPanel?.(results);
-        updateNationalWeatherSummary?.(results);
-        updateNationalStatus?.(results);
-        renderNationalTrendPanel?.(results);
-        renderRainArrivalCitiesPanel?.(results);
-        updateFloodRiskMap?.(results);
-        updateCloudRainMapLayer?.(results);
+        updateTopCityCard?.(sortedResults);
+        renderSmartMultiCityTopPanel?.(sortedResults);
+        renderFloodWatchCitiesPanel?.(sortedResults);
+        updateNationalWeatherSummary?.(sortedResults);
+        updateNationalStatus?.(sortedResults);
+        renderNationalTrendPanel?.(sortedResults);
+        renderRainArrivalCitiesPanel?.(sortedResults);
+        updateFloodRiskMap?.(sortedResults);
+        updateCloudRainMapLayer?.(sortedResults);
+        saveLastMultiCityResults?.(sortedResults);
 
-        console.log("Smart MultiCity Results:", results);
+        console.log("Smart MultiCity Results:", sortedResults);
 
-        saveLastMultiCityResults(results);
-
-        return results;
+        return sortedResults;
 
     } catch (err) {
         console.error("runSmartMultiCityBackgroundCheck error:", err);
@@ -4294,16 +4176,14 @@ function loadLastMultiCityResults() {
 window.onload = function () {
     console.log("APP LOADED");
 
-    const cachedResults = loadLastMultiCityResults?.() || [];
+    const cachedResults = sortMultiCityResults(loadLastMultiCityResults?.() || []);
 
     if (cachedResults.length > 0) {
         window.lastMultiCityResults = cachedResults;
-
         updateTopCityCard?.(cachedResults);
         renderSmartMultiCityTopPanel?.(cachedResults);
         updateNationalWeatherSummary?.(cachedResults);
         updateNationalStatus?.(cachedResults);
-
         console.log("Loaded cached MultiCity:", cachedResults.length);
     }
 
@@ -4324,11 +4204,6 @@ window.onload = function () {
             isBackgroundMonitorEnabled?.()
                 ? "مراقبة مفعلة"
                 : "جاهزة للتشغيل"
-        );
-
-        console.log(
-            "Background Monitoring:",
-            isBackgroundMonitorEnabled?.()
         );
     } catch (e) {
         console.warn("Background monitor status skipped:", e);
@@ -4357,35 +4232,11 @@ window.onload = function () {
         } catch (e) {
             console.warn("Summary card click handlers skipped:", e);
         }
-    }, 1500);
-
-    setTimeout(async () => {
-        try {
-            await runSmartMultiCityBackgroundCheck(true);
-
-            const freshResults = window.lastMultiCityResults || [];
-
-            updateTopCityCard?.(freshResults);
-            renderSmartMultiCityTopPanel?.(freshResults);
-            updateNationalWeatherSummary?.(freshResults);
-            updateNationalStatus?.(freshResults);
-
-        } catch (e) {
-            console.warn("Initial MultiCity check skipped:", e);
-        }
-    }, 2500);
+    }, 1000);
 
     setTimeout(() => {
-        try {
-            if (isBackgroundMonitorEnabled?.()) {
-                startBackgroundRainMonitoring?.();
-            } else {
-                updateBackgroundMonitorStatus?.("جاهزة للتشغيل");
-            }
-        } catch (e) {
-            console.warn("Background rain monitoring skipped:", e);
-        }
-    }, 10000);
+        runSmartMultiCityBackgroundCheck(true);
+    }, 1500);
 
     setTimeout(() => {
         try {
@@ -4393,7 +4244,7 @@ window.onload = function () {
         } catch (e) {
             console.warn("Prediction analytics skipped:", e);
         }
-    }, 5000);
+    }, 4000);
 };
 window.toggleSmartMultiCityMonitoring = function () {
     const current =
@@ -4482,101 +4333,4 @@ window.toggleSmartMultiCityMonitoring = async function () {
     }
 };
 
-async function fetchAPI(path, retries = 2) {
-    const url = path.startsWith("http")
-        ? path
-        : `${API_BASE_URL}${path}`;
 
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            const response = await fetch(url, {
-                method: "GET",
-                cache: "no-store"
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            return await response.json();
-
-        } catch (error) {
-            if (attempt === retries) {
-                throw error;
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 1200));
-        }
-    }
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function loadInvestorDashboard() {
-
-    try {
-
-        const response = await fetch(
-            "https://rainguard-ai.onrender.com/prediction-analytics"
-        );
-
-        const data = await response.json();
-
-        const box = document.getElementById(
-            "investorDashboardBox"
-        );
-
-        if (!box) return;
-
-        box.innerHTML = `
-            <div class="dashboard-metrics">
-
-                <div class="metric-card">
-                    <span>Overall Accuracy</span>
-                    <strong>${data.overall_accuracy}%</strong>
-                </div>
-
-                <div class="metric-card">
-                    <span>Rain Detection</span>
-                    <strong>${data.rain_detection_accuracy}%</strong>
-                </div>
-
-                <div class="metric-card">
-                    <span>False Alert Rate</span>
-                    <strong>${data.false_alert_rate}%</strong>
-                </div>
-
-                <div class="metric-card">
-                    <span>Missed Rain Rate</span>
-                    <strong>${data.missed_rain_rate}%</strong>
-                </div>
-
-                <div class="metric-card">
-                    <span>Adaptive Learning</span>
-                    <strong>${data.adaptive_learning_performance}%</strong>
-                </div>
-
-                <div class="metric-card">
-                    <span>Verified Predictions</span>
-                    <strong>${data.verified_predictions}</strong>
-                </div>
-
-            </div>
-        `;
-
-    } catch (err) {
-
-        console.error(err);
-
-        const box = document.getElementById(
-            "investorDashboardBox"
-        );
-
-        if (box) {
-            box.innerHTML =
-                "تعذر تحميل مؤشرات الأداء";
-        }
-    }
-}
