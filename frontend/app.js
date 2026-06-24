@@ -3832,6 +3832,24 @@ function sortMultiCityResults(results) {
     });
 }
 
+function getCityRiskSortScore(city) {
+    if (!city) return 0;
+
+    return Math.max(
+        Number(city.actualRiskScore || 0),
+        Number(city.score || 0),
+        Number(city.forecast24Score || 0),
+        Number(city.forecast72Score || 0),
+        Number(city.floodRiskScore || 0)
+    );
+}
+
+function sortMultiCityResults(results) {
+    return [...(results || [])].sort((a, b) => {
+        return getCityRiskSortScore(b) - getCityRiskSortScore(a);
+    });
+}
+
 async function runSmartMultiCityBackgroundCheck(force = false) {
     if (window.isMultiCityRunning) {
         console.log("Smart MultiCity already running...");
@@ -4267,47 +4285,6 @@ window.onload = function () {
             console.warn("Prediction analytics skipped:", e);
         }
     }, 4000);
-};
-window.toggleSmartMultiCityMonitoring = function () {
-    const current =
-        localStorage.getItem(SMART_MULTI_CITY_KEY) === "true";
-
-    const next = !current;
-
-    localStorage.setItem(
-        SMART_MULTI_CITY_KEY,
-        next ? "true" : "false"
-    );
-
-    if (next) {
-        showActionMessage?.("تم تشغيل مراقبة المدن الذكية", "success");
-        runSmartMultiCityBackgroundCheck?.(true);
-    } else {
-        showActionMessage?.("تم إيقاف مراقبة المدن الذكية", "warning");
-    }
-
-    console.log("Smart MultiCity Monitoring:", next);
-};
-
-window.toggleBackgroundRainMonitoring = function () {
-    const current =
-        localStorage.getItem(BACKGROUND_MONITOR_KEY) === "true";
-
-    const next = !current;
-
-    localStorage.setItem(
-        BACKGROUND_MONITOR_KEY,
-        next ? "true" : "false"
-    );
-
-    if (next) {
-        showActionMessage?.("تم تشغيل المراقبة المباشرة", "success");
-        runSmartMultiCityBackgroundCheck?.(true);
-    } else {
-        showActionMessage?.("تم إيقاف المراقبة المباشرة", "warning");
-    }
-
-    console.log("Background Monitoring:", next);
 };
 
 window.startBackgroundRainMonitoring = async function () {
