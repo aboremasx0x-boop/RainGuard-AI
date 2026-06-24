@@ -13,12 +13,24 @@ from statistics import mean
 app = FastAPI(title="RainGuard AI API", version="14.0")
 
 
+ALLOWED_ORIGINS = [
+    "https://rainguard-frontend.onrender.com",
+    "https://rain-guard-ai.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\\.onrender\\.com|https://.*\\.vercel\\.app",
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=86400,
 )
 
 
@@ -2323,6 +2335,15 @@ def get_load_balancer_status():
         )
     }
 
+
+
+@app.get("/cors-test")
+def cors_test():
+    return {
+        "status": "ok",
+        "message": "CORS is active",
+        "allowed_origins": ALLOWED_ORIGINS
+    }
 
 @app.get("/")
 def root():
