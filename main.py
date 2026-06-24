@@ -1948,6 +1948,32 @@ def fetch_all_prediction_history(page_size=1000, max_rows=20000):
 
     return all_rows
 
+@app.get("/prediction-analytics-debug")
+def prediction_analytics_debug():
+
+    try:
+        rows = fetch_all_prediction_history(
+            page_size=100,
+            max_rows=1000
+        )
+
+        return {
+            "ok": True,
+            "rows": len(rows),
+            "sample": rows[:2]
+        }
+
+    except Exception as e:
+    import traceback
+
+    print("ANALYTICS ERROR")
+    print(traceback.format_exc())
+
+    return {
+        "status": "error",
+        "error": str(e)
+    }
+
 
 @app.get("/prediction-analytics")
 def prediction_analytics():
