@@ -1504,3 +1504,61 @@ button.cloud-modal-close {
     color: #f8fafc;
     font-weight: 800;
 }
+
+.top-cities-table.compact {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    table-layout: fixed;
+    direction: rtl;
+    font-size: 13px;
+}
+
+.top-cities-table.compact th,
+.top-cities-table.compact td {
+    padding: 9px 6px;
+    text-align: center;
+    background: rgba(15, 23, 42, 0.86);
+    border-bottom: 1px solid rgba(96, 165, 250, 0.16);
+    white-space: nowrap;
+}
+
+.top-cities-table.compact th {
+    color: #93c5fd;
+    font-weight: 800;
+    background: rgba(37, 99, 235, 0.28);
+}
+
+.top-cities-table.compact th:nth-child(1),
+.top-cities-table.compact td:nth-child(1) {
+    width: 34px;
+}
+
+.top-cities-table.compact th:nth-child(2),
+.top-cities-table.compact td:nth-child(2) {
+    width: 80px;
+}
+
+.top-cities-table.compact th:nth-child(3),
+.top-cities-table.compact td:nth-child(3) {
+    width: 70px;
+}
+
+.top-cities-table.compact .city-name {
+    color: #f8fafc;
+    font-weight: 800;
+}
+
+.mini-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    line-height: 1.3;
+    font-size: 12px;
+    color: #cbd5e1;
+}
+
+.mini-metrics span:first-child {
+    color: #38bdf8;
+    font-weight: 800;
+}
