@@ -4394,21 +4394,29 @@ function renderTopCitiesTableSafe(cities) {
 
     const rows = cities
         .slice(0, 10)
-        .map((city, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${city.city || "--"}</td>
-                <td>${city.verified_predictions || 0}</td>
-                <td>${city.overall_accuracy || 0}%</td>
-                <td>${city.rain_detection_accuracy || 0}%</td>
-                <td>${city.false_alert_rate || 0}%</td>
-            </tr>
-        `)
+        .map((city, index) => {
+            const name = city.city || city.name || "--";
+            const verified = city.verified_predictions || city.verified || 0;
+            const accuracy = Number(city.overall_accuracy ?? city.accuracy ?? 0).toFixed(2);
+            const rainDetection = Number(city.rain_detection_accuracy ?? city.rain_detection ?? 0).toFixed(2);
+            const falseAlert = Number(city.false_alert_rate ?? city.false_alert ?? 0).toFixed(2);
+
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="city-name">${name}</td>
+                    <td>${verified}</td>
+                    <td>${accuracy}%</td>
+                    <td>${rainDetection}%</td>
+                    <td>${falseAlert}%</td>
+                </tr>
+            `;
+        })
         .join("");
 
     box.innerHTML = `
         <div class="analytics-table-wrap">
-            <table class="analytics-table">
+            <table class="top-cities-table">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -4419,7 +4427,9 @@ function renderTopCitiesTableSafe(cities) {
                         <th>إنذار كاذب</th>
                     </tr>
                 </thead>
-                <tbody>${rows}</tbody>
+                <tbody>
+                    ${rows}
+                </tbody>
             </table>
         </div>
     `;
