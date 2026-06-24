@@ -4300,6 +4300,9 @@ window.onload = function () {
         renderSmartMultiCityTopPanel?.(cachedResults);
         updateNationalWeatherSummary?.(cachedResults);
         updateNationalStatus?.(cachedResults);
+        renderNationalTrendPanel?.(cachedResults);
+        renderRainArrivalCitiesPanel?.(cachedResults);
+        renderFloodWatchCitiesPanel?.(cachedResults);
         console.log("Loaded cached MultiCity:", cachedResults.length);
     }
 
@@ -4348,19 +4351,42 @@ window.onload = function () {
         } catch (e) {
             console.warn("Summary card click handlers skipped:", e);
         }
-    }, 1000);
+    }, 800);
 
-    setTimeout(() => {
-        runSmartMultiCityBackgroundCheck(true);
-    }, 1500);
-
-    setTimeout(() => {
+    setTimeout(async () => {
         try {
-            loadPredictionAnalytics?.();
+            if (typeof checkRain === "function") {
+                await checkRain(
+                    lastLat || 21.5433,
+                    lastLon || 39.1728,
+                    lastName || "جدة",
+                    false
+                );
+            }
+        } catch (e) {
+            console.warn("Initial checkRain skipped:", e);
+        }
+    }, 1200);
+
+    setTimeout(async () => {
+        try {
+            if (typeof runSmartMultiCityBackgroundCheck === "function") {
+                await runSmartMultiCityBackgroundCheck(true);
+            }
+        } catch (e) {
+            console.warn("Initial MultiCity skipped:", e);
+        }
+    }, 1800);
+
+    setTimeout(async () => {
+        try {
+            if (typeof loadPredictionAnalytics === "function") {
+                await loadPredictionAnalytics();
+            }
         } catch (e) {
             console.warn("Prediction analytics skipped:", e);
         }
-    }, 4000);
+    }, 3000);
 };
 
 window.startBackgroundRainMonitoring = async function () {
