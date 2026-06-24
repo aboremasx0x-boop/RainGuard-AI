@@ -1350,6 +1350,8 @@ async function runSmartMultiCityBackgroundCheck(force = false) {
 
         console.log("Smart MultiCity Results:", results);
 
+        saveLastMultiCityResults(results);
+
         return results;
 
     } catch (err) {
@@ -4504,8 +4506,49 @@ function openFirstFloodCity() {
     openCityForecastPopup(city.name);
 }
 
+const LAST_MULTI_CITY_CACHE_KEY = "rainguard_last_multicity_results";
+
+function saveLastMultiCityResults(results) {
+    try {
+        if (!Array.isArray(results) || results.length === 0) return;
+        localStorage.setItem(
+            LAST_MULTI_CITY_CACHE_KEY,
+            JSON.stringify({
+                time: Date.now(),
+                results
+            })
+        );
+    } catch (e) {
+        console.warn("Save MultiCity cache failed:", e);
+    }
+}
+
+function loadLastMultiCityResults() {
+    try {
+        const raw = localStorage.getItem(LAST_MULTI_CITY_CACHE_KEY);
+        if (!raw) return [];
+
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed.results) ? parsed.results : [];
+    } catch (e) {
+        console.warn("Load MultiCity cache failed:", e);
+        return [];
+    }
+}
+
 window.onload = function () {
     console.log("APP LOADED");
+
+    const cachedResults = loadLastMultiCityResults();
+
+    if (cachedResults.length > 0) {
+        window.lastMultiCityResults = cachedResults;
+        updateTopCityCard?.(cachedResults);
+        renderSmartMultiCityTopPanel?.(cachedResults);
+        updateNationalWeatherSummary?.(cachedResults);
+        updateNationalStatus?.(cachedResults);
+        console.log("Loaded cached MultiCity:", cachedResults.length);
+    }
 
     try {
         initMap?.();
@@ -4513,35 +4556,14 @@ window.onload = function () {
         console.warn("initMap skipped:", e);
     }
 
-    try {
-        renderSmartMultiCityHistory?.();
-    } catch (e) {
-        console.warn("renderSmartMultiCityHistory skipped:", e);
-    }
-
-    try {
-        updateBackgroundMonitorStatus?.(
-            isBackgroundMonitorEnabled?.()
-                ? "مراقبة مفعلة"
-                : "جاهزة للتشغيل"
-        );
-
-        console.log(
-            "Background Monitoring:",
-            isBackgroundMonitorEnabled?.()
-        );
-    } catch (e) {
-        console.warn("Background monitor status skipped:", e);
-    }
-
     setTimeout(async () => {
         try {
             await runSmartMultiCityBackgroundCheck(true);
-            updateTopCityCard?.(window.lastMultiCityResults || []);
         } catch (e) {
             console.warn("Initial MultiCity check skipped:", e);
         }
     }, 3000);
+};
 
     setTimeout(() => {
         try {
