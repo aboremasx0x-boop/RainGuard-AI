@@ -1256,203 +1256,108 @@ function classifyForecastTiming(scoreNow, score24, score72) {
 }
 
 async function runSmartMultiCityBackgroundCheck(force = false) {
-    if (!force) {
-        if (!isSmartMultiCityEnabled()) return;
-        if (!isBackgroundMonitorEnabled()) return;
+    if (window.isMultiCityRunning) {
+        console.log("Smart MultiCity already running...");
+        return window.lastMultiCityResults || [];
     }
+
+    window.isMultiCityRunning = true;
 
     const results = [];
 
-    for (const city of smartMultiCityMonitorList) {
-        try {
-            const url =
-                `${API_BASE_URL}/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=${SMART_MULTI_CITY_FORECAST_HOURS}`;
+    try {
+        for (const city of smartMultiCityMonitorList) {
+            try {
+                await sleep(300);
 
-            const response = await fetch(url);
-            if (!response.ok) continue;
+                const data = await fetchAPI(
+                    `/rain-alert?lat=${city.lat}&lon=${city.lon}&name=${encodeURIComponent(city.name)}&hours=12`
+                );
 
-            const data = await response.json();
-            if (data.error) continue;
+                console.log("CITY DATA:", city.name, data);
 
-            const best = data.best_hour || data.current || {};
-            const current = data.current || {};
-            const cloudScore = Number(current.cloud_cover || 0);
-            const nextHours = Array.isArray(data.next_hours)
-                ? data.next_hours
-                : [];
+                if (!data) continue;
 
-            const score =
-                Number(best.rain_score) ||
-                Number(current.rain_score) ||
-                0;
+                if (data.error && !data.current && !data.best_hour && !data.next_hours) {
+                    continue;
+                }
 
-            const forecast24Score = getMaxScoreByRange(nextHours, 24);
-            const forecast72Score = getMaxScoreByRange(nextHours, 72);
-            const peakHour = getPeakHourByRange(nextHours, 72);
+                if (data.error === true) {
+                    console.warn("Skipped city:", city.name);
+                    continue;
+                }
 
-            const terrainRiskScore = calculateTerrainRisk(city.name);
+                const current = data.current || {};
+                const best = data.best_hour || current;
+                const nextHours = Array.isArray(data.next_hours) ? data.next_hours : [];
 
-            const radarRainIntensity = await getLiveRadarIntensity(city.lat, city.lon);
+                const score = Number(best.rain_score || current.rain_score || 0);
+                const forecast24Score = getMaxScoreByRange(nextHours, 24);
+                const forecast72Score = getMaxScoreByRange(nextHours, 72);
 
-            const radarFusion = await getRainViewerRadarFusionV1(city.lat, city.lon);
+                let peakHour = null;
 
-            const floodRiskScore = calculateV9FloodRisk({
-    name: city.name,
-    score,
-    forecast24Score,
-    forecast72Score,
-    cloudScore,
-    radarRainIntensity
-});
+                try {
+                    peakHour = getPeakHourByRange(nextHours, 72);
+                } catch (e) {
+                    console.warn("Peak hour error:", city.name, e);
+                    peakHour = current;
+                }
 
-            const actualRiskScore = Math.round(
-                score * 0.5 +
-                forecast24Score * 0.15 +
-                floodRiskScore * 0.25 +
-                terrainRiskScore * 0.10
-            );
+                results.push({
+                    name: city.name,
+                    lat: city.lat,
+                    lon: city.lon,
+                    score,
+                    forecast24Score,
+                    forecast72Score,
+                    cloudScore: Number(current.cloud_cover || peakHour?.cloud_cover || 0),
+                    floodRiskScore: Math.round(
+                        Math.max(score, forecast24Score, forecast72Score) * 0.6
+                    ),
+                    actualRiskScore: Math.round(
+                        Math.max(score, forecast24Score, forecast72Score)
+                    ),
+                    peakHour,
+                    alertLevel: best.alert_level || current.alert_level || "متابعة جوية",
+                    source: data.source || "Unknown",
+                    current
+                });
 
-            const subZones = await analyzeSubCityRainZones(city.name);
+                window.lastMultiCityResults = results;
 
-            const cloudMovement = estimateCloudMovement(
-    city.name,
-    score,
-    forecast24Score
-);
+                updateTopCityCard?.(results);
 
-const rainArrival = calculateRainArrivalV12({
-    name: city.name,
-    score,
-    forecast24Score,
-    forecast72Score,
-    cloudMovement,
-    peakHour
-});
+                console.log("PUSHED CITY:", city.name, results.length);
 
-            results.push({
-                name: city.name,
-                lat: city.lat,
-                lon: city.lon,
-                score,
-                forecast24Score,
-                forecast72Score,
-                cloudScore,
-                radarRainIntensity,
-                radarFusion,
-                terrainRiskScore,
-                terrainSummary: getTerrainRiskSummary(city.name),
-                floodRiskScore,
-                actualRiskScore,
-                peakHour,
-                forecastTiming: classifyForecastTiming(
-    score,
-    forecast24Score,
-    forecast72Score
-),
-cloudMovement,
-rainArrival,
-alertLevel:
-    best.alert_level ||
-    current.alert_level ||
-    "تنبيه مطر",
-                source: data.source || "Unknown",
-                subZones
-            });
-
-        } catch (error) {
-            console.error("Smart city error:", city.name, error);
+            } catch (err) {
+                console.warn("Smart city skipped:", city.name, err.message);
+                continue;
+            }
         }
-    }
 
-    if (results.length === 0) {
-        updateBackgroundMonitorStatus("تعذر فحص المدن الذكية");
-        renderSmartMultiCityTopPanel([]);
-        renderSmartMultiCityForecastPanel([]);
-        renderFloodPredictionPanel([]);
-        updateNationalStatus([]);
-        renderNationalTrendPanel([]);
-        return;
-    }
+        window.lastMultiCityResults = results;
 
-    results.sort((a, b) =>
-        Number(b.actualRiskScore || 0) - Number(a.actualRiskScore || 0)
-    );
+        updateTopCityCard?.(results);
+        renderSmartMultiCityTopPanel?.(results);
+        renderFloodWatchCitiesPanel?.(results);
+        updateNationalWeatherSummary?.(results);
+        updateNationalStatus?.(results);
+        renderNationalTrendPanel?.(results);
+        renderRainArrivalCitiesPanel?.(results);
+        updateFloodRiskMap?.(results);
+        updateCloudRainMapLayer?.(results);
 
-    const topCities = results.slice(0, SMART_MULTI_CITY_TOP_LIMIT);
-    const topCityNow = results
-    .filter(city =>
-        Number(city.score || 0) >= 25 ||
-        Number(city.forecast24Score || 0) >= 25 ||
-        Number(city.forecast72Score || 0) >= 30
-    )
-    .sort((a, b) =>
-        Number(b.actualRiskScore || 0) - Number(a.actualRiskScore || 0)
-    )[0];
+        console.log("Smart MultiCity Results:", results);
 
-    const forecastRanked = [...results].sort((a, b) =>
-        Number(b.forecast72Score || 0) - Number(a.forecast72Score || 0)
-    );
+        return results;
 
-    const topForecastCity = forecastRanked[0];
+    } catch (err) {
+        console.error("runSmartMultiCityBackgroundCheck error:", err);
+        return results;
 
-    window.lastMultiCityResults = results;
-     
-    window.openCityForecastPopup = openCityForecastPopup;
-
-    const setTopRiskText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = value;
-    };
-
-    if (topCityNow) {
-        setTopRiskText("topRiskCity", topCityNow.name || "غير محدد");
-        setTopRiskText(
-            "topRiskScore",
-            `${topCityNow.actualRiskScore ?? topCityNow.score ?? "--"}%`
-        );
-        setTopRiskText(
-            "topRiskDetails",
-            topCityNow.alertLevel || "تم تحديث البيانات"
-        );
-    }
-
-    renderSmartMultiCityTopPanel(results);
-    renderFloodWatchCitiesPanel(results);
-    renderSmartMultiCityForecastPanel(results);
-    renderFloodPredictionPanel(results);
-    updateNationalStatus(results);
-    updateNationalWeatherSummary(results);
-    renderNationalTrendPanel(results);
-    renderRainArrivalCitiesPanel(results);
-    updateFloodRiskMap(results);
-    updateCloudRainMapLayer(results);
-
-    const mapUpdateEl = document.getElementById("mapLastUpdateStatus");
-    if (mapUpdateEl) {
-        mapUpdateEl.innerText =
-            "آخر تحديث للخريطة: " + new Date().toLocaleTimeString("ar-SA");
-    }
-
-    saveSmartMultiCityHistory(topCities);
-
-    if (topCityNow && topForecastCity) {
-        updateBackgroundMonitorStatus(
-            `الآن: ${topCityNow.name} ${topCityNow.score}% | 72 ساعة: ${topForecastCity.name} ${topForecastCity.forecast72Score}%`
-        );
-
-        sendSmartMultiCityAlert(topCityNow);
-        sendEarlyMultiCityAlert(topForecastCity);
-    }
-
-    const floodRanked = [...results]
-        .filter(city => city.floodRiskScore !== undefined)
-        .sort((a, b) =>
-            Number(b.floodRiskScore || 0) - Number(a.floodRiskScore || 0)
-        );
-
-    if (floodRanked[0]) {
-        sendFloodPredictionAlert(floodRanked[0]);
-        sendV10FloodAlert(floodRanked[0]);
+    } finally {
+        window.isMultiCityRunning = false;
     }
 }
 function saveSmartMultiCityHistory(topCities) {
@@ -4600,39 +4505,88 @@ function openFirstFloodCity() {
 }
 
 window.onload = function () {
-    document.body.classList.add("weather-safe");
+    console.log("APP LOADED");
 
-    initMap();
+    try {
+        initMap?.();
+    } catch (e) {
+        console.warn("initMap skipped:", e);
+    }
 
-    checkRain(21.4858, 39.1925, "جدة");
-    loadDashboardData();
+    try {
+        renderSmartMultiCityHistory?.();
+    } catch (e) {
+        console.warn("renderSmartMultiCityHistory skipped:", e);
+    }
 
-    setTimeout(() => {
-        if (map) map.invalidateSize();
-    }, 1500);
+    try {
+        updateBackgroundMonitorStatus?.(
+            isBackgroundMonitorEnabled?.()
+                ? "مراقبة مفعلة"
+                : "جاهزة للتشغيل"
+        );
 
-    setTimeout(() => {
-        if (map) map.invalidateSize();
+        console.log(
+            "Background Monitoring:",
+            isBackgroundMonitorEnabled?.()
+        );
+    } catch (e) {
+        console.warn("Background monitor status skipped:", e);
+    }
+
+    setTimeout(async () => {
+        try {
+            await runSmartMultiCityBackgroundCheck(true);
+            updateTopCityCard?.(window.lastMultiCityResults || []);
+        } catch (e) {
+            console.warn("Initial MultiCity check skipped:", e);
+        }
     }, 3000);
 
-    updateAccuracyBox();
-    renderPredictionHistory();
+    setTimeout(() => {
+        try {
+            if (isBackgroundMonitorEnabled?.()) {
+                startBackgroundRainMonitoring?.();
+            } else {
+                updateBackgroundMonitorStatus?.("جاهزة للتشغيل");
+            }
+        } catch (e) {
+            console.warn("Background rain monitoring skipped:", e);
+        }
+    }, 8000);
 
     setTimeout(() => {
-        startAutoRefresh();
-        updateMultiCityMonitor();
-        runSmartMultiCityBackgroundCheck(true);
-    }, 3000);
+        try {
+            const rainCard = document.querySelector(".summary-card.rain");
+            const floodCard = document.querySelector(".summary-card.flood");
+            const cloudCard = document.querySelector(".summary-card.cloud");
+
+            if (rainCard) {
+                rainCard.onclick = () => window.openFirstRainCity?.();
+                rainCard.style.cursor = "pointer";
+            }
+
+            if (floodCard) {
+                floodCard.onclick = () => window.openFirstFloodCity?.();
+                floodCard.style.cursor = "pointer";
+            }
+
+            if (cloudCard) {
+                cloudCard.onclick = () => showCloudCities?.();
+                cloudCard.style.cursor = "pointer";
+            }
+        } catch (e) {
+            console.warn("Summary card click handlers skipped:", e);
+        }
+    }, 2000);
 
     setTimeout(() => {
-        if (isBackgroundMonitorEnabled()) {
-            startBackgroundRainMonitoring();
-        } else {
-            updateBackgroundMonitorStatus("جاهزة للتشغيل");
+        try {
+            loadPredictionAnalytics?.();
+        } catch (e) {
+            console.warn("Prediction analytics skipped:", e);
         }
     }, 5000);
-
-    renderSmartMultiCityHistory();
 };
 
 window.openFirstRainCity = function () {
