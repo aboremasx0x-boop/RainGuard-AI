@@ -4409,5 +4409,25 @@ window.stopBackgroundRainMonitoring = function () {
     }
 };
 
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(async () => {
+        try {
+            if (typeof loadPredictionAnalytics === "function") {
+                await loadPredictionAnalytics();
+            }
+        } catch (e) {
+            console.error("Dashboard auto load failed:", e);
+        }
+
+        try {
+            if (typeof checkRain === "function") {
+                await checkRain(lastLat || 21.5433, lastLon || 39.1728, lastName || "جدة", false);
+            }
+        } catch (e) {
+            console.error("Initial weather check failed:", e);
+        }
+    }, 1500);
+});
+
 
 
