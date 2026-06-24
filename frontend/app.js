@@ -4277,7 +4277,7 @@ async function loadPredictionAnalytics() {
 
         const investorDashboardBox = document.getElementById("investorDashboardBox");
         if (investorDashboardBox) {
-            ininvestorDashboardBox.innerHTML = `
+            investorDashboardBox.innerHTML = `
 <div class="kpi-grid">
 
 <div class="kpi-card">
