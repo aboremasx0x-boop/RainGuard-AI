@@ -1962,16 +1962,17 @@ def prediction_analytics_debug():
             "rows": len(rows),
             "sample": rows[:2]
         }
-        except Exception as e:
-    import traceback
 
-    print("ANALYTICS ERROR")
-    print(traceback.format_exc())
+    except Exception as e:
+        import traceback
 
-    return {
-        "status": "error",
-        "error": str(e)
-    }
+        print("ANALYTICS ERROR")
+        print(traceback.format_exc())
+
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 
 
 @app.get("/prediction-analytics")
