@@ -4635,6 +4635,14 @@ window.onload = function () {
         renderNationalTrendPanel?.(cachedResults);
         renderRainArrivalCitiesPanel?.(cachedResults);
         renderFloodWatchCitiesPanel?.(cachedResults);
+
+        try {
+            saveRainAlertLifecycle?.(cachedResults);
+            renderRainAlertLifecycle?.();
+        } catch (e) {
+            console.warn("Cached Rain Alert Lifecycle skipped:", e);
+        }
+
         console.log("Loaded cached MultiCity:", cachedResults.length);
     }
 
@@ -4648,6 +4656,13 @@ window.onload = function () {
         renderSmartMultiCityHistory?.();
     } catch (e) {
         console.warn("renderSmartMultiCityHistory skipped:", e);
+    }
+
+    try {
+        renderRainAlertLifecycle?.();
+        startRainAlertLifecycleMonitor?.();
+    } catch (e) {
+        console.warn("Rain Alert Lifecycle skipped:", e);
     }
 
     try {
