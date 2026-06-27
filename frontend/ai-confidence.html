@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Confidence Module - RainGuard AI</title>
+<style>
+body{margin:0;background:#0f172a;color:#e5e7eb;font-family:Tahoma,Arial,sans-serif;padding:24px}
+.container{max-width:1100px;margin:auto}
+h1{color:#38bdf8}
+.note{background:#111827;border:1px solid #334155;border-radius:14px;padding:14px;margin:18px 0}
+pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#020617;border:1px solid #334155;border-radius:16px;padding:18px;color:#e2e8f0;font-size:14px}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>RainGuard AI - AI Confidence Module</h1>
+
+<div class="note">
+أضف الدالة الأولى داخل &lt;script&gt; ثم طبّق التعديلات داخل renderAlertList() و renderDetails().
+</div>
+
+<h2>1. دالة حساب AI Confidence</h2>
+<pre><code>function calculateAIConfidence(city) {
+
+    const score = Number(city.score || city.actualRiskScore || 0);
+    const forecast24 = Number(city.forecast24Score || city.forecast24 || 0);
+    const forecast72 = Number(city.forecast72Score || city.forecast72 || 0);
+    const flood = Number(city.floodRiskScore || city.flood_score || 0);
+    const humidity = Number(city.humidity || 0);
+    const cloud = Number(city.cloudScore || city.cloud_cover || 0);
+
+    const spread = Math.abs(forecast24 - forecast72);
+
+    let confidence =
+        score * 0.30 +
+        forecast24 * 0.25 +
+        forecast72 * 0.20 +
+        flood * 0.10 +
+        humidity * 0.10 +
+        cloud * 0.05;
+
+    if (spread <= 10) confidence += 8;
+    if (spread <= 5) confidence += 5;
+
+    confidence = Math.max(0, Math.min(100, confidence));
+
+    return Number(confidence.toFixed(1));
+}</code></pre>
+
+<h2>2. داخل renderAlertList()</h2>
+
+<pre><code>const confidence = calculateAIConfidence(a);</code></pre>
+
+ثم داخل البطاقة:
+
+<pre><code>&lt;p&gt;
+
+AI Confidence:
+&lt;strong style="color:#4ade80"&gt;
+${confidence}%
+&lt;/strong&gt;
+
+&lt;br&gt;
+
+${stage.label}
+
+&lt;br&gt;
+
+أعلى مؤشر:
+${maxScore}%
+
+&lt;br&gt;
+
+السيول:
+${a.floodRiskScore}%
+
+&lt;/p&gt;</code></pre>
+
+<h2>3. داخل renderDetails()</h2>
+
+<pre><code>const confidence = calculateAIConfidence(a);
+
+document.getElementById("reasonBox").innerHTML += `
+&lt;br&gt;&lt;br&gt;
+&lt;b style="color:#4ade80"&gt;
+AI Confidence:
+${confidence}%
+&lt;/b&gt;
+`;</code></pre>
+
+<h2>4. بطاقة مستقلة (اختياري)</h2>
+
+<pre><code>&lt;div class="metric"&gt;
+    &lt;span&gt;AI Confidence&lt;/span&gt;
+    &lt;strong id="aiConfidence"&gt;0%&lt;/strong&gt;
+&lt;/div&gt;</code></pre>
+
+ثم داخل renderDetails():
+
+<pre><code>document.getElementById("aiConfidence").textContent =
+    calculateAIConfidence(a) + "%";</code></pre>
+
+</div>
+</body>
+</html>
