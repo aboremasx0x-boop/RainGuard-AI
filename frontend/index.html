@@ -3,40 +3,105 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Index HTML Additions - Alert Command Center</title>
+<title>RainGuard AI - Index Additions Reviewed</title>
+
 <style>
-body{background:#0f172a;color:#e5e7eb;font-family:Tahoma,Arial,sans-serif;padding:24px;line-height:1.8}
-h1{color:#38bdf8}
-pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#020617;border:1px solid #334155;border-radius:16px;padding:18px;overflow:auto;color:#e2e8f0}
-.note{background:#111827;border:1px solid #334155;border-radius:14px;padding:14px;margin-bottom:16px}
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:#0f172a;
+    color:#e5e7eb;
+    font-family:Tahoma,Arial,sans-serif;
+    padding:24px;
+    line-height:1.8;
+}
+
+.container{
+    max-width:1100px;
+    margin:auto;
+}
+
+h1{
+    color:#38bdf8;
+    margin-bottom:10px;
+}
+
+.note{
+    background:#111827;
+    border:1px solid #334155;
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:16px;
+}
+
+.block{
+    margin-bottom:24px;
+}
+
+.block h2{
+    color:#93c5fd;
+    margin-bottom:10px;
+}
+
+pre{
+    direction:ltr;
+    text-align:left;
+    white-space:pre-wrap;
+    background:#020617;
+    border:1px solid #334155;
+    border-radius:16px;
+    padding:18px;
+    overflow:auto;
+    color:#e2e8f0;
+    font-size:14px;
+}
+
+code{
+    font-family:Consolas,monospace;
+}
 </style>
 </head>
+
 <body>
-<h1>Index HTML Additions - Alert Command Center</h1>
-<div class="note">انسخ الكود التالي إلى الملف المناسب في GitHub.</div>
-<pre><code>&lt;!-- =========================================================
-RainGuard AI - INDEX ADDITIONS
-انسخ هذا الملف داخل frontend/index.html في الأماكن المحددة.
-========================================================= --&gt;
 
-&lt;!-- 1) أضف هذا الزر داخل القائمة الجانبية بجانب أزرار Dashboard والتنبيهات --&gt;
-&lt;button class="rg-nav-item" onclick="window.open('alert-command-center.html','_blank')"&gt;
+<div class="container">
+
+<h1>RainGuard AI - Index Additions Reviewed</h1>
+
+<div class="note">
+هذا الملف يحتوي على الكود الصحيح الذي تضيفه إلى <b>frontend/index.html</b> لربط صفحة <b>Alert Command Center</b> وتفعيل صندوق تنبيهات المطر داخل تبويب التنبيهات.
+</div>
+
+<div class="block">
+<h2>1) زر Alert Command Center داخل القائمة الجانبية</h2>
+
+<pre><code>&lt;button class="rg-nav-item" onclick="window.open('alert-command-center.html','_blank')"&gt;
     &lt;i class="fa-solid fa-tower-broadcast"&gt;&lt;/i&gt;
-    Alert Command Center
-&lt;/button&gt;
+    مركز العمليات
+&lt;/button&gt;</code></pre>
 
+</div>
 
-&lt;!-- 2) تأكد أن زر التنبيهات في القائمة الجانبية يشير إلى alertsPanel --&gt;
-&lt;button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)"&gt;
+<div class="block">
+<h2>2) زر التنبيهات داخل القائمة الجانبية</h2>
+
+<pre><code>&lt;button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)"&gt;
     &lt;i class="fa-solid fa-bell"&gt;&lt;/i&gt;
     التنبيهات
-&lt;/button&gt;
+&lt;/button&gt;</code></pre>
 
+</div>
 
-&lt;!-- 3) استبدل قسم التنبيهات الحالي بهذا القسم كاملاً --&gt;
-&lt;section class="rg-panel" id="alertsPanel"&gt;
+<div class="block">
+<h2>3) قسم التنبيهات داخل index.html</h2>
+
+<pre><code>&lt;section class="rg-panel" id="alertsPanel"&gt;
 
     &lt;section class="rg-card"&gt;
+
         &lt;div class="rg-card-title"&gt;
             &lt;h2&gt;🌧️ التنبيهات النشطة&lt;/h2&gt;
 
@@ -48,14 +113,34 @@ RainGuard AI - INDEX ADDITIONS
         &lt;div id="rainAlertLifecycleBox"&gt;
             لا توجد تنبيهات مطر نشطة حالياً.
         &lt;/div&gt;
+
     &lt;/section&gt;
 
-&lt;/section&gt;
+&lt;/section&gt;</code></pre>
 
+</div>
 
-&lt;!-- 4) تأكد من تحديث روابط الملفات في نهاية index.html --&gt;
-&lt;link rel="stylesheet" href="/style.css?v=384"&gt;
-&lt;script defer src="/app.js?v=384"&gt;&lt;/script&gt;
-</code></pre>
+<div class="block">
+<h2>4) تحديث روابط الملفات في آخر index.html</h2>
+
+<div class="note">
+ضع روابط CSS داخل &lt;head&gt;، وضع script قبل نهاية &lt;/body&gt;. لا تضع رابط CSS في آخر الصفحة إذا كان موجوداً مسبقاً في الأعلى؛ فقط غيّر رقم النسخة.
+</div>
+
+<pre><code>&lt;link rel="stylesheet" href="/style.css?v=384"&gt;
+
+&lt;script defer src="/app.js?v=384"&gt;&lt;/script&gt;</code></pre>
+
+</div>
+
+<div class="block">
+<h2>5) الرابط بعد النشر</h2>
+
+<pre><code>https://rainguard-frontend.onrender.com/alert-command-center.html</code></pre>
+
+</div>
+
+</div>
+
 </body>
 </html>
