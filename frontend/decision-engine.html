@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI - Explainable AI Decision Engine</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    font-family:Tahoma,Arial,sans-serif;
+}
+
+body{
+    min-height:100vh;
+    background:
+        radial-gradient(circle at 10% 8%,rgba(14,165,233,.18),transparent 32%),
+        radial-gradient(circle at 90% 16%,rgba(245,158,11,.12),transparent 30%),
+        linear-gradient(135deg,#020617,#0f172a 55%,#082f49);
+    color:#e5e7eb;
+    padding:24px;
+}
+
+.container{
+    max-width:1450px;
+    margin:auto;
+}
+
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    margin-bottom:22px;
+}
+
+.header h1{
+    font-size:34px;
+    color:#f8fafc;
+}
+
+.header p{
+    color:#94a3b8;
+    margin-top:8px;
+    line-height:1.7;
+}
+
+.header-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.badge{
+    background:rgba(14,165,233,.13);
+    border:1px solid rgba(56,189,248,.42);
+    color:#7dd3fc;
+    padding:12px 18px;
+    border-radius:999px;
+    font-weight:900;
+}
+
+button{
+    border:none;
+    border-radius:14px;
+    padding:12px 18px;
+    color:white;
+    font-weight:900;
+    cursor:pointer;
+    background:linear-gradient(135deg,#0ea5e9,#2563eb);
+    box-shadow:0 12px 26px rgba(37,99,235,.25);
+}
+
+button.secondary{
+    background:#0f172a;
+    border:1px solid rgba(56,189,248,.45);
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:.85fr 1.15fr;
+    gap:18px;
+}
+
+.panel{
+    background:rgba(15,23,42,.90);
+    border:1px solid rgba(96,165,250,.22);
+    border-radius:22px;
+    padding:18px;
+    box-shadow:0 18px 50px rgba(0,0,0,.32);
+}
+
+.panel-title{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:16px;
+}
+
+.panel-title h2{
+    color:#f8fafc;
+    font-size:23px;
+}
+
+.city-list{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.city-card{
+    background:rgba(2,6,23,.58);
+    border:1px solid rgba(148,163,184,.18);
+    border-radius:18px;
+    padding:14px;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.city-card:hover,
+.city-card.active{
+    border-color:#38bdf8;
+    background:rgba(14,165,233,.12);
+    transform:translateY(-2px);
+}
+
+.city-head{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:8px;
+}
+
+.city-head strong{
+    color:#f8fafc;
+    font-size:19px;
+}
+
+.level-chip{
+    padding:6px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.level-stable{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.35)}
+.level-monitoring{background:rgba(56,189,248,.15);color:#7dd3fc;border:1px solid rgba(56,189,248,.35)}
+.level-developing{background:rgba(250,204,21,.15);color:#fde68a;border:1px solid rgba(250,204,21,.35)}
+.level-high{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
+
+.city-card p{
+    color:#cbd5e1;
+    line-height:1.8;
+    font-size:14px;
+}
+
+.report-main{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:12px;
+    margin-bottom:18px;
+}
+
+.score-box{
+    background:rgba(2,6,23,.62);
+    border:1px solid rgba(148,163,184,.15);
+    border-radius:18px;
+    padding:18px;
+    text-align:center;
+}
+
+.score-box span{
+    color:#94a3b8;
+    font-size:13px;
+}
+
+.score-box strong{
+    display:block;
+    margin-top:10px;
+    font-size:32px;
+    color:#38bdf8;
+}
+
+.decision-banner{
+    background:rgba(14,165,233,.12);
+    border:1px solid rgba(56,189,248,.25);
+    border-radius:18px;
+    padding:18px;
+    margin-bottom:18px;
+    line-height:1.9;
+}
+
+.decision-banner h3{
+    color:#f8fafc;
+    margin-bottom:8px;
+}
+
+.factor-table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0 8px;
+}
+
+.factor-table th{
+    color:#93c5fd;
+    font-size:13px;
+    padding:10px;
+    text-align:center;
+    background:rgba(37,99,235,.24);
+}
+
+.factor-table td{
+    background:rgba(2,6,23,.55);
+    border-top:1px solid rgba(148,163,184,.12);
+    border-bottom:1px solid rgba(148,163,184,.12);
+    padding:12px 10px;
+    text-align:center;
+    color:#e2e8f0;
+}
+
+.factor-table td.reason-cell{
+    text-align:right;
+    color:#cbd5e1;
+    line-height:1.7;
+}
+
+.factor-name{
+    color:#f8fafc;
+    font-weight:900;
+}
+
+.weight{
+    color:#38bdf8;
+    font-weight:900;
+}
+
+.bar-wrap{
+    width:100%;
+    height:10px;
+    background:#1e293b;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.bar{
+    height:100%;
+    background:linear-gradient(90deg,#0ea5e9,#22c55e);
+    border-radius:999px;
+}
+
+.explain-box{
+    margin-top:16px;
+    background:rgba(2,6,23,.60);
+    border:1px solid rgba(56,189,248,.25);
+    border-radius:18px;
+    padding:16px;
+    line-height:2;
+}
+
+.explain-box h3{
+    color:#7dd3fc;
+    margin-bottom:8px;
+}
+
+.footer-note{
+    margin-top:16px;
+    color:#94a3b8;
+    font-size:13px;
+    line-height:1.8;
+}
+
+.empty-state{
+    color:#94a3b8;
+    padding:22px;
+    text-align:center;
+    border:1px dashed rgba(148,163,184,.25);
+    border-radius:18px;
+}
+
+@media(max-width:1100px){
+    .grid{grid-template-columns:1fr}
+    .report-main{grid-template-columns:1fr}
+}
+
+@media(max-width:700px){
+    body{padding:14px}
+    .header{flex-direction:column;align-items:flex-start}
+    .header-actions{width:100%}
+    .factor-table{font-size:12px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header class="header">
+    <div>
+        <h1>🧠 RainGuard AI - Explainable AI Decision Engine</h1>
+        <p>واجهة تشرح قرارات الذكاء الاصطناعي: لماذا صدر التنبيه؟ ما العوامل المؤثرة؟ وما مستوى الثقة؟</p>
+    </div>
+
+    <div class="header-actions">
+        <div class="badge">AI EXPLAINABILITY</div>
+        <button class="secondary" onclick="window.location.href='index.html'">العودة للرئيسية</button>
+        <button onclick="reloadFromStorage()">تحديث البيانات</button>
+    </div>
+</header>
+
+<div class="grid">
+
+<section class="panel">
+    <div class="panel-title">
+        <h2>المدن محل التحليل</h2>
+        <button onclick="simulateUpdate()">محاكاة تحديث</button>
+    </div>
+
+    <div class="city-list" id="cityList"></div>
+
+    <div class="footer-note">
+        تقرأ هذه الصفحة البيانات من localStorage:
+        <b>rainguard_rain_alert_lifecycle</b>.
+        إذا لم توجد بيانات، تستخدم بيانات تجريبية.
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-title">
+        <h2>AI Decision Report</h2>
+        <button onclick="showDecisionPopup()">عرض التقرير</button>
+    </div>
+
+    <div id="decisionReport"></div>
+</section>
+
+</div>
+</div>
+
+<script>
+const LIFECYCLE_KEY = "rainguard_rain_alert_lifecycle";
+
+let cities = [];
+let selectedIndex = 0;
+
+const demoCities = [
+    {name:"جازان",score:43.23,forecast24Score:43.23,forecast72Score:43.23,floodRiskScore:26,humidity:73,cloudScore:66,windSpeed:14,pressure:1009},
+    {name:"أبها",score:58.2,forecast24Score:64.4,forecast72Score:67.9,floodRiskScore:31,humidity:78,cloudScore:81,windSpeed:18,pressure:1007},
+    {name:"خميس مشيط",score:37.1,forecast24Score:42.5,forecast72Score:45.8,floodRiskScore:18,humidity:61,cloudScore:55,windSpeed:11,pressure:1011},
+    {name:"نجران",score:49.8,forecast24Score:54.6,forecast72Score:56.1,floodRiskScore:22,humidity:68,cloudScore:63,windSpeed:16,pressure:1008},
+    {name:"رابغ",score:30.4,forecast24Score:33.2,forecast72Score:35.5,floodRiskScore:12,humidity:55,cloudScore:44,windSpeed:9,pressure:1013}
+];
+
+function readStoredCities(){
+    try{
+        const raw = localStorage.getItem(LIFECYCLE_KEY);
+        const parsed = JSON.parse(raw || "[]");
+
+        if(Array.isArray(parsed) && parsed.length > 0){
+            return parsed;
+        }
+
+        return demoCities;
+    }catch(e){
+        console.warn("Failed to read stored lifecycle:", e);
+        return demoCities;
+    }
+}
+
+function normalizeCity(city){
+    return {
+        name: city.name || city.city || "غير محدد",
+        score: Number(city.score || city.actualRiskScore || 0),
+        forecast24Score: Number(city.forecast24Score || city.forecast24 || city.score || 0),
+        forecast72Score: Number(city.forecast72Score || city.forecast72 || city.score || 0),
+        floodRiskScore: Number(city.floodRiskScore || city.flood_score || 0),
+        humidity: Number(city.humidity || city.relative_humidity || 0),
+        cloudScore: Number(city.cloudScore || city.cloud_cover || 0),
+        windSpeed: Number(city.windSpeed || city.wind_speed || city.wind || 0),
+        pressure: Number(city.pressure || city.pressure_msl || 0),
+        updatedAt: city.updatedAt || Date.now()
+    };
+}
+
+function calculateDecisionFactors(city) {
+    const rainScore = Number(city.score || city.actualRiskScore || 0);
+    const forecast24 = Number(city.forecast24Score || city.forecast24 || 0);
+    const forecast72 = Number(city.forecast72Score || city.forecast72 || 0);
+    const floodRisk = Number(city.floodRiskScore || city.flood_score || 0);
+    const humidity = Number(city.humidity || city.relative_humidity || 0);
+    const cloudCover = Number(city.cloudScore || city.cloud_cover || 0);
+    const windSpeed = Number(city.windSpeed || city.wind_speed || city.wind || 0);
+    const pressure = Number(city.pressure || city.pressure_msl || 0);
+
+    const maxRain = Math.max(rainScore, forecast24, forecast72);
+
+    const pressureWeight =
+        pressure > 0 && pressure <= 1008 ? 6 :
+        pressure > 1008 && pressure <= 1012 ? 3 :
+        0;
+
+    return [
+        {
+            name: "Rain Score",
+            value: rainScore + "%",
+            rawValue: rainScore,
+            weight: Math.round(maxRain * 0.35),
+            reason: rainScore >= 60 ? "مؤشر المطر الحالي مرتفع ويدعم إصدار التنبيه." : rainScore >= 30 ? "مؤشر المطر الحالي تحت المتابعة." : "مؤشر المطر الحالي منخفض."
+        },
+        {
+            name: "Forecast 24h",
+            value: forecast24 + "%",
+            rawValue: forecast24,
+            weight: Math.round(forecast24 * 0.20),
+            reason: forecast24 >= 60 ? "توقع 24 ساعة يدعم استمرار الحالة." : forecast24 >= 30 ? "توقع 24 ساعة يستدعي المتابعة." : "توقع 24 ساعة منخفض."
+        },
+        {
+            name: "Forecast 72h",
+            value: forecast72 + "%",
+            rawValue: forecast72,
+            weight: Math.round(forecast72 * 0.15),
+            reason: forecast72 >= 60 ? "توقع 72 ساعة يشير إلى استمرار الحالة." : forecast72 >= 30 ? "توقع 72 ساعة تحت المتابعة." : "توقع 72 ساعة منخفض."
+        },
+        {
+            name: "Flood Risk",
+            value: floodRisk + "%",
+            rawValue: floodRisk,
+            weight: Math.round(floodRisk * 0.15),
+            reason: floodRisk >= 60 ? "يوجد خطر سيول أو تجمع مياه مرتفع." : floodRisk >= 30 ? "يوجد قابلية لتجمع مياه أو سيول." : "خطر السيول منخفض."
+        },
+        {
+            name: "Humidity",
+            value: humidity + "%",
+            rawValue: humidity,
+            weight: Math.round(humidity * 0.08),
+            reason: humidity >= 75 ? "الرطوبة مرتفعة وتدعم فرصة الهطول." : humidity >= 55 ? "الرطوبة متوسطة وتدعم المتابعة." : "الرطوبة ليست مرتفعة كفاية."
+        },
+        {
+            name: "Cloud Cover",
+            value: cloudCover + "%",
+            rawValue: cloudCover,
+            weight: Math.round(cloudCover * 0.05),
+            reason: cloudCover >= 75 ? "الغطاء السحابي مرتفع." : cloudCover >= 45 ? "الغطاء السحابي متوسط." : "الغطاء السحابي محدود."
+        },
+        {
+            name: "Wind",
+            value: windSpeed + " km/h",
+            rawValue: windSpeed,
+            weight: windSpeed >= 20 ? 7 : windSpeed >= 10 ? 5 : 2,
+            reason: windSpeed >= 20 ? "الرياح نشطة وقد تساعد على تحرك السحب بسرعة." : windSpeed >= 10 ? "الرياح تساعد على حركة السحب." : "حركة الرياح ضعيفة."
+        },
+        {
+            name: "Pressure",
+            value: pressure > 0 ? pressure + " hPa" : "غير متوفر",
+            rawValue: pressure,
+            weight: pressureWeight,
+            reason: pressure > 0 && pressure <= 1008 ? "الضغط الجوي منخفض نسبياً ويدعم عدم الاستقرار." : pressure > 1008 && pressure <= 1012 ? "الضغط الجوي متوسط ويستدعي المتابعة." : "لا يوجد تأثير واضح للضغط الجوي."
+        }
+    ];
+}
+
+function calculateDecisionScore(city) {
+    const factors = calculateDecisionFactors(city);
+    const total = factors.reduce((sum, item) => sum + Number(item.weight || 0), 0);
+    return Math.max(0, Math.min(100, Math.round(total)));
+}
+
+function calculateAIConfidence(city) {
+    const score = Number(city.score || 0);
+    const f24 = Number(city.forecast24Score || 0);
+    const f72 = Number(city.forecast72Score || 0);
+    const flood = Number(city.floodRiskScore || 0);
+    const humidity = Number(city.humidity || 0);
+    const cloud = Number(city.cloudScore || 0);
+
+    const spread = Math.abs(f24 - f72);
+
+    let confidence =
+        score * 0.30 +
+        f24 * 0.25 +
+        f72 * 0.20 +
+        flood * 0.10 +
+        humidity * 0.10 +
+        cloud * 0.05;
+
+    if (spread <= 10) confidence += 8;
+    if (spread <= 5) confidence += 5;
+
+    return Math.max(0, Math.min(100, Number(confidence.toFixed(1))));
+}
+
+function getDecisionLevel(score) {
+    score = Number(score || 0);
+
+    if (score >= 75) {
+        return {level:"High Risk",label:"🟠 خطر مرتفع",className:"level-high",color:"#f59e0b",recommendation:"رفع مستوى المراقبة وإصدار تنبيه واضح للمستخدم."};
+    }
+
+    if (score >= 55) {
+        return {level:"Developing",label:"🟡 الحالة تتطور",className:"level-developing",color:"#facc15",recommendation:"استمرار المراقبة وتحديث الحالة كل 10 دقائق."};
+    }
+
+    if (score >= 30) {
+        return {level:"Monitoring",label:"🔵 تحت المتابعة",className:"level-monitoring",color:"#38bdf8",recommendation:"متابعة الحالة دون إصدار تحذير مرتفع."};
+    }
+
+    return {level:"Stable",label:"🟢 مستقر",className:"level-stable",color:"#22c55e",recommendation:"لا توجد مؤشرات تستدعي التنبيه حالياً."};
+}
+
+function buildAIDecisionReport(city){
+    const factors = calculateDecisionFactors(city);
+    const score = calculateDecisionScore(city);
+    const confidence = calculateAIConfidence(city);
+    const decision = getDecisionLevel(score);
+
+    return {
+        city: city.name || city.city || "غير محدد",
+        score,
+        confidence,
+        decision,
+        factors,
+        generatedAt: Date.now()
+    };
+}
+
+function renderCityList(){
+    const box = document.getElementById("cityList");
+
+    if(!cities.length){
+        box.innerHTML = '<div class="empty-state">لا توجد بيانات حالياً.</div>';
+        return;
+    }
+
+    box.innerHTML = cities.map((city,index)=>{
+        const report = buildAIDecisionReport(city);
+
+        return `
+            <div class="city-card ${index === selectedIndex ? "active" : ""}" onclick="selectCity(${index})">
+                <div class="city-head">
+                    <strong>${city.name}</strong>
+                    <span class="level-chip ${report.decision.className}">${report.decision.level}</span>
+                </div>
+
+                <p>
+                    Decision Score: <b>${report.score}%</b><br>
+                    AI Confidence: <b>${report.confidence}%</b><br>
+                    المطر الآن: ${city.score}% | السيول: ${city.floodRiskScore}%
+                </p>
+            </div>
+        `;
+    }).join("");
+}
+
+function renderDecisionReport(){
+    const box = document.getElementById("decisionReport");
+
+    if(!cities.length){
+        box.innerHTML = '<div class="empty-state">لا توجد بيانات قرار حالياً.</div>';
+        return;
+    }
+
+    const city = cities[selectedIndex] || cities[0];
+    const report = buildAIDecisionReport(city);
+
+    box.innerHTML = `
+        <div class="report-main">
+            <div class="score-box">
+                <span>Decision Score</span>
+                <strong style="color:${report.decision.color}">${report.score}%</strong>
+            </div>
+
+            <div class="score-box">
+                <span>AI Confidence</span>
+                <strong>${report.confidence}%</strong>
+            </div>
+
+            <div class="score-box">
+                <span>Decision Level</span>
+                <strong style="font-size:22px;color:${report.decision.color}">${report.decision.level}</strong>
+            </div>
+        </div>
+
+        <div class="decision-banner" style="border-color:${report.decision.color}">
+            <h3>${report.city}</h3>
+            <div style="color:${report.decision.color};font-weight:900;font-size:20px;">
+                ${report.decision.label}
+            </div>
+            <div>${report.decision.recommendation}</div>
+        </div>
+
+        <table class="factor-table">
+            <thead>
+                <tr>
+                    <th>العامل</th>
+                    <th>القيمة</th>
+                    <th>التأثير</th>
+                    <th>المؤشر</th>
+                    <th>سبب التأثير</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${report.factors.map(item => `
+                    <tr>
+                        <td class="factor-name">${item.name}</td>
+                        <td>${item.value}</td>
+                        <td class="weight">+${item.weight}</td>
+                        <td>
+                            <div class="bar-wrap">
+                                <div class="bar" style="width:${Math.min(100, item.weight)}%"></div>
+                            </div>
+                        </td>
+                        <td class="reason-cell">${item.reason}</td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+
+        <div class="explain-box">
+            <h3>الشرح النهائي</h3>
+            ✔ المدينة: <b>${report.city}</b><br>
+            ✔ القرار: <b style="color:${report.decision.color}">${report.decision.label}</b><br>
+            ✔ درجة القرار: <b>${report.score}%</b><br>
+            ✔ ثقة الذكاء الاصطناعي: <b>${report.confidence}%</b><br>
+            ✔ التوصية: ${report.decision.recommendation}<br>
+            <small>آخر تحليل: ${new Date(report.generatedAt).toLocaleTimeString("ar-SA")}</small>
+        </div>
+    `;
+}
+
+function selectCity(index){
+    selectedIndex = index;
+    renderCityList();
+    renderDecisionReport();
+}
+
+function reloadFromStorage(){
+    cities = readStoredCities().map(normalizeCity);
+    selectedIndex = 0;
+    renderAll();
+}
+
+function simulateUpdate(){
+    cities = cities.map(city => ({
+        ...city,
+        score: Math.min(100, +(Number(city.score || 0) + Math.random() * 7).toFixed(2)),
+        forecast24Score: Math.min(100, +(Number(city.forecast24Score || 0) + Math.random() * 6).toFixed(2)),
+        forecast72Score: Math.min(100, +(Number(city.forecast72Score || 0) + Math.random() * 4).toFixed(2)),
+        floodRiskScore: Math.min(100, +(Number(city.floodRiskScore || 0) + Math.random() * 3).toFixed(2))
+    }));
+
+    renderAll();
+}
+
+function showDecisionPopup(){
+    if(!cities.length) return;
+
+    const report = buildAIDecisionReport(cities[selectedIndex] || cities[0]);
+
+    const factorsText = report.factors
+        .map(item => `${item.name}: ${item.value} | +${item.weight} | ${item.reason}`)
+        .join("\n");
+
+    window.alert(
+        "AI Decision Report\n\n" +
+        "المدينة: " + report.city + "\n" +
+        "القرار: " + report.decision.label + "\n" +
+        "Decision Score: " + report.score + "%\n" +
+        "AI Confidence: " + report.confidence + "%\n\n" +
+        "العوامل:\n" +
+        factorsText + "\n\n" +
+        "التوصية: " + report.decision.recommendation
+    );
+}
+
+function renderAll(){
+    renderCityList();
+    renderDecisionReport();
+}
+
+reloadFromStorage();
+</script>
+
+</body>
+</html>
