@@ -1,0 +1,394 @@
+from pathlib import Path
+
+html = r'''<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI - Alert Command Center</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Tahoma,Arial,sans-serif}
+body{
+    min-height:100vh;
+    background:
+        radial-gradient(circle at 15% 10%,rgba(14,165,233,.20),transparent 30%),
+        radial-gradient(circle at 90% 20%,rgba(37,99,235,.18),transparent 32%),
+        linear-gradient(135deg,#020617,#0f172a 55%,#082f49);
+    color:#e5e7eb;
+    padding:24px;
+}
+.command-center{max-width:1400px;margin:auto}
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    margin-bottom:22px;
+}
+.header h1{font-size:34px;color:#f8fafc}
+.header p{color:#94a3b8;margin-top:8px;line-height:1.7}
+.live-badge{
+    background:rgba(34,197,94,.13);
+    border:1px solid rgba(34,197,94,.45);
+    color:#86efac;
+    padding:12px 18px;
+    border-radius:999px;
+    font-weight:900;
+}
+.kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:14px;
+    margin-bottom:18px;
+}
+.kpi{
+    background:rgba(15,23,42,.88);
+    border:1px solid rgba(96,165,250,.20);
+    border-radius:20px;
+    padding:18px;
+    box-shadow:0 18px 45px rgba(0,0,0,.30);
+}
+.kpi span{color:#94a3b8;font-size:13px}
+.kpi strong{display:block;margin-top:8px;font-size:30px;color:#38bdf8}
+.kpi.danger strong{color:#ef4444}
+.kpi.warning strong{color:#f59e0b}
+.kpi.green strong{color:#22c55e}
+
+.layout{
+    display:grid;
+    grid-template-columns:1.15fr .85fr;
+    gap:18px;
+}
+.panel{
+    background:rgba(15,23,42,.90);
+    border:1px solid rgba(96,165,250,.22);
+    border-radius:22px;
+    padding:18px;
+    box-shadow:0 18px 50px rgba(0,0,0,.32);
+}
+.panel-title{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:16px;
+}
+.panel-title h2{font-size:23px;color:#f8fafc}
+.panel-title button{
+    border:1px solid rgba(56,189,248,.45);
+    background:linear-gradient(135deg,#0ea5e9,#2563eb);
+    color:white;
+    padding:10px 14px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:900;
+}
+.alert-list{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.alert-card{
+    background:rgba(2,6,23,.58);
+    border:1px solid rgba(148,163,184,.18);
+    border-radius:18px;
+    padding:14px;
+    cursor:pointer;
+    transition:.2s;
+}
+.alert-card:hover,.alert-card.active{
+    border-color:#38bdf8;
+    background:rgba(14,165,233,.12);
+    transform:translateY(-2px);
+}
+.alert-head{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+}
+.alert-head strong{font-size:19px;color:#f8fafc}
+.stage{
+    padding:5px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:900;
+    white-space:nowrap;
+}
+.stage.monitoring{background:rgba(56,189,248,.15);color:#7dd3fc;border:1px solid rgba(56,189,248,.35)}
+.stage.developing{background:rgba(250,204,21,.15);color:#fde68a;border:1px solid rgba(250,204,21,.35)}
+.stage.high{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
+.stage.raining{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.35)}
+.alert-card p{color:#cbd5e1;line-height:1.8;font-size:14px}
+
+.detail-city{font-size:34px;font-weight:900;color:#38bdf8;margin-bottom:8px}
+.detail-stage{font-size:19px;margin-bottom:16px;color:#f8fafc}
+.metrics{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin-bottom:18px;
+}
+.metric{
+    background:rgba(2,6,23,.62);
+    border:1px solid rgba(148,163,184,.15);
+    border-radius:15px;
+    padding:14px;
+    text-align:center;
+}
+.metric span{display:block;color:#94a3b8;font-size:12px}
+.metric strong{display:block;margin-top:7px;font-size:22px;color:#e0f2fe}
+.timeline{margin-top:10px}
+.step{
+    display:flex;
+    gap:12px;
+    padding:10px 0;
+}
+.circle{
+    width:30px;height:30px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:#1e293b;color:#94a3b8;
+    border:1px solid rgba(148,163,184,.25);
+    flex-shrink:0;font-weight:900;
+}
+.step.done .circle{background:#16a34a;color:white}
+.step.current .circle{background:#0ea5e9;color:white;animation:pulse 1.3s infinite}
+.step-text{border-bottom:1px solid rgba(148,163,184,.10);padding-bottom:10px;width:100%}
+.step-text h3{font-size:16px;color:#f8fafc}
+.step-text p{margin-top:4px;color:#94a3b8;font-size:13px;line-height:1.6}
+.reason{
+    margin-top:16px;
+    background:rgba(2,6,23,.60);
+    border:1px solid rgba(56,189,248,.25);
+    border-radius:18px;
+    padding:16px;
+    line-height:2;
+}
+.reason h3{color:#7dd3fc;margin-bottom:8px}
+.footer-note{margin-top:16px;color:#94a3b8;font-size:13px;line-height:1.8}
+
+@keyframes pulse{
+    0%{transform:scale(1)}
+    50%{transform:scale(1.14);box-shadow:0 0 20px rgba(14,165,233,.65)}
+    100%{transform:scale(1)}
+}
+@media(max-width:1100px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)}
+    .layout{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+    body{padding:14px}
+    .header{flex-direction:column;align-items:flex-start}
+    .alert-list{grid-template-columns:1fr}
+    .metrics{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+
+<body>
+<div class="command-center">
+
+<header class="header">
+    <div>
+        <h1>🌧 RainGuard AI - Alert Command Center</h1>
+        <p>مركز عمليات ذكي لمتابعة تنبيهات المطر، تطور الحالة، سبب التنبيه، ومؤشرات السيول لكل مدينة.</p>
+    </div>
+    <div class="live-badge">● LIVE MONITORING</div>
+</header>
+
+<section class="kpi-grid">
+    <div class="kpi"><span>التنبيهات النشطة</span><strong id="kpiActive">0</strong></div>
+    <div class="kpi warning"><span>تحت المتابعة</span><strong id="kpiMonitoring">0</strong></div>
+    <div class="kpi warning"><span>حالات تتطور</span><strong id="kpiDeveloping">0</strong></div>
+    <div class="kpi danger"><span>خطر مرتفع / مطر حاضر</span><strong id="kpiHigh">0</strong></div>
+    <div class="kpi green"><span>متوسط الخطر</span><strong id="kpiAvg">0%</strong></div>
+</section>
+
+<div class="layout">
+
+<section class="panel">
+    <div class="panel-title">
+        <h2>قائمة التنبيهات</h2>
+        <button onclick="refreshDemo()">تحديث تجريبي</button>
+    </div>
+    <div class="alert-list" id="alertList"></div>
+</section>
+
+<section class="panel">
+    <div class="panel-title">
+        <h2>تفاصيل الحالة</h2>
+        <button onclick="showReason()">سبب التنبيه</button>
+    </div>
+
+    <div class="detail-city" id="detailCity">--</div>
+    <div class="detail-stage" id="detailStage">--</div>
+
+    <div class="metrics">
+        <div class="metric"><span>المطر الآن</span><strong id="mScore">0%</strong></div>
+        <div class="metric"><span>توقع 24 ساعة</span><strong id="m24">0%</strong></div>
+        <div class="metric"><span>توقع 72 ساعة</span><strong id="m72">0%</strong></div>
+        <div class="metric"><span>خطر السيول</span><strong id="mFlood">0%</strong></div>
+    </div>
+
+    <div class="timeline" id="timelineBox"></div>
+
+    <div class="reason">
+        <h3>تحليل الذكاء الاصطناعي</h3>
+        <div id="reasonBox">اختر مدينة من القائمة لعرض سبب التنبيه.</div>
+    </div>
+
+    <div class="footer-note">
+        عند الدمج داخل RainGuard AI استبدل مصفوفة <b>alerts</b> بنتائج <b>loadRainAlertLifecycle()</b>.
+    </div>
+</section>
+
+</div>
+</div>
+
+<script>
+let alerts = [
+    {name:"جازان",score:43.23,forecast24Score:43.23,forecast72Score:43.23,floodRiskScore:26,updatedAt:Date.now()},
+    {name:"أبها",score:58.2,forecast24Score:64.4,forecast72Score:67.9,floodRiskScore:31,updatedAt:Date.now()},
+    {name:"خميس مشيط",score:37.1,forecast24Score:42.5,forecast72Score:45.8,floodRiskScore:18,updatedAt:Date.now()},
+    {name:"نجران",score:49.8,forecast24Score:54.6,forecast72Score:56.1,floodRiskScore:22,updatedAt:Date.now()},
+    {name:"رابغ",score:30.4,forecast24Score:33.2,forecast72Score:35.5,floodRiskScore:12,updatedAt:Date.now()}
+];
+
+let selectedIndex = 0;
+
+function getStage(a){
+    const score = Number(a.score || 0);
+    const maxScore = Math.max(Number(a.score||0), Number(a.forecast24Score||0), Number(a.forecast72Score||0));
+    const flood = Number(a.floodRiskScore || 0);
+
+    if(score >= 70) return {key:"raining", label:"🔴 Raining | المطر حاضر الآن", className:"raining"};
+    if(maxScore >= 70) return {key:"high", label:"🟠 High Risk | خطر مرتفع", className:"high"};
+    if(maxScore >= 50) return {key:"developing", label:"🟡 Developing | الحالة تتطور", className:"developing"};
+    if(maxScore >= 30 || flood >= 25) return {key:"monitoring", label:"🔵 Monitoring | تحت المتابعة", className:"monitoring"};
+    return {key:"cleared", label:"⚪ Cleared | انتهى التنبيه", className:"monitoring"};
+}
+
+function getTimeline(a){
+    const score = Number(a.score || 0);
+    const maxScore = Math.max(Number(a.score||0), Number(a.forecast24Score||0), Number(a.forecast72Score||0));
+    const flood = Number(a.floodRiskScore || 0);
+
+    return [
+        {title:"بدأ الرصد", desc:"تم التقاط مؤشرات مطر أولية.", state:maxScore>=30?"done":"wait"},
+        {title:"ازدياد المؤشرات", desc:"ارتفعت مؤشرات المطر أو السحب.", state:maxScore>=40?"done":"wait"},
+        {title:"احتمال مطر واضح", desc:"المؤشرات وصلت لمستوى احتمالي واضح.", state:maxScore>=50?"current":"wait"},
+        {title:"تنبيه مطر", desc:"إصدار تنبيه عند وصول المؤشر لمستوى مرتفع.", state:maxScore>=60?"done":"wait"},
+        {title:"المطر حاضر", desc:"المطر يعتبر حاضرًا عندما يرتفع المؤشر الحالي.", state:score>=70?"done":"wait"},
+        {title:"مراقبة السيول", desc:"تبدأ عند ارتفاع خطر السيول أو الهطول.", state:flood>=30?"done":"wait"},
+        {title:"انتهاء الحالة", desc:"تنتهي عند هبوط المؤشرات دون مستوى المتابعة.", state:maxScore<30?"done":"wait"}
+    ];
+}
+
+function renderKpis(){
+    const stages = alerts.map(getStage);
+    const monitoring = stages.filter(s=>s.key==="monitoring").length;
+    const developing = stages.filter(s=>s.key==="developing").length;
+    const high = stages.filter(s=>s.key==="high" || s.key==="raining").length;
+    const avg = alerts.length ? Math.round(alerts.reduce((sum,a)=>sum + Math.max(a.score,a.forecast24Score,a.forecast72Score),0)/alerts.length) : 0;
+
+    document.getElementById("kpiActive").textContent = alerts.length;
+    document.getElementById("kpiMonitoring").textContent = monitoring;
+    document.getElementById("kpiDeveloping").textContent = developing;
+    document.getElementById("kpiHigh").textContent = high;
+    document.getElementById("kpiAvg").textContent = avg + "%";
+}
+
+function renderAlertList(){
+    const box = document.getElementById("alertList");
+    box.innerHTML = alerts.map((a,i)=>{
+        const stage = getStage(a);
+        const maxScore = Math.max(a.score,a.forecast24Score,a.forecast72Score);
+        return `
+            <div class="alert-card ${i===selectedIndex ? "active" : ""}" onclick="selectAlert(${i})">
+                <div class="alert-head">
+                    <strong>${a.name}</strong>
+                    <span class="stage ${stage.className}">${stage.key}</span>
+                </div>
+                <p>
+                    ${stage.label}<br>
+                    أعلى مؤشر: ${maxScore}% | السيول: ${a.floodRiskScore}%<br>
+                    آخر تحديث: ${new Date(a.updatedAt).toLocaleTimeString("ar-SA")}
+                </p>
+            </div>
+        `;
+    }).join("");
+}
+
+function renderDetails(){
+    const a = alerts[selectedIndex];
+    const stage = getStage(a);
+
+    document.getElementById("detailCity").textContent = a.name;
+    document.getElementById("detailStage").textContent = stage.label;
+    document.getElementById("mScore").textContent = a.score + "%";
+    document.getElementById("m24").textContent = a.forecast24Score + "%";
+    document.getElementById("m72").textContent = a.forecast72Score + "%";
+    document.getElementById("mFlood").textContent = a.floodRiskScore + "%";
+
+    document.getElementById("timelineBox").innerHTML = getTimeline(a).map((s,i)=>`
+        <div class="step ${s.state}">
+            <div class="circle">${s.state==="done" ? "✓" : s.state==="current" ? "●" : i+1}</div>
+            <div class="step-text">
+                <h3>${s.title}</h3>
+                <p>${s.desc}</p>
+            </div>
+        </div>
+    `).join("");
+
+    renderReason();
+}
+
+function renderReason(){
+    const a = alerts[selectedIndex];
+    const stage = getStage(a);
+    const maxScore = Math.max(a.score,a.forecast24Score,a.forecast72Score);
+
+    document.getElementById("reasonBox").innerHTML = `
+        ✔ المدينة: <b>${a.name}</b><br>
+        ✔ الحالة الحالية: <b>${stage.label}</b><br>
+        ✔ أعلى مؤشر مطر: <b>${maxScore}%</b><br>
+        ✔ توقع 24 ساعة: <b>${a.forecast24Score}%</b><br>
+        ✔ توقع 72 ساعة: <b>${a.forecast72Score}%</b><br>
+        ✔ مؤشر السيول: <b>${a.floodRiskScore}%</b><br>
+        القرار: تم إبقاء المدينة ضمن مركز العمليات للمراقبة المستمرة.
+    `;
+}
+
+function selectAlert(index){
+    selectedIndex = index;
+    renderAlertList();
+    renderDetails();
+}
+
+function showReason(){
+    const text = document.getElementById("reasonBox").innerText;
+    alert(text);
+}
+
+function refreshDemo(){
+    alerts = alerts.map(a=>({
+        ...a,
+        score: Math.min(100, +(a.score + Math.random()*7).toFixed(2)),
+        forecast24Score: Math.min(100, +(a.forecast24Score + Math.random()*6).toFixed(2)),
+        forecast72Score: Math.min(100, +(a.forecast72Score + Math.random()*4).toFixed(2)),
+        floodRiskScore: Math.min(100, +(a.floodRiskScore + Math.random()*3).toFixed(2)),
+        updatedAt: Date.now()
+    }));
+    renderKpis();
+    renderAlertList();
+    renderDetails();
+}
+
+renderKpis();
+renderAlertList();
+renderDetails();
+</script>
+
+</body>
+</html>
+'''
+
+path = Path("/mnt/data/alert_command_center_demo.html")
+path.write_text(html, encoding="utf-8")
+print(path)
