@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI - AI National Brain</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Tahoma,Arial,sans-serif}
+body{min-height:100vh;background:radial-gradient(circle at 10% 10%,rgba(14,165,233,.18),transparent 30%),radial-gradient(circle at 90% 12%,rgba(34,197,94,.12),transparent 32%),linear-gradient(135deg,#020617,#0f172a 58%,#082f49);color:#e5e7eb;padding:24px}
+.container{max-width:1450px;margin:auto}
+.header{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:22px}
+.header h1{font-size:34px;color:#f8fafc}.header p{color:#94a3b8;margin-top:8px;line-height:1.8}
+.header-actions{display:flex;gap:10px;flex-wrap:wrap}
+.badge{background:rgba(14,165,233,.13);border:1px solid rgba(56,189,248,.45);color:#7dd3fc;padding:12px 18px;border-radius:999px;font-weight:900}
+button{border:none;border-radius:14px;padding:12px 18px;color:white;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#0ea5e9,#2563eb);box-shadow:0 12px 26px rgba(37,99,235,.25)}
+button.secondary{background:#0f172a;border:1px solid rgba(56,189,248,.45)}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px}
+.kpi{background:rgba(15,23,42,.90);border:1px solid rgba(96,165,250,.22);border-radius:20px;padding:18px;box-shadow:0 18px 45px rgba(0,0,0,.30)}
+.kpi span{color:#94a3b8;font-size:13px}.kpi strong{display:block;margin-top:8px;font-size:30px;color:#38bdf8}
+.kpi.safe strong{color:#22c55e}.kpi.monitor strong{color:#38bdf8}.kpi.develop strong{color:#facc15}.kpi.high strong{color:#f59e0b}.kpi.rain strong{color:#ef4444}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.panel{background:rgba(15,23,42,.90);border:1px solid rgba(96,165,250,.22);border-radius:22px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.32)}
+.panel-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.panel-title h2{color:#f8fafc;font-size:23px}
+.national-decision{background:rgba(2,6,23,.60);border:1px solid rgba(56,189,248,.25);border-radius:20px;padding:22px;line-height:2}
+.national-decision h3{color:#7dd3fc;font-size:26px;margin-bottom:10px}
+.decision-level{font-size:30px;font-weight:900;margin:12px 0}
+.recommendation{background:rgba(14,165,233,.12);border:1px solid rgba(56,189,248,.25);border-radius:16px;padding:14px;margin-top:14px}
+.city-list{display:flex;flex-direction:column;gap:12px}
+.city-card{background:rgba(2,6,23,.58);border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:14px;transition:.2s}
+.city-card:hover{transform:translateY(-2px);border-color:#38bdf8}
+.city-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px}
+.city-head strong{font-size:19px;color:#f8fafc}
+.stage{padding:5px 10px;border-radius:999px;font-size:12px;font-weight:900;white-space:nowrap}
+.stage.safe{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.35)}
+.stage.monitor{background:rgba(56,189,248,.15);color:#7dd3fc;border:1px solid rgba(56,189,248,.35)}
+.stage.develop{background:rgba(250,204,21,.15);color:#fde68a;border:1px solid rgba(250,204,21,.35)}
+.stage.high{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
+.stage.rain{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.35)}
+.city-card p{color:#cbd5e1;line-height:1.8;font-size:14px}
+.rank-number{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;background:#0ea5e9;color:white;font-weight:900;margin-left:8px}
+.map-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.region-box{background:rgba(2,6,23,.55);border:1px solid rgba(148,163,184,.18);border-radius:16px;padding:14px;text-align:center}
+.region-box strong{display:block;margin-top:8px;font-size:22px}
+.brain-log{max-height:360px;overflow:auto;padding-left:6px}
+.log-item{background:rgba(2,6,23,.55);border:1px solid rgba(148,163,184,.14);border-radius:14px;padding:12px;margin-bottom:10px;line-height:1.8}
+.log-item small{color:#94a3b8}
+.empty-state{color:#94a3b8;padding:22px;text-align:center;border:1px dashed rgba(148,163,184,.25);border-radius:18px}
+.footer-note{margin-top:16px;color:#94a3b8;font-size:13px;line-height:1.8}
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}}
+@media(max-width:700px){body{padding:14px}.header{flex-direction:column;align-items:flex-start}.map-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="header">
+<div><h1>🧠 RainGuard AI - AI National Brain</h1><p>العقل الوطني الذكي لتحليل حالة المطر والسيول على مستوى المدن وإصدار قرار وطني موحد.</p></div>
+<div class="header-actions"><div class="badge">NATIONAL AI BRAIN</div><button class="secondary" onclick="window.location.href='index.html'">العودة للرئيسية</button><button onclick="reloadBrain()">تحديث البيانات</button></div>
+</header>
+<section class="kpi-grid">
+<div class="kpi safe"><span>المدن الآمنة</span><strong id="safeCount">0</strong></div>
+<div class="kpi monitor"><span>تحت المتابعة</span><strong id="monitorCount">0</strong></div>
+<div class="kpi develop"><span>حالات تتطور</span><strong id="developCount">0</strong></div>
+<div class="kpi high"><span>خطر مرتفع</span><strong id="highCount">0</strong></div>
+<div class="kpi rain"><span>مطر حاضر الآن</span><strong id="rainingCount">0</strong></div>
+</section>
+<div class="layout">
+<section class="panel"><div class="panel-title"><h2>القرار الوطني للذكاء الاصطناعي</h2><button onclick="showNationalDecision()">عرض القرار</button></div><div id="nationalDecisionBox" class="national-decision">جاري التحليل...</div></section>
+<section class="panel"><div class="panel-title"><h2>أعلى 5 مدن خطورة</h2><button onclick="simulateBrainUpdate()">محاكاة تحديث</button></div><div id="topRiskCities" class="city-list"></div></section>
+<section class="panel"><div class="panel-title"><h2>توزيع الحالة الوطنية</h2></div><div class="map-grid">
+<div class="region-box">🟢 آمن<strong id="safePercent">0%</strong></div>
+<div class="region-box">🔵 متابعة<strong id="monitorPercent">0%</strong></div>
+<div class="region-box">🟡 تطور<strong id="developPercent">0%</strong></div>
+<div class="region-box">🟠 خطر<strong id="highPercent">0%</strong></div>
+<div class="region-box">🔴 مطر<strong id="rainPercent">0%</strong></div>
+<div class="region-box">📊 متوسط الخطر<strong id="avgRisk">0%</strong></div>
+</div><div class="footer-note">تعتمد هذه الصفحة على بيانات <b>rainguard_rain_alert_lifecycle</b> من localStorage. إذا لم توجد بيانات تستخدم نموذجًا تجريبيًا.</div></section>
+<section class="panel"><div class="panel-title"><h2>سجل قرارات AI Brain</h2></div><div id="brainLog" class="brain-log"></div></section>
+</div></div>
+<script>
+const STORAGE_KEY="rainguard_rain_alert_lifecycle";let cities=[];
+const demoCities=[{name:"جازان",score:43.23,forecast24Score:43.23,forecast72Score:43.23,floodRiskScore:26,updatedAt:Date.now()},{name:"أبها",score:58.2,forecast24Score:64.4,forecast72Score:67.9,floodRiskScore:31,updatedAt:Date.now()},{name:"خميس مشيط",score:37.1,forecast24Score:42.5,forecast72Score:45.8,floodRiskScore:18,updatedAt:Date.now()},{name:"نجران",score:49.8,forecast24Score:54.6,forecast72Score:56.1,floodRiskScore:22,updatedAt:Date.now()},{name:"رابغ",score:30.4,forecast24Score:33.2,forecast72Score:35.5,floodRiskScore:12,updatedAt:Date.now()},{name:"الطائف",score:22.1,forecast24Score:24.6,forecast72Score:28.4,floodRiskScore:8,updatedAt:Date.now()},{name:"جدة",score:18.3,forecast24Score:21.7,forecast72Score:26.2,floodRiskScore:10,updatedAt:Date.now()},{name:"مكة",score:26.5,forecast24Score:31.9,forecast72Score:34.2,floodRiskScore:16,updatedAt:Date.now()}];
+function readCities(){try{const raw=localStorage.getItem(STORAGE_KEY);const parsed=JSON.parse(raw||"[]");return Array.isArray(parsed)&&parsed.length>0?parsed:demoCities}catch(e){console.warn("Failed to read national brain data:",e);return demoCities}}
+function normalizeCity(city){return{name:city.name||city.city||"غير محدد",score:Number(city.score||city.actualRiskScore||0),forecast24Score:Number(city.forecast24Score||city.forecast24||city.score||0),forecast72Score:Number(city.forecast72Score||city.forecast72||city.score||0),floodRiskScore:Number(city.floodRiskScore||city.flood_score||0),updatedAt:city.updatedAt||Date.now()}}
+function getCityRisk(city){return Math.max(Number(city.score||0),Number(city.forecast24Score||0),Number(city.forecast72Score||0),Number(city.floodRiskScore||0))}
+function getCityStage(city){const score=Number(city.score||0);const risk=getCityRisk(city);const flood=Number(city.floodRiskScore||0);if(score>=70)return{key:"raining",label:"🔴 مطر حاضر",className:"rain"};if(risk>=70)return{key:"high",label:"🟠 خطر مرتفع",className:"high"};if(risk>=50)return{key:"developing",label:"🟡 الحالة تتطور",className:"develop"};if(risk>=30||flood>=25)return{key:"monitoring",label:"🔵 تحت المتابعة",className:"monitor"};return{key:"safe",label:"🟢 آمن",className:"safe"}}
+function summarizeNationalState(){const s={safe:0,monitoring:0,developing:0,high:0,raining:0,avgRisk:0,total:cities.length};if(!cities.length)return s;let totalRisk=0;cities.forEach(city=>{const st=getCityStage(city);const risk=getCityRisk(city);totalRisk+=risk;if(st.key==="safe")s.safe++;if(st.key==="monitoring")s.monitoring++;if(st.key==="developing")s.developing++;if(st.key==="high")s.high++;if(st.key==="raining")s.raining++});s.avgRisk=Math.round(totalRisk/cities.length);return s}
+function getNationalDecision(s){const danger=s.high+s.raining;if(s.raining>=2||danger>=3||s.avgRisk>=75)return{level:"National High Alert",label:"🔴 إنذار وطني مرتفع",color:"#ef4444",recommendation:"رفع حالة الجاهزية الوطنية ومتابعة المدن عالية الخطورة بشكل فوري."};if(danger>=1||s.developing>=3||s.avgRisk>=55)return{level:"National Watch",label:"🟠 مراقبة وطنية مشددة",color:"#f59e0b",recommendation:"تفعيل المراقبة المشددة للمدن المتأثرة ومراجعة التحديثات كل 10 دقائق."};if(s.monitoring>=2||s.developing>=1||s.avgRisk>=30)return{level:"National Monitoring",label:"🔵 متابعة وطنية",color:"#38bdf8",recommendation:"استمرار المراقبة الوطنية دون رفع الإنذار إلى مستوى الخطر المرتفع."};return{level:"National Stable",label:"🟢 الوضع الوطني مستقر",color:"#22c55e",recommendation:"لا توجد مؤشرات وطنية تستدعي الإنذار حالياً."}}
+function renderKpis(s){document.getElementById("safeCount").textContent=s.safe;document.getElementById("monitorCount").textContent=s.monitoring;document.getElementById("developCount").textContent=s.developing;document.getElementById("highCount").textContent=s.high;document.getElementById("rainingCount").textContent=s.raining}
+function renderNationalDistribution(s){const total=s.total||1;document.getElementById("safePercent").textContent=Math.round((s.safe/total)*100)+"%";document.getElementById("monitorPercent").textContent=Math.round((s.monitoring/total)*100)+"%";document.getElementById("developPercent").textContent=Math.round((s.developing/total)*100)+"%";document.getElementById("highPercent").textContent=Math.round((s.high/total)*100)+"%";document.getElementById("rainPercent").textContent=Math.round((s.raining/total)*100)+"%";document.getElementById("avgRisk").textContent=s.avgRisk+"%"}
+function renderNationalDecision(s){const d=getNationalDecision(s);document.getElementById("nationalDecisionBox").innerHTML=`<h3>قرار AI الوطني</h3><div class="decision-level" style="color:${d.color}">${d.label}</div><div>عدد المدن: <b>${s.total}</b><br>متوسط الخطر الوطني: <b>${s.avgRisk}%</b><br>المدن عالية الخطورة: <b>${s.high}</b><br>المدن التي تشهد مطراً الآن: <b>${s.raining}</b><br>المدن تحت المتابعة: <b>${s.monitoring}</b></div><div class="recommendation"><b>التوصية:</b><br>${d.recommendation}</div><small>آخر تحليل: ${new Date().toLocaleTimeString("ar-SA")}</small>`}
+function renderTopRiskCities(){const box=document.getElementById("topRiskCities");if(!cities.length){box.innerHTML='<div class="empty-state">لا توجد بيانات حالياً.</div>';return}const sorted=[...cities].sort((a,b)=>getCityRisk(b)-getCityRisk(a)).slice(0,5);box.innerHTML=sorted.map((city,index)=>{const st=getCityStage(city);const risk=getCityRisk(city);return `<div class="city-card"><div class="city-head"><strong><span class="rank-number">${index+1}</span>${city.name}</strong><span class="stage ${st.className}">${st.label}</span></div><p>أعلى مؤشر خطر: <b>${risk}%</b><br>المطر الآن: ${city.score}% | توقع 24 ساعة: ${city.forecast24Score}% | توقع 72 ساعة: ${city.forecast72Score}% | خطر السيول: ${city.floodRiskScore}%<br>آخر تحديث: ${new Date(city.updatedAt).toLocaleTimeString("ar-SA")}</p></div>`}).join("")}
+function renderBrainLog(s){const d=getNationalDecision(s);const box=document.getElementById("brainLog");const sorted=[...cities].sort((a,b)=>getCityRisk(b)-getCityRisk(a)).slice(0,5);box.innerHTML=`<div class="log-item"><strong style="color:${d.color}">${d.label}</strong><br><small>${new Date().toLocaleString("ar-SA")}</small><br>القرار: ${d.recommendation}</div>${sorted.map(city=>{const st=getCityStage(city);return `<div class="log-item"><strong>${city.name}</strong> - ${st.label}<br><small>Risk: ${getCityRisk(city)}% | Rain: ${city.score}% | Flood: ${city.floodRiskScore}%</small></div>`}).join("")}`}
+function renderAll(){const s=summarizeNationalState();renderKpis(s);renderNationalDistribution(s);renderNationalDecision(s);renderTopRiskCities();renderBrainLog(s)}
+function reloadBrain(){cities=readCities().map(normalizeCity);renderAll()}
+function simulateBrainUpdate(){cities=cities.map(city=>({...city,score:Math.min(100,+(Number(city.score||0)+Math.random()*7).toFixed(2)),forecast24Score:Math.min(100,+(Number(city.forecast24Score||0)+Math.random()*6).toFixed(2)),forecast72Score:Math.min(100,+(Number(city.forecast72Score||0)+Math.random()*4).toFixed(2)),floodRiskScore:Math.min(100,+(Number(city.floodRiskScore||0)+Math.random()*3).toFixed(2)),updatedAt:Date.now()}));renderAll()}
+function showNationalDecision(){const s=summarizeNationalState();const d=getNationalDecision(s);window.alert("AI National Brain Decision\n\n"+"القرار: "+d.label+"\n"+"المستوى: "+d.level+"\n"+"متوسط الخطر: "+s.avgRisk+"%\n"+"المدن عالية الخطورة: "+s.high+"\n"+"المطر حاضر الآن: "+s.raining+"\n\n"+"التوصية: "+d.recommendation)}
+reloadBrain();
+</script>
+</body>
+</html>
