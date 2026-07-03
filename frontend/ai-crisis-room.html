@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI - AI Crisis Room</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Tahoma,Arial,sans-serif}
+body{min-height:100vh;background:radial-gradient(circle at 8% 10%,rgba(14,165,233,.20),transparent 30%),radial-gradient(circle at 92% 12%,rgba(239,68,68,.14),transparent 28%),linear-gradient(135deg,#020617,#0f172a 58%,#082f49);color:#e5e7eb;padding:22px}
+.container{max-width:1600px;margin:auto}
+.header{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:18px}
+.header h1{font-size:34px;color:#f8fafc}.header p{color:#94a3b8;margin-top:8px;line-height:1.8}
+.header-actions{display:flex;gap:10px;flex-wrap:wrap}.badge{background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.45);color:#fca5a5;padding:12px 18px;border-radius:999px;font-weight:900}
+button{border:none;border-radius:14px;padding:12px 18px;color:white;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#0ea5e9,#2563eb);box-shadow:0 12px 26px rgba(37,99,235,.25)}
+button.secondary{background:#0f172a;border:1px solid rgba(56,189,248,.45)}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:rgba(15,23,42,.92);border:1px solid rgba(96,165,250,.22);border-radius:18px;padding:16px;box-shadow:0 18px 45px rgba(0,0,0,.30)}
+.kpi span{color:#94a3b8;font-size:12px}.kpi strong{display:block;margin-top:7px;font-size:26px;color:#38bdf8}.kpi.red strong{color:#ef4444}.kpi.orange strong{color:#f59e0b}.kpi.green strong{color:#22c55e}
+.layout{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}
+.panel{background:rgba(15,23,42,.92);border:1px solid rgba(96,165,250,.22);border-radius:22px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.32)}
+.panel-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.panel-title h2{color:#f8fafc;font-size:22px}
+.big-map{height:580px;background:radial-gradient(circle at 22% 38%,rgba(34,197,94,.20),transparent 15%),radial-gradient(circle at 45% 54%,rgba(56,189,248,.20),transparent 17%),radial-gradient(circle at 64% 35%,rgba(245,158,11,.20),transparent 16%),radial-gradient(circle at 82% 55%,rgba(239,68,68,.22),transparent 16%),#020617;border:1px solid rgba(56,189,248,.25);border-radius:22px;position:relative;overflow:hidden}
+.grid-lines{position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.08) 1px,transparent 1px);background-size:42px 42px;opacity:.6}
+.cloud{position:absolute;width:150px;height:80px;border-radius:999px;background:linear-gradient(135deg,#93c5fd,#38bdf8);right:13%;top:42%;box-shadow:0 0 45px rgba(56,189,248,.45);animation:cloudMove 10s infinite alternate ease-in-out}
+.cloud:before,.cloud:after{content:"";position:absolute;background:#93c5fd;border-radius:50%}.cloud:before{width:78px;height:78px;top:-36px;right:24px}.cloud:after{width:90px;height:90px;top:-46px;left:22px}
+.storm-arrow{position:absolute;left:20%;top:45%;font-size:80px;color:#facc15;animation:pulse 1.5s infinite}
+.rain-lines{position:absolute;right:21%;top:56%;display:flex;gap:10px;animation:rainBlink 1s infinite}.rain-lines span{width:4px;height:40px;background:#38bdf8;border-radius:999px;transform:rotate(18deg)}
+.map-city{position:absolute;width:18px;height:18px;border-radius:50%;background:#22c55e;box-shadow:0 0 18px rgba(34,197,94,.9)}.map-city.monitor{background:#38bdf8;box-shadow:0 0 18px rgba(56,189,248,.9)}.map-city.warn{background:#f59e0b;box-shadow:0 0 18px rgba(245,158,11,.9)}.map-city.emergency{background:#ef4444;box-shadow:0 0 18px rgba(239,68,68,.9)}
+.map-label{position:absolute;transform:translate(40%,-125%);background:rgba(2,6,23,.78);border:1px solid rgba(148,163,184,.22);border-radius:10px;padding:4px 8px;font-size:13px;color:white}
+.ring{position:absolute;width:120px;height:120px;border-radius:50%;border:2px solid rgba(239,68,68,.45);animation:ring 2s infinite}.ring.r1{right:74%;top:48%}.ring.r2{right:58%;top:35%;border-color:rgba(245,158,11,.45)}
+@keyframes cloudMove{from{right:10%;top:38%}to{right:55%;top:50%}}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}@keyframes rainBlink{0%,100%{opacity:.45}50%{opacity:1}}@keyframes ring{0%{transform:scale(.8);opacity:.8}100%{transform:scale(1.55);opacity:0}}
+.commander{background:rgba(2,6,23,.62);border:1px solid rgba(56,189,248,.25);border-radius:20px;padding:18px;line-height:2}.commander h3{font-size:25px;color:#7dd3fc;margin-bottom:8px}.level{font-size:32px;font-weight:900;margin:10px 0}.recommendation{background:rgba(14,165,233,.12);border:1px solid rgba(56,189,248,.25);border-radius:16px;padding:13px;margin-top:12px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.board{display:flex;flex-direction:column;gap:10px;max-height:430px;overflow:auto;padding-left:4px}
+.row{display:grid;grid-template-columns:1fr 1fr 90px;gap:10px;align-items:center;background:rgba(2,6,23,.58);border:1px solid rgba(148,163,184,.16);border-radius:14px;padding:12px;line-height:1.6}.row strong{color:#f8fafc}.row small{color:#94a3b8}
+.status{padding:5px 9px;border-radius:999px;font-size:12px;font-weight:900;text-align:center}.safe{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.35)}.monitor{background:rgba(56,189,248,.15);color:#7dd3fc;border:1px solid rgba(56,189,248,.35)}.warn{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}.emergency{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.35)}
+.timeline{display:flex;flex-direction:column;gap:10px;max-height:430px;overflow:auto;padding-left:4px}.time-row{display:grid;grid-template-columns:82px 1fr 92px;gap:10px;align-items:center;background:rgba(2,6,23,.58);border:1px solid rgba(148,163,184,.16);border-radius:14px;padding:12px}.time{color:#7dd3fc;font-weight:900}.event{color:#f8fafc;font-weight:900}.risk{color:#facc15;font-weight:900;text-align:left}
+.reasoning{display:flex;flex-direction:column;gap:10px}.think{background:rgba(2,6,23,.58);border:1px solid rgba(148,163,184,.16);border-radius:14px;padding:12px;line-height:1.8}.think b{color:#7dd3fc}
+.footer-note{margin-top:12px;color:#94a3b8;font-size:13px;line-height:1.8}
+@media(max-width:1250px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.layout,.split{grid-template-columns:1fr}}@media(max-width:700px){body{padding:14px}.header{flex-direction:column;align-items:flex-start}.kpi-grid{grid-template-columns:repeat(2,1fr)}.row,.time-row{grid-template-columns:1fr}.big-map{height:460px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="header">
+<div><h1>🛰️ RainGuard AI - AI Crisis Room</h1><p>غرفة أزمة وطنية تعرض الحالة العامة، الخريطة الحية، المهام، التايملاين، وتفكير الذكاء الاصطناعي لحظة بلحظة.</p></div>
+<div class="header-actions"><div class="badge">CRISIS ROOM LIVE</div><button class="secondary" onclick="window.location.href='index.html'">العودة للرئيسية</button><button onclick="reloadCrisis()">تحديث البيانات</button></div>
+</header>
+
+<section class="kpi-grid">
+<div class="kpi"><span>National Events</span><strong id="kEvents">0</strong></div>
+<div class="kpi orange"><span>Warning Cities</span><strong id="kWarning">0</strong></div>
+<div class="kpi red"><span>Emergency Cities</span><strong id="kEmergency">0</strong></div>
+<div class="kpi"><span>AI Confidence</span><strong id="kConfidence">0%</strong></div>
+<div class="kpi green"><span>Closed Missions</span><strong id="kClosed">0</strong></div>
+<div class="kpi red"><span>National Status</span><strong id="kStatus">--</strong></div>
+</section>
+
+<div class="layout">
+<section class="panel">
+<div class="panel-title"><h2>National Situation Map</h2><button onclick="simulateCrisis()">محاكاة أزمة</button></div>
+<div class="big-map">
+<div class="grid-lines"></div><div class="cloud"></div><div class="rain-lines"><span></span><span></span><span></span><span></span></div><div class="storm-arrow">➜</div><div class="ring r1"></div><div class="ring r2"></div>
+<div class="map-city monitor" style="right:25%;top:62%"></div><div class="map-label" style="right:25%;top:62%">جازان</div>
+<div class="map-city warn" style="right:45%;top:50%"></div><div class="map-label" style="right:45%;top:50%">أبها</div>
+<div class="map-city warn" style="right:58%;top:42%"></div><div class="map-label" style="right:58%;top:42%">خميس مشيط</div>
+<div class="map-city emergency" style="right:73%;top:56%"></div><div class="map-label" style="right:73%;top:56%">نجران</div>
+<div class="map-city" style="right:68%;top:28%"></div><div class="map-label" style="right:68%;top:28%">جدة</div>
+</div>
+<div class="footer-note">الخريطة تمثيلية، وتدعم لاحقًا الربط مع Leaflet + RainViewer + Event Bus.</div>
+</section>
+
+<section class="panel">
+<div class="panel-title"><h2>National Commander</h2><button onclick="showCrisisDecision()">عرض القرار</button></div>
+<div id="commanderBox" class="commander">جاري التحليل...</div>
+</section>
+</div>
+
+<div class="split">
+<section class="panel"><div class="panel-title"><h2>Live Mission Board</h2></div><div id="missionBoard" class="board"></div></section>
+<section class="panel"><div class="panel-title"><h2>National Timeline</h2></div><div id="timelineBox" class="timeline"></div></section>
+<section class="panel"><div class="panel-title"><h2>Live AI Reasoning</h2></div><div id="reasoningBox" class="reasoning"></div></section>
+<section class="panel"><div class="panel-title"><h2>Emergency Tasks</h2></div><div id="taskBox" class="board"></div></section>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY="rainguard_rain_alert_lifecycle";
+let crisisCities=[];
+
+const demoCities=[
+{name:"جازان",score:43.23,forecast24Score:43.23,forecast72Score:43.23,floodRiskScore:26},
+{name:"أبها",score:58.2,forecast24Score:64.4,forecast72Score:67.9,floodRiskScore:31},
+{name:"خميس مشيط",score:41.68,forecast24Score:41.68,forecast72Score:41.68,floodRiskScore:25},
+{name:"نجران",score:66.5,forecast24Score:70.1,forecast72Score:72.4,floodRiskScore:38},
+{name:"جدة",score:18.3,forecast24Score:21.7,forecast72Score:26.2,floodRiskScore:10}
+];
+
+function readCities(){try{const raw=localStorage.getItem(STORAGE_KEY);const parsed=JSON.parse(raw||"[]");return Array.isArray(parsed)&&parsed.length?parsed:demoCities}catch(e){return demoCities}}
+function normalize(c){return{name:c.name||c.city||"غير محدد",score:Number(c.score||c.actualRiskScore||0),forecast24Score:Number(c.forecast24Score||c.forecast24||c.score||0),forecast72Score:Number(c.forecast72Score||c.forecast72||c.score||0),floodRiskScore:Number(c.floodRiskScore||c.flood_score||0)}}
+function risk(c){return Math.max(c.score,c.forecast24Score,c.forecast72Score,c.floodRiskScore)}
+function stage(c){const r=risk(c);if(c.score>=70)return{key:"emergency",label:"🔴 Emergency",cls:"emergency",task:"إرسال إنذار فوري"};if(r>=65)return{key:"warning",label:"🟠 Warning",cls:"warn",task:"رفع حالة المراقبة"};if(r>=30)return{key:"monitoring",label:"🔵 Monitoring",cls:"monitor",task:"متابعة مؤشرات المطر"};return{key:"safe",label:"🟢 Safe",cls:"safe",task:"إغلاق الحالة"}}
+function summary(){let s={events:0,warning:0,emergency:0,monitor:0,safe:0,avg:0,closed:0,confidence:0};if(!crisisCities.length)return s;let total=0;crisisCities.forEach(c=>{const st=stage(c);total+=risk(c);if(st.key==="warning")s.warning++;if(st.key==="emergency")s.emergency++;if(st.key==="monitoring")s.monitor++;if(st.key==="safe")s.safe++});s.avg=Math.round(total/crisisCities.length);s.events=crisisCities.length+s.warning+s.emergency+s.monitor;s.closed=s.safe;let spread=Math.abs((crisisCities[0]?.forecast24Score||0)-(crisisCities[0]?.forecast72Score||0));s.confidence=Math.min(99,Math.round(70+s.avg*.25+(spread<=10?8:0)));return s}
+function decision(s){if(s.emergency>0||s.avg>=70)return{level:"Emergency",label:"🔴 National Emergency",color:"#ef4444",action:"Activate Crisis Response",rec:"تفعيل غرفة الأزمة وإصدار تنبيهات فورية ومتابعة السيول."};if(s.warning>0||s.avg>=55)return{level:"Warning",label:"🟠 National Warning",color:"#f59e0b",action:"Escalate Monitoring",rec:"رفع المراقبة الوطنية وتحديث الموقف كل 10 دقائق."};if(s.monitor>0||s.avg>=30)return{level:"Monitoring",label:"🔵 National Monitoring",color:"#38bdf8",action:"Continue Watch",rec:"استمرار المتابعة الوطنية دون إعلان طوارئ."};return{level:"Stable",label:"🟢 Stable",color:"#22c55e",action:"No Action",rec:"لا توجد مؤشرات تستدعي التدخل حالياً."}}
+function renderKpis(){const s=summary(),d=decision(s);document.getElementById("kEvents").textContent=s.events;document.getElementById("kWarning").textContent=s.warning;document.getElementById("kEmergency").textContent=s.emergency;document.getElementById("kConfidence").textContent=s.confidence+"%";document.getElementById("kClosed").textContent=s.closed;document.getElementById("kStatus").textContent=d.level}
+function renderCommander(){const s=summary(),d=decision(s);document.getElementById("commanderBox").innerHTML=`<h3>National Commander</h3><div class="level" style="color:${d.color}">${d.label}</div><div>Decision: <b>${d.action}</b><br>Confidence: <b>${s.confidence}%</b><br>Avg Risk: <b>${s.avg}%</b><br>Warning Cities: <b>${s.warning}</b><br>Emergency Cities: <b>${s.emergency}</b></div><div class="recommendation"><b>التوصية:</b><br>${d.rec}</div><small>آخر قرار: ${new Date().toLocaleTimeString("ar-SA")}</small>`}
+function renderMissionBoard(){const sorted=[...crisisCities].sort((a,b)=>risk(b)-risk(a));document.getElementById("missionBoard").innerHTML=sorted.map(c=>{const st=stage(c);return `<div class="row"><div><strong>${c.name}</strong><br><small>Risk ${risk(c)}%</small></div><div>${st.task}</div><div class="status ${st.cls}">${st.label}</div></div>`}).join("")}
+function renderTimeline(){const sorted=[...crisisCities].sort((a,b)=>risk(b)-risk(a));document.getElementById("timelineBox").innerHTML=sorted.map((c,i)=>{const st=stage(c);return `<div class="time-row"><div class="time">+${i*6} دقيقة</div><div class="event">${c.name}: ${st.task}</div><div class="risk">${risk(c)}%</div></div>`}).join("")}
+function renderReasoning(){const s=summary(),d=decision(s);const top=[...crisisCities].sort((a,b)=>risk(b)-risk(a))[0];document.getElementById("reasoningBox").innerHTML=`<div class="think"><b>AI Thinking...</b><br>✔ أعلى مدينة خطورة: ${top?.name||"--"} (${top?risk(top):0}%)</div><div class="think">✔ متوسط الخطر الوطني: ${s.avg}%</div><div class="think">✔ المدن التحذيرية: ${s.warning} | الطوارئ: ${s.emergency}</div><div class="think">✔ القرار النهائي: <b style="color:${d.color}">${d.label}</b></div><div class="think">✔ التوصية: ${d.rec}</div>`}
+function renderTasks(){const s=summary();const tasks=[["إصدار تنبيه وطني",s.emergency>0?"emergency":"monitor"],["تحديث الحالة كل 10 دقائق","monitor"],["متابعة السيول",s.warning>0?"warn":"monitor"],["إغلاق المدن الآمنة","safe"],["رفع تقرير AI للقيادة",s.avg>=55?"warn":"monitor"]];document.getElementById("taskBox").innerHTML=tasks.map((t,i)=>`<div class="row"><div><strong>${i+1}</strong></div><div>${t[0]}</div><div class="status ${t[1]}">${t[1]}</div></div>`).join("")}
+function renderAll(){renderKpis();renderCommander();renderMissionBoard();renderTimeline();renderReasoning();renderTasks()}
+function reloadCrisis(){crisisCities=readCities().map(normalize);renderAll()}
+function simulateCrisis(){crisisCities=crisisCities.map(c=>({...c,score:Math.min(100,+(c.score+Math.random()*9).toFixed(2)),forecast24Score:Math.min(100,+(c.forecast24Score+Math.random()*7).toFixed(2)),forecast72Score:Math.min(100,+(c.forecast72Score+Math.random()*5).toFixed(2)),floodRiskScore:Math.min(100,+(c.floodRiskScore+Math.random()*5).toFixed(2))}));renderAll()}
+function showCrisisDecision(){const s=summary(),d=decision(s);alert("AI Crisis Room Decision\n\n"+"Status: "+d.label+"\nDecision: "+d.action+"\nConfidence: "+s.confidence+"%\nAvg Risk: "+s.avg+"%\n\nRecommendation: "+d.rec)}
+reloadCrisis();
+</script>
+</body>
+</html>
