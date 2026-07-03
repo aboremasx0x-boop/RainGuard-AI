@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>App.js Additions - Rain Alert Lifecycle</title>
+<title>App.js Additions - Rain Alert Lifecycle + Event Bus</title>
 <style>
 body{background:#0f172a;color:#e5e7eb;font-family:Tahoma,Arial,sans-serif;padding:24px;line-height:1.8}
 h1{color:#38bdf8}
@@ -12,17 +12,17 @@ pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#020617;border
 </style>
 </head>
 <body>
-<h1>App.js Additions - Rain Alert Lifecycle</h1>
-<div class="note">انسخ الكود التالي إلى الملف المناسب في GitHub.</div>
+<h1>App.js Additions - Rain Alert Lifecycle + Live Event Bus</h1>
+<div class="note">انسخ الكود التالي إلى <b>frontend/app.js</b> في الأماكن الموضحة داخل التعليقات.</div>
 <pre><code>/* =========================================================
-RainGuard AI - Rain Alert Lifecycle + Alert Command Center Additions
+RainGuard AI - Rain Alert Lifecycle + Live Event Bus Integration
 انسخ هذا الكود داخل frontend/app.js
 
 المكان المقترح:
-1) الثوابت في أعلى الملف بعد FLOOD_ALERT_LAST_KEY
+1) الثوابت في أعلى app.js بعد ثوابت Flood
 2) الدوال قبل window.onload
 3) استدعاءات window.onload داخل window.onload الحالي
-4) saveRainAlertLifecycle داخل runSmartMultiCityBackgroundCheck
+4) saveRainAlertLifecycle + publishMultiCityResultsToEventBus داخل runSmartMultiCityBackgroundCheck
 ========================================================= */
 
 
@@ -48,7 +48,7 @@ function getRainAlertStage(city) {
     const forecast72 = Number(city.forecast72Score || city.forecast72 || 0);
     const flood = Number(city.floodRiskScore || city.flood_score || 0);
     const cloud = Number(city.cloudScore || city.cloud_cover || 0);
-    const humidity = Number(city.humidity || 0);
+    const humidity = Number(city.humidity || city.relative_humidity || 0);
 
     const maxScore = Math.max(score, forecast24, forecast72);
 
@@ -60,7 +60,7 @@ function getRainAlertStage(city) {
         };
     }
 
-    if (maxScore &gt;= 70 || (cloud &gt;= 80 &amp;&amp; humidity &gt;= 70)) {
+    if (maxScore &gt;= 70 || flood &gt;= 50 || (cloud &gt;= 80 &amp;&amp; humidity &gt;= 70)) {
         return {
             stage: "high_risk",
             label: "🟠 High Risk | خطر مرتفع",
@@ -68,7 +68,7 @@ function getRainAlertStage(city) {
         };
     }
 
-    if (maxScore &gt;= 50 || (cloud &gt;= 65 &amp;&amp; humidity &gt;= 60)) {
+    if (maxScore &gt;= 50 || flood &gt;= 35 || (cloud &gt;= 65 &amp;&amp; humidity &gt;= 60)) {
         return {
             stage: "developing",
             label: "🟡 Developing | الحالة تتطور",
@@ -91,8 +91,28 @@ function getRainAlertStage(city) {
     };
 }
 
+function normalizeRainAlertCity(city) {
+    const lifecycle = getRainAlertStage(city);
+
+    return {
+        name: city.name || city.city || "غير محدد",
+        lat: city.lat || city.latitude || null,
+        lon: city.lon || city.longitude || null,
+        score: Number(city.score || city.actualRiskScore || 0),
+        forecast24Score: Number(city.forecast24Score || city.forecast24 || city.score || 0),
+        forecast72Score: Number(city.forecast72Score || city.forecast72 || city.score || 0),
+        floodRiskScore: Number(city.floodRiskScore || city.flood_score || 0),
+        cloudScore: Number(city.cloudScore || city.cloud_cover || 0),
+        humidity: Number(city.humidity || city.relative_humidity || 0),
+        stage: lifecycle.stage,
+        label: lifecycle.label,
+        color: lifecycle.color,
+        updatedAt: Date.now()
+    };
+}
+
 function saveRainAlertLifecycle(results) {
-    if (!Array.isArray(results)) return;
+    if (!Array.isArray(results)) return [];
 
     const activeAlerts = results
         .filter(city =&gt; {
@@ -105,23 +125,7 @@ function saveRainAlertLifecycle(results) {
 
             return maxScore &gt;= 30;
         })
-        .map(city =&gt; {
-            const lifecycle = getRainAlertStage(city);
-
-            return {
-                name: city.name || city.city || "غير محدد",
-                lat: city.lat || city.latitude || null,
-                lon: city.lon || city.longitude || null,
-                score: Number(city.score || city.actualRiskScore || 0),
-                forecast24Score: Number(city.forecast24Score || city.forecast24 || city.score || 0),
-                forecast72Score: Number(city.forecast72Score || city.forecast72 || city.score || 0),
-                floodRiskScore: Number(city.floodRiskScore || city.flood_score || 0),
-                stage: lifecycle.stage,
-                label: lifecycle.label,
-                color: lifecycle.color,
-                updatedAt: Date.now()
-            };
-        });
+        .map(normalizeRainAlertCity);
 
     localStorage.setItem(
         RAIN_ALERT_LIFECYCLE_KEY,
@@ -129,13 +133,17 @@ function saveRainAlertLifecycle(results) {
     );
 
     renderRainAlertLifecycle(activeAlerts);
+
+    return activeAlerts;
 }
 
 function loadRainAlertLifecycle() {
     try {
-        return JSON.parse(
+        const data = JSON.parse(
             localStorage.getItem(RAIN_ALERT_LIFECYCLE_KEY) || "[]"
         );
+
+        return Array.isArray(data) ? data : [];
     } catch {
         return [];
     }
@@ -233,6 +241,30 @@ function showRainAlertReason(cityName) {
         Number(item.forecast72Score || 0)
     );
 
+    if (
+        window.RainGuardDecisionEngine &amp;&amp;
+        typeof window.RainGuardDecisionEngine.renderAIDecisionReport === "function"
+    ) {
+        window.RainGuardDecisionEngine.renderAIDecisionReport(
+            item,
+            "aiDecisionReportBoxAlerts"
+        );
+    }
+
+    if (
+        window.RainGuardEventBus &amp;&amp;
+        typeof window.RainGuardEventBus.aiDecision === "function"
+    ) {
+        window.RainGuardEventBus.aiDecision({
+            city: item.name,
+            stage: item.stage,
+            label: item.label,
+            decisionScore: maxScore,
+            floodRiskScore: item.floodRiskScore,
+            reason: "تم عرض سبب التنبيه من Rain Alert Lifecycle"
+        });
+    }
+
     window.alert(
         "سبب التنبيه:\n\n" +
         "المدينة: " + item.name + "\n" +
@@ -265,7 +297,71 @@ function startRainAlertLifecycleMonitor() {
 
 
 /* ===============================
-   3) App.js integration points
+   3) Live Event Bus Integration
+   ضع هذه الدالة قبل window.onload
+================================ */
+
+function publishMultiCityResultsToEventBus(results) {
+    if (!window.RainGuardEventBus || !Array.isArray(results)) return;
+
+    results.forEach(city =&gt; {
+        const score = Number(city.score || city.actualRiskScore || 0);
+        const flood = Number(city.floodRiskScore || city.flood_score || 0);
+        const forecast24 = Number(city.forecast24Score || city.forecast24 || 0);
+        const forecast72 = Number(city.forecast72Score || city.forecast72 || 0);
+        const maxScore = Math.max(score, forecast24, forecast72, flood);
+
+        window.RainGuardEventBus.updateCity({
+            name: city.name || city.city || "غير محدد",
+            score,
+            forecast24Score: forecast24,
+            forecast72Score: forecast72,
+            floodRiskScore: flood,
+            risk: maxScore,
+            updatedAt: Date.now()
+        });
+
+        if (score &gt;= 30 || forecast24 &gt;= 30 || forecast72 &gt;= 30) {
+            window.RainGuardEventBus.rainAlert({
+                name: city.name || city.city || "غير محدد",
+                score,
+                forecast24Score: forecast24,
+                forecast72Score: forecast72,
+                floodRiskScore: flood,
+                risk: maxScore
+            });
+        }
+
+        if (flood &gt;= 30) {
+            window.RainGuardEventBus.floodAlert({
+                name: city.name || city.city || "غير محدد",
+                score,
+                forecast24Score: forecast24,
+                forecast72Score: forecast72,
+                floodRiskScore: flood,
+                risk: maxScore
+            });
+        }
+
+        if (window.RainGuardDecisionEngine) {
+            const report = window.RainGuardDecisionEngine.buildAIDecisionReport?.(city);
+
+            if (report) {
+                window.RainGuardEventBus.aiDecision({
+                    city: report.city,
+                    decisionScore: report.score,
+                    confidence: report.confidence,
+                    decision: report.decision?.level,
+                    label: report.decision?.label
+                });
+            }
+        }
+    });
+}
+
+
+/* ===============================
+   4) App.js integration points
 ================================ */
 
 /*
@@ -278,6 +374,16 @@ window.lastMultiCityResults = sortedResults;
 
 saveRainAlertLifecycle?.(sortedResults);
 renderRainAlertLifecycle?.();
+publishMultiCityResultsToEventBus?.(sortedResults);
+
+
+/*
+إذا كانت الدالة عندك تستخدم results وليس sortedResults، أضف هذا بدلاً منه:
+*/
+
+saveRainAlertLifecycle?.(results);
+renderRainAlertLifecycle?.();
+publishMultiCityResultsToEventBus?.(results);
 
 
 /*
@@ -287,13 +393,26 @@ renderRainAlertLifecycle?.();
 try {
     renderRainAlertLifecycle?.();
     startRainAlertLifecycleMonitor?.();
+
+    if (window.RainGuardEventBus) {
+        window.RainGuardEventBus.autoRender?.("liveEventBusBox", 20);
+        window.RainGuardEventBus.systemStatus?.({
+            name: "RainGuard AI",
+            status: "Application loaded",
+            score: 100
+        });
+    }
 } catch (e) {
-    console.warn("Rain Alert Lifecycle skipped:", e);
+    console.warn("Rain Alert Lifecycle / Event Bus skipped:", e);
 }
 
 setTimeout(() =&gt; {
     try {
         renderRainAlertLifecycle(loadRainAlertLifecycle());
+
+        if (window.lastMultiCityResults &amp;&amp; Array.isArray(window.lastMultiCityResults)) {
+            publishMultiCityResultsToEventBus(window.lastMultiCityResults);
+        }
     } catch (e) {
         console.warn("Rain Alert Lifecycle delayed render skipped:", e);
     }
