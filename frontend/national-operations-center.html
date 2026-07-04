@@ -341,34 +341,31 @@ const defaultCities = [
     {name:"الدمام", lat:26.4207, lon:50.0888, score:10, floodRiskScore:0}
 ];
 
-function n(v){return Number(v || 0)}
+function n(v){
+    const num = Number(v);
+    return Number.isFinite(num) ? num : 0;
+}
 
-function getRisk(city){
-    return Math.max(
-        n(city.risk),
-        n(city.score),
-        n(city.actualRiskScore),
-        n(city.rain_score),
-        n(city.forecast24Score),
-        n(city.forecast72Score),
-        n(city.floodRiskScore),
-        n(city.flood_score)
-    );
+function clampScore(v){
+    return Math.max(0, Math.min(100, Math.round(n(v))));
 }
 
 function normalizeCities(data){
     data = Array.isArray(data) ? data : [];
-    return data.map(c => ({
-        name:c.name || c.city || c.location_name || "غير محدد",
-        lat:n(c.lat || c.latitude),
-        lon:n(c.lon || c.longitude),
-        risk:getRisk(c),
-        rain:n(c.score || c.actualRiskScore || c.rain_score),
-        flood:n(c.floodRiskScore || c.flood_score),
-        stage:c.stage || c.alertLevel || c.alert_level || "Monitoring"
-    })).sort((a,b)=>b.risk-a.risk);
-}
 
+    return data
+        .map(c => ({
+            name: c.name || c.city || c.location_name || "",
+            lat: n(c.lat || c.latitude),
+            lon: n(c.lon || c.longitude),
+            risk: getRisk(c),
+            rain: clampScore(c.score || c.actualRiskScore || c.rain_score),
+            flood: clampScore(c.floodRiskScore || c.flood_score),
+            stage: c.stage || c.alertLevel || c.alert_level || "Monitoring"
+        }))
+        .filter(c => c.name && c.name !== "غير محدد" && c.risk > 0)
+        .sort((a,b)=>b.risk-a.risk);
+}
 function getCachedCities(){
     try{
         const keys = [
@@ -436,14 +433,17 @@ function renderMap(cities){
 }
 
 function updateRibbon(cities){
-    const avg = cities.length ? Math.round(cities.reduce((s,c)=>s+c.risk,0)/cities.length) : 0;
+    const avg = cities.length
+        ? clampScore(cities.reduce((s,c)=>s+c.risk,0) / cities.length)
+        : 0;
+
     const top = cities[0];
 
     document.getElementById("topCity").innerText = top?.name || "--";
     document.getElementById("avgRisk").innerText = avg + "%";
     document.getElementById("criticalCities").innerText = cities.filter(c=>c.risk>=70).length;
     document.getElementById("floodWatch").innerText = cities.filter(c=>c.flood>=30).length;
-    document.getElementById("aiConfidence").innerText = Math.min(96,65 + Math.round(avg/3)) + "%";
+    document.getElementById("aiConfidence").innerText = Math.min(96, 65 + Math.round(avg / 3)) + "%";
     document.getElementById("lastUpdate").innerText = new Date().toLocaleTimeString("ar-SA");
 
     document.getElementById("decisionRisk").innerText = avg + "%";
@@ -452,15 +452,18 @@ function updateRibbon(cities){
     if(avg >= 70){
         document.getElementById("nationalDecision").innerText = "National Warning";
         document.getElementById("decisionText").innerText = "Raise Alert";
-        document.getElementById("recommendationText").innerText = "رفع مستوى التحذير الوطني وتفعيل عمليات المتابعة الميدانية.";
+        document.getElementById("recommendationText").innerText =
+            "رفع مستوى التحذير الوطني وتفعيل عمليات المتابعة الميدانية.";
     }else if(avg >= 30){
         document.getElementById("nationalDecision").innerText = "National Monitoring";
         document.getElementById("decisionText").innerText = "Continue Watch";
-        document.getElementById("recommendationText").innerText = "استمرار المراقبة الذكية وتحديث البيانات دوريًا.";
+        document.getElementById("recommendationText").innerText =
+            "استمرار المراقبة الذكية وتحديث البيانات دوريًا.";
     }else{
         document.getElementById("nationalDecision").innerText = "National Stable";
         document.getElementById("decisionText").innerText = "Normal Status";
-        document.getElementById("recommendationText").innerText = "الوضع الوطني مستقر ولا توجد حاجة للتصعيد.";
+        document.getElementById("recommendationText").innerText =
+            "الوضع الوطني مستقر ولا توجد حاجة للتصعيد.";
     }
 }
 
