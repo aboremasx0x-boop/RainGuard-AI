@@ -48,7 +48,52 @@ const FLOOD_ALERT_EXTREME_SCORE = 80;
 const FLOOD_ALERT_COOLDOWN_MINUTES = 180;
 const FLOOD_ALERT_LAST_KEY = "rainguard_v10_flood_alert";
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
+function updateTopCityCard(results) {
+    const nameEl =
+        document.getElementById("topCityName") ||
+        document.getElementById("topRiskCity");
+
+    const scoreEl =
+        document.getElementById("topCityRisk") ||
+        document.getElementById("topRiskScore");
+
+    const detailsEl =
+        document.getElementById("topCityDetails") ||
+        document.getElementById("topRiskDetails");
+
+    if (!Array.isArray(results) || results.length === 0) {
+        if (nameEl) nameEl.innerText = "غير محدد";
+        if (scoreEl) scoreEl.innerText = "--%";
+        if (detailsEl) detailsEl.innerText = "لم يتم تشغيل مراقبة المدن بعد";
+        return;
+    }
+
+    const top = results
+        .map(city => ({
+            ...city,
+            topScore: Math.max(
+                Number(city.score || 0),
+                Number(city.forecast24Score || 0),
+                Number(city.forecast72Score || 0),
+                Number(city.actualRiskScore || 0),
+                Number(city.floodRiskScore || 0)
+            )
+        }))
+        .sort((a, b) => b.topScore - a.topScore)[0];
+
+    if (!top) return;
+
+    if (nameEl) nameEl.innerText = top.name || "غير محدد";
+    if (scoreEl) scoreEl.innerText = `${Math.round(top.topScore)}%`;
+    if (detailsEl) {
+        detailsEl.innerText =
+            `${top.alertLevel || "متابعة جوية"} | 24 ساعة: ${Math.round(top.forecast24Score || 0)}%`;
+    }
+}
 
 
 
