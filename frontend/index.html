@@ -5,127 +5,147 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0f172a">
 <title>RainGuard AI</title>
+
 <link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="/style.css?v=390">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-.rg-hidden{display:none!important}.rg-panel{display:none}.rg-panel.active{display:block}
+.rg-hidden{display:none!important}
+.rg-panel{display:none}
+.rg-panel.active{display:block}
 #rainAlertLifecycleBox{display:block;min-height:250px;padding:12px}
 .lifecycle-alert-card{display:block;padding:14px;margin-bottom:12px;border-radius:16px;background:#0f172a;color:#e2e8f0;line-height:1.9}
 .lifecycle-alert-card button{margin-top:12px;margin-bottom:8px;padding:10px 18px;border-radius:14px;border:1px solid rgba(56,189,248,.65);background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;font-weight:800;cursor:pointer}
 .alert-timeline{margin-top:12px;padding-top:10px;border-top:1px solid rgba(148,163,184,.18)}
 .alert-timeline-step{display:flex;align-items:center;gap:8px;color:#94a3b8;font-size:13px;margin:6px 0}
 .alert-timeline-step span{width:22px;height:22px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:#1e293b;color:#94a3b8;font-size:12px}
-.alert-timeline-step.active{color:#e0f2fe;font-weight:800}.alert-timeline-step.active span{background:#0ea5e9;color:white}
+.alert-timeline-step.active{color:#e0f2fe;font-weight:800}
+.alert-timeline-step.active span{background:#0ea5e9;color:white}
 .ai-decision-card{background:#0f172a;border:1px solid #38bdf8;border-radius:18px;padding:16px;color:#e2e8f0;line-height:1.8}
 .ai-decision-main{display:flex;justify-content:space-between;gap:12px;margin:12px 0;font-size:18px}
 .ai-decision-score{background:rgba(2,6,23,.7);border-radius:14px;padding:12px;margin:12px 0;color:#93c5fd}
 .ai-decision-recommendation{background:rgba(14,165,233,.12);border:1px solid rgba(56,189,248,.25);border-radius:14px;padding:12px;margin-bottom:12px}
 .ai-factor-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(148,163,184,.15)}
-.ai-factor-row small{color:#94a3b8}.ai-factor-row span{color:#38bdf8;font-weight:800}
+.ai-factor-row small{color:#94a3b8}
+.ai-factor-row span{color:#38bdf8;font-weight:800}
+#topCityDetails{margin-top:6px;color:#cbd5e1;font-size:13px;line-height:1.7}
 </style>
 </head>
+
 <body>
 <div class="rg-app">
+
 <aside class="rg-sidebar">
-<div class="rg-brand">
-<h1>🌧 RainGuard AI</h1>
-<p>منصة إنذار المطر الذكية V11</p>
-<small>Cloud Motion Engine V10 ☁️</small><br>
-<small>Digital Terrain Engine V11 ⛰️</small>
-</div>
-<nav class="rg-nav">
-<button class="rg-nav-item active" onclick="showProPanel('homePanel', this)"><i class="fa-solid fa-house"></i> الرئيسية</button>
-<button class="rg-nav-item" onclick="showProPanel('mapPanel', this)"><i class="fa-solid fa-map"></i> الخريطة التفاعلية</button>
-<button class="rg-nav-item" onclick="showProPanel('forecastPanel', this)"><i class="fa-solid fa-calendar-days"></i> التوقعات</button>
-<button class="rg-nav-item" onclick="showProPanel('citiesPanel', this)"><i class="fa-solid fa-city"></i> المدن والسيول</button>
-<button class="rg-nav-item" onclick="showProPanel('aiPanel', this)"><i class="fa-solid fa-brain"></i> الذكاء الاصطناعي</button>
-<button class="rg-nav-item" onclick="showProPanel('dashboardPanel', this)"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
-<button class="rg-nav-item" onclick="window.open('alert-command-center.html','_blank')"><i class="fa-solid fa-tower-broadcast"></i> مركز العمليات</button>
-<button class="rg-nav-item" onclick="window.open('decision-engine.html','_blank')"><i class="fa-solid fa-microchip"></i> Explainable AI</button>
-<button class="rg-nav-item" onclick="window.open('national-ai-brain.html','_blank')"><i class="fa-solid fa-network-wired"></i> AI National Brain</button>
-<button class="rg-nav-item" onclick="window.open('storm-tracking.html','_blank')"><i class="fa-solid fa-cloud-bolt"></i> Storm Tracking</button>
-<button class="rg-nav-item" onclick="window.open('ai-mission-center.html','_blank')"><i class="fa-solid fa-headset"></i> AI Mission Center</button>
-<button class="rg-nav-item" onclick="window.open('ai-crisis-room.html','_blank')"><i class="fa-solid fa-satellite-dish"></i> AI Crisis Room</button>
-<button class="rg-nav-item" onclick="window.open('ai-confidence.html','_blank')"><i class="fa-solid fa-shield-halved"></i> AI Confidence</button>
-<button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)"><i class="fa-solid fa-bell"></i> التنبيهات</button>
-<button class="rg-nav-item" onclick="showProPanel('historyPanel', this)"><i class="fa-solid fa-clipboard-list"></i> السجل والتقييم</button>
-<button class="rg-nav-item" onclick="showProPanel('voicePanel', this)"><i class="fa-solid fa-microphone"></i> المساعد الصوتي</button>
-</nav>
-<div class="rg-side-card"><div class="rg-status-dot"></div><strong>حالة النظام</strong><p>يعمل بكفاءة</p></div>
+    <div class="rg-brand">
+        <h1>🌧 RainGuard AI</h1>
+        <p>منصة إنذار المطر الذكية V11</p>
+        <small>Cloud Motion Engine V10 ☁️</small><br>
+        <small>Digital Terrain Engine V11 ⛰️</small>
+    </div>
+
+    <nav class="rg-nav">
+        <button class="rg-nav-item active" onclick="showProPanel('homePanel', this)"><i class="fa-solid fa-house"></i> الرئيسية</button>
+        <button class="rg-nav-item" onclick="showProPanel('mapPanel', this)"><i class="fa-solid fa-map"></i> الخريطة التفاعلية</button>
+        <button class="rg-nav-item" onclick="showProPanel('forecastPanel', this)"><i class="fa-solid fa-calendar-days"></i> التوقعات</button>
+        <button class="rg-nav-item" onclick="showProPanel('citiesPanel', this)"><i class="fa-solid fa-city"></i> المدن والسيول</button>
+        <button class="rg-nav-item" onclick="showProPanel('aiPanel', this)"><i class="fa-solid fa-brain"></i> الذكاء الاصطناعي</button>
+        <button class="rg-nav-item" onclick="showProPanel('dashboardPanel', this)"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
+        <button class="rg-nav-item" onclick="window.open('alert-command-center.html','_blank')"><i class="fa-solid fa-tower-broadcast"></i> مركز العمليات</button>
+        <button class="rg-nav-item" onclick="window.open('decision-engine.html','_blank')"><i class="fa-solid fa-microchip"></i> Explainable AI</button>
+        <button class="rg-nav-item" onclick="window.open('national-ai-brain.html','_blank')"><i class="fa-solid fa-network-wired"></i> AI National Brain</button>
+        <button class="rg-nav-item" onclick="window.open('storm-tracking.html','_blank')"><i class="fa-solid fa-cloud-bolt"></i> Storm Tracking</button>
+        <button class="rg-nav-item" onclick="window.open('ai-mission-center.html','_blank')"><i class="fa-solid fa-headset"></i> AI Mission Center</button>
+        <button class="rg-nav-item" onclick="window.open('ai-crisis-room.html','_blank')"><i class="fa-solid fa-satellite-dish"></i> AI Crisis Room</button>
+        <button class="rg-nav-item" onclick="window.open('ai-confidence.html','_blank')"><i class="fa-solid fa-shield-halved"></i> AI Confidence</button>
+        <button class="rg-nav-item" onclick="showProPanel('alertsPanel', this)"><i class="fa-solid fa-bell"></i> التنبيهات</button>
+        <button class="rg-nav-item" onclick="showProPanel('historyPanel', this)"><i class="fa-solid fa-clipboard-list"></i> السجل والتقييم</button>
+        <button class="rg-nav-item" onclick="showProPanel('voicePanel', this)"><i class="fa-solid fa-microphone"></i> المساعد الصوتي</button>
+    </nav>
+
+    <div class="rg-side-card"><div class="rg-status-dot"></div><strong>حالة النظام</strong><p>يعمل بكفاءة</p></div>
 </aside>
 
 <main class="rg-main">
+
 <section class="rg-panel active" id="homePanel">
-<section class="rg-hero">
-<div><h2>RainGuard AI</h2><p>منصة وطنية ذكية لرصد المطر والسيول وتحليل المخاطر.</p></div>
-<div class="top-risk-city-card" id="topRiskCityCard"><small>أعلى مدينة حالياً</small><h3 id="topCityName">غير محدد</h3><p id="topCityRisk">--%</p></div>
-</section>
+    <section class="rg-hero">
+        <div><h2>RainGuard AI</h2><p>منصة وطنية ذكية لرصد المطر والسيول وتحليل المخاطر.</p></div>
+        <div class="top-risk-city-card" id="topRiskCityCard">
+            <small>أعلى مدينة حالياً</small>
+            <h3 id="topCityName">غير محدد</h3>
+            <p id="topCityRisk">--%</p>
+            <p id="topCityDetails">جاري تحليل جميع المدن...</p>
+        </div>
+    </section>
 
-<section class="rg-grid rg-summary-grid">
-<div class="summary-card rain"><i class="fa-solid fa-cloud-showers-heavy"></i><span>احتمال المطر</span><strong id="rainProbability">--%</strong><small id="rainStatus">منخفض</small></div>
-<div class="summary-card humidity"><i class="fa-solid fa-droplet"></i><span>الرطوبة</span><strong id="humidityValue">--%</strong><small>متوسطة</small></div>
-<div class="summary-card wind"><i class="fa-solid fa-wind"></i><span>الرياح</span><strong id="windValue">-- كم/س</strong><small id="windDirection">--</small></div>
-<div class="summary-card flood"><i class="fa-solid fa-water"></i><span>مؤشر خطر السيول</span><strong id="floodRiskValue">--%</strong><small>جاري تحليل المخاطر</small></div>
-<div class="summary-card temp"><i class="fa-solid fa-temperature-half"></i><span>درجة الحرارة</span><strong id="temperatureValue">--°</strong><small>حالة مستقرة</small></div>
-</section>
+    <section class="rg-grid rg-summary-grid">
+        <div class="summary-card rain"><i class="fa-solid fa-cloud-showers-heavy"></i><span>احتمال المطر</span><strong id="rainProbability">--%</strong><small id="rainStatus">منخفض</small></div>
+        <div class="summary-card humidity"><i class="fa-solid fa-droplet"></i><span>الرطوبة</span><strong id="humidityValue">--%</strong><small>متوسطة</small></div>
+        <div class="summary-card wind"><i class="fa-solid fa-wind"></i><span>الرياح</span><strong id="windValue">-- كم/س</strong><small id="windDirection">--</small></div>
+        <div class="summary-card flood"><i class="fa-solid fa-water"></i><span>مؤشر خطر السيول</span><strong id="floodRiskValue">--%</strong><small>جاري تحليل المخاطر</small></div>
+        <div class="summary-card temp"><i class="fa-solid fa-temperature-half"></i><span>درجة الحرارة</span><strong id="temperatureValue">--°</strong><small>حالة مستقرة</small></div>
+    </section>
 
-<section class="rg-grid two-cols">
-<section class="rg-card">
-<h2>فحص مدينة محددة</h2>
-<div class="search-row"><input id="cityInput" type="text" placeholder="اكتب اسم المدينة"><button onclick="searchCityAndCheckRain?.()"><i class="fa-solid fa-magnifying-glass"></i></button></div>
-<div class="quick-actions">
-<button onclick="getCurrentLocation?.()">موقعي الحالي <i class="fa-solid fa-location-dot"></i></button>
-<button onclick="checkRainFromInput?.()">فحص المطر <i class="fa-solid fa-cloud-rain"></i></button>
-<button onclick="toggleHeatmap?.()">الخريطة الحرارية <i class="fa-solid fa-fire"></i></button>
-<button onclick="toggleRainRadar?.()">تشغيل الرادار <i class="fa-solid fa-satellite-dish"></i></button>
-<button onclick="checkRain?.(lastLat||21.5433,lastLon||39.1728,lastName||'جدة',false)">تحديث الآن <i class="fa-solid fa-rotate"></i></button>
-<button onclick="runSmartMultiCityBackgroundCheck?.(true)">التحديث الذكي <i class="fa-solid fa-bolt"></i></button>
-</div>
-<small id="refreshStatus">جاهز للتشغيل</small>
-</section>
+    <section class="rg-grid two-cols">
+        <section class="rg-card">
+            <h2>فحص مدينة محددة</h2>
+            <div class="search-row"><input id="cityInput" type="text" placeholder="اكتب اسم المدينة"><button onclick="searchCityAndCheckRain?.()"><i class="fa-solid fa-magnifying-glass"></i></button></div>
+            <div class="quick-actions">
+                <button onclick="getCurrentLocation?.()">موقعي الحالي <i class="fa-solid fa-location-dot"></i></button>
+                <button onclick="checkRainFromInput?.()">فحص المطر <i class="fa-solid fa-cloud-rain"></i></button>
+                <button onclick="toggleHeatmap?.()">الخريطة الحرارية <i class="fa-solid fa-fire"></i></button>
+                <button onclick="toggleRainRadar?.()">تشغيل الرادار <i class="fa-solid fa-satellite-dish"></i></button>
+                <button onclick="checkRain?.(lastLat||21.5433,lastLon||39.1728,lastName||'جدة',false)">تحديث الآن <i class="fa-solid fa-rotate"></i></button>
+                <button onclick="runSmartMultiCityBackgroundCheck?.(true)">التحديث الذكي <i class="fa-solid fa-bolt"></i></button>
+            </div>
+            <small id="refreshStatus">جاهز للتشغيل</small>
+        </section>
 
-<section class="rg-card">
-<h2>ملخص الحالة الآن</h2>
-<div class="current-weather-card"><div class="weather-icon">🌧️</div><div><small>المدينة</small><h3 id="currentCityName">جدة</h3><strong id="currentRainMessage">جاري التحليل...</strong></div></div>
-<div class="risk-bar"><span id="riskPercentText">--%</span><div><div id="riskBarFill" style="width:0%"></div></div><small id="riskBarLabel">لم يتم التحليل بعد</small></div>
-<div class="mini-weather-grid">
-<div>درجة الحرارة<br><strong id="cardTemp">--</strong></div><div>الرطوبة<br><strong id="cardHumidity">--</strong></div><div>السحب<br><strong id="cardCloud">--</strong></div><div>احتمال المطر<br><strong id="cardRain">--</strong></div><div>الضغط<br><strong id="cardPressure">--</strong></div><div>الرياح<br><strong id="cardWind">--</strong></div>
-</div>
-</section>
-</section>
+        <section class="rg-card">
+            <h2>ملخص الحالة الآن</h2>
+            <div class="current-weather-card"><div class="weather-icon">🌧️</div><div><small>المدينة</small><h3 id="currentCityName">جدة</h3><strong id="currentRainMessage">جاري التحليل...</strong></div></div>
+            <div class="risk-bar"><span id="riskPercentText">--%</span><div><div id="riskBarFill" style="width:0%"></div></div><small id="riskBarLabel">لم يتم التحليل بعد</small></div>
+            <div class="mini-weather-grid">
+                <div>درجة الحرارة<br><strong id="cardTemp">--</strong></div><div>الرطوبة<br><strong id="cardHumidity">--</strong></div><div>السحب<br><strong id="cardCloud">--</strong></div><div>احتمال المطر<br><strong id="cardRain">--</strong></div><div>الضغط<br><strong id="cardPressure">--</strong></div><div>الرياح<br><strong id="cardWind">--</strong></div>
+            </div>
+        </section>
+    </section>
 
-<section class="rg-grid two-cols">
-<section class="rg-card"><h2>أعلى المدن مطراً الآن 🌦️</h2><div id="smartMultiCityTopPanel">جاري التحميل...</div></section>
-<section class="rg-card"><h2>المدن قيد الرصد والمتابعة 🔍</h2><div id="rainArrivalCitiesPanel">جاري التحميل...</div></section>
-</section>
+    <section class="rg-grid two-cols">
+        <section class="rg-card"><h2>أعلى المدن مطراً الآن 🌦️</h2><div id="smartMultiCityTopPanel">جاري التحميل...</div></section>
+        <section class="rg-card"><h2>المدن قيد الرصد والمتابعة 🔍</h2><div id="rainArrivalCitiesPanel">جاري التحميل...</div></section>
+    </section>
 
-<section class="rg-grid two-cols">
-<section class="rg-card"><h2>مدن مراقبة السيول 🌊</h2><div id="floodWatchCitiesPanel">جاري التحميل...</div></section>
-<section class="rg-card"><h2>الحالة الوطنية</h2><div id="nationalWeatherSummary">جاري التحميل...</div><div id="nationalStatus">جاري التحليل...</div><div id="nationalTrendPanel"></div></section>
-</section>
+    <section class="rg-grid two-cols">
+        <section class="rg-card"><h2>مدن مراقبة السيول 🌊</h2><div id="floodWatchCitiesPanel">جاري التحميل...</div></section>
+        <section class="rg-card"><h2>الحالة الوطنية</h2><div id="nationalWeatherSummary">جاري التحميل...</div><div id="nationalStatus">جاري التحليل...</div><div id="nationalTrendPanel"></div></section>
+    </section>
 
-<section class="rg-card"><h2>Live Event Bus</h2><div id="liveEventBusBox">جاري تحميل الأحداث...</div></section>
+    <section class="rg-card"><h2>Live Event Bus</h2><div id="liveEventBusBox">جاري تحميل الأحداث...</div></section>
 </section>
 
 <section class="rg-panel" id="mapPanel"><section class="rg-card"><h2>الخريطة التفاعلية</h2><div id="map" style="height:520px;border-radius:18px;overflow:hidden;background:#020617"></div></section></section>
 <section class="rg-panel" id="forecastPanel"><section class="rg-card"><h2>التوقعات</h2><div id="forecastBox">اختر مدينة لعرض التوقعات.</div></section></section>
 <section class="rg-panel" id="citiesPanel"><section class="rg-card"><h2>المدن والسيول</h2><div id="citiesFloodBox">جاري تحميل بيانات المدن والسيول...</div></section></section>
 <section class="rg-panel" id="aiPanel"><section class="rg-card"><h2>الذكاء الاصطناعي</h2><div id="aiAccuracyCard">جاري تحميل بيانات دقة الذكاء الاصطناعي...</div><div id="aiDecisionReportBox" style="margin-top:16px;"></div></section></section>
+
 <section class="rg-panel" id="dashboardPanel">
-<section class="rg-card"><h2>RainGuard AI Dashboard 📊</h2><div id="dashboardStats">جاري تحميل الإحصائيات...</div></section>
-<section class="rg-card"><h2>Quality Distribution 📈</h2><div class="chart-box"><canvas id="qualityChart"></canvas></div></section>
-<section class="rg-card"><h2>Top Cities Performance 🏆</h2><div id="topCitiesTable">جاري التحميل...</div></section>
+    <section class="rg-card"><h2>RainGuard AI Dashboard 📊</h2><div id="dashboardStats">جاري تحميل الإحصائيات...</div></section>
+    <section class="rg-card"><h2>Quality Distribution 📈</h2><div class="chart-box"><canvas id="qualityChart"></canvas></div></section>
+    <section class="rg-card"><h2>Top Cities Performance 🏆</h2><div id="topCitiesTable">جاري التحميل...</div></section>
 </section>
+
 <section class="rg-panel" id="alertsPanel"><section class="rg-card"><div class="rg-card-title"><h2>🌧️ التنبيهات النشطة</h2><button onclick="enableRainNotifications?.()">تفعيل التنبيهات</button></div><div id="rainAlertLifecycleBox">لا توجد تنبيهات مطر نشطة حالياً.</div><div id="aiDecisionReportBoxAlerts" style="margin-top:16px;"></div></section></section>
 <section class="rg-panel" id="historyPanel"><section class="rg-card"><h2>السجل والتقييم</h2><div id="predictionHistoryBox">جاري تحميل السجل...</div></section><section class="rg-card"><h2>Smart MultiCity History</h2><div id="smartMultiCityHistoryBox">جاري التحميل...</div></section></section>
 <section class="rg-panel" id="voicePanel"><section class="rg-card"><h2>المساعد الصوتي</h2><button onclick="startVoiceAssistant?.()"><i class="fa-solid fa-microphone"></i> تشغيل المساعد الصوتي</button><div id="voiceAssistantBox" style="margin-top:16px;">جاهز للاستماع.</div></section></section>
+
 </main>
 </div>
-
 
 <script defer src="/js/event-bus.js?v=1"></script>
 <script defer src="/js/decision-engine.js?v=1"></script>
@@ -150,16 +170,13 @@ window.addEventListener("load", function () {
     try {
         if (window.RainGuardEventBus) {
             window.RainGuardEventBus.autoRender("liveEventBusBox", 20);
-            window.RainGuardEventBus.systemStatus({
-                name: "RainGuard AI",
-                status: "Index loaded",
-                score: 100
-            });
+            window.RainGuardEventBus.systemStatus({name:"RainGuard AI",status:"Index loaded",score:100});
         }
     } catch (e) {
         console.warn("Event Bus autoRender skipped:", e);
     }
 });
 </script>
+
 </body>
 </html>
