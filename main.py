@@ -29,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get("/cors-test")
+def cors_test():
+    return {"ok": True, "cors": "enabled"}
 
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
