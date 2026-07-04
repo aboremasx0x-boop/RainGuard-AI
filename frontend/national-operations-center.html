@@ -350,6 +350,36 @@ function clampScore(v){
     return Math.max(0, Math.min(100, Math.round(n(v))));
 }
 
+function getRisk(city){
+
+    const values = [
+
+        city.risk,
+        city.score,
+        city.actualRiskScore,
+        city.rain_score,
+        city.forecast24Score,
+        city.forecast72Score,
+        city.floodRiskScore,
+        city.flood_score
+
+    ];
+
+    let max = 0;
+
+    values.forEach(v => {
+
+        const n = Number(v);
+
+        if (!isNaN(n) && n > max)
+            max = n;
+
+    });
+
+    return clampScore(max);
+
+}
+
 function normalizeCities(data){
     data = Array.isArray(data) ? data : [];
 
@@ -367,19 +397,43 @@ function normalizeCities(data){
         .sort((a,b)=>b.risk-a.risk);
 }
 function getCachedCities(){
+
+    if (
+        window.lastMultiCityResults &&
+        Array.isArray(window.lastMultiCityResults) &&
+        window.lastMultiCityResults.length
+    ){
+        return window.lastMultiCityResults;
+    }
+
     try{
+
         const keys = [
+
             "rainguard_rain_alert_lifecycle",
+
             "rainguard_smart_multicity_history",
+
             "rainguard_last_success_data"
+
         ];
+
         for(const key of keys){
+
             const data = JSON.parse(localStorage.getItem(key) || "[]");
-            if(Array.isArray(data) && data.length) return data;
-            if(data && Array.isArray(data.results)) return data.results;
+
+            if(Array.isArray(data) && data.length)
+                return data;
+
+            if(data && Array.isArray(data.results))
+                return data.results;
+
         }
+
     }catch(e){}
+
     return [];
+
 }
 
 function riskColor(risk){
@@ -612,10 +666,19 @@ function loadOperationsData(){
     renderEventBus();
 }
 
-window.onload = function(){
+window.addEventListener("load", () => {
+
     loadOperationsData();
+
     setInterval(loadOperationsData,30000);
-};
+
+});
+
+window.addEventListener("storage", () => {
+
+    loadOperationsData();
+
+});
 </script>
 </body>
 </html>
