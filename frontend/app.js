@@ -51,6 +51,19 @@ const FLOOD_ALERT_LAST_KEY = "rainguard_v10_flood_alert";
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+async function fetchAPI(path) {
+    const url = path.startsWith("http")
+        ? path
+        : `${API_BASE_URL}${path}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`API Error ${response.status}`);
+    }
+
+    return await response.json();
+}
 
 function updateTopCityCard(results) {
     const nameEl =
