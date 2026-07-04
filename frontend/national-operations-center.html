@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI V13 - National Operations Center</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root{
+    --bg:#020617;
+    --card:#0f172a;
+    --card2:#111827;
+    --line:#1e3a5f;
+    --blue:#38bdf8;
+    --green:#22c55e;
+    --yellow:#facc15;
+    --orange:#f59e0b;
+    --red:#ef4444;
+    --text:#e5e7eb;
+    --muted:#94a3b8;
+}
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:Tahoma,Arial,sans-serif;
+    background:
+        radial-gradient(circle at 10% 10%,rgba(14,165,233,.22),transparent 26%),
+        radial-gradient(circle at 90% 20%,rgba(34,197,94,.16),transparent 24%),
+        linear-gradient(135deg,#020617,#071426 60%,#020617);
+    color:var(--text);
+}
+.container{padding:24px;max-width:1600px;margin:auto}
+.header{
+    display:flex;
+    justify-content:space-between;
+    gap:18px;
+    align-items:center;
+    margin-bottom:20px;
+}
+.badge{
+    display:inline-block;
+    padding:9px 18px;
+    border:1px solid rgba(56,189,248,.55);
+    border-radius:999px;
+    color:var(--blue);
+    letter-spacing:1px;
+}
+h1{margin:10px 0 6px;font-size:34px}
+.subtitle{color:var(--muted);line-height:1.8}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{
+    border:1px solid rgba(56,189,248,.35);
+    background:linear-gradient(135deg,#0284c7,#2563eb);
+    color:white;
+    padding:12px 18px;
+    border-radius:14px;
+    cursor:pointer;
+    font-weight:800;
+}
+button.secondary{background:#0f172a}
+.grid{display:grid;gap:16px}
+.ribbon{grid-template-columns:repeat(7,1fr);margin-bottom:16px}
+.card{
+    background:rgba(15,23,42,.90);
+    border:1px solid rgba(56,189,248,.23);
+    border-radius:20px;
+    padding:18px;
+    box-shadow:0 14px 35px rgba(0,0,0,.25);
+}
+.metric span{display:block;color:var(--muted);font-size:13px}
+.metric strong{display:block;font-size:28px;margin-top:10px}
+.green{color:var(--green)}.blue{color:var(--blue)}.yellow{color:var(--yellow)}.orange{color:var(--orange)}.red{color:var(--red)}
+.two{grid-template-columns:1.25fr .75fr}
+.three{grid-template-columns:repeat(3,1fr)}
+.four{grid-template-columns:repeat(4,1fr)}
+.panel-title{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+}
+.panel-title h2{margin:0;font-size:23px}
+.status-pill{
+    border:1px solid rgba(56,189,248,.45);
+    color:var(--blue);
+    padding:6px 12px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:800;
+}
+#nationalLiveMap{
+    height:520px;
+    border-radius:20px;
+    overflow:hidden;
+    border:1px solid rgba(56,189,248,.25);
+    background:#020617;
+}
+.commander{
+    text-align:center;
+    min-height:520px;
+}
+.commander h2{font-size:30px;color:var(--blue)}
+.command-status{
+    font-size:32px;
+    font-weight:900;
+    color:var(--blue);
+    margin:18px 0;
+}
+.pulse{
+    width:28px;height:28px;border-radius:50%;
+    display:inline-block;background:#0ea5e9;
+    box-shadow:0 0 25px rgba(14,165,233,.9);
+    vertical-align:middle;
+}
+.recommendation{
+    background:rgba(14,165,233,.12);
+    border:1px solid rgba(56,189,248,.28);
+    border-radius:18px;
+    padding:16px;
+    line-height:1.9;
+    margin-top:16px;
+}
+.list{display:grid;gap:12px;max-height:430px;overflow:auto;padding-left:4px}
+.row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    background:rgba(2,6,23,.55);
+    border:1px solid rgba(148,163,184,.15);
+    border-radius:16px;
+    padding:14px;
+}
+.rank{
+    width:34px;height:34px;border-radius:50%;
+    background:#0ea5e9;
+    display:flex;align-items:center;justify-content:center;
+    color:white;font-weight:900;
+}
+.timeline{display:grid;gap:10px}
+.timeline-row{
+    display:grid;
+    grid-template-columns:90px 1fr 80px;
+    gap:12px;
+    align-items:center;
+    background:rgba(2,6,23,.55);
+    border-radius:14px;
+    padding:12px;
+}
+.bar{height:8px;background:#1e293b;border-radius:999px;overflow:hidden}
+.bar div{height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8,#facc15,#ef4444)}
+.replay-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.motion-box{
+    height:260px;
+    border-radius:18px;
+    border:1px solid rgba(56,189,248,.25);
+    background:
+        radial-gradient(circle at 25% 55%,rgba(239,68,68,.23),transparent 20%),
+        radial-gradient(circle at 55% 44%,rgba(245,158,11,.23),transparent 22%),
+        radial-gradient(circle at 75% 58%,rgba(56,189,248,.22),transparent 18%),
+        #020617;
+    position:relative;
+    overflow:hidden;
+}
+.motion-cloud{
+    position:absolute;
+    width:120px;height:70px;
+    border-radius:60px;
+    background:rgba(56,189,248,.45);
+    left:10%;
+    top:45%;
+    animation:moveCloud 7s infinite linear;
+    filter:blur(.5px);
+}
+@keyframes moveCloud{
+    from{left:5%}
+    to{left:85%}
+}
+.footer-note{font-size:12px;color:var(--muted);margin-top:10px}
+@media(max-width:1100px){
+    .ribbon,.two,.three,.four{grid-template-columns:1fr}
+    .header{flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<header class="header">
+    <div>
+        <span class="badge">V13 NATIONAL OPERATIONS CENTER</span>
+        <h1>RainGuard AI V13 - National Operations Center 🇸🇦</h1>
+        <div class="subtitle">
+            مركز عمليات وطني حي لمراقبة المطر والسيول، تتبع العواصف، إدارة المهام، وقرارات الذكاء الاصطناعي.
+        </div>
+    </div>
+    <div class="actions">
+        <button onclick="loadOperationsData()">تحديث البيانات</button>
+        <button class="secondary" onclick="location.href='national-command-center.html'">V12 Command Center</button>
+        <button class="secondary" onclick="location.href='index.html'">الرئيسية</button>
+    </div>
+</header>
+
+<section class="grid ribbon">
+    <div class="card metric"><span>حالة النظام</span><strong id="systemStatus" class="green">Live</strong></div>
+    <div class="card metric"><span>أعلى مدينة</span><strong id="topCity" class="blue">--</strong></div>
+    <div class="card metric"><span>متوسط الخطر</span><strong id="avgRisk" class="yellow">--%</strong></div>
+    <div class="card metric"><span>مدن حرجة</span><strong id="criticalCities" class="red">0</strong></div>
+    <div class="card metric"><span>مراقبة السيول</span><strong id="floodWatch" class="orange">0</strong></div>
+    <div class="card metric"><span>AI Confidence</span><strong id="aiConfidence" class="green">--%</strong></div>
+    <div class="card metric"><span>آخر تحديث</span><strong id="lastUpdate" class="blue">--</strong></div>
+</section>
+
+<section class="grid two">
+    <div class="card">
+        <div class="panel-title">
+            <h2>Live National Operations Map</h2>
+            <span class="status-pill">Leaflet Live Map</span>
+        </div>
+        <div id="nationalLiveMap"></div>
+        <div class="footer-note">خريطة حية قابلة للربط مع RainViewer وبيانات المدن.</div>
+    </div>
+
+    <div class="card commander">
+        <div class="panel-title">
+            <h2>AI Commander</h2>
+            <button onclick="showCommanderDecision()">عرض القرار</button>
+        </div>
+        <h2>قرار الذكاء الاصطناعي الوطني</h2>
+        <div class="command-status">
+            <span class="pulse"></span>
+            <span id="nationalDecision">National Monitoring</span>
+        </div>
+        <p>Decision: <b id="decisionText">Continue Watch</b></p>
+        <p>National Risk: <b id="decisionRisk">--%</b></p>
+        <p>Warning Cities: <b id="warningCities">0</b></p>
+        <div class="recommendation">
+            <strong>التوصية:</strong>
+            <p id="recommendationText">استمرار المراقبة الوطنية دون إعلان طوارئ.</p>
+        </div>
+    </div>
+</section>
+
+<section class="grid three" style="margin-top:16px">
+    <div class="card">
+        <div class="panel-title"><h2>Risk Ranking</h2><span class="status-pill">Top Cities</span></div>
+        <div class="list" id="riskRanking"></div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Mission Engine</h2><span class="status-pill">Operations</span></div>
+        <div class="list" id="missionEngine"></div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Emergency Event Bus</h2><span class="status-pill">Streaming</span></div>
+        <div class="list" id="eventBusBox">جاري تحميل الأحداث...</div>
+    </div>
+</section>
+
+<section class="grid two" style="margin-top:16px">
+    <div class="card">
+        <div class="panel-title"><h2>Storm Motion Engine</h2><span class="status-pill">Motion</span></div>
+        <div class="motion-box">
+            <div class="motion-cloud"></div>
+        </div>
+        <div class="recommendation">
+            <p>الاتجاه المتوقع: <b id="stormDirection">شرق / جنوب شرق</b></p>
+            <p>سرعة الحركة: <b id="stormSpeed">-- كم/س</b></p>
+            <p>أعلى مدينة في المسار: <b id="stormTopCity">--</b></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Weather Replay</h2><span class="status-pill">Replay</span></div>
+        <div class="replay-controls">
+            <button onclick="setReplay(1)">قبل ساعة</button>
+            <button onclick="setReplay(3)">قبل 3 ساعات</button>
+            <button onclick="setReplay(6)">قبل 6 ساعات</button>
+            <button onclick="setReplay(12)">قبل 12 ساعة</button>
+            <button onclick="setReplay(24)">قبل يوم</button>
+        </div>
+        <div class="recommendation" id="replayBox">اختر فترة Replay لعرض الحالة.</div>
+    </div>
+</section>
+
+<section class="grid two" style="margin-top:16px">
+    <div class="card">
+        <div class="panel-title"><h2>National Timeline</h2><span class="status-pill">Decision History</span></div>
+        <div class="timeline" id="nationalTimeline"></div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Flood Command Center</h2><span class="status-pill">Flood Watch</span></div>
+        <div class="list" id="floodCommand"></div>
+    </div>
+</section>
+
+<section class="grid two" style="margin-top:16px">
+    <div class="card">
+        <div class="panel-title"><h2>AI Confidence & Explainable Decision</h2><span class="status-pill">Explainable AI</span></div>
+        <div class="recommendation" id="aiReasoningBox">جاري تحليل القرار...</div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Executive Report Generator</h2><span class="status-pill">PDF Ready</span></div>
+        <p>تجهيز تقرير تنفيذي وطني يشمل المدن، المخاطر، القرارات، التوصيات، وسجل الأحداث.</p>
+        <button onclick="generateExecutiveReport()">Generate National Report</button>
+        <div class="footer-note" id="reportStatus">لم يتم إنشاء تقرير بعد.</div>
+    </div>
+</section>
+
+</div>
+
+<script src="/config.js?v=13"></script>
+<script src="/js/event-bus.js?v=13"></script>
+<script src="/js/decision-engine.js?v=13"></script>
+<script src="/js/ai-reasoning.js?v=13"></script>
+<script src="/js/storm-engine.js?v=13"></script>
+<script src="/js/analytics-engine.js?v=13"></script>
+
+<script>
+const API_BASE_URL = window.RAINGUARD_CONFIG?.API_BASE_URL || "https://rainguard-ai.onrender.com";
+
+let operationsMap = null;
+let cityMarkers = [];
+
+const defaultCities = [
+    {name:"الرياض", lat:24.7136, lon:46.6753, score:12, floodRiskScore:0},
+    {name:"جدة", lat:21.5433, lon:39.1728, score:32, floodRiskScore:19},
+    {name:"خميس مشيط", lat:18.3064, lon:42.7294, score:42, floodRiskScore:25},
+    {name:"أبها", lat:18.2465, lon:42.5117, score:39, floodRiskScore:24},
+    {name:"جازان", lat:16.8892, lon:42.5511, score:36, floodRiskScore:21},
+    {name:"نجران", lat:17.5656, lon:44.2289, score:44, floodRiskScore:28},
+    {name:"الدمام", lat:26.4207, lon:50.0888, score:10, floodRiskScore:0}
+];
+
+function n(v){return Number(v || 0)}
+
+function getRisk(city){
+    return Math.max(
+        n(city.risk),
+        n(city.score),
+        n(city.actualRiskScore),
+        n(city.rain_score),
+        n(city.forecast24Score),
+        n(city.forecast72Score),
+        n(city.floodRiskScore),
+        n(city.flood_score)
+    );
+}
+
+function normalizeCities(data){
+    data = Array.isArray(data) ? data : [];
+    return data.map(c => ({
+        name:c.name || c.city || c.location_name || "غير محدد",
+        lat:n(c.lat || c.latitude),
+        lon:n(c.lon || c.longitude),
+        risk:getRisk(c),
+        rain:n(c.score || c.actualRiskScore || c.rain_score),
+        flood:n(c.floodRiskScore || c.flood_score),
+        stage:c.stage || c.alertLevel || c.alert_level || "Monitoring"
+    })).sort((a,b)=>b.risk-a.risk);
+}
+
+function getCachedCities(){
+    try{
+        const keys = [
+            "rainguard_rain_alert_lifecycle",
+            "rainguard_smart_multicity_history",
+            "rainguard_last_success_data"
+        ];
+        for(const key of keys){
+            const data = JSON.parse(localStorage.getItem(key) || "[]");
+            if(Array.isArray(data) && data.length) return data;
+            if(data && Array.isArray(data.results)) return data.results;
+        }
+    }catch(e){}
+    return [];
+}
+
+function riskColor(risk){
+    if(risk >= 70) return "#ef4444";
+    if(risk >= 50) return "#f59e0b";
+    if(risk >= 30) return "#38bdf8";
+    return "#22c55e";
+}
+
+function initOperationsMap(){
+    if(!window.L || operationsMap) return;
+
+    operationsMap = L.map("nationalLiveMap", {
+        zoomControl:true,
+        attributionControl:true
+    }).setView([23.8859,45.0792],5);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom:18,
+        attribution:"© OpenStreetMap"
+    }).addTo(operationsMap);
+}
+
+function renderMap(cities){
+    initOperationsMap();
+    if(!operationsMap) return;
+
+    cityMarkers.forEach(m => operationsMap.removeLayer(m));
+    cityMarkers = [];
+
+    cities.forEach(city => {
+        if(!city.lat || !city.lon) return;
+
+        const marker = L.circleMarker([city.lat, city.lon], {
+            radius: Math.max(8, Math.min(22, city.risk / 3)),
+            color: riskColor(city.risk),
+            fillColor: riskColor(city.risk),
+            fillOpacity:.55,
+            weight:2
+        }).addTo(operationsMap);
+
+        marker.bindPopup(`
+            <b>${city.name}</b><br>
+            Risk: ${Math.round(city.risk)}%<br>
+            Rain: ${city.rain}%<br>
+            Flood: ${city.flood}%
+        `);
+
+        cityMarkers.push(marker);
+    });
+}
+
+function updateRibbon(cities){
+    const avg = cities.length ? Math.round(cities.reduce((s,c)=>s+c.risk,0)/cities.length) : 0;
+    const top = cities[0];
+
+    document.getElementById("topCity").innerText = top?.name || "--";
+    document.getElementById("avgRisk").innerText = avg + "%";
+    document.getElementById("criticalCities").innerText = cities.filter(c=>c.risk>=70).length;
+    document.getElementById("floodWatch").innerText = cities.filter(c=>c.flood>=30).length;
+    document.getElementById("aiConfidence").innerText = Math.min(96,65 + Math.round(avg/3)) + "%";
+    document.getElementById("lastUpdate").innerText = new Date().toLocaleTimeString("ar-SA");
+
+    document.getElementById("decisionRisk").innerText = avg + "%";
+    document.getElementById("warningCities").innerText = cities.filter(c=>c.risk>=70).length;
+
+    if(avg >= 70){
+        document.getElementById("nationalDecision").innerText = "National Warning";
+        document.getElementById("decisionText").innerText = "Raise Alert";
+        document.getElementById("recommendationText").innerText = "رفع مستوى التحذير الوطني وتفعيل عمليات المتابعة الميدانية.";
+    }else if(avg >= 30){
+        document.getElementById("nationalDecision").innerText = "National Monitoring";
+        document.getElementById("decisionText").innerText = "Continue Watch";
+        document.getElementById("recommendationText").innerText = "استمرار المراقبة الذكية وتحديث البيانات دوريًا.";
+    }else{
+        document.getElementById("nationalDecision").innerText = "National Stable";
+        document.getElementById("decisionText").innerText = "Normal Status";
+        document.getElementById("recommendationText").innerText = "الوضع الوطني مستقر ولا توجد حاجة للتصعيد.";
+    }
+}
+
+function renderRiskRanking(cities){
+    const box = document.getElementById("riskRanking");
+    box.innerHTML = cities.slice(0,10).map((c,i)=>`
+        <div class="row">
+            <div style="display:flex;gap:10px;align-items:center">
+                <div class="rank">${i+1}</div>
+                <div>
+                    <strong>${c.name}</strong><br>
+                    <small>Rain: ${c.rain}% | Flood: ${c.flood}%</small>
+                </div>
+            </div>
+            <div>
+                <b style="color:${riskColor(c.risk)}">${Math.round(c.risk)}%</b><br>
+                <span class="status-pill">${c.stage}</span>
+            </div>
+        </div>
+    `).join("");
+}
+
+function renderMissionEngine(cities){
+    const alert = cities.some(c=>c.risk>=70);
+    const flood = cities.some(c=>c.flood>=30);
+
+    const tasks = [
+        ["تحديث بيانات المدن", "running"],
+        ["مراقبة أعلى مدينة", "running"],
+        ["مراقبة السيول", flood ? "alert" : "safe"],
+        ["إصدار تحذير وطني", alert ? "alert" : "monitor"],
+        ["رفع تقرير تنفيذي", "pending"]
+    ];
+
+    document.getElementById("missionEngine").innerHTML = tasks.map((t,i)=>`
+        <div class="row">
+            <div style="display:flex;gap:10px;align-items:center">
+                <div class="rank">${i+1}</div>
+                <div><strong>${t[0]}</strong><br><small>Mission Task</small></div>
+            </div>
+            <span class="status-pill">${t[1]}</span>
+        </div>
+    `).join("");
+}
+
+function renderTimeline(cities){
+    document.getElementById("nationalTimeline").innerHTML = cities.slice(0,7).map((c,i)=>`
+        <div class="timeline-row">
+            <div>+${i*6} دقيقة</div>
+            <div>
+                ${c.name} - ${c.stage}
+                <div class="bar"><div style="width:${Math.min(100,c.risk)}%"></div></div>
+            </div>
+            <b>${Math.round(c.risk)}%</b>
+        </div>
+    `).join("");
+}
+
+function renderFloodCommand(cities){
+    const floodCities = cities.filter(c=>c.flood>=20).slice(0,8);
+
+    document.getElementById("floodCommand").innerHTML = floodCities.map((c,i)=>`
+        <div class="row">
+            <div style="display:flex;gap:10px;align-items:center">
+                <div class="rank">${i+1}</div>
+                <div><strong>${c.name}</strong><br><small>Flood watch city</small></div>
+            </div>
+            <b class="${c.flood>=30?'orange':'blue'}">${Math.round(c.flood)}%</b>
+        </div>
+    `).join("") || "لا توجد مدن ضمن مراقبة السيول.";
+}
+
+function renderStorm(cities){
+    const top = cities[0];
+    const avg = cities.length ? Math.round(cities.reduce((s,c)=>s+c.risk,0)/cities.length) : 0;
+
+    document.getElementById("stormSpeed").innerText = Math.round(18 + avg * .28) + " كم/س";
+    document.getElementById("stormTopCity").innerText = top?.name || "--";
+    document.getElementById("stormDirection").innerText = avg >= 50 ? "شرق / جنوب شرق" : "متغير / ضعيف";
+}
+
+function renderAIReasoning(cities){
+    const avg = cities.length ? Math.round(cities.reduce((s,c)=>s+c.risk,0)/cities.length) : 0;
+    const top = cities[0];
+
+    document.getElementById("aiReasoningBox").innerHTML = `
+        <h3>AI Thinking...</h3>
+        <p>✓ أعلى مدينة خطورة: <b>${top?.name || "--"}</b> (${Math.round(top?.risk || 0)}%)</p>
+        <p>✓ متوسط الخطر الوطني: <b>${avg}%</b></p>
+        <p>✓ مدن حرجة: <b>${cities.filter(c=>c.risk>=70).length}</b></p>
+        <p>✓ مدن مراقبة السيول: <b>${cities.filter(c=>c.flood>=30).length}</b></p>
+        <p>التفسير: ${avg>=70 ? "المنظومة ترى أن المؤشرات تستدعي رفع التحذير." : avg>=30 ? "المؤشرات تستدعي مراقبة مستمرة دون تصعيد." : "المؤشرات ضمن الوضع المستقر."}</p>
+    `;
+}
+
+function renderEventBus(){
+    const box = document.getElementById("eventBusBox");
+
+    if(window.RainGuardEventBus){
+        window.RainGuardEventBus.autoRender("eventBusBox",20);
+        window.RainGuardEventBus.systemStatus({
+            name:"RainGuard V13",
+            status:"National Operations Center loaded",
+            score:100
+        });
+        return;
+    }
+
+    box.innerHTML = "Event Bus غير متصل.";
+}
+
+function setReplay(hours){
+    document.getElementById("replayBox").innerHTML =
+        `تم تشغيل Weather Replay لآخر <b>${hours}</b> ساعة. المرحلة القادمة تربط هذه الوحدة بسجل التوقعات والخرائط.`;
+}
+
+function generateExecutiveReport(){
+    document.getElementById("reportStatus").innerText =
+        "تم تجهيز التقرير التنفيذي مبدئيًا. المرحلة القادمة توليد PDF تلقائي.";
+}
+
+function showCommanderDecision(){
+    alert(
+        "AI Commander Decision\\n\\n" +
+        "Decision: " + document.getElementById("decisionText").innerText + "\\n" +
+        "Risk: " + document.getElementById("decisionRisk").innerText + "\\n" +
+        "Recommendation: " + document.getElementById("recommendationText").innerText
+    );
+}
+
+function loadOperationsData(){
+    let cities = normalizeCities(getCachedCities());
+
+    if(!cities.length){
+        cities = normalizeCities(defaultCities);
+    }
+
+    updateRibbon(cities);
+    renderMap(cities);
+    renderRiskRanking(cities);
+    renderMissionEngine(cities);
+    renderTimeline(cities);
+    renderFloodCommand(cities);
+    renderStorm(cities);
+    renderAIReasoning(cities);
+    renderEventBus();
+}
+
+window.onload = function(){
+    loadOperationsData();
+    setInterval(loadOperationsData,30000);
+};
+</script>
+</body>
+</html>
