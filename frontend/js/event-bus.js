@@ -1,16 +1,7 @@
-from pathlib import Path
-
-js_code = r'''/*
+/*
 =========================================================
-RainGuard AI - Live Event Bus
-File:
-frontend/js/event-bus.js
-
-Purpose:
-- Central event system for RainGuard AI pages
-- Sync events between Dashboard, Alert Center, National Brain,
-  Storm Tracking, Mission Center, Crisis Room
-- Uses localStorage + browser storage events
+RainGuard AI v11 - Live Event Bus
+File: frontend/js/event-bus.js
 =========================================================
 */
 
@@ -54,14 +45,13 @@ Purpose:
     }
 
     function saveEvents(events) {
-        const clean = Array.isArray(events) ? events.slice(-MAX_EVENTS) : [];
-        localStorage.setItem(BUS_KEY, JSON.stringify(clean));
+        localStorage.setItem(BUS_KEY, JSON.stringify((events || []).slice(-MAX_EVENTS)));
     }
 
     function normalizeEvent(type, payload, source) {
         return {
             id: createId(),
-            type: type || "SYSTEM_STATUS",
+            type: type || EVENT_TYPES.SYSTEM_STATUS,
             source: source || document.title || "RainGuard AI",
             payload: payload || {},
             createdAt: nowISO(),
@@ -96,6 +86,7 @@ Purpose:
 
         function storageHandler(e) {
             if (e.key !== BUS_LAST_KEY || !e.newValue) return;
+
             const event = safeParse(e.newValue, null);
             if (event) callback(event);
         }
@@ -120,16 +111,14 @@ Purpose:
         );
     }
 
-    function latest(limit) {
-        const n = Number(limit || 50);
-        return getEvents().slice(-n).reverse();
+    function latest(limit = 50) {
+        return getEvents().slice(-Number(limit || 50)).reverse();
     }
 
-    function byType(type, limit) {
-        const n = Number(limit || 50);
+    function byType(type, limit = 50) {
         return getEvents()
             .filter(event => event.type === type)
-            .slice(-n)
+            .slice(-Number(limit || 50))
             .reverse();
     }
 
@@ -165,11 +154,11 @@ Purpose:
         return publish(EVENT_TYPES.SYSTEM_STATUS, data, "RainGuard System");
     }
 
-    function renderEvents(targetId, limit) {
-        const box = document.getElementById(targetId || "liveEventBusBox");
+    function renderEvents(targetId = "liveEventBusBox", limit = 30) {
+        const box = document.getElementById(targetId);
         if (!box) return;
 
-        const events = latest(limit || 30);
+        const events = latest(limit);
 
         if (!events.length) {
             box.innerHTML = `
@@ -183,7 +172,11 @@ Purpose:
         box.innerHTML = events.map(event => {
             const time = new Date(event.timestamp).toLocaleTimeString("ar-SA");
             const city = event.payload?.name || event.payload?.city || "عام";
-            const score = event.payload?.score ?? event.payload?.risk ?? event.payload?.decisionScore ?? "";
+            const score =
+                event.payload?.score ??
+                event.payload?.risk ??
+                event.payload?.decisionScore ??
+                "";
 
             return `
                 <div class="rg-event-item" style="
@@ -205,7 +198,7 @@ Purpose:
         }).join("");
     }
 
-    function autoRender(targetId, limit) {
+    function autoRender(targetId = "liveEventBusBox", limit = 30) {
         renderEvents(targetId, limit);
 
         return subscribe(function () {
@@ -238,10 +231,4 @@ Purpose:
             detail: { ready: true, at: nowISO() }
         })
     );
-
 })();
-'''
-
-path = Path("/mnt/data/event-bus.js")
-path.write_text(js_code, encoding="utf-8")
-print(path)
