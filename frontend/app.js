@@ -65,6 +65,23 @@ async function fetchAPI(path) {
     return await response.json();
 }
 
+async function loadPredictionAnalytics() {
+    try {
+        const data = await fetchAPI("/prediction-analytics");
+
+        window.lastPredictionAnalytics = data;
+
+        if (typeof renderPredictionAnalytics === "function") {
+            renderPredictionAnalytics(data);
+        }
+
+        return data;
+    } catch (error) {
+        console.warn("Prediction analytics skipped:", error);
+        return null;
+    }
+}
+
 function updateTopCityCard(results) {
     const nameEl =
         document.getElementById("topCityName") ||
