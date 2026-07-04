@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://rainguard-ai.onrender.com";
+var API_BASE_URL = window.RAINGUARD_CONFIG.API_BASE_URL;
 
 const APP_VERSION = "RainGuard AI V12 Stable";
 
