@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI V15 - National AI Operating System</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root{
+    --bg:#020617;--card:#0f172a;--line:#1e3a5f;
+    --blue:#38bdf8;--green:#22c55e;--yellow:#facc15;
+    --orange:#f59e0b;--red:#ef4444;--purple:#a855f7;
+    --text:#e5e7eb;--muted:#94a3b8;
+}
+*{box-sizing:border-box}
+body{
+    margin:0;font-family:Tahoma,Arial,sans-serif;color:var(--text);
+    background:
+    radial-gradient(circle at 10% 8%,rgba(56,189,248,.20),transparent 28%),
+    radial-gradient(circle at 90% 12%,rgba(168,85,247,.16),transparent 24%),
+    linear-gradient(135deg,#020617,#061521 60%,#020617);
+}
+.container{max-width:1750px;margin:auto;padding:24px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:20px}
+.badge{display:inline-block;padding:9px 18px;border:1px solid rgba(56,189,248,.55);border-radius:999px;color:var(--blue)}
+h1{margin:10px 0 6px;font-size:34px}
+.subtitle{color:var(--muted);line-height:1.8}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{
+    border:1px solid rgba(56,189,248,.35);
+    background:linear-gradient(135deg,#0284c7,#2563eb);
+    color:white;padding:12px 18px;border-radius:14px;cursor:pointer;font-weight:800
+}
+button.secondary{background:#0f172a}
+.grid{display:grid;gap:16px}
+.ribbon{grid-template-columns:repeat(8,1fr);margin-bottom:16px}
+.card{
+    background:rgba(15,23,42,.92);border:1px solid rgba(56,189,248,.22);
+    border-radius:20px;padding:18px;box-shadow:0 14px 35px rgba(0,0,0,.26)
+}
+.metric span{display:block;color:var(--muted);font-size:13px}
+.metric strong{display:block;font-size:27px;margin-top:10px}
+.green{color:var(--green)}.blue{color:var(--blue)}.yellow{color:var(--yellow)}
+.orange{color:var(--orange)}.red{color:var(--red)}.purple{color:var(--purple)}
+.two{grid-template-columns:1.35fr .65fr}.three{grid-template-columns:repeat(3,1fr)}
+.panel-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.panel-title h2{margin:0;font-size:23px}
+.status-pill{border:1px solid rgba(56,189,248,.45);color:var(--blue);padding:6px 12px;border-radius:999px;font-size:12px;font-weight:800}
+#osMap{height:620px;border-radius:20px;overflow:hidden;border:1px solid rgba(56,189,248,.25);background:#020617}
+.commander{text-align:center;min-height:620px}
+.commander h2{font-size:30px;color:var(--blue)}
+.command-status{font-size:31px;font-weight:900;color:var(--blue);margin:18px 0}
+.pulse{width:28px;height:28px;border-radius:50%;display:inline-block;background:#0ea5e9;box-shadow:0 0 28px rgba(14,165,233,.9);vertical-align:middle}
+.recommendation{background:rgba(14,165,233,.12);border:1px solid rgba(56,189,248,.28);border-radius:18px;padding:16px;line-height:1.9;margin-top:16px}
+.list{display:grid;gap:12px;max-height:430px;overflow:auto;padding-left:4px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:rgba(2,6,23,.58);border:1px solid rgba(148,163,184,.15);border-radius:16px;padding:14px}
+.rank{width:34px;height:34px;border-radius:50%;background:#0ea5e9;display:flex;align-items:center;justify-content:center;color:white;font-weight:900}
+.bar{height:8px;background:#1e293b;border-radius:999px;overflow:hidden}.bar div{height:100%;background:linear-gradient(90deg,#22c55e,#38bdf8,#facc15,#ef4444)}
+.workflow{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.step{background:rgba(2,6,23,.58);border:1px solid rgba(56,189,248,.2);border-radius:16px;padding:14px;text-align:center}
+.step.active{box-shadow:0 0 22px rgba(56,189,248,.35);border-color:var(--blue)}
+.sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sim-card{background:rgba(2,6,23,.58);border:1px solid rgba(148,163,184,.15);border-radius:16px;padding:16px;text-align:center}
+.footer-note{font-size:12px;color:var(--muted);margin-top:10px}
+@media(max-width:1150px){.ribbon,.two,.three,.workflow,.sim-grid{grid-template-columns:1fr}.header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<header class="header">
+    <div>
+        <span class="badge">V15 NATIONAL AI OPERATING SYSTEM</span>
+        <h1>RainGuard AI V15 - National AI Operating System 🇸🇦</h1>
+        <div class="subtitle">Observe → Predict → Decide → Simulate → Execute → Learn</div>
+    </div>
+    <div class="actions">
+        <button onclick="loadOS()">تحديث النظام</button>
+        <button onclick="runTimeMachine(60)">AI Time Machine +60</button>
+        <button onclick="runSimulator()">Decision Simulator</button>
+        <button class="secondary" onclick="location.href='national-digital-twin.html'">V14 Digital Twin</button>
+        <button class="secondary" onclick="location.href='national-operations-center.html'">V13 Operations</button>
+        <button class="secondary" onclick="location.href='index.html'">الرئيسية</button>
+    </div>
+</header>
+
+<section class="grid ribbon">
+    <div class="card metric"><span>حالة النظام</span><strong class="green">OS Live</strong></div>
+    <div class="card metric"><span>أعلى مدينة</span><strong id="topCity" class="blue">--</strong></div>
+    <div class="card metric"><span>الخطر الوطني</span><strong id="nationalRisk" class="yellow">--%</strong></div>
+    <div class="card metric"><span>قرار AI</span><strong id="aiDecision" class="blue">--</strong></div>
+    <div class="card metric"><span>المهام</span><strong id="missionsCount" class="purple">0</strong></div>
+    <div class="card metric"><span>الفرق</span><strong id="teamsCount" class="orange">0</strong></div>
+    <div class="card metric"><span>AI Confidence</span><strong id="aiConfidence" class="green">--%</strong></div>
+    <div class="card metric"><span>آخر تحديث</span><strong id="lastUpdate" class="blue">--</strong></div>
+</section>
+
+<section class="grid two">
+    <div class="card">
+        <div class="panel-title"><h2>Digital Twin 2.0 Map</h2><span class="status-pill">Live OS Map</span></div>
+        <div id="osMap"></div>
+        <div class="footer-note">خريطة التشغيل الوطني: مدن، مخاطر، فرق، ومهام.</div>
+    </div>
+
+    <div class="card commander">
+        <div class="panel-title"><h2>National AI Commander</h2><button onclick="showCommander()">عرض القرار</button></div>
+        <h2>قائد نظام التشغيل الوطني</h2>
+        <div class="command-status"><span class="pulse"></span> <span id="commanderDecision">National Monitoring</span></div>
+        <p>Primary Target: <b id="primaryTarget">--</b></p>
+        <p>Action: <b id="commanderAction">Continue Watch</b></p>
+        <p>Confidence: <b id="commanderConfidence">--%</b></p>
+        <p>ETA: <b id="etaBox">--</b></p>
+        <div class="recommendation">
+            <strong>Explain Why:</strong>
+            <p id="explainWhy">جاري تحليل القرار...</p>
+        </div>
+    </div>
+</section>
+
+<section class="card" style="margin-top:16px">
+    <div class="panel-title"><h2>Live AI Workflow</h2><span class="status-pill">Observe → Learn</span></div>
+    <div class="workflow" id="workflowBox"></div>
+</section>
+
+<section class="grid three" style="margin-top:16px">
+    <div class="card">
+        <div class="panel-title"><h2>AI Time Machine</h2><span class="status-pill">Future Forecast</span></div>
+        <div class="actions">
+            <button onclick="runTimeMachine(15)">+15</button>
+            <button onclick="runTimeMachine(30)">+30</button>
+            <button onclick="runTimeMachine(60)">+60</button>
+            <button onclick="runTimeMachine(120)">+120</button>
+        </div>
+        <div class="list" id="timeMachineBox"></div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Decision Simulator</h2><span class="status-pill">What-if</span></div>
+        <div class="sim-grid" id="simulatorBox"></div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Resource Operating System</h2><span class="status-pill">Teams</span></div>
+        <div class="list" id="resourceOS"></div>
+    </div>
+</section>
+
+<section class="grid three" style="margin-top:16px">
+    <div class="card">
+        <div class="panel-title"><h2>Mission Control</h2><span class="status-pill">Lifecycle</span></div>
+        <div class="list" id="missionControl"></div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Risk Ranking</h2><span class="status-pill">Top Cities</span></div>
+        <div class="list" id="riskRanking"></div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Learning Engine</h2><span class="status-pill">Self Learning</span></div>
+        <div class="list" id="learningEngine"></div>
+    </div>
+</section>
+
+<section class="grid two" style="margin-top:16px">
+    <div class="card">
+        <div class="panel-title"><h2>Explainable AI Engine</h2><span class="status-pill">XAI</span></div>
+        <div class="recommendation" id="xaiBox">جاري التحليل...</div>
+    </div>
+
+    <div class="card">
+        <div class="panel-title"><h2>Executive Center</h2><span class="status-pill">Reports</span></div>
+        <p>تقرير تنفيذي يشمل القرار، السيناريوهات، الموارد، المهام، والتعلم.</p>
+        <button onclick="generateExecutiveReport()">Generate OS Report</button>
+        <div class="footer-note" id="reportStatus">لم يتم إنشاء تقرير بعد.</div>
+    </div>
+</section>
+
+</div>
+
+<script src="/config.js?v=15"></script>
+<script src="/js/event-bus.js?v=15"></script>
+
+<script>
+const API_BASE_URL = window.RAINGUARD_CONFIG?.API_BASE_URL || "https://rainguard-ai.onrender.com";
+
+let osMap=null, markers=[], circles=[], teamMarkers=[];
+
+const defaultCities=[
+{name:"الرياض",lat:24.7136,lon:46.6753,score:12,floodRiskScore:0},
+{name:"جدة",lat:21.5433,lon:39.1728,score:32,floodRiskScore:19},
+{name:"خميس مشيط",lat:18.3064,lon:42.7294,score:42,floodRiskScore:25},
+{name:"أبها",lat:18.2465,lon:42.5117,score:39,floodRiskScore:24},
+{name:"جازان",lat:16.8892,lon:42.5511,score:36,floodRiskScore:21},
+{name:"نجران",lat:17.5656,lon:44.2289,score:44,floodRiskScore:28},
+{name:"الدمام",lat:26.4207,lon:50.0888,score:10,floodRiskScore:0}
+];
+
+function n(v){const x=Number(v);return Number.isFinite(x)?x:0}
+function clampScore(v){return Math.max(0,Math.min(100,Math.round(n(v))))}
+function riskColor(r){return r>=70?"#ef4444":r>=50?"#f59e0b":r>=30?"#38bdf8":"#22c55e"}
+function getRisk(c){return clampScore(Math.max(n(c.risk),n(c.score),n(c.actualRiskScore),n(c.rain_score),n(c.forecast24Score),n(c.forecast72Score),n(c.floodRiskScore),n(c.flood_score)))}
+
+function normalizeCities(data){
+    data=Array.isArray(data)?data:[];
+    return data.map(c=>({
+        name:c.name||c.city||c.location_name||"",
+        lat:n(c.lat||c.latitude),lon:n(c.lon||c.longitude),
+        risk:getRisk(c),
+        rain:clampScore(c.score||c.actualRiskScore||c.rain_score),
+        flood:clampScore(c.floodRiskScore||c.flood_score),
+        stage:c.stage||c.alertLevel||c.alert_level||"Monitoring"
+    })).filter(c=>c.name&&c.name!=="غير محدد"&&c.risk>0).sort((a,b)=>b.risk-a.risk);
+}
+
+function getCachedCities(){
+    if(window.lastMultiCityResults&&Array.isArray(window.lastMultiCityResults)&&window.lastMultiCityResults.length)return window.lastMultiCityResults;
+    try{
+        for(const key of ["rainguard_rain_alert_lifecycle","rainguard_smart_multicity_history","rainguard_last_success_data"]){
+            const d=JSON.parse(localStorage.getItem(key)||"[]");
+            if(Array.isArray(d)&&d.length)return d;
+            if(d&&Array.isArray(d.results))return d.results;
+        }
+    }catch(e){}
+    return [];
+}
+
+function initMap(){
+    if(!window.L||osMap)return;
+    osMap=L.map("osMap").setView([23.8859,45.0792],5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(osMap);
+}
+
+function renderMap(cities){
+    initMap(); if(!osMap)return;
+    markers.forEach(m=>osMap.removeLayer(m));circles.forEach(c=>osMap.removeLayer(c));teamMarkers.forEach(t=>osMap.removeLayer(t));
+    markers=[];circles=[];teamMarkers=[];
+    cities.forEach((city,i)=>{
+        if(!city.lat||!city.lon)return;
+        const color=riskColor(city.risk);
+        const m=L.circleMarker([city.lat,city.lon],{radius:Math.max(8,Math.min(24,city.risk/3)),color,fillColor:color,fillOpacity:.6,weight:2}).addTo(osMap);
+        m.bindPopup(`<b>${city.name}</b><br>Risk: ${city.risk}%<br>Rain: ${city.rain}%<br>Flood: ${city.flood}%`);
+        markers.push(m);
+        if(city.risk>=30){
+            circles.push(L.circle([city.lat,city.lon],{radius:city.risk*3500,color,fillColor:color,fillOpacity:.08,weight:1}).addTo(osMap));
+        }
+        if(i<3){
+            const icon=L.divIcon({html:"🚓",className:"",iconSize:[28,28]});
+            teamMarkers.push(L.marker([city.lat+.25,city.lon+.25],{icon}).addTo(osMap).bindPopup(`Team moving to ${city.name}`));
+        }
+    });
+}
+
+function avgRisk(cities){return cities.length?clampScore(cities.reduce((s,c)=>s+c.risk,0)/cities.length):0}
+
+function updateHeader(cities){
+    const avg=avgRisk(cities), top=cities[0], watch=cities.filter(c=>c.risk>=30).length;
+    document.getElementById("topCity").innerText=top?.name||"--";
+    document.getElementById("nationalRisk").innerText=avg+"%";
+    document.getElementById("missionsCount").innerText=watch+3;
+    document.getElementById("teamsCount").innerText=Math.max(1,Math.ceil(watch/2));
+    document.getElementById("aiConfidence").innerText=Math.min(97,65+Math.round(avg/3))+"%";
+    document.getElementById("lastUpdate").innerText=new Date().toLocaleTimeString("ar-SA");
+    document.getElementById("aiDecision").innerText=avg>=70?"Emergency":avg>=30?"Monitor":"Stable";
+}
+
+function updateCommander(cities){
+    const avg=avgRisk(cities), top=cities[0];
+    document.getElementById("primaryTarget").innerText=top?.name||"--";
+    document.getElementById("commanderConfidence").innerText=Math.min(97,65+Math.round(avg/3))+"%";
+    document.getElementById("etaBox").innerText=avg>=50?"30 - 60 دقيقة":"60 - 120 دقيقة";
+    if(avg>=70){
+        document.getElementById("commanderDecision").innerText="National Emergency";
+        document.getElementById("commanderAction").innerText="Deploy Response Teams";
+        document.getElementById("explainWhy").innerText="الخطر الوطني مرتفع مع مؤشرات مطر وسيول تستدعي التصعيد.";
+    }else if(avg>=30){
+        document.getElementById("commanderDecision").innerText="National Monitoring";
+        document.getElementById("commanderAction").innerText="Deploy Monitoring Team";
+        document.getElementById("explainWhy").innerText="المؤشرات تشير إلى متابعة نشطة، مع مراقبة المدن الأعلى خطورة.";
+    }else{
+        document.getElementById("commanderDecision").innerText="National Stable";
+        document.getElementById("commanderAction").innerText="Continue Watch";
+        document.getElementById("explainWhy").innerText="الوضع مستقر ولا يحتاج تصعيد.";
+    }
+}
+
+function renderWorkflow(){
+    const steps=["Observe","Predict","Decide","Simulate","Execute","Verify","Learn"];
+    document.getElementById("workflowBox").innerHTML=steps.map((s,i)=>`<div class="step ${i<5?'active':''}"><strong>${s}</strong><br><small>AI OS Step</small></div>`).join("");
+}
+
+function renderRiskRanking(cities){
+    document.getElementById("riskRanking").innerHTML=cities.slice(0,10).map((c,i)=>`
+    <div class="row"><div style="display:flex;gap:10px;align-items:center"><div class="rank">${i+1}</div><div><strong>${c.name}</strong><br><small>Rain: ${c.rain}% | Flood: ${c.flood}%</small></div></div><div><b style="color:${riskColor(c.risk)}">${c.risk}%</b><br><span class="status-pill">${c.stage}</span></div></div>`).join("");
+}
+
+function renderMissionControl(cities){
+    const top=cities[0];
+    const missions=[
+        ["Receive Radar","Completed",100],
+        ["Analyze "+(top?.name||"--"),"Running",72],
+        ["Simulate Scenarios","Running",61],
+        ["Deploy Monitoring Team","Pending",35],
+        ["Verify Outcome","Waiting",0]
+    ];
+    document.getElementById("missionControl").innerHTML=missions.map((m,i)=>`
+    <div class="row"><div style="display:flex;gap:10px;align-items:center"><div class="rank">${i+1}</div><div><strong>${m[0]}</strong><br><small>${m[1]}</small><div class="bar"><div style="width:${m[2]}%"></div></div></div></div><b>${m[2]}%</b></div>`).join("");
+}
+
+function renderResourceOS(cities){
+    document.getElementById("resourceOS").innerHTML=cities.slice(0,5).map((c,i)=>`
+    <div class="row"><div style="display:flex;gap:10px;align-items:center"><div class="rank">${i+1}</div><div><strong>Team ${i+1}</strong><br><small>Moving → ${c.name}</small></div></div><span class="status-pill">ETA ${15+i*7} min</span></div>`).join("");
+}
+
+function runTimeMachine(minutes=60){
+    const cities=normalizeCities(getCachedCities()).length?normalizeCities(getCachedCities()):normalizeCities(defaultCities);
+    document.getElementById("timeMachineBox").innerHTML=cities.slice(0,5).map((c,i)=>{
+        const future=clampScore(c.risk+Math.round(minutes/20)+i);
+        return `<div class="row"><div style="display:flex;gap:10px;align-items:center"><div class="rank">${i+1}</div><div><strong>${c.name}</strong><br><small>After ${minutes} min</small></div></div><b style="color:${riskColor(future)}">${future}%</b></div>`;
+    }).join("");
+}
+
+function runSimulator(){
+    const cities=normalizeCities(getCachedCities()).length?normalizeCities(getCachedCities()):normalizeCities(defaultCities);
+    const top=cities[0]||{risk:0,name:"--"};
+    document.getElementById("simulatorBox").innerHTML=`
+    <div class="sim-card"><h3>Scenario A</h3><p>إرسال فريقين</p><h2 class="green">${clampScore(top.risk-18)}%</h2></div>
+    <div class="sim-card"><h3>Scenario B</h3><p>عدم التدخل</p><h2 class="red">${clampScore(top.risk+17)}%</h2></div>
+    <div class="sim-card"><h3>Scenario C</h3><p>رفع تنبيه مبكر</p><h2 class="yellow">${clampScore(top.risk-8)}%</h2></div>`;
+}
+
+function renderLearning(cities){
+    const top=cities[0];
+    document.getElementById("learningEngine").innerHTML=[
+        ["Last Case","Success 92%"],
+        ["False Alarm","Low"],
+        ["Model Update","Adaptive"],
+        ["Primary Pattern",top?.name||"--"]
+    ].map((x,i)=>`<div class="row"><div style="display:flex;gap:10px;align-items:center"><div class="rank">${i+1}</div><div><strong>${x[0]}</strong><br><small>Learning Memory</small></div></div><b>${x[1]}</b></div>`).join("");
+}
+
+function renderXAI(cities){
+    const avg=avgRisk(cities), top=cities[0];
+    document.getElementById("xaiBox").innerHTML=`
+    <h3>Explainable AI</h3>
+    <p>✓ أعلى مدينة: <b>${top?.name||"--"}</b> (${top?.risk||0}%)</p>
+    <p>✓ الخطر الوطني: <b>${avg}%</b></p>
+    <p>✓ السبب: Radar + Rain Score + Flood Index + City Ranking</p>
+    <p>✓ القرار: ${avg>=70?"تصعيد وطني":avg>=30?"مراقبة وطنية نشطة":"وضع مستقر"}</p>`;
+}
+
+function showCommander(){
+    alert(document.getElementById("commanderDecision").innerText + "\n" + document.getElementById("explainWhy").innerText);
+}
+
+function generateExecutiveReport(){
+    document.getElementById("reportStatus").innerText="تم تجهيز تقرير OS مبدئيًا. المرحلة القادمة توليد PDF.";
+}
+
+function publishEvent(cities){
+    if(!window.RainGuardEventBus)return;
+    window.RainGuardEventBus.systemStatus({name:"RainGuard V15 OS",status:"AI OS Updated",score:cities[0]?.risk||0});
+}
+
+function loadOS(){
+    let cities=normalizeCities(getCachedCities());
+    if(!cities.length)cities=normalizeCities(defaultCities);
+    updateHeader(cities);
+    updateCommander(cities);
+    renderMap(cities);
+    renderWorkflow();
+    renderRiskRanking(cities);
+    renderMissionControl(cities);
+    renderResourceOS(cities);
+    runTimeMachine(60);
+    runSimulator();
+    renderLearning(cities);
+    renderXAI(cities);
+    publishEvent(cities);
+}
+
+window.addEventListener("load",()=>{loadOS();setInterval(loadOS,30000)});
+window.addEventListener("storage",loadOS);
+</script>
+</body>
+</html>
