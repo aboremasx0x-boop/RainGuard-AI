@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>RainGuard AI V20 - National AI Operating System</title>
+
+<link rel="stylesheet" href="css/naios-v20.css">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+</head>
+
+<body>
+
+<div class="os-shell">
+
+<header class="os-header">
+
+<div class="brand">
+<div class="version">V20</div>
+<div>
+<h1>RainGuard AI V20</h1>
+<p>National AI Operating System</p>
+</div>
+</div>
+
+<div class="os-actions">
+<button id="btnRunOS">Run National OS</button>
+<button id="btnRadar">Radar</button>
+<button id="btnSimulate">Simulation</button>
+<button id="btnReport">Executive Report</button>
+</div>
+
+</header>
+
+<section class="status-row">
+
+<div class="status-card">
+<span>System Mode</span>
+<strong id="systemMode">NAIOS Live</strong>
+</div>
+
+<div class="status-card">
+<span>National Risk</span>
+<strong id="nationalRisk">31%</strong>
+</div>
+
+<div class="status-card">
+<span>Top City</span>
+<strong id="topCity">نجران</strong>
+</div>
+
+<div class="status-card">
+<span>AI Confidence</span>
+<strong id="aiConfidence">86%</strong>
+</div>
+
+<div class="status-card">
+<span>Active Agents</span>
+<strong id="activeAgents">18</strong>
+</div>
+
+<div class="status-card">
+<span>Missions</span>
+<strong id="missionCount">9</strong>
+</div>
+
+</section>
+
+<section class="ai-cycle">
+
+<div class="cycle-node active">Observe</div>
+<div class="cycle-node">Understand</div>
+<div class="cycle-node">Reason</div>
+<div class="cycle-node">Simulate</div>
+<div class="cycle-node">Decide</div>
+<div class="cycle-node">Plan</div>
+<div class="cycle-node">Execute</div>
+<div class="cycle-node">Verify</div>
+<div class="cycle-node">Learn</div>
+
+</section>
+
+<main class="os-grid">
+
+<section class="panel commander">
+<h2>National AI Commander</h2>
+<div id="commanderOutput"></div>
+
+<div class="command-box">
+<input id="commanderInput" placeholder="اكتب هدفك: خفض الخطر إلى أقل من 20%">
+<button id="sendCommand">Send</button>
+</div>
+</section>
+
+<section class="panel map-panel">
+<h2>National Operating Map</h2>
+<div id="naiosMap"></div>
+</section>
+
+<section class="panel">
+<h2>AI Brain Activity</h2>
+<div id="brainActivity"></div>
+</section>
+
+<section class="panel">
+<h2>Mission Control</h2>
+<div id="missionControl"></div>
+</section>
+
+<section class="panel">
+<h2>Decision Simulator</h2>
+<div id="decisionSimulator"></div>
+</section>
+
+<section class="panel">
+<h2>Multi-Agent Council</h2>
+<div id="agentCouncil"></div>
+</section>
+
+<section class="panel">
+<h2>National Timeline</h2>
+<div id="nationalTimeline"></div>
+</section>
+
+<section class="panel wide">
+<h2>Explainable AI Operating Decision</h2>
+<div id="explainableDecision"></div>
+</section>
+
+</main>
+
+</div>
+
+<script src="js/naios-v20.js"></script>
+
+</body>
+</html>
