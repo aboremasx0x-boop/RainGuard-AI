@@ -1,17 +1,20 @@
 /* =========================================================
-   RainGuard AI V19.5
-   National Autonomous Intelligence Workspace
-   Saudi Cities Core + Risk Utilities
+   RainGuard AI V19.5 Stable
+   Live Autonomous National Intelligence Workspace
 ========================================================= */
 
 let v19Map = null;
 let v19Markers = [];
 let v19RiskCircles = [];
+let v19RadarLayer = null;
+
 let thinkingIndex = 0;
+let timelineIndex = 0;
+let notificationIndex = 0;
+let worldAnimation = 0;
 
 /* ===============================
-   جميع مدن المملكة الرئيسية
-   ملاحظة: القيم risk/flood مؤقتة إلى أن تربطها بالـ API
+   Saudi Cities Core
 ================================ */
 
 const v19Cities = [
@@ -111,7 +114,7 @@ function normalizeCity(city) {
         lon: Number(city.lon ?? city.longitude ?? 0),
         risk: getCityRisk(city),
         flood: getCityFlood(city),
-        region: city.region || "غير محدد"
+        region: city.region || city.area || "غير محدد"
     };
 }
 
@@ -124,6 +127,10 @@ function getSortedCities() {
 
 function getTopCity() {
     return getSortedCities()[0] || null;
+}
+
+function getTopRiskCities(limit = 10) {
+    return getSortedCities().slice(0, limit);
 }
 
 function getAverageRisk() {
@@ -144,249 +151,21 @@ function riskColor(score) {
     if (score >= 30) return "#facc15";
     return "#38bdf8";
 }
-/* ===============================
-   Live Thinking Stream
-================================ */
-
-const thinkingMessages = [
-    {
-        agent: "Radar Agent",
-        text: "Detected rainfall activity across monitored Saudi cities."
-    },
-    {
-        agent: "Flood Agent",
-        text: "Flood index recalculated for western and southern regions."
-    },
-    {
-        agent: "Memory Agent",
-        text: "Historical similarity checked against previous national cases."
-    },
-    {
-        agent: "Traffic Agent",
-        text: "No critical national road impact detected yet."
-    },
-    {
-        agent: "Decision Agent",
-        text: "Monitoring remains better than full national escalation."
-    },
-    {
-        agent: "Mission Agent",
-        text: "Mission priorities updated according to highest-risk cities."
-    },
-    {
-        agent: "Learning Agent",
-        text: "Operational memory updated with latest city-risk pattern."
-    }
-];
-
-function addThinkingItem() {
-    const box = document.getElementById("thinkingStream");
-    if (!box) return;
-
-    const topCity = getTopCity();
-    const item = thinkingMessages[thinkingIndex % thinkingMessages.length];
-
-    const div = document.createElement("div");
-    div.className = "think-item";
-    div.innerHTML = `
-        <strong>${item.agent}</strong><br>
-        <span>${item.text}</span><br>
-        <small>
-            ${nowTime()} | Top City: ${topCity ? topCity.name : "--"}
-        </small>
-    `;
-
-    box.prepend(div);
-
-    if (box.children.length > 12) {
-        box.removeChild(box.lastChild);
-    }
-
-    thinkingIndex++;
-}
-
-/* ===============================
-   Executive Copilot
-================================
-
-function setupCopilot() {
-
-    const input = document.getElementById("copilotInput");
-    const sendBtn = document.getElementById("sendBtn");
-
-    if (!input || !sendBtn) return;
-
-    sendBtn.addEventListener("click", sendCopilotMessage);
-
-    input.addEventListener("keydown", function (e) {
-
-        if (e.key === "Enter") {
-            sendCopilotMessage();
-        }
-
-    });
-
-}
-
-function sendCopilotMessage() {
-
-    const input = document.getElementById("copilotInput");
-    const log = document.getElementById("chatLog");
-
-    if (!input || !log) return;
-
-    const text = input.value.trim();
-
-    if (!text) return;
-
-    const user = document.createElement("div");
-
-    user.className = "user-msg";
-
-    user.innerHTML = `
-        <strong>Commander</strong><br>
-        ${text}
-    `;
-
-    log.appendChild(user);
-
-    const ai = document.createElement("div");
-
-    ai.className = "ai-msg";
-
-    ai.innerHTML = `
-        <strong>ANI</strong><br>
-        ${generateCopilotReply(text)}
-    `;
-
-    setTimeout(() => {
-
-        log.appendChild(ai);
-
-        log.scrollTop = log.scrollHeight;
-
-    }, 350);
-
-    input.value = "";
-
-}
-function generateCopilotReply(text) {
-
-    const q = text.toLowerCase();
-
-    const topCity = getTopCity();
-
-    if (
-        q.includes("top") ||
-        q.includes("highest") ||
-        q.includes("مدينة") ||
-        q.includes("الأعلى")
-    ) {
-
-        return `
-        أعلى مدينة حالياً هي
-
-        <b>${topCity.name}</b>
-
-        بمؤشر خطر
-
-        <b>${topCity.risk}%</b>
-
-        والخطر الوطني المتوسط
-
-        <b>${getAverageRisk()}%</b>.
-        `;
-
-    }
-
-    if (
-        q.includes("report") ||
-        q.includes("تقرير")
-    ) {
-
-        return `
-        التقرير التنفيذي:
-
-        • المدن المراقبة: ${v19Cities.length}
-
-        • أعلى مدينة: ${topCity.name}
-
-        • متوسط الخطر: ${getAverageRisk()}%
-
-        • التوصية:
-
-        استمرار المراقبة الوطنية مع تشغيل الرادار.
-        `;
-
-    }
-
-    if (
-        q.includes("mission") ||
-        q.includes("مهمة")
-    ) {
-
-        return `
-        تم إنشاء مهمة مراقبة لـ
-
-        <b>${topCity.name}</b>
-
-        مع إبقاء بقية المدن تحت المتابعة.
-        `;
-
-    }
-
-    if (
-        q.includes("simulate") ||
-        q.includes("محاكاة")
-    ) {
-
-        return `
-        نتيجة المحاكاة:
-
-        في حال زيادة الأمطار 50%
-
-        سيرتفع مؤشر
-
-        ${topCity.name}
-
-        إلى
-
-        <b>${Math.min(topCity.risk + 18,100)}%</b>.
-        `;
-
-    }
-
-    return `
-    تم تحليل طلبك.
-
-    النظام الوطني يعمل حالياً على
-
-    مراقبة
-
-    ${v19Cities.length}
-
-    مدينة،
-
-    وأعلى مدينة هي
-
-    ${topCity.name}.
-
-    `;
-}
-
-/* ===============================
-   National Map
-================================ */
+/* =========================================================
+   Map Engine
+========================================================= */
 
 function initV19Map() {
-
     const mapBox = document.getElementById("nationalMap");
 
     if (!mapBox || !window.L) return;
 
     if (v19Map) return;
 
-    v19Map = L.map("nationalMap").setView([23.8859, 45.0792], 5);
+    v19Map = L.map("nationalMap", {
+        zoomControl: true,
+        attributionControl: true
+    }).setView([23.8859, 45.0792], 5);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 18,
@@ -394,30 +173,42 @@ function initV19Map() {
     }).addTo(v19Map);
 
     renderCityMarkers();
-
 }
 
-function renderCityMarkers() {
-
+function clearMapLayers() {
     if (!v19Map) return;
 
-    v19Markers.forEach(m => v19Map.removeLayer(m));
-    v19RiskCircles.forEach(c => v19Map.removeLayer(c));
+    v19Markers.forEach(marker => {
+        try {
+            v19Map.removeLayer(marker);
+        } catch (e) {}
+    });
+
+    v19RiskCircles.forEach(circle => {
+        try {
+            v19Map.removeLayer(circle);
+        } catch (e) {}
+    });
 
     v19Markers = [];
     v19RiskCircles = [];
+}
+
+function renderCityMarkers() {
+    if (!v19Map) return;
+
+    clearMapLayers();
 
     const cities = getSortedCities();
 
     cities.forEach((city, index) => {
-
         const color = riskColor(city.risk);
 
         const marker = L.circleMarker([city.lat, city.lon], {
-            radius: Math.max(6, Math.min(18, city.risk / 2)),
+            radius: Math.max(6, Math.min(20, city.risk / 2)),
             color: color,
             fillColor: color,
-            fillOpacity: 0.65,
+            fillOpacity: 0.68,
             weight: 2
         }).addTo(v19Map);
 
@@ -426,15 +217,14 @@ function renderCityMarkers() {
             المنطقة: ${city.region}<br>
             Risk: ${city.risk}%<br>
             Flood: ${city.flood}%<br>
-            Rank: ${index + 1}
+            National Rank: ${index + 1}
         `);
 
         v19Markers.push(marker);
 
         if (city.risk >= 25) {
-
             const circle = L.circle([city.lat, city.lon], {
-                radius: city.risk * 2500,
+                radius: city.risk * 2600,
                 color: color,
                 fillColor: color,
                 fillOpacity: 0.06,
@@ -442,25 +232,55 @@ function renderCityMarkers() {
             }).addTo(v19Map);
 
             v19RiskCircles.push(circle);
-
         }
-
     });
-
 }
 
-/* ===============================
-   Top Risk Cities
-================================ */
+/* =========================================================
+   Optional Radar Layer
+========================================================= */
 
-function getTopRiskCities(limit = 10) {
+async function toggleV19RadarLayer() {
+    if (!v19Map) {
+        initV19Map();
+    }
 
-    return getSortedCities().slice(0, limit);
+    if (!v19Map) return;
 
+    if (v19RadarLayer) {
+        v19Map.removeLayer(v19RadarLayer);
+        v19RadarLayer = null;
+        return;
+    }
+
+    try {
+        const res = await fetch("https://api.rainviewer.com/public/weather-maps.json");
+        const data = await res.json();
+        const frames = data?.radar?.past || [];
+
+        if (!frames.length) return;
+
+        const latest = frames[frames.length - 1].time;
+
+        v19RadarLayer = L.tileLayer(
+            `https://tilecache.rainviewer.com/v2/radar/${latest}/256/{z}/{x}/{y}/2/1_1.png`,
+            {
+                tileSize: 256,
+                opacity: 0.62,
+                attribution: "RainViewer"
+            }
+        ).addTo(v19Map);
+
+    } catch (e) {
+        console.warn("Radar layer skipped:", e);
+    }
 }
+
+/* =========================================================
+   Risk Ranking
+========================================================= */
 
 function renderTopRiskCities() {
-
     const box =
         document.getElementById("topRiskCities") ||
         document.getElementById("decisionLab");
@@ -477,679 +297,519 @@ function renderTopRiskCities() {
             <small>National ranking updated live</small>
         </div>
     `).join("");
-
 }
 
-/* ===============================
-   Mission Workspace
-================================ */
+function renderNationalRiskSummary() {
+    const top = getTopCity();
+    const avg = getAverageRisk();
 
-function renderMissions() {
+    const topCityEl = document.getElementById("topCity");
+    const riskEl = document.getElementById("riskValue") ||
+                   document.getElementById("nationalRisk");
 
-    const box = document.getElementById("missionWorkspace");
+    const confidenceEl = document.getElementById("confidenceValue") ||
+                         document.getElementById("aiConfidence");
 
-    if (!box) return;
-
-    const topCities = getTopRiskCities(6);
-
-    const missions = topCities.map((city, index) => {
-
-        let status = "Monitoring";
-        let priority = "Low";
-
-        if (city.risk >= 70) {
-            status = "Emergency";
-            priority = "Critical";
-        } else if (city.risk >= 50) {
-            status = "High Watch";
-            priority = "High";
-        } else if (city.risk >= 30) {
-            status = "Active Watch";
-            priority = "Medium";
-        }
-
-        return {
-            title: `Monitor ${city.name}`,
-            city: city.name,
-            region: city.region,
-            status,
-            priority,
-            eta: `${15 + index * 6} min`,
-            confidence: `${Math.min(96, 80 + city.risk / 3).toFixed(0)}%`
-        };
-
-    });
-
-    box.innerHTML = missions.map(m => `
-        <div class="mission-card">
-            <h3>${m.title}</h3>
-            <p>Region: <strong>${m.region}</strong></p>
-            <p>Priority: ${m.priority}</p>
-            <p>ETA: ${m.eta}</p>
-            <p>Confidence: ${m.confidence}</p>
-            <div class="mission-status">${m.status}</div>
-        </div>
-    `).join("");
-
-}   
-/* ==========================================================
-   World Model
-========================================================== */
-
-let worldAnimation = 0;
-
-function drawWorldModel() {
-
-    const canvas =
-        document.getElementById("worldModelCanvas");
-
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-
-    canvas.width = w;
-    canvas.height = h;
-
-    ctx.clearRect(0,0,w,h);
-
-    const nodes = [
-
-        {name:"Radar",x:0.10,y:0.20},
-
-        {name:"Satellite",x:0.28,y:0.14},
-
-        {name:"Rain",x:0.45,y:0.20},
-
-        {name:"Flood",x:0.63,y:0.30},
-
-        {name:"Road",x:0.83,y:0.42},
-
-        {name:"Hospital",x:0.70,y:0.68},
-
-        {name:"Population",x:0.45,y:0.82},
-
-        {name:"Decision",x:0.18,y:0.72}
-
-    ];
-
-    ctx.lineWidth=2;
-
-    for(let i=0;i<nodes.length-1;i++){
-
-        ctx.beginPath();
-
-        ctx.strokeStyle="#38bdf8";
-
-        ctx.moveTo(nodes[i].x*w,nodes[i].y*h);
-
-        ctx.lineTo(nodes[i+1].x*w,nodes[i+1].y*h);
-
-        ctx.stroke();
-
+    if (topCityEl && top) {
+        topCityEl.innerText = top.name;
     }
 
-    worldAnimation++;
-
-    nodes.forEach((node,index)=>{
-
-        const active=(worldAnimation%nodes.length)==index;
-
-        ctx.beginPath();
-
-        ctx.fillStyle=
-            active?
-            "#22c55e":
-            "#0ea5e9";
-
-        ctx.arc(
-            node.x*w,
-            node.y*h,
-            active?18:14,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
-
-        ctx.fillStyle="white";
-
-        ctx.font="13px Cairo";
-
-        ctx.textAlign="center";
-
-        ctx.fillText(
-            node.name,
-            node.x*w,
-            node.y*h+30
-        );
-
-    });
-
-}
-
-/* ==========================================================
-   Executive Story
-========================================================== */
-
-function renderExecutiveStory(){
-
-    const box=
-        document.getElementById("executiveStory");
-
-    if(!box)return;
-
-    const top=getTopCity();
-
-    box.innerHTML=`
-
-    <div class="streamItem">
-
-    <strong>National Executive Summary</strong>
-
-    <br><br>
-
-    Highest Risk City
-
-    <b>${top.name}</b>
-
-    <br>
-
-    Risk Score
-
-    <b>${top.risk}%</b>
-
-    <br>
-
-    Average National Risk
-
-    <b>${getAverageRisk()}%</b>
-
-    <br>
-
-    Recommendation
-
-    Continue National Monitoring.
-
-    </div>
-
-    `;
-
-}
-
-/* ==========================================================
-   Timeline
-========================================================== */
-
-const timelineEvents=[
-
-"Radar Updated",
-
-"Memory Search",
-
-"Reasoning",
-
-"Simulation",
-
-"Debate",
-
-"Mission Created",
-
-"Resources Assigned",
-
-"Monitoring",
-
-"Learning",
-
-"Knowledge Updated"
-
-];
-
-let timelineIndex=0;
-
-function updateTimeline(){
-
-    const box=
-        document.getElementById("timeline");
-
-    if(!box)return;
-
-    const div=document.createElement("div");
-
-    div.className="streamItem";
-
-    div.innerHTML=`
-
-    <strong>
-
-    ${nowTime()}
-
-    </strong>
-
-    <br>
-
-    ${timelineEvents[
-        timelineIndex%
-        timelineEvents.length
-    ]}
-
-    `;
-
-    box.prepend(div);
-
-    while(box.children.length>12){
-
-        box.removeChild(box.lastChild);
-
+    if (riskEl) {
+        riskEl.innerText = `${avg}%`;
     }
 
-    timelineIndex++;
-
+    if (confidenceEl) {
+        confidenceEl.innerText = `${Math.min(96, 82 + Math.round(avg / 5))}%`;
+    }
 }
 
-/* ==========================================================
-   Notifications
-========================================================== */
+function updateKpis() {
+    renderNationalRiskSummary();
 
-const notificationEvents=[
+    const nodes =
+        document.getElementById("knowledgeNodes");
 
-"Radar refreshed",
+    const missions =
+        document.getElementById("runningMissions");
 
-"Flood score updated",
-
-"Mission generated",
-
-"Memory expanded",
-
-"Scenario completed",
-
-"Confidence improved",
-
-"New intelligence received",
-
-"Decision approved"
-
-];
-
-let notificationIndex=0;
-
-function updateNotifications(){
-
-    const box=
-        document.getElementById("notifications");
-
-    if(!box)return;
-
-    const div=document.createElement("div");
-
-    div.className="streamItem";
-
-    div.innerHTML=`
-
-    ✓
-
-    ${notificationEvents[
-        notificationIndex%
-        notificationEvents.length
-    ]}
-
-    <br>
-
-    <small>
-
-    ${nowTime()}
-
-    </small>
-
-    `;
-
-    box.prepend(div);
-
-    while(box.children.length>10){
-
-        box.removeChild(box.lastChild);
-
+    if (nodes) {
+        nodes.innerText = `${148 + Math.floor(Math.random() * 20)}`;
     }
 
-    notificationIndex++;
-
+    if (missions) {
+        missions.innerText = `${8 + Math.floor(Math.random() * 5)}`;
+    }
 }
-
-
-/* ===============================
+/* =========================================================
    Live Thinking Stream
-================================ */
+========================================================= */
 
 const thinkingMessages = [
+
     {
-        agent: "Radar Agent",
-        text: "Detected active rainfall cells near southern sector."
+        agent:"Radar Agent",
+        text:"Scanning Saudi Arabia radar network..."
     },
+
     {
-        agent: "Flood Agent",
-        text: "Flood probability increased around Najran."
+        agent:"Flood Agent",
+        text:"Updating flood probability model."
     },
+
     {
-        agent: "Memory Agent",
-        text: "Similar event found in historical memory."
+        agent:"Weather Agent",
+        text:"Assimilating weather observations."
     },
+
     {
-        agent: "Traffic Agent",
-        text: "No critical road impact detected yet."
+        agent:"Reasoning Engine",
+        text:"Comparing current event with historical memory."
     },
+
     {
-        agent: "Decision Agent",
-        text: "Monitoring is better than full escalation."
+        agent:"Simulation Engine",
+        text:"Running 48-hour national simulations."
     },
+
     {
-        agent: "Mission Agent",
-        text: "Generated monitoring mission for highest-risk city."
+        agent:"Mission Planner",
+        text:"Generating monitoring missions."
     },
+
     {
-        agent: "Learning Agent",
-        text: "Updated operational confidence and memory pattern."
+        agent:"Learning Engine",
+        text:"Updating National Intelligence Memory."
     }
+
 ];
 
-function addThinkingItem() {
-    const box = document.getElementById("thinkingStream");
-    if (!box) return;
+function addThinkingItem(){
 
-    const item = thinkingMessages[thinkingIndex % thinkingMessages.length];
+    const box=document.getElementById("thinkingStream");
 
-    const div = document.createElement("div");
-    div.className = "think-item";
-    div.innerHTML = `
-        <strong>${item.agent}</strong><br>
-        <span>${item.text}</span>
+    if(!box)return;
+
+    const msg=
+        thinkingMessages[
+            thinkingIndex%
+            thinkingMessages.length
+        ];
+
+    const city=getTopCity();
+
+    const div=document.createElement("div");
+
+    div.className="streamItem";
+
+    div.innerHTML=`
+
+        <strong>${msg.agent}</strong>
+
         <br>
-        <small>${new Date().toLocaleTimeString("ar-SA")}</small>
+
+        ${msg.text}
+
+        <br>
+
+        <small>
+
+        ${nowTime()}
+
+        |
+
+        Highest Risk:
+
+        ${city.name}
+
+        (${city.risk}%)
+
+        </small>
+
     `;
 
     box.prepend(div);
 
-    if (box.children.length > 12) {
+    while(box.children.length>15){
+
         box.removeChild(box.lastChild);
+
     }
 
     thinkingIndex++;
+
 }
 
-/* ===============================
+/* =========================================================
    Executive Copilot
-================================ */
+========================================================= */
 
-function setupCopilot() {
-    const input = document.getElementById("copilotInput");
-    const sendBtn = document.getElementById("sendBtn");
+function setupCopilot(){
 
-    if (!input || !sendBtn) return;
+    const input=
+        document.getElementById("copilotInput");
 
-    sendBtn.addEventListener("click", sendCopilotMessage);
+    const button=
+        document.getElementById("sendBtn");
 
-    input.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
+    if(!input||!button)return;
+
+    button.onclick=sendCopilotMessage;
+
+    input.addEventListener("keydown",e=>{
+
+        if(e.key==="Enter"){
+
             sendCopilotMessage();
+
         }
+
     });
+
 }
 
-function sendCopilotMessage() {
-    const input = document.getElementById("copilotInput");
-    const log = document.getElementById("chatLog");
+function sendCopilotMessage(){
 
-    if (!input || !log) return;
+    const input=
+        document.getElementById("copilotInput");
 
-    const text = input.value.trim();
+    const chat=
+        document.getElementById("chatLog");
 
-    if (!text) return;
+    if(!input||!chat)return;
 
-    const user = document.createElement("div");
-    user.className = "user-msg";
-    user.innerHTML = `<strong>Commander:</strong><br>${text}`;
+    const question=input.value.trim();
 
-    log.appendChild(user);
+    if(question==="")return;
 
-    const ai = document.createElement("div");
-    ai.className = "ai-msg";
+    const user=document.createElement("div");
 
-    ai.innerHTML = `
-        <strong>ANI:</strong><br>
-        ${generateCopilotReply(text)}
+    user.className="user-msg";
+
+    user.innerHTML=`
+
+        <strong>Commander</strong>
+
+        <br>
+
+        ${question}
+
     `;
 
-    setTimeout(() => {
-        log.appendChild(ai);
-        log.scrollTop = log.scrollHeight;
-    }, 400);
+    chat.appendChild(user);
 
-    input.value = "";
+    setTimeout(()=>{
+
+        const ai=document.createElement("div");
+
+        ai.className="ai-msg";
+
+        ai.innerHTML=`
+
+            <strong>ANI</strong>
+
+            <br>
+
+            ${generateCopilotReply(question)}
+
+        `;
+
+        chat.appendChild(ai);
+
+        chat.scrollTop=chat.scrollHeight;
+
+    },500);
+
+    input.value="";
+
 }
 
-function generateCopilotReply(text) {
-    const lower = text.toLowerCase();
+function generateCopilotReply(question){
 
-    if (
-        lower.includes("najran") ||
-        lower.includes("نجران") ||
-        lower.includes("why")
-    ) {
-        return `
-            نجران هي أعلى مدينة حالياً لأن مؤشر الخطر المركب فيها أعلى من بقية المدن،
-            ويجمع بين المطر المتوقع، مخاطر السيول، وذاكرة أحداث مشابهة.
+    const q=question.toLowerCase();
+
+    const top=getTopCity();
+
+    if(
+        q.includes("report")||
+        q.includes("تقرير")
+    ){
+
+        return`
+
+        National Situation
+
+        <br><br>
+
+        Highest Risk City:
+
+        <b>${top.name}</b>
+
+        <br>
+
+        Risk:
+
+        <b>${top.risk}%</b>
+
+        <br>
+
+        Average National Risk:
+
+        <b>${getAverageRisk()}%</b>
+
         `;
+
     }
 
-    if (
-        lower.includes("report") ||
-        lower.includes("تقرير")
-    ) {
-        return `
-            تم تجهيز ملخص تنفيذي:
-            الوضع الوطني تحت المراقبة، لا يوجد تصعيد كامل حالياً،
-            والتوصية هي تشغيل متابعة رادارية وإرسال فريق مراقبة.
+    if(
+        q.includes("mission")||
+        q.includes("مهمة")
+    ){
+
+        return`
+
+        Monitoring mission generated.
+
+        <br>
+
+        Destination:
+
+        <b>${top.name}</b>
+
+        <br>
+
+        Confidence:
+
+        <b>91%</b>
+
         `;
+
     }
 
-    if (
-        lower.includes("simulate") ||
-        lower.includes("محاكاة")
-    ) {
-        return `
-            نتيجة المحاكاة:
-            إرسال فريقين إلى نجران قد يخفض الخطر المتوقع من 31% إلى 18%.
-            عدم التدخل قد يرفع الخطر إلى 49% خلال ساعتين.
+    if(
+        q.includes("simulate")||
+        q.includes("محاكاة")
+    ){
+
+        return`
+
+        Simulation completed.
+
+        <br>
+
+        Best Scenario:
+
+        Deploy monitoring teams.
+
+        <br>
+
+        Expected Risk
+
+        ${top.risk}% →
+
+        ${Math.max(8,top.risk-12)}%
+
         `;
+
     }
 
-    return `
-        قمت بتحليل الطلب. التوصية الحالية:
-        استمرار المراقبة الوطنية، تحديث الرادار، وتفعيل Mission Workspace للمدن الأعلى خطورة.
+    return`
+
+    Goal received.
+
+    ANI is analyzing national conditions.
+
+    Highest risk city:
+
+    <b>${top.name}</b>
+
     `;
+
 }
 
-/* ===============================
-   National Map
-================================ */
-
-function initV19Map() {
-    const mapBox = document.getElementById("nationalMap");
-
-    if (!mapBox || !window.L) return;
-
-    if (v19Map) return;
-
-    v19Map = L.map("nationalMap").setView([23.8859, 45.0792], 5);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: "© OpenStreetMap"
-    }).addTo(v19Map);
-
-    renderCityMarkers();
-}
-
-function riskColor(score) {
-    if (score >= 70) return "#ef4444";
-    if (score >= 50) return "#fb923c";
-    if (score >= 30) return "#facc15";
-    return "#38bdf8";
-}
-
-function renderCityMarkers() {
-    if (!v19Map) return;
-
-    v19Markers.forEach(m => v19Map.removeLayer(m));
-    v19Markers = [];
-
-    v19Cities.forEach(city => {
-        const color = riskColor(city.risk);
-
-        const marker = L.circleMarker([city.lat, city.lon], {
-            radius: Math.max(8, city.risk / 2),
-            color: color,
-            fillColor: color,
-            fillOpacity: 0.6,
-            weight: 2
-        }).addTo(v19Map);
-
-        marker.bindPopup(`
-            <b>${city.name}</b><br>
-            Risk: ${city.risk}%<br>
-            Flood: ${city.flood}%
-        `);
-
-        v19Markers.push(marker);
-
-        if (city.risk >= 25) {
-            const circle = L.circle([city.lat, city.lon], {
-                radius: city.risk * 3000,
-                color: color,
-                fillColor: color,
-                fillOpacity: 0.08,
-                weight: 1
-            }).addTo(v19Map);
-
-            v19Markers.push(circle);
-        }
-    });
-}
-
-/* ===============================
+/* =========================================================
    Mission Workspace
-================================ */
+========================================================= */
 
-function renderMissions() {
-    const box = document.getElementById("missionWorkspace");
-    if (!box) return;
+function renderMissions(){
 
-    const missions = [
-        {
-            title: "Deploy Monitoring Team",
-            city: "نجران",
-            status: "Running",
-            eta: "18 min",
-            confidence: "91%"
-        },
-        {
-            title: "Activate Radar Watch",
-            city: "نجران",
-            status: "Running",
-            eta: "Live",
-            confidence: "93%"
-        },
-        {
-            title: "Prepare Advisory",
-            city: "خميس مشيط",
-            status: "Pending",
-            eta: "25 min",
-            confidence: "84%"
-        },
-        {
-            title: "Update Memory Pattern",
-            city: "National AI",
-            status: "Completed",
-            eta: "Done",
-            confidence: "96%"
+    const box=
+        document.getElementById("missionWorkspace");
+
+    if(!box)return;
+
+    const cities=getTopRiskCities(8);
+
+    box.innerHTML="";
+
+    cities.forEach((city,index)=>{
+
+        let priority="LOW";
+
+        let status="Monitoring";
+
+        if(city.risk>=50){
+
+            priority="HIGH";
+
+            status="Emergency";
+
         }
-    ];
 
-    box.innerHTML = missions.map(m => `
-        <div class="mission-card">
-            <h3>${m.title}</h3>
-            <p>Target: <strong>${m.city}</strong></p>
-            <p>ETA: ${m.eta}</p>
-            <p>Confidence: ${m.confidence}</p>
-            <div class="mission-status">${m.status}</div>
-        </div>
-    `).join("");
+        else if(city.risk>=30){
+
+            priority="MEDIUM";
+
+            status="Watch";
+
+        }
+
+        const div=document.createElement("div");
+
+        div.className="mission-card";
+
+        div.innerHTML=`
+
+            <h3>
+
+            ${city.name}
+
+            </h3>
+
+            Region:
+
+            <b>${city.region}</b>
+
+            <br>
+
+            Risk:
+
+            <b>${city.risk}%</b>
+
+            <br>
+
+            Flood:
+
+            <b>${city.flood}%</b>
+
+            <br>
+
+            Priority:
+
+            <b>${priority}</b>
+
+            <br>
+
+            ETA:
+
+            ${15+(index*4)} min
+
+            <br>
+
+            Status:
+
+            ${status}
+
+        `;
+
+        box.appendChild(div);
+
+    });
+
 }
-
-/* ===============================
+/* =========================================================
    Decision Lab
-================================ */
+========================================================= */
 
 function renderDecisionLab() {
+
     const box = document.getElementById("decisionLab");
+
     if (!box) return;
+
+    const top = getTopCity();
+
+    if (!top) return;
 
     const scenarios = [
         {
             title: "Scenario A",
-            text: "Deploy 2 monitoring teams",
-            result: "Risk 31% → 18%"
+            action: `Deploy monitoring teams to ${top.name}`,
+            result: `Risk ${top.risk}% → ${Math.max(8, top.risk - 12)}%`,
+            type: "best"
         },
         {
             title: "Scenario B",
-            text: "No action",
-            result: "Risk 31% → 49%"
+            action: "No action",
+            result: `Risk ${top.risk}% → ${Math.min(100, top.risk + 18)}%`,
+            type: "danger"
         },
         {
             title: "Scenario C",
-            text: "Early public advisory",
-            result: "Risk 31% → 24%"
+            action: "Issue early public advisory",
+            result: `Risk ${top.risk}% → ${Math.max(8, top.risk - 7)}%`,
+            type: "watch"
         },
         {
             title: "Counterfactual",
-            text: "If rainfall doubles",
-            result: "Risk may rise to 62%"
+            action: "If rainfall doubles",
+            result: `Risk may rise to ${Math.min(100, top.risk + 30)}%`,
+            type: "danger"
         }
     ];
 
     box.innerHTML = scenarios.map(s => `
         <div class="scenario">
             <strong>${s.title}</strong><br>
-            ${s.text}<br>
+            ${s.action}<br>
             <small>${s.result}</small>
         </div>
     `).join("");
 }
 
-/* ===============================
+/* =========================================================
    Executive Story
-================================ */
+========================================================= */
 
 function renderExecutiveStory() {
+
     const box = document.getElementById("executiveStory");
+
     if (!box) return;
 
+    const top = getTopCity();
+    const avg = getAverageRisk();
+
+    if (!top) return;
+
     box.innerHTML = `
-        At 08:20, RainGuard AI detected increased rainfall activity near Najran.
-        The system merged radar signals, flood probability, national memory,
-        and traffic conditions. After multi-agent debate and scenario simulation,
-        ANI recommended deploying a monitoring team while maintaining national watch level.
-        Expected outcome: reducing operational risk from 31% to 18%.
+        <div class="streamItem">
+            <strong>Executive National Story</strong>
+            <br><br>
+            At ${nowTime()}, RainGuard AI V19.5 analyzed ${v19Cities.length} Saudi cities.
+            The highest current risk is detected in <b>${top.name}</b>
+            within <b>${top.region}</b>, with a risk score of <b>${top.risk}%</b>
+            and flood index of <b>${top.flood}%</b>.
+            <br><br>
+            The system compared radar signals, flood probability, city ranking,
+            national memory, and scenario simulations. The recommended decision is
+            <b>active monitoring</b> rather than full escalation.
+            <br><br>
+            Expected outcome: reducing operational risk from
+            <b>${top.risk}%</b> to <b>${Math.max(8, top.risk - 12)}%</b>
+            if monitoring teams and radar watch are activated.
+        </div>
     `;
 }
 
-/* ===============================
-   World Model Canvas
-================================ */
+/* =========================================================
+   World Model Engine
+========================================================= */
 
 function drawWorldModel() {
-    const canvas = document.getElementById("worldModelCanvas");
+
+    const canvas =
+        document.getElementById("worldModelCanvas") ||
+        document.getElementById("worldCanvas");
 
     if (!canvas) return;
 
@@ -1163,202 +823,258 @@ function drawWorldModel() {
 
     ctx.clearRect(0, 0, width, height);
 
+    const top = getTopCity();
+
     const nodes = [
-        { label: "Radar", x: width * 0.15, y: height * 0.25 },
-        { label: "Rain", x: width * 0.35, y: height * 0.18 },
-        { label: "Flood", x: width * 0.58, y: height * 0.30 },
-        { label: "Road", x: width * 0.78, y: height * 0.42 },
-        { label: "Hospital", x: width * 0.62, y: height * 0.70 },
-        { label: "Population", x: width * 0.34, y: height * 0.76 },
-        { label: "National Risk", x: width * 0.15, y: height * 0.60 }
+        { label: "Radar", x: 0.12, y: 0.22 },
+        { label: "Satellite", x: 0.32, y: 0.15 },
+        { label: "Rain", x: 0.52, y: 0.22 },
+        { label: "Flood", x: 0.76, y: 0.35 },
+        { label: "Roads", x: 0.72, y: 0.65 },
+        { label: "Population", x: 0.48, y: 0.78 },
+        { label: "Mission", x: 0.24, y: 0.68 },
+        { label: top ? top.name : "Top City", x: 0.15, y: 0.45 }
     ];
 
-    ctx.strokeStyle = "#38bdf8";
+    const activeIndex = worldAnimation % nodes.length;
+
     ctx.lineWidth = 2;
 
     for (let i = 0; i < nodes.length - 1; i++) {
+        const a = nodes[i];
+        const b = nodes[i + 1];
+
         ctx.beginPath();
-        ctx.moveTo(nodes[i].x, nodes[i].y);
-        ctx.lineTo(nodes[i + 1].x, nodes[i + 1].y);
+        ctx.strokeStyle = "rgba(56,189,248,.75)";
+        ctx.moveTo(a.x * width, a.y * height);
+        ctx.lineTo(b.x * width, b.y * height);
         ctx.stroke();
     }
 
-    nodes.forEach(node => {
+    nodes.forEach((node, index) => {
+        const active = index === activeIndex;
+        const x = node.x * width;
+        const y = node.y * height;
+
         ctx.beginPath();
-        ctx.fillStyle = "#0ea5e9";
-        ctx.arc(node.x, node.y, 26, 0, Math.PI * 2);
+        ctx.fillStyle = active ? "#facc15" : "#0ea5e9";
+        ctx.arc(x, y, active ? 26 : 20, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = "white";
-        ctx.font = "13px Cairo";
+        ctx.beginPath();
+        ctx.strokeStyle = active ? "rgba(250,204,21,.7)" : "rgba(56,189,248,.35)";
+        ctx.lineWidth = active ? 4 : 2;
+        ctx.arc(x, y, active ? 34 : 28, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "13px Cairo, Tahoma, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(node.label, node.x, node.y + 45);
+        ctx.fillText(node.label, x, y + 45);
     });
+
+    worldAnimation++;
 }
 
-/* ===============================
-   KPI Dynamic Update
-================================ */
+/* =========================================================
+   Autonomous Timeline
+========================================================= */
 
-function updateKpis() {
+const timelineEvents = [
+    "Observe: radar refreshed",
+    "Understand: city-risk model updated",
+    "Reason: alternatives compared",
+    "Debate: agents reached consensus",
+    "Simulate: top scenario selected",
+    "Choose: monitoring approved",
+    "Plan: mission generated",
+    "Execute: resources assigned",
+    "Verify: confidence recalculated",
+    "Learn: memory updated"
+];
 
-    const top = getTopCity();
+function updateTimeline() {
 
-    const avg = getAverageRisk();
+    const box = document.getElementById("timeline");
 
-    const confidence =
-        document.getElementById("confidenceValue");
+    if (!box) return;
 
-    const risk =
-        document.getElementById("riskValue");
+    const event = timelineEvents[timelineIndex % timelineEvents.length];
 
-    const topCityLabel =
-        document.getElementById("topCity");
+    const div = document.createElement("div");
+    div.className = "streamItem";
+    div.innerHTML = `
+        <strong>${nowTime()}</strong><br>
+        ${event}
+    `;
 
-    if (confidence) {
+    box.prepend(div);
 
-        confidence.innerText =
-            `${88 + Math.floor(Math.random()*6)}%`;
-
+    while (box.children.length > 14) {
+        box.removeChild(box.lastChild);
     }
 
-    if (risk) {
-
-        risk.innerText =
-            `${avg}%`;
-
-    }
-
-    if (topCityLabel && top) {
-
-        topCityLabel.innerText =
-            top.name;
-
-    }
-
+    timelineIndex++;
 }
 
+/* =========================================================
+   Executive Notifications
+========================================================= */
+
+const notificationEvents = [
+    "✓ Radar Updated",
+    "✓ Flood Index Updated",
+    "✓ Mission Created",
+    "✓ Memory Expanded",
+    "✓ Confidence Increased",
+    "✓ Scenario Improved",
+    "✓ World Model Updated",
+    "✓ Learning Saved"
+];
+
+function updateNotifications() {
+
+    const box = document.getElementById("notifications");
+
+    if (!box) return;
+
+    const note = notificationEvents[notificationIndex % notificationEvents.length];
+
+    const div = document.createElement("div");
+
+    div.className =
+        notificationIndex % 5 === 0
+            ? "streamItem notice"
+            : notificationIndex % 7 === 0
+                ? "streamItem warning"
+                : "streamItem";
+
+    div.innerHTML = `
+        ${note}<br>
+        <small>${nowTime()}</small>
+    `;
+
+    box.prepend(div);
+
+    while (box.children.length > 10) {
+        box.removeChild(box.lastChild);
+    }
+
+    notificationIndex++;
+}
+/* =========================================================
+   RainGuard AI V19.5
+   Live Engine + API Integration + Initialization
+========================================================= */
+
 /* ===============================
-   Init
+   AI Brain Activity
 ================================ */
-
-window.addEventListener("load", () => {
-    setupCopilot();
-    initV19Map();
-    renderMissions();
-    renderDecisionLab();
-    renderExecutiveStory();
-    drawWorldModel();
-
-    addThinkingItem();
-
-    setInterval(addThinkingItem, 3000);
-    setInterval(updateKpis, 5000);
-    setInterval(drawWorldModel, 6000);
-});
-/* ==========================================================
-   AI Brain Monitor
-========================================================== */
 
 function updateBrainBars() {
 
-    const bars = {
+    const values = {
         reasonBar: 70 + Math.floor(Math.random() * 25),
-        simulationBar: 55 + Math.floor(Math.random() * 35),
+        simulationBar: 60 + Math.floor(Math.random() * 30),
         memoryBar: 65 + Math.floor(Math.random() * 30),
-        planningBar: 50 + Math.floor(Math.random() * 35),
+        planningBar: 55 + Math.floor(Math.random() * 30),
         learningBar: 60 + Math.floor(Math.random() * 30)
     };
 
-    Object.entries(bars).forEach(([id, value]) => {
+    Object.entries(values).forEach(([id, value]) => {
 
         const el = document.getElementById(id);
 
         if (el) {
-            el.style.width = `${value}%`;
+
+            el.style.width = value + "%";
+
         }
 
     });
 
 }
 
-/* ==========================================================
-   API Ready Layer
-   لاحقاً إذا جهزت Endpoint للمدن، سيتصل به مباشرة
-========================================================== */
+/* ===============================
+   API Ready
+================================ */
 
-async function fetchNationalCitiesFromAPI() {
+async function loadNationalCities() {
 
     try {
 
-        const apiBase =
-            window.RAINGUARD_CONFIG?.API_BASE_URL ||
-            window.API_BASE_URL ||
-            "";
+        if (!window.API_BASE_URL) return;
 
-        if (!apiBase) return null;
+        const response = await fetch(
+            `${window.API_BASE_URL}/national-cities`
+        );
 
-        const response = await fetch(`${apiBase}/national-cities`);
-
-        if (!response.ok) return null;
+        if (!response.ok) return;
 
         const data = await response.json();
 
-        if (!Array.isArray(data)) return null;
+        if (!Array.isArray(data)) return;
 
-        return data;
+        v19Cities.length = 0;
 
-    } catch (e) {
+        data.forEach(city => {
 
-        console.warn("National cities API skipped:", e);
+            v19Cities.push({
 
-        return null;
+                name:
+                    city.name ||
+                    city.city ||
+                    "Unknown",
+
+                lat:
+                    Number(city.lat ?? city.latitude),
+
+                lon:
+                    Number(city.lon ?? city.longitude),
+
+                risk:
+                    clampScore(
+                        city.risk ??
+                        city.score ??
+                        city.actualRiskScore ??
+                        city.rain_score
+                    ),
+
+                flood:
+                    clampScore(
+                        city.flood ??
+                        city.floodRiskScore ??
+                        city.flood_score
+                    ),
+
+                region:
+                    city.region ??
+                    "Unknown"
+
+            });
+
+        });
+
+    }
+
+    catch (e) {
+
+        console.warn(
+            "National API unavailable",
+            e
+        );
 
     }
 
 }
 
-async function refreshCitiesFromAPI() {
-
-    const apiCities = await fetchNationalCitiesFromAPI();
-
-    if (!apiCities || !apiCities.length) return;
-
-    v19Cities.length = 0;
-
-    apiCities.forEach(city => {
-
-        v19Cities.push({
-            name: city.name || city.city || "غير محدد",
-            lat: Number(city.lat || city.latitude || 0),
-            lon: Number(city.lon || city.longitude || 0),
-            risk: clampScore(
-                city.risk ||
-                city.score ||
-                city.actualRiskScore ||
-                city.rain_score ||
-                0
-            ),
-            flood: clampScore(
-                city.flood ||
-                city.floodRiskScore ||
-                city.flood_score ||
-                0
-            ),
-            region: city.region || city.area || "غير محدد"
-        });
-
-    });
-
-}
-
-/* ==========================================================
-   National Workspace Refresh
-========================================================== */
+/* ===============================
+   Workspace Refresh
+================================ */
 
 async function refreshWorkspace() {
 
-    await refreshCitiesFromAPI();
+    await loadNationalCities();
 
     updateKpis();
 
@@ -1368,17 +1084,19 @@ async function refreshWorkspace() {
 
     renderMissions();
 
+    renderDecisionLab();
+
     renderExecutiveStory();
 
     drawWorldModel();
 
 }
 
-/* ==========================================================
-   Live Workspace Engine
-========================================================== */
+/* ===============================
+   Live Engine
+================================ */
 
-function startLiveWorkspaceEngine() {
+function startWorkspaceEngine() {
 
     addThinkingItem();
 
@@ -1390,42 +1108,49 @@ function startLiveWorkspaceEngine() {
 
     refreshWorkspace();
 
-    setInterval(addThinkingItem, 3000);
+    setInterval(addThinkingItem,3000);
 
-    setInterval(updateTimeline, 3500);
+    setInterval(updateTimeline,3500);
 
-    setInterval(updateNotifications, 4200);
+    setInterval(updateNotifications,4000);
 
-    setInterval(updateBrainBars, 1500);
+    setInterval(updateBrainBars,1500);
 
-    setInterval(refreshWorkspace, 15000);
+    setInterval(refreshWorkspace,15000);
 
-    setInterval(drawWorldModel, 900);
+    setInterval(drawWorldModel,800);
 
 }
 
-/* ==========================================================
-   Compatibility Check
-========================================================== */
+/* ===============================
+   Compatibility
+================================ */
 
-function checkV195Compatibility() {
+function checkWorkspace() {
 
-    const required = [
+    [
+
         "nationalMap",
+
         "thinkingStream",
+
         "missionWorkspace",
+
         "decisionLab",
+
         "executiveStory",
+
         "timeline",
+
         "notifications"
-    ];
 
-    required.forEach(id => {
+    ].forEach(id=>{
 
-        if (!document.getElementById(id)) {
+        if(!document.getElementById(id)){
 
             console.warn(
-                `RainGuard V19.5 warning: missing element #${id}`
+                "Missing element:",
+                id
             );
 
         }
@@ -1434,13 +1159,30 @@ function checkV195Compatibility() {
 
 }
 
-/* ==========================================================
-   Init
-========================================================== */
+/* ===============================
+   Rain Radar Button (Optional)
+================================ */
 
-window.addEventListener("load", () => {
+const radarButton =
+    document.getElementById("toggleRadar");
 
-    checkV195Compatibility();
+if(radarButton){
+
+    radarButton.onclick=()=>{
+
+        toggleV19RadarLayer();
+
+    };
+
+}
+
+/* ===============================
+   Initialization
+================================ */
+
+window.addEventListener("load",()=>{
+
+    checkWorkspace();
 
     setupCopilot();
 
@@ -1450,10 +1192,14 @@ window.addEventListener("load", () => {
 
     renderMissions();
 
+    renderDecisionLab();
+
     renderExecutiveStory();
 
     drawWorldModel();
 
-    startLiveWorkspaceEngine();
+    updateKpis();
+
+    startWorkspaceEngine();
 
 });
