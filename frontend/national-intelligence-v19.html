@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>RainGuard AI V19 - National Autonomous Intelligence Workspace</title>
+
+<link rel="stylesheet" href="css/workspace-v19.css">
+
+<link
+rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<link
+rel="preconnect"
+href="https://fonts.googleapis.com">
+
+<link
+href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Cairo:wght@400;600;700&display=swap"
+rel="stylesheet">
+
+</head>
+
+<body>
+
+<div class="workspace">
+
+<!-- ================= HEADER ================= -->
+
+<header class="top-header">
+
+<div class="logo">
+
+<div class="version">
+V19
+</div>
+
+<div>
+
+<h1>
+RainGuard AI V19
+</h1>
+
+<p>
+National Autonomous Intelligence Workspace
+</p>
+
+</div>
+
+</div>
+
+<div class="header-actions">
+
+<button class="primary-btn">
+Generate Intelligence
+</button>
+
+<button>
+Executive Copilot
+</button>
+
+<button>
+Mission Workspace
+</button>
+
+<button>
+Decision Lab
+</button>
+
+</div>
+
+</header>
+
+<!-- ================= KPI ================= -->
+
+<section class="kpi-grid">
+
+<div class="kpi-card">
+
+<span>AI Confidence</span>
+
+<h2 id="confidenceValue">
+82%
+</h2>
+
+</div>
+
+<div class="kpi-card">
+
+<span>National Risk</span>
+
+<h2 id="riskValue">
+31%
+</h2>
+
+</div>
+
+<div class="kpi-card">
+
+<span>ANI Status</span>
+
+<h2>
+Active
+</h2>
+
+</div>
+
+<div class="kpi-card">
+
+<span>Top City</span>
+
+<h2>
+نجران
+</h2>
+
+</div>
+
+<div class="kpi-card">
+
+<span>Knowledge Nodes</span>
+
+<h2>
+132
+</h2>
+
+</div>
+
+<div class="kpi-card">
+
+<span>Running Missions</span>
+
+<h2>
+8
+</h2>
+
+</div>
+
+</section>
+
+<!-- ================= WORKSPACE ================= -->
+
+<div class="workspace-grid">
+
+<!-- LEFT -->
+
+<div class="left-column">
+
+<!-- Executive Copilot -->
+
+<section class="panel">
+
+<div class="panel-title">
+
+Executive Copilot
+
+</div>
+
+<div class="copilot-window">
+
+<div class="chat-log" id="chatLog">
+
+<div class="ai-msg">
+
+Good morning Commander.
+
+National Intelligence Workspace Ready.
+
+</div>
+
+</div>
+
+<div class="chat-input">
+
+<input
+
+id="copilotInput"
+
+placeholder="Ask National AI..."
+
+>
+
+<button id="sendBtn">
+
+Send
+
+</button>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- Live Thinking -->
+
+<section class="panel">
+
+<div class="panel-title">
+
+Live Thinking Stream
+
+</div>
+
+<div id="thinkingStream">
+
+</div>
+
+</section>
+
+</div>
+
+<!-- CENTER -->
+
+<div class="center-column">
+
+<section class="panel">
+
+<div class="panel-title">
+
+National Situation Canvas
+
+</div>
+
+<div id="nationalMap">
+
+</div>
+
+</section>
+
+<section class="panel">
+
+<div class="panel-title">
+
+Mission Workspace
+
+</div>
+
+<div id="missionWorkspace">
+
+</div>
+
+</section>
+
+</div>
+
+<!-- RIGHT -->
+
+<div class="right-column">
+
+<section class="panel">
+
+<div class="panel-title">
+
+World Model
+
+</div>
+
+<canvas id="worldModelCanvas">
+
+</canvas>
+
+</section>
+
+<section class="panel">
+
+<div class="panel-title">
+
+Decision Lab
+
+</div>
+
+<div id="decisionLab">
+
+</div>
+
+</section>
+
+<section class="panel">
+
+<div class="panel-title">
+
+Executive Story
+
+</div>
+
+<div id="executiveStory">
+
+</div>
+
+</section>
+
+</div>
+
+</div>
+
+</div>
+
+<script src="js/workspace-v19.js"></script>
+
+</body>
+
+</html>
