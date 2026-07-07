@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RainGuard AI V22 - National Autonomous Intelligence Brain</title>
+
+<link rel="stylesheet" href="css/v22.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+
+<body>
+<div class="shell">
+
+<header class="header">
+  <div class="brand">
+    <div class="badge">V22</div>
+    <div>
+      <h1>RainGuard AI V22</h1>
+      <p>National Autonomous Intelligence Brain</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="startBrain">Start Brain</button>
+    <button id="stopBrain">Stop</button>
+    <button id="runCycle">Run Cycle</button>
+    <button id="generateReport">Generate Report</button>
+  </div>
+</header>
+
+<section class="kpis">
+  <div><span>Status</span><strong id="status">Standby</strong></div>
+  <div><span>Phase</span><strong id="phase">Observe</strong></div>
+  <div><span>National Risk</span><strong id="risk">--%</strong></div>
+  <div><span>Top City</span><strong id="topCity">--</strong></div>
+  <div><span>Confidence</span><strong id="confidence">--%</strong></div>
+  <div><span>Learning</span><strong id="learning">--%</strong></div>
+</section>
+
+<section class="cycle" id="cycleBar">
+  <div data-phase="Observe">Observe</div>
+  <div data-phase="Understand">Understand</div>
+  <div data-phase="Reason">Reason</div>
+  <div data-phase="Simulate">Simulate</div>
+  <div data-phase="Debate">Debate</div>
+  <div data-phase="Decide">Decide</div>
+  <div data-phase="Plan">Plan</div>
+  <div data-phase="Execute">Execute</div>
+  <div data-phase="Verify">Verify</div>
+  <div data-phase="Learn">Learn</div>
+</section>
+
+<main class="grid">
+
+<section class="panel commander">
+  <h2>Executive Commander</h2>
+  <div id="commanderLog" class="box"></div>
+  <div class="inputRow">
+    <input id="commanderInput" placeholder="Ask ANI Brain...">
+    <button id="sendCommander">Send</button>
+  </div>
+</section>
+
+<section class="panel mapPanel">
+  <h2>National Intelligence Map</h2>
+  <div id="map"></div>
+</section>
+
+<section class="panel">
+  <h2>Knowledge Graph</h2>
+  <canvas id="graphCanvas"></canvas>
+</section>
+
+<section class="panel"><h2>Multi-Agent Debate</h2><div id="debatePanel" class="box"></div></section>
+<section class="panel"><h2>Reasoning Engine</h2><div id="reasoningPanel" class="box"></div></section>
+<section class="panel"><h2>Simulation Engine</h2><div id="simulationPanel" class="box"></div></section>
+<section class="panel"><h2>Decision Engine</h2><div id="decisionPanel" class="box"></div></section>
+<section class="panel"><h2>Mission Generator</h2><div id="missionPanel" class="box"></div></section>
+<section class="panel"><h2>Dynamic Memory</h2><div id="memoryPanel" class="box"></div></section>
+<section class="panel"><h2>Learning Engine</h2><div id="learningPanel" class="box"></div></section>
+<section class="panel"><h2>Confidence Engine</h2><div id="confidencePanel" class="box"></div></section>
+<section class="panel"><h2>National Timeline</h2><div id="timelinePanel" class="box"></div></section>
+
+<section class="panel wide">
+  <h2>Explainable AI Decision</h2>
+  <div id="explainPanel" class="report"></div>
+</section>
+
+</main>
+</div>
+
+<script src="js/knowledge_graph.js?v=22"></script>
+<script src="js/dynamic_memory.js?v=22"></script>
+<script src="js/confidence_engine.js?v=22"></script>
+<script src="js/reasoning_engine.js?v=22"></script>
+<script src="js/simulation_engine.js?v=22"></script>
+<script src="js/agent_debate.js?v=22"></script>
+<script src="js/decision_engine.js?v=22"></script>
+<script src="js/mission_generator.js?v=22"></script>
+<script src="js/learning_engine.js?v=22"></script>
+<script src="js/timeline_engine.js?v=22"></script>
+<script src="js/explainable_ai.js?v=22"></script>
+<script src="js/executive_report.js?v=22"></script>
+<script src="js/intelligence_core.js?v=22"></script>
+<script src="js/national_ai_brain.js?v=22"></script>
+
+</body>
+</html>
