@@ -120,7 +120,27 @@ const weather=
 
 await RG23.WeatherEngine
 
-.analyzeCities(
+async analyze(){
+
+const weather=
+
+await RG23.WeatherEngine
+
+.analyze(
+
+this.cities
+
+);
+
+RG23.FloodEngine
+
+.analyze(weather);
+
+this.render(weather);
+
+return weather;
+
+},
 
 this.cities
 
