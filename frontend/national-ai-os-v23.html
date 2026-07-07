@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>RainGuard AI V23 - Real-Time National Intelligence</title>
+
+<link rel="stylesheet" href="css/v23.css">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+
+<body>
+
+<div class="shell">
+
+<header class="header">
+    <div class="brand">
+        <div class="badge">V23</div>
+        <div>
+            <h1>RainGuard AI V23</h1>
+            <p>Real-Time National Intelligence Platform</p>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="startSystem">Start V23</button>
+        <button id="stopSystem">Stop</button>
+        <button id="refreshNow">Refresh Data</button>
+        <button id="generateReport">Generate Report</button>
+    </div>
+</header>
+
+<section class="kpis">
+    <div class="kpi">
+        <span>System Status</span>
+        <strong id="systemStatus">Standby</strong>
+    </div>
+
+    <div class="kpi">
+        <span>Current Phase</span>
+        <strong id="currentPhase">Observe</strong>
+    </div>
+
+    <div class="kpi">
+        <span>National Risk</span>
+        <strong id="nationalRisk">--%</strong>
+    </div>
+
+    <div class="kpi">
+        <span>Top City</span>
+        <strong id="topCity">--</strong>
+    </div>
+
+    <div class="kpi">
+        <span>Weather Score</span>
+        <strong id="weatherScore">--%</strong>
+    </div>
+
+    <div class="kpi">
+        <span>Flood Index</span>
+        <strong id="floodIndex">--%</strong>
+    </div>
+</section>
+
+<section class="cycle">
+    <div data-phase="Observe" class="active">Observe</div>
+    <div data-phase="Weather">Weather</div>
+    <div data-phase="Radar">Radar</div>
+    <div data-phase="Flood">Flood</div>
+    <div data-phase="City">City</div>
+    <div data-phase="Reason">Reason</div>
+    <div data-phase="Decide">Decide</div>
+    <div data-phase="Mission">Mission</div>
+    <div data-phase="Learn">Learn</div>
+</section>
+
+<main class="grid">
+
+<section class="panel commander">
+    <h2>Executive AI Commander</h2>
+    <div id="commanderLog" class="box"></div>
+
+    <div class="inputRow">
+        <input id="commanderInput" placeholder="Ask V23 real-time intelligence...">
+        <button id="sendCommander">Send</button>
+    </div>
+</section>
+
+<section class="panel mapPanel">
+    <h2>Live National Intelligence Map</h2>
+    <div id="v23Map"></div>
+</section>
+
+<section class="panel">
+    <h2>Weather Intelligence</h2>
+    <div id="weatherPanel" class="box"></div>
+</section>
+
+<section class="panel">
+    <h2>Radar Intelligence</h2>
+    <div id="radarPanel" class="box"></div>
+</section>
+
+<section class="panel">
+    <h2>Flood Intelligence</h2>
+    <div id="floodPanel" class="box"></div>
+</section>
+
+<section class="panel">
+    <h2>City Intelligence</h2>
+    <div id="cityPanel" class="box"></div>
+</section>
+
+<section class="panel">
+    <h2>Infrastructure Intelligence</h2>
+    <div id="infrastructurePanel" class="box"></div>
+</section>
+
+<section class="panel">
+    <h2>Traffic Intelligence</h2>
+    <div id="trafficPanel" class="box"></div>
+</section>
+
+<section class="panel">
+    <h2>National Database</h2>
+    <div id="databasePanel" class="box"></div>
+</section>
+
+<section class="panel">
+    <h2>Intelligence Cycle</h2>
+    <div id="cyclePanel" class="box"></div>
+</section>
+
+<section class="panel wide">
+    <h2>Real-Time Executive Report</h2>
+    <div id="reportPanel" class="report"></div>
+</section>
+
+</main>
+
+</div>
+
+<script src="js/api_manager.js?v=23"></script>
+<script src="js/weather_engine.js?v=23"></script>
+<script src="js/radar_engine.js?v=23"></script>
+<script src="js/city_engine.js?v=23"></script>
+<script src="js/flood_engine.js?v=23"></script>
+<script src="js/infrastructure_engine.js?v=23"></script>
+<script src="js/traffic_engine.js?v=23"></script>
+<script src="js/national_database.js?v=23"></script>
+<script src="js/intelligence_cycle.js?v=23"></script>
+<script src="js/ai_brain_v23.js?v=23"></script>
+
+</body>
+</html>
