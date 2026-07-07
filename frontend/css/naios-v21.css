@@ -1,0 +1,254 @@
+:root{
+    --bg:#06111f;
+    --panel:#111c2f;
+    --panel2:#14243b;
+    --line:#28496d;
+    --blue:#2ea8ff;
+    --cyan:#00d4ff;
+    --green:#22e58b;
+    --yellow:#ffd54d;
+    --red:#ff5d6c;
+    --purple:#9b5cff;
+    --text:#f2f6ff;
+    --muted:#91a8c8;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:linear-gradient(180deg,#06111f,#09182a);
+    color:var(--text);
+    font-family:Segoe UI,Tahoma,sans-serif;
+}
+
+.v21-shell{
+    width:98%;
+    margin:auto;
+    padding:22px;
+}
+
+.v21-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:22px;
+}
+
+.brand-box{
+    display:flex;
+    align-items:center;
+    gap:18px;
+}
+
+.version-badge{
+    width:74px;
+    height:74px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#1f8fff,#00d4ff);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:28px;
+    font-weight:800;
+    box-shadow:0 0 25px #1f8fff88;
+}
+
+.brand-box h1{
+    font-size:36px;
+}
+
+.brand-box p{
+    color:var(--muted);
+    margin-top:6px;
+}
+
+.top-actions{
+    display:flex;
+    gap:10px;
+}
+
+.top-actions button,
+.command-input button{
+    padding:12px 20px;
+    border:none;
+    border-radius:10px;
+    background:#1f7fff;
+    color:white;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.top-actions button:hover,
+.command-input button:hover{
+    box-shadow:0 0 18px #1f7fffaa;
+}
+
+.kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:16px;
+    margin-bottom:20px;
+}
+
+.kpi-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+}
+
+.kpi-card span{
+    display:block;
+    color:var(--muted);
+    font-size:13px;
+    margin-bottom:10px;
+}
+
+.kpi-card strong{
+    font-size:30px;
+}
+
+.cycle-bar{
+    display:grid;
+    grid-template-columns:repeat(9,1fr);
+    gap:10px;
+    margin-bottom:22px;
+}
+
+.cycle-step{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:15px;
+    text-align:center;
+    transition:.3s;
+}
+
+.cycle-step.active{
+    background:#1565ff;
+    box-shadow:0 0 25px #1565ff;
+}
+
+.v21-grid{
+    display:grid;
+    grid-template-columns:1.15fr 1.7fr 1.1fr;
+    gap:18px;
+}
+
+.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:18px;
+    min-height:330px;
+}
+
+.panel h2{
+    font-size:23px;
+    margin-bottom:16px;
+}
+
+.wide{
+    grid-column:span 3;
+    min-height:260px;
+}
+
+#v21Map{
+    height:540px;
+    border-radius:16px;
+    overflow:hidden;
+}
+
+.log-box,
+.timeline-box,
+.report-box{
+    height:260px;
+    overflow:auto;
+    background:#07111f;
+    border-radius:12px;
+    padding:12px;
+}
+
+.commander-panel .log-box{
+    height:260px;
+}
+
+.command-input{
+    display:flex;
+    gap:10px;
+    margin-top:12px;
+}
+
+.command-input input{
+    flex:1;
+    padding:13px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:#07111f;
+    color:white;
+}
+
+.item{
+    background:var(--panel2);
+    border-left:4px solid var(--blue);
+    border-radius:10px;
+    padding:13px;
+    margin-bottom:10px;
+    line-height:1.6;
+}
+
+.item.success{
+    border-left-color:var(--green);
+}
+
+.item.warning{
+    border-left-color:var(--yellow);
+}
+
+.item.danger{
+    border-left-color:var(--red);
+}
+
+.item.purple{
+    border-left-color:var(--purple);
+}
+
+.small{
+    color:var(--muted);
+    font-size:12px;
+}
+
+@media(max-width:1500px){
+    .kpi-grid{
+        grid-template-columns:repeat(3,1fr);
+    }
+
+    .cycle-bar{
+        grid-template-columns:repeat(3,1fr);
+    }
+
+    .v21-grid{
+        grid-template-columns:1fr;
+    }
+
+    .wide{
+        grid-column:span 1;
+    }
+
+    #v21Map{
+        height:480px;
+    }
+}
+
+::-webkit-scrollbar{
+    width:8px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#2b5c88;
+    border-radius:8px;
+}
