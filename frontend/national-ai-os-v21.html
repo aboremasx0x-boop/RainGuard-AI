@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>RainGuard AI V21 - National Autonomous Operating Intelligence</title>
+
+<link rel="stylesheet" href="css/naios-v21.css">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+</head>
+
+<body>
+
+<div class="v21-shell">
+
+<header class="v21-header">
+
+<div class="brand-box">
+<div class="version-badge">V21</div>
+<div>
+<h1>RainGuard AI V21</h1>
+<p>National Autonomous Operating Intelligence</p>
+</div>
+</div>
+
+<div class="top-actions">
+<button id="startCoreBtn">Start Intelligence Core</button>
+<button id="stopCoreBtn">Stop</button>
+<button id="runCycleBtn">Run One Cycle</button>
+<button id="generateReportBtn">Generate Intelligence Report</button>
+</div>
+
+</header>
+
+<section class="kpi-grid">
+
+<div class="kpi-card">
+<span>Core Status</span>
+<strong id="coreStatus">Standby</strong>
+</div>
+
+<div class="kpi-card">
+<span>Current Step</span>
+<strong id="currentStep">Observe</strong>
+</div>
+
+<div class="kpi-card">
+<span>National Risk</span>
+<strong id="nationalRisk">--%</strong>
+</div>
+
+<div class="kpi-card">
+<span>Top City</span>
+<strong id="topCity">--</strong>
+</div>
+
+<div class="kpi-card">
+<span>AI Confidence</span>
+<strong id="aiConfidence">--%</strong>
+</div>
+
+<div class="kpi-card">
+<span>Learning Score</span>
+<strong id="learningScore">--%</strong>
+</div>
+
+</section>
+
+<section class="cycle-bar">
+
+<div class="cycle-step active" data-step="Observe">Observe</div>
+<div class="cycle-step" data-step="Understand">Understand</div>
+<div class="cycle-step" data-step="Reason">Reason</div>
+<div class="cycle-step" data-step="Simulate">Simulate</div>
+<div class="cycle-step" data-step="Decide">Decide</div>
+<div class="cycle-step" data-step="Plan">Plan</div>
+<div class="cycle-step" data-step="Execute">Execute</div>
+<div class="cycle-step" data-step="Verify">Verify</div>
+<div class="cycle-step" data-step="Learn">Learn</div>
+
+</section>
+
+<main class="v21-grid">
+
+<section class="panel commander-panel">
+<h2>Executive AI Commander</h2>
+
+<div id="commanderLog" class="log-box"></div>
+
+<div class="command-input">
+<input id="commanderInput" placeholder="Ask the National Intelligence Core...">
+<button id="sendCommanderBtn">Send</button>
+</div>
+</section>
+
+<section class="panel map-panel">
+<h2>National Intelligence Map</h2>
+<div id="v21Map"></div>
+</section>
+
+<section class="panel">
+<h2>Autonomous Agents</h2>
+<div id="agentsPanel" class="log-box"></div>
+</section>
+
+<section class="panel">
+<h2>Reasoning Engine</h2>
+<div id="reasoningPanel" class="log-box"></div>
+</section>
+
+<section class="panel">
+<h2>Simulation Lab</h2>
+<div id="simulationPanel" class="log-box"></div>
+</section>
+
+<section class="panel">
+<h2>Decision Center</h2>
+<div id="decisionPanel" class="log-box"></div>
+</section>
+
+<section class="panel">
+<h2>Mission Planner</h2>
+<div id="missionPanel" class="log-box"></div>
+</section>
+
+<section class="panel">
+<h2>National Memory</h2>
+<div id="memoryPanel" class="log-box"></div>
+</section>
+
+<section class="panel">
+<h2>Self Learning</h2>
+<div id="learningPanel" class="log-box"></div>
+</section>
+
+<section class="panel wide">
+<h2>National Intelligence Timeline</h2>
+<div id="timelinePanel" class="timeline-box"></div>
+</section>
+
+<section class="panel wide">
+<h2>Explainable AI Decision Report</h2>
+<div id="explainabilityPanel" class="report-box"></div>
+</section>
+
+</main>
+
+</div>
+
+<script src="js/national_intelligence_core_v21.js?v=21"></script>
+<script src="js/naios-v21.js?v=21"></script>
+
+</body>
+</html>
