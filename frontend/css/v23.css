@@ -249,3 +249,215 @@ body{
     background:#2b5c88;
     border-radius:8px;
 }
+
+/* ==========================================
+   National Command Center V25
+========================================== */
+
+#executiveBannerV25{
+    margin:20px 0;
+}
+
+.command-banner{
+
+    background:#13233d;
+
+    border:1px solid #2d4f82;
+
+    border-radius:18px;
+
+    padding:22px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:20px;
+
+    box-shadow:0 0 25px rgba(0,150,255,.12);
+
+}
+
+.command-title{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:18px;
+
+}
+
+.command-badge{
+
+    width:70px;
+
+    height:70px;
+
+    border-radius:50%;
+
+    background:#1d8cff;
+
+    color:white;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:26px;
+
+    font-weight:bold;
+
+}
+
+.command-title h2{
+
+    margin:0;
+
+    color:#fff;
+
+    font-size:30px;
+
+    font-weight:700;
+
+}
+
+.command-title p{
+
+    margin-top:6px;
+
+    color:#9cb5d6;
+
+    font-size:15px;
+
+}
+
+.command-metrics{
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+
+    gap:16px;
+
+}
+
+.command-metrics div{
+
+    background:#192c4b;
+
+    border:1px solid rgba(255,255,255,.08);
+
+    border-radius:14px;
+
+    padding:15px;
+
+    transition:.25s;
+
+}
+
+.command-metrics div:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:0 0 15px rgba(0,170,255,.15);
+
+}
+
+.command-metrics span{
+
+    display:block;
+
+    color:#93a9c7;
+
+    font-size:13px;
+
+    margin-bottom:8px;
+
+}
+
+.command-metrics strong{
+
+    color:white;
+
+    font-size:28px;
+
+    font-weight:700;
+
+}
+
+.command-time{
+
+    text-align:right;
+
+    color:#87cfff;
+
+    font-size:13px;
+
+}
+
+.command-banner.success{
+
+    border-left:8px solid #00d084;
+
+}
+
+.command-banner.warning{
+
+    border-left:8px solid #ffc107;
+
+}
+
+.command-banner.danger{
+
+    border-left:8px solid #ff4b5c;
+
+}
+
+/* Responsive */
+
+@media(max-width:900px){
+
+.command-title{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+}
+
+.command-title h2{
+
+font-size:24px;
+
+}
+
+.command-metrics{
+
+grid-template-columns:repeat(2,1fr);
+
+}
+
+}
+
+@media(max-width:600px){
+
+.command-metrics{
+
+grid-template-columns:1fr;
+
+}
+
+.command-badge{
+
+width:56px;
+
+height:56px;
+
+font-size:20px;
+
+}
+
+}
