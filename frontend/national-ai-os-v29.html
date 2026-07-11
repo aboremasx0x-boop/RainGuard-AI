@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
 
@@ -11,20 +10,19 @@
 
     <meta
         name="description"
-        content="RainGuard AI V29 - Autonomous National Cognitive Operating System"
+        content="RainGuard AI V29 Autonomous National Cognitive Operating System"
+    >
+
+    <meta
+        name="theme-color"
+        content="#061426"
     >
 
     <title>
-        RainGuard AI V29 - National Cognitive Operating System
+        RainGuard AI V29 | Autonomous National Cognitive OS
     </title>
 
-    <!-- Main Design -->
-    <link
-        rel="stylesheet"
-        href="css/v23.css?v=29"
-    >
-
-    <!-- Leaflet Map -->
+    <!-- Leaflet -->
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -35,15 +33,563 @@
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         crossorigin=""
     ></script>
+
+    <style>
+        :root {
+            --bg: #061426;
+            --bg-secondary: #081a30;
+            --panel: #0d2038;
+            --panel-dark: #061326;
+            --card: #162d4a;
+            --border: #28577f;
+            --border-soft: #1b446b;
+            --text: #f2f7ff;
+            --muted: #93afd0;
+            --blue: #1e78ff;
+            --cyan: #1db7ff;
+            --green: #08e79b;
+            --yellow: #ffd43b;
+            --orange: #ff9f1c;
+            --red: #ff4967;
+            --shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
+            --radius: 18px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            background:
+                radial-gradient(
+                    circle at top left,
+                    rgba(30, 120, 255, 0.10),
+                    transparent 28%
+                ),
+                linear-gradient(
+                    180deg,
+                    #04101f 0%,
+                    var(--bg) 100%
+                );
+            font-family:
+                Inter,
+                "Segoe UI",
+                Tahoma,
+                Arial,
+                sans-serif;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .shell {
+            width: 100%;
+            min-height: 100vh;
+            padding: 28px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .badge {
+            width: 72px;
+            height: 72px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            border-radius: 50%;
+            font-size: 24px;
+            font-weight: 900;
+            color: white;
+            background:
+                linear-gradient(
+                    145deg,
+                    var(--cyan),
+                    #00d1ff
+                );
+            box-shadow:
+                0 0 28px rgba(29, 183, 255, 0.48);
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: clamp(26px, 3vw, 40px);
+            letter-spacing: -0.03em;
+        }
+
+        .brand p {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .actions button,
+        .input-row button {
+            min-height: 42px;
+            padding: 10px 18px;
+            border-radius: 11px;
+            color: white;
+            font-weight: 750;
+            background:
+                linear-gradient(
+                    135deg,
+                    #1873ff,
+                    #2486ff
+                );
+            box-shadow:
+                0 7px 18px rgba(30, 120, 255, 0.20);
+            transition:
+                transform 0.16s ease,
+                filter 0.16s ease;
+        }
+
+        .actions button:hover,
+        .input-row button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .actions .stop-button {
+            background:
+                linear-gradient(
+                    135deg,
+                    #c52f50,
+                    #ff4967
+                );
+        }
+
+        .kpis {
+            display: grid;
+            grid-template-columns:
+                repeat(6, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .kpi {
+            min-height: 124px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(18, 42, 70, 0.98),
+                    rgba(10, 29, 51, 0.98)
+                );
+            box-shadow: var(--shadow);
+        }
+
+        .kpi span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .kpi strong {
+            display: block;
+            margin-top: 14px;
+            font-size: clamp(22px, 2vw, 31px);
+            line-height: 1.18;
+            overflow-wrap: anywhere;
+        }
+
+        .cycle {
+            display: grid;
+            grid-template-columns:
+                repeat(10, minmax(90px, 1fr));
+            gap: 9px;
+            margin-bottom: 18px;
+        }
+
+        .cycle-step {
+            min-height: 47px;
+            display: grid;
+            place-items: center;
+            padding: 10px 8px;
+            color: #e7f1ff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #0d2038;
+            font-size: 13px;
+            text-align: center;
+            transition:
+                background 0.2s ease,
+                box-shadow 0.2s ease,
+                border-color 0.2s ease;
+        }
+
+        .cycle-step.active {
+            border-color: #2d8cff;
+            background:
+                linear-gradient(
+                    135deg,
+                    #0e66ff,
+                    #258aff
+                );
+            box-shadow:
+                0 0 20px rgba(30, 120, 255, 0.52);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns:
+                minmax(280px, 0.9fr)
+                minmax(460px, 1.45fr)
+                minmax(280px, 0.9fr);
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        .panel {
+            min-width: 0;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(14, 35, 61, 0.98),
+                    rgba(9, 27, 48, 0.98)
+                );
+            box-shadow: var(--shadow);
+        }
+
+        .panel h2 {
+            margin: 0 0 14px;
+            font-size: 20px;
+            line-height: 1.25;
+        }
+
+        .panel-subtitle {
+            margin: -4px 0 14px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .wide {
+            grid-column: 1 / -1;
+        }
+
+        .two-columns {
+            grid-column: span 2;
+        }
+
+        .box,
+        .report {
+            min-height: 235px;
+            max-height: 350px;
+            padding: 10px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-radius: 13px;
+            background: var(--panel-dark);
+            scrollbar-width: thin;
+            scrollbar-color:
+                #3678ad
+                transparent;
+        }
+
+        .report {
+            min-height: 250px;
+            max-height: 410px;
+        }
+
+        .map-panel {
+            min-height: 510px;
+        }
+
+        #v23Map {
+            width: 100%;
+            height: 445px;
+            overflow: hidden;
+            border-radius: 15px;
+            background: #061326;
+        }
+
+        .item {
+            position: relative;
+            margin-bottom: 10px;
+            padding: 14px 15px;
+            overflow-wrap: anywhere;
+            border-left: 4px solid var(--cyan);
+            border-radius: 11px;
+            color: #f1f7ff;
+            background: var(--card);
+            font-size: 14px;
+            line-height: 1.62;
+        }
+
+        .item:last-child {
+            margin-bottom: 0;
+        }
+
+        .item h3 {
+            margin: 0 0 9px;
+            font-size: 17px;
+        }
+
+        .item strong,
+        .item b {
+            font-weight: 800;
+        }
+
+        .item.success {
+            border-left-color: var(--green);
+        }
+
+        .item.warning {
+            border-left-color: var(--yellow);
+        }
+
+        .item.danger {
+            border-left-color: var(--red);
+        }
+
+        .item.info {
+            border-left-color: var(--cyan);
+        }
+
+        .item.neutral {
+            border-left-color: #7c91ab;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .input-row input {
+            width: 100%;
+            min-height: 43px;
+            padding: 10px 13px;
+            color: white;
+            outline: none;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: #06162a;
+        }
+
+        .input-row input:focus {
+            border-color: var(--cyan);
+            box-shadow:
+                0 0 0 3px rgba(29, 183, 255, 0.10);
+        }
+
+        .status-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .status-chip {
+            padding: 6px 10px;
+            border: 1px solid var(--border-soft);
+            border-radius: 999px;
+            color: #d8eaff;
+            background: rgba(21, 49, 82, 0.85);
+            font-size: 12px;
+        }
+
+        .status-chip.live {
+            color: #caffed;
+            border-color: rgba(8, 231, 155, 0.45);
+        }
+
+        .status-chip.warning {
+            color: #fff4bd;
+            border-color: rgba(255, 212, 59, 0.45);
+        }
+
+        .status-chip.error {
+            color: #ffd3db;
+            border-color: rgba(255, 73, 103, 0.50);
+        }
+
+        .progress {
+            height: 9px;
+            margin-top: 9px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #061326;
+        }
+
+        .progress span {
+            display: block;
+            height: 100%;
+            width: 0;
+            border-radius: inherit;
+            background:
+                linear-gradient(
+                    90deg,
+                    var(--green),
+                    var(--cyan)
+                );
+            transition: width 0.35s ease;
+        }
+
+        .empty-state {
+            min-height: 180px;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            padding: 12px 16px;
+            color: var(--muted);
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .leaflet-control-attribution {
+            font-size: 10px;
+        }
+
+        @media (max-width: 1250px) {
+            .kpis {
+                grid-template-columns:
+                    repeat(3, minmax(160px, 1fr));
+            }
+
+            .cycle {
+                grid-template-columns:
+                    repeat(5, 1fr);
+            }
+
+            .grid {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+
+            .wide,
+            .two-columns {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .shell {
+                padding: 14px;
+            }
+
+            .header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .actions button {
+                flex: 1 1 130px;
+            }
+
+            .kpis {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+
+            .cycle {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .wide,
+            .two-columns {
+                grid-column: auto;
+            }
+
+            .map-panel {
+                min-height: auto;
+            }
+
+            #v23Map {
+                height: 380px;
+            }
+
+            .box,
+            .report {
+                max-height: 420px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpis {
+                grid-template-columns: 1fr;
+            }
+
+            .badge {
+                width: 60px;
+                height: 60px;
+                font-size: 20px;
+            }
+
+            .brand h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
 <div class="shell">
 
-    <!-- ===================================================== -->
+    <!-- ====================================================== -->
     <!-- HEADER -->
-    <!-- ===================================================== -->
+    <!-- ====================================================== -->
 
     <header class="header">
 
@@ -76,6 +622,7 @@
 
             <button
                 id="stopSystem"
+                class="stop-button"
                 type="button"
             >
                 Stop
@@ -100,150 +647,168 @@
     </header>
 
 
-    <!-- ===================================================== -->
-    <!-- NATIONAL KPI CARDS -->
-    <!-- ===================================================== -->
+    <!-- ====================================================== -->
+    <!-- KPIs -->
+    <!-- ====================================================== -->
 
     <section class="kpis">
 
-        <div class="kpi">
-            <span>
-                System Status
-            </span>
-
+        <article class="kpi">
+            <span>System Status</span>
             <strong id="systemStatus">
                 Initializing V29
             </strong>
-        </div>
+        </article>
 
-        <div class="kpi">
-            <span>
-                Current Phase
-            </span>
-
+        <article class="kpi">
+            <span>Cognitive Phase</span>
             <strong id="currentPhase">
                 Observe
             </strong>
-        </div>
+        </article>
 
-        <div class="kpi">
-            <span>
-                National Risk
-            </span>
-
+        <article class="kpi">
+            <span>National Risk</span>
             <strong id="nationalRisk">
                 --%
             </strong>
-        </div>
+        </article>
 
-        <div class="kpi">
-            <span>
-                Top City
-            </span>
-
+        <article class="kpi">
+            <span>Top City</span>
             <strong id="topCity">
                 --
             </strong>
-        </div>
+        </article>
 
-        <div class="kpi">
-            <span>
-                Weather Score
-            </span>
-
+        <article class="kpi">
+            <span>Weather Score</span>
             <strong id="weatherScore">
                 --%
             </strong>
-        </div>
+        </article>
 
-        <div class="kpi">
-            <span>
-                Flood Index
-            </span>
-
+        <article class="kpi">
+            <span>Flood Index</span>
             <strong id="floodIndex">
                 --%
             </strong>
-        </div>
+        </article>
 
     </section>
 
 
-    <!-- ===================================================== -->
+    <!-- ====================================================== -->
     <!-- COGNITIVE CYCLE -->
-    <!-- ===================================================== -->
+    <!-- ====================================================== -->
 
-    <section class="cycle">
+    <section
+        id="cognitiveCycle"
+        class="cycle"
+        aria-label="V29 cognitive cycle"
+    >
 
         <div
+            class="cycle-step active"
             data-phase="Observe"
-            class="active"
         >
             Observe
         </div>
 
-        <div data-phase="Understand">
+        <div
+            class="cycle-step"
+            data-phase="Understand"
+        >
             Understand
         </div>
 
-        <div data-phase="Hypothesize">
+        <div
+            class="cycle-step"
+            data-phase="Hypothesize"
+        >
             Hypothesize
         </div>
 
-        <div data-phase="Believe">
+        <div
+            class="cycle-step"
+            data-phase="Believe"
+        >
             Believe
         </div>
 
-        <div data-phase="Debate">
+        <div
+            class="cycle-step"
+            data-phase="Debate"
+        >
             Debate
         </div>
 
-        <div data-phase="Simulate">
+        <div
+            class="cycle-step"
+            data-phase="Simulate"
+        >
             Simulate
         </div>
 
-        <div data-phase="Decide">
+        <div
+            class="cycle-step"
+            data-phase="Decide"
+        >
             Decide
         </div>
 
-        <div data-phase="Plan">
+        <div
+            class="cycle-step"
+            data-phase="Plan"
+        >
             Plan
         </div>
 
-        <div data-phase="Reflect">
+        <div
+            class="cycle-step"
+            data-phase="Reflect"
+        >
             Reflect
         </div>
 
-        <div data-phase="Learn">
+        <div
+            class="cycle-step"
+            data-phase="Learn"
+        >
             Learn
         </div>
 
     </section>
 
 
-    <!-- ===================================================== -->
-    <!-- MAIN GRID -->
-    <!-- ===================================================== -->
+    <!-- ====================================================== -->
+    <!-- MAIN PAGE -->
+    <!-- ====================================================== -->
 
     <main class="grid">
 
+        <!-- Executive Commander -->
 
-        <!-- ================================================= -->
-        <!-- EXECUTIVE COMMANDER -->
-        <!-- ================================================= -->
-
-        <section class="panel commander">
+        <section class="panel">
 
             <h2>
                 Executive AI Commander
             </h2>
 
+            <p class="panel-subtitle">
+                Live messages generated by the V29 cognitive operating system.
+            </p>
+
             <div
                 id="commanderLog"
                 class="box"
-            ></div>
+            >
+                <div class="item info">
+                    V29 interface initialized.
+                </div>
+            </div>
 
-            <div class="inputRow">
+            <div class="input-row">
 
                 <input
                     id="commanderInput"
@@ -264,24 +829,24 @@
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- NATIONAL MAP -->
-        <!-- ================================================= -->
+        <!-- National Map -->
 
-        <section class="panel mapPanel">
+        <section class="panel map-panel">
 
             <h2>
                 Live National Intelligence Map
             </h2>
+
+            <p class="panel-subtitle">
+                Real-time geographic view of monitored cities and risks.
+            </p>
 
             <div id="v23Map"></div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- WEATHER -->
-        <!-- ================================================= -->
+        <!-- Weather -->
 
         <section class="panel">
 
@@ -289,17 +854,23 @@
                 Weather Intelligence
             </h2>
 
+            <p class="panel-subtitle">
+                Current weather signals received from the data engines.
+            </p>
+
             <div
                 id="weatherPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for weather data.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- RADAR -->
-        <!-- ================================================= -->
+        <!-- Radar -->
 
         <section class="panel">
 
@@ -307,21 +878,23 @@
                 Radar Intelligence
             </h2>
 
+            <p class="panel-subtitle">
+                Radar availability and precipitation monitoring layer.
+            </p>
+
             <div
                 id="radarPanel"
                 class="box"
             >
-                <div class="item">
-                    Radar engine is initializing.
+                <div class="item neutral">
+                    Radar layer is initializing.
                 </div>
             </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- FLOOD -->
-        <!-- ================================================= -->
+        <!-- Flood -->
 
         <section class="panel">
 
@@ -329,17 +902,23 @@
                 Flood Intelligence
             </h2>
 
+            <p class="panel-subtitle">
+                Flood-risk index generated for monitored cities.
+            </p>
+
             <div
                 id="floodPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for flood analysis.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- CITY -->
-        <!-- ================================================= -->
+        <!-- City Intelligence -->
 
         <section class="panel">
 
@@ -347,17 +926,23 @@
                 City Intelligence
             </h2>
 
+            <p class="panel-subtitle">
+                Population, terrain and risk context for each city.
+            </p>
+
             <div
                 id="cityPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for city analysis.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- INFRASTRUCTURE -->
-        <!-- ================================================= -->
+        <!-- Infrastructure -->
 
         <section class="panel">
 
@@ -365,17 +950,23 @@
                 Infrastructure Intelligence
             </h2>
 
+            <p class="panel-subtitle">
+                Infrastructure exposure and criticality indicators.
+            </p>
+
             <div
                 id="infrastructurePanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for infrastructure data.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- TRAFFIC -->
-        <!-- ================================================= -->
+        <!-- Traffic -->
 
         <section class="panel">
 
@@ -383,17 +974,23 @@
                 Traffic Intelligence
             </h2>
 
+            <p class="panel-subtitle">
+                Road risk and expected operational response time.
+            </p>
+
             <div
                 id="trafficPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for traffic analysis.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- FORECAST VERIFICATION -->
-        <!-- ================================================= -->
+        <!-- Forecast Verification -->
 
         <section class="panel">
 
@@ -401,143 +998,47 @@
                 Forecast Verification
             </h2>
 
+            <p class="panel-subtitle">
+                Official-source status and global forecast verification.
+            </p>
+
             <div
                 id="forecastVerificationPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for forecast verification.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- EARLY WARNING -->
-        <!-- ================================================= -->
+        <!-- Early Warning -->
 
         <section class="panel wide">
 
             <h2>
-                Early Warning AI V26
+                National Early Warning
             </h2>
+
+            <p class="panel-subtitle">
+                Rain and hazard outlook for 6, 24 and 72 hours.
+            </p>
 
             <div
                 id="earlyWarningPanel"
                 class="report"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for early-warning analysis.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- NATIONAL DATABASE -->
-        <!-- ================================================= -->
-
-        <section class="panel">
-
-            <h2>
-                National Database
-            </h2>
-
-            <div
-                id="databasePanel"
-                class="box"
-            ></div>
-
-        </section>
-
-
-        <!-- ================================================= -->
-        <!-- REASONING ENGINE -->
-        <!-- ================================================= -->
-
-        <section class="panel">
-
-            <h2>
-                Reasoning Engine V24
-            </h2>
-
-            <div
-                id="reasoningPanel"
-                class="box"
-            ></div>
-
-        </section>
-
-
-        <!-- ================================================= -->
-        <!-- DECISION ENGINE -->
-        <!-- ================================================= -->
-
-        <section class="panel">
-
-            <h2>
-                Decision Engine V24
-            </h2>
-
-            <div
-                id="decisionPanel"
-                class="box"
-            ></div>
-
-        </section>
-
-
-        <!-- ================================================= -->
-        <!-- MISSION CENTER -->
-        <!-- ================================================= -->
-
-        <section class="panel">
-
-            <h2>
-                Mission Center
-            </h2>
-
-            <div
-                id="missionPanel"
-                class="box"
-            ></div>
-
-        </section>
-
-
-        <!-- ================================================= -->
-        <!-- EXPLAINABLE AI -->
-        <!-- ================================================= -->
-
-        <section class="panel">
-
-            <h2>
-                Explainable AI
-            </h2>
-
-            <div
-                id="explainablePanel"
-                class="box"
-            ></div>
-
-        </section>
-
-
-        <!-- ================================================= -->
-        <!-- NATIONAL STATUS -->
-        <!-- ================================================= -->
-
-        <section class="panel">
-
-            <h2>
-                National Status V25
-            </h2>
-
-            <div
-                id="nationalStatusPanel"
-                class="box"
-            ></div>
-
-        </section>
-
-
-        <!-- ================================================= -->
-        <!-- AUTONOMOUS COGNITIVE ENGINE V29 -->
-        <!-- ================================================= -->
+        <!-- V29 Engine -->
 
         <section class="panel">
 
@@ -545,17 +1046,23 @@
                 Autonomous Cognitive Engine V29
             </h2>
 
+            <p class="panel-subtitle">
+                Central cognitive interpretation and final decision.
+            </p>
+
             <div
                 id="autonomousCognitiveV29Panel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    V29 cognitive engine is starting.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- HYPOTHESIS ENGINE -->
-        <!-- ================================================= -->
+        <!-- Hypotheses -->
 
         <section class="panel">
 
@@ -563,17 +1070,23 @@
                 Hypothesis Engine V29
             </h2>
 
+            <p class="panel-subtitle">
+                Possible interpretations generated from available evidence.
+            </p>
+
             <div
                 id="hypothesisPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for hypotheses.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- BELIEF ENGINE -->
-        <!-- ================================================= -->
+        <!-- Beliefs -->
 
         <section class="panel">
 
@@ -581,17 +1094,23 @@
                 Belief Engine V29
             </h2>
 
+            <p class="panel-subtitle">
+                Supported, uncertain and rejected cognitive beliefs.
+            </p>
+
             <div
                 id="beliefPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for belief evaluation.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- DECISION DEBATE -->
-        <!-- ================================================= -->
+        <!-- Decision Debate -->
 
         <section class="panel wide">
 
@@ -599,17 +1118,23 @@
                 Decision Debate Engine V29
             </h2>
 
+            <p class="panel-subtitle">
+                Internal debate among safety, evidence and operations agents.
+            </p>
+
             <div
                 id="decisionDebatePanel"
                 class="report"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for cognitive debate.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- FUTURE SIMULATION -->
-        <!-- ================================================= -->
+        <!-- Simulation -->
 
         <section class="panel wide">
 
@@ -617,17 +1142,23 @@
                 Future Simulation V29
             </h2>
 
+            <p class="panel-subtitle">
+                Simulated national risk across 6, 24 and 72 hours.
+            </p>
+
             <div
                 id="futureSimulationPanel"
                 class="report"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for future simulation.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- COGNITIVE MEMORY -->
-        <!-- ================================================= -->
+        <!-- Memory -->
 
         <section class="panel">
 
@@ -635,17 +1166,23 @@
                 Cognitive Memory V29
             </h2>
 
+            <p class="panel-subtitle">
+                Similarity search against previous cognitive cycles.
+            </p>
+
             <div
                 id="cognitiveMemoryPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Cognitive memory is ready.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- SELF REFLECTION -->
-        <!-- ================================================= -->
+        <!-- Reflection -->
 
         <section class="panel">
 
@@ -653,17 +1190,47 @@
                 Self Reflection V29
             </h2>
 
+            <p class="panel-subtitle">
+                Internal review of reasoning quality and learning needs.
+            </p>
+
             <div
                 id="selfReflectionPanel"
                 class="box"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for self-reflection.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- NATIONAL PLAN -->
-        <!-- ================================================= -->
+        <!-- Health -->
+
+        <section class="panel">
+
+            <h2>
+                V29 System Health
+            </h2>
+
+            <p class="panel-subtitle">
+                Availability of required engines and latest cognitive cycle.
+            </p>
+
+            <div
+                id="v29HealthPanel"
+                class="box"
+            >
+                <div class="empty-state">
+                    Checking system health.
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- National Plan -->
 
         <section class="panel wide">
 
@@ -671,17 +1238,23 @@
                 National Cognitive Plan V29
             </h2>
 
+            <p class="panel-subtitle">
+                Operational plan produced from the final autonomous decision.
+            </p>
+
             <div
                 id="nationalPlanV29Panel"
                 class="report"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for the national cognitive plan.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- KNOWLEDGE GRAPH -->
-        <!-- ================================================= -->
+        <!-- Knowledge Graph -->
 
         <section class="panel wide">
 
@@ -689,17 +1262,23 @@
                 National Knowledge Graph V29
             </h2>
 
+            <p class="panel-subtitle">
+                Relationships between evidence, beliefs, predictions and decisions.
+            </p>
+
             <div
                 id="knowledgeGraphPanel"
                 class="report"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for knowledge-graph generation.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- COGNITIVE THINKING STREAM -->
-        <!-- ================================================= -->
+        <!-- Thinking Stream -->
 
         <section class="panel wide">
 
@@ -707,17 +1286,23 @@
                 AI Cognitive Thinking Stream V29
             </h2>
 
+            <p class="panel-subtitle">
+                Operational reasoning summary generated by the cognitive engine.
+            </p>
+
             <div
                 id="aiThinkingPanel"
                 class="report"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for the first cognitive cycle.
+                </div>
+            </div>
 
         </section>
 
 
-        <!-- ================================================= -->
-        <!-- EXECUTIVE REPORT -->
-        <!-- ================================================= -->
+        <!-- Executive Report -->
 
         <section class="panel wide">
 
@@ -725,305 +1310,1197 @@
                 Real-Time Executive Report
             </h2>
 
+            <p class="panel-subtitle">
+                Consolidated national situation report generated from V29.
+            </p>
+
             <div
                 id="reportPanel"
                 class="report"
-            ></div>
+            >
+                <div class="empty-state">
+                    Waiting for executive-report generation.
+                </div>
+            </div>
 
         </section>
 
     </main>
 
+    <div class="footer-note">
+        RainGuard AI V29 — autonomous cognitive monitoring interface.
+    </div>
+
 </div>
 
 
-<!-- ========================================================= -->
-<!-- BASE DATA ENGINES -->
-<!-- ========================================================= -->
+<!-- ======================================================== -->
+<!-- BASIC DATA ENGINES                                      -->
+<!-- ======================================================== -->
 
-<script src="js/api_manager.js?v=29"></script>
-<script src="js/weather_engine.js?v=29"></script>
-<script src="js/radar_engine.js?v=29"></script>
-<script src="js/city_engine.js?v=29"></script>
-<script src="js/flood_engine.js?v=29"></script>
-<script src="js/infrastructure_engine.js?v=29"></script>
-<script src="js/traffic_engine.js?v=29"></script>
-
-
-<!-- ========================================================= -->
-<!-- OPERATIONAL ENGINES -->
-<!-- ========================================================= -->
-
-<script src="js/national_database.js?v=29"></script>
-<script src="js/intelligence_cycle.js?v=29"></script>
-
-<script src="js/reasoning_engine_v24.js?v=29"></script>
-<script src="js/decision_engine_v24.js?v=29"></script>
-<script src="js/mission_center_v24.js?v=29"></script>
-<script src="js/explainable_ai_v24.js?v=29"></script>
-
-<script src="js/national_status_v25.js?v=29"></script>
+<script src="js/api_manager.js?v=2901"></script>
+<script src="js/weather_engine.js?v=2901"></script>
+<script src="js/radar_engine.js?v=2901"></script>
+<script src="js/city_engine.js?v=2901"></script>
+<script src="js/flood_engine.js?v=2901"></script>
+<script src="js/infrastructure_engine.js?v=2901"></script>
+<script src="js/traffic_engine.js?v=2901"></script>
 
 
-<!-- ========================================================= -->
-<!-- NATIONAL DATA AND WARNING LAYER -->
-<!-- ========================================================= -->
+<!-- ======================================================== -->
+<!-- DATA COLLECTION AND EARLY-WARNING LAYER                  -->
+<!-- These are data providers, not legacy interface panels.   -->
+<!-- ======================================================== -->
 
-<script src="js/national_data_hub_v26.js?v=29"></script>
-<script src="js/forecast_verification_v26.js?v=29"></script>
-<script src="js/early_warning_ai_v26.js?v=29"></script>
-
-
-<!-- ========================================================= -->
-<!-- LEGACY DISPLAY BRAIN -->
-<!-- يستخدم لتشغيل الخريطة والطقس والفيضانات والمدينة والتقرير -->
-<!-- ========================================================= -->
-
-<script src="js/ai_brain_v24.js?v=29"></script>
+<script src="js/national_data_hub_v26.js?v=2901"></script>
+<script src="js/forecast_verification_v26.js?v=2901"></script>
+<script src="js/early_warning_ai_v26.js?v=2901"></script>
 
 
-<!-- ========================================================= -->
-<!-- AUTONOMOUS COGNITIVE OPERATING SYSTEM V29 -->
-<!-- يجب أن يكونا آخر ملفين -->
-<!-- ========================================================= -->
+<!-- ======================================================== -->
+<!-- BASE DISPLAY ORCHESTRATOR                                -->
+<!-- Required by autonomous_brain_v29.js for map/data cycle.  -->
+<!-- ======================================================== -->
 
-<script src="js/autonomous_cognitive_engine_v29.js?v=29"></script>
-<script src="js/autonomous_brain_v29.js?v=29"></script>
+<script src="js/ai_brain_v24.js?v=2901"></script>
 
 
-<!-- ========================================================= -->
-<!-- V29 INTERFACE SUPPORT -->
-<!-- ========================================================= -->
+<!-- ======================================================== -->
+<!-- V29 COGNITIVE OPERATING SYSTEM                           -->
+<!-- These must remain the final external scripts.            -->
+<!-- ======================================================== -->
+
+<script src="js/autonomous_cognitive_engine_v29.js?v=2901"></script>
+<script src="js/autonomous_brain_v29.js?v=2901"></script>
+
+
+<!-- ======================================================== -->
+<!-- CLEAN V29 INTERFACE CONTROLLER                           -->
+<!-- ======================================================== -->
 
 <script>
 (function () {
     "use strict";
 
-    function safelySetText(id, value) {
-        const element = document.getElementById(id);
+    const V29UI = {
 
-        if (element && value !== undefined && value !== null) {
-            element.textContent = value;
-        }
-    }
+        initialized: false,
+        updateTimer: null,
+        lastRenderedPlanId: null,
+        lastDecisionCode: null,
+        lastResultTimestamp: null,
 
-    function renderNationalPlanV29() {
-        const panel = document.getElementById(
-            "nationalPlanV29Panel"
-        );
+        getResult() {
+            return (
+                window.RG29
+                && window.RG29.AutonomousCognitiveEngine
+                && window.RG29.AutonomousCognitiveEngine.lastResult
+            ) || null;
+        },
 
-        const result =
-            window.RG29
-                ?.AutonomousCognitiveEngine
-                ?.lastResult;
+        getBrain() {
+            return (
+                window.RG29
+                && window.RG29.AutonomousBrain
+            ) || null;
+        },
 
-        if (!panel || !result?.plan) {
-            return;
-        }
+        getElement(id) {
+            return document.getElementById(id);
+        },
 
-        const plan = result.plan;
+        number(value, fallback = 0) {
+            const parsed = Number(value);
 
-        const phases = Array.isArray(plan.phases)
-            ? plan.phases
-            : [];
+            return Number.isFinite(parsed)
+                ? parsed
+                : fallback;
+        },
 
-        panel.innerHTML = `
-            <div class="item success">
+        clamp(value, min = 0, max = 100) {
+            const number = this.number(value);
 
-                <h3>${plan.id || "V29 National Plan"}</h3>
+            return Math.min(
+                max,
+                Math.max(min, number)
+            );
+        },
 
-                City:
-                ${plan.city || "--"}
+        escapeHTML(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        },
+
+        setText(id, value) {
+            const element = this.getElement(id);
+
+            if (!element) {
+                return;
+            }
+
+            element.textContent =
+                value === undefined
+                || value === null
+                    ? "--"
+                    : String(value);
+        },
+
+        setHTML(id, html) {
+            const element = this.getElement(id);
+
+            if (!element) {
+                return;
+            }
+
+            element.innerHTML = html;
+        },
+
+        addCommanderMessage(message, type = "success") {
+            const panel = this.getElement("commanderLog");
+
+            if (!panel || !message) {
+                return;
+            }
+
+            const item = document.createElement("div");
+            const time = new Date()
+                .toLocaleTimeString("ar-SA");
+
+            item.className = `item ${type}`;
+
+            item.innerHTML = `
+                <strong>${this.escapeHTML(time)}</strong>
                 <br>
+                ${this.escapeHTML(message)}
+            `;
 
-                Decision:
-                ${plan.decision || "--"}
-                <br>
+            panel.prepend(item);
 
-                Priority:
-                ${plan.priority || "--"}
-                <br>
-
-                Scenario:
-                ${plan.selectedScenario || "--"}
-                <br>
-
-                Status:
-                ${plan.status || "--"}
-
-            </div>
-
-            ${phases.map(phase => `
-                <div class="item">
-
-                    <b>
-                        Phase ${phase.phase || "--"}:
-                        ${phase.name || "--"}
-                    </b>
-
-                    <br>
-
-                    Status:
-                    ${phase.status || "--"}
-
-                    <br>
-
-                    Owner:
-                    ${phase.owner || "--"}
-
-                    <br>
-
-                    Action:
-                    ${phase.action || "--"}
-
-                </div>
-            `).join("")}
-        `;
-    }
-
-    function updateV29Kpis() {
-        const result =
-            window.RG29
-                ?.AutonomousCognitiveEngine
-                ?.lastResult;
-
-        if (!result) {
-            return;
-        }
-
-        const observation =
-            result.observation || {};
-
-        const situation =
-            result.situation || {};
-
-        safelySetText(
-            "nationalRisk",
-            `${Math.round(
-                situation.nationalRisk ??
-                observation.averageRisk ??
-                0
-            )}%`
-        );
-
-        safelySetText(
-            "topCity",
-            situation.topCity ??
-            observation.topCity ??
-            "--"
-        );
-
-        safelySetText(
-            "systemStatus",
-            "Autonomous Cognitive V29 Running"
-        );
-    }
-
-    function updatePhaseFromV29() {
-        const result =
-            window.RG29
-                ?.AutonomousCognitiveEngine
-                ?.lastResult;
-
-        if (!result) {
-            return;
-        }
-
-        const decision =
-            result.decision?.code || "";
-
-        let phase = "Observe";
-
-        if (decision === "NORMAL_MONITORING") {
-            phase = "Learn";
-        } else if (decision === "COLLECT_MORE_DATA") {
-            phase = "Observe";
-        } else if (decision === "ENHANCED_WATCH") {
-            phase = "Plan";
-        } else if (decision === "OPERATIONAL_WARNING") {
-            phase = "Decide";
-        } else if (decision === "EMERGENCY_RESPONSE") {
-            phase = "Mission";
-        }
-
-        safelySetText(
-            "currentPhase",
-            phase
-        );
-
-        document
-            .querySelectorAll(".cycle [data-phase]")
-            .forEach(element => {
-
-                const elementPhase =
-                    element.dataset.phase;
-
-                element.classList.toggle(
-                    "active",
-                    elementPhase === phase
+            while (panel.children.length > 20) {
+                panel.removeChild(
+                    panel.lastElementChild
                 );
-            });
-    }
+            }
+        },
 
-    function updateV29Interface() {
-        renderNationalPlanV29();
-        updateV29Kpis();
-        updatePhaseFromV29();
-    }
+        getDecisionPhase(result) {
+            const decision =
+                result?.decision?.code || "";
 
-    window.addEventListener("load", () => {
+            const priority =
+                result?.decision?.priority || "";
 
-        setTimeout(
-            updateV29Interface,
-            7000
-        );
+            if (
+                decision === "EMERGENCY_RESPONSE"
+                || priority === "CRITICAL"
+            ) {
+                return "Plan";
+            }
 
-        setInterval(
-            updateV29Interface,
-            5000
-        );
+            if (
+                decision === "OPERATIONAL_WARNING"
+                || priority === "HIGH"
+            ) {
+                return "Decide";
+            }
 
-        const reportButton =
-            document.getElementById(
-                "generateReport"
+            if (
+                decision === "ENHANCED_WATCH"
+                || priority === "MEDIUM"
+            ) {
+                return "Simulate";
+            }
+
+            if (
+                decision === "COLLECT_MORE_DATA"
+            ) {
+                return "Observe";
+            }
+
+            return "Learn";
+        },
+
+        updateCycle(result) {
+            const phase =
+                this.getDecisionPhase(result);
+
+            this.setText(
+                "currentPhase",
+                phase
             );
 
-        if (reportButton) {
-            reportButton.addEventListener(
-                "click",
-                () => {
-                    updateV29Interface();
+            document
+                .querySelectorAll(
+                    "#cognitiveCycle [data-phase]"
+                )
+                .forEach(item => {
+                    item.classList.toggle(
+                        "active",
+                        item.dataset.phase === phase
+                    );
+                });
+        },
 
-                    if (
-                        window.RG23?.Brain
-                            ?.generateReport
-                    ) {
-                        RG23.Brain.generateReport();
-                    }
-                }
+        updateKPIs(result) {
+            if (!result) {
+                return;
+            }
+
+            const observation =
+                result.observation || {};
+
+            const situation =
+                result.situation || {};
+
+            const cities =
+                Array.isArray(observation.cities)
+                    ? observation.cities
+                    : [];
+
+            const topCityName =
+                situation.topCity
+                || observation.topCity
+                || "--";
+
+            const topCity =
+                cities.find(city =>
+                    String(city?.name || "")
+                        .toLowerCase()
+                    === String(topCityName)
+                        .toLowerCase()
+                ) || null;
+
+            const nationalRisk =
+                this.number(
+                    situation.nationalRisk
+                    ?? observation.averageRisk
+                );
+
+            const weatherScore =
+                this.number(
+                    topCity?.weatherScore
+                    ?? observation.topCityRisk
+                    ?? situation.maximumRisk
+                );
+
+            const floodIndex =
+                this.number(
+                    topCity?.floodIndex
+                    ?? 0
+                );
+
+            const brain = this.getBrain();
+
+            this.setText(
+                "systemStatus",
+                brain?.running
+                    ? "Autonomous V29 Running"
+                    : "V29 Ready"
             );
-        }
 
-        const commanderInput =
-            document.getElementById(
-                "commanderInput"
+            this.setText(
+                "nationalRisk",
+                `${Math.round(nationalRisk)}%`
             );
 
-        if (commanderInput) {
-            commanderInput.addEventListener(
-                "keydown",
-                event => {
-                    if (event.key === "Enter") {
-                        document
-                            .getElementById(
-                                "sendCommander"
+            this.setText(
+                "topCity",
+                topCityName
+            );
+
+            this.setText(
+                "weatherScore",
+                `${Math.round(weatherScore)}%`
+            );
+
+            this.setText(
+                "floodIndex",
+                `${Math.round(floodIndex)}%`
+            );
+        },
+
+        renderPlan(result) {
+            const plan = result?.plan;
+
+            if (!plan) {
+                return;
+            }
+
+            const phases =
+                Array.isArray(plan.phases)
+                    ? plan.phases
+                    : [];
+
+            const statusClass =
+                plan.status === "AUTONOMOUSLY_ACTIVE"
+                    ? "success"
+                    : (
+                        plan.status ===
+                        "AWAITING_HUMAN_APPROVAL"
+                            ? "warning"
+                            : "info"
+                    );
+
+            const phaseHTML = phases.length
+                ? phases.map(phase => `
+                    <div class="item info">
+                        <h3>
+                            Phase
+                            ${this.escapeHTML(phase.phase ?? "--")}:
+                            ${this.escapeHTML(phase.name ?? "--")}
+                        </h3>
+
+                        <strong>Status:</strong>
+                        ${this.escapeHTML(phase.status ?? "--")}
+                        <br>
+
+                        <strong>Owner:</strong>
+                        ${this.escapeHTML(phase.owner ?? "--")}
+                        <br>
+
+                        <strong>Action:</strong>
+                        ${this.escapeHTML(phase.action ?? "--")}
+                    </div>
+                `).join("")
+                : `
+                    <div class="item neutral">
+                        No operational phases generated.
+                    </div>
+                `;
+
+            this.setHTML(
+                "nationalPlanV29Panel",
+                `
+                    <div class="item ${statusClass}">
+                        <h3>
+                            ${this.escapeHTML(
+                                plan.id || "V29 National Plan"
+                            )}
+                        </h3>
+
+                        <strong>City:</strong>
+                        ${this.escapeHTML(plan.city || "--")}
+                        <br>
+
+                        <strong>Decision:</strong>
+                        ${this.escapeHTML(plan.decision || "--")}
+                        <br>
+
+                        <strong>Priority:</strong>
+                        ${this.escapeHTML(plan.priority || "--")}
+                        <br>
+
+                        <strong>Scenario:</strong>
+                        ${this.escapeHTML(
+                            plan.selectedScenario || "--"
+                        )}
+                        <br>
+
+                        <strong>Status:</strong>
+                        ${this.escapeHTML(plan.status || "--")}
+                    </div>
+
+                    ${phaseHTML}
+                `
+            );
+        },
+
+        renderExecutiveReport(result) {
+            if (!result) {
+                return;
+            }
+
+            const observation =
+                result.observation || {};
+
+            const situation =
+                result.situation || {};
+
+            const decision =
+                result.decision || {};
+
+            const simulation =
+                result.simulation || {};
+
+            const strongestBelief =
+                Array.isArray(result.beliefs)
+                && result.beliefs.length
+                    ? result.beliefs[0]
+                    : null;
+
+            const selectedScenario =
+                simulation.selectedScenario || {};
+
+            const reportClass =
+                decision.priority === "CRITICAL"
+                    ? "danger"
+                    : (
+                        decision.priority === "HIGH"
+                            ? "warning"
+                            : "success"
+                    );
+
+            this.setHTML(
+                "reportPanel",
+                `
+                    <div class="item ${reportClass}">
+                        <h3>
+                            V29 National Cognitive Intelligence Report
+                        </h3>
+
+                        <strong>Generated:</strong>
+                        ${this.escapeHTML(
+                            result.generatedAt
+                            || new Date()
+                                .toLocaleString("ar-SA")
+                        )}
+                        <br>
+
+                        <strong>National Situation:</strong>
+                        ${this.escapeHTML(
+                            situation.level || "--"
+                        )}
+                        <br>
+
+                        <strong>Top City:</strong>
+                        ${this.escapeHTML(
+                            situation.topCity
+                            || observation.topCity
+                            || "--"
+                        )}
+                        <br>
+
+                        <strong>National Risk:</strong>
+                        ${Math.round(
+                            this.number(
+                                situation.nationalRisk
+                                ?? observation.averageRisk
                             )
-                            ?.click();
-                    }
+                        )}%
+                        <br>
+
+                        <strong>Maximum Local Risk:</strong>
+                        ${Math.round(
+                            this.number(
+                                situation.maximumRisk
+                                ?? observation.maximumRisk
+                            )
+                        )}%
+                        <br>
+
+                        <strong>Strongest Belief:</strong>
+                        ${this.escapeHTML(
+                            strongestBelief?.title || "--"
+                        )}
+                        <br>
+
+                        <strong>Belief Confidence:</strong>
+                        ${Math.round(
+                            this.number(
+                                strongestBelief?.confidence
+                            )
+                        )}%
+                        <br>
+
+                        <strong>Selected Scenario:</strong>
+                        ${this.escapeHTML(
+                            selectedScenario.name || "--"
+                        )}
+                        <br>
+
+                        <strong>6-Hour Risk:</strong>
+                        ${Math.round(
+                            this.number(simulation.h6)
+                        )}%
+                        <br>
+
+                        <strong>24-Hour Risk:</strong>
+                        ${Math.round(
+                            this.number(simulation.h24)
+                        )}%
+                        <br>
+
+                        <strong>72-Hour Risk:</strong>
+                        ${Math.round(
+                            this.number(simulation.h72)
+                        )}%
+                        <br>
+
+                        <strong>Final Decision:</strong>
+                        ${this.escapeHTML(
+                            decision.code || "--"
+                        )}
+                        <br>
+
+                        <strong>Priority:</strong>
+                        ${this.escapeHTML(
+                            decision.priority || "--"
+                        )}
+                        <br>
+
+                        <strong>Recommended Action:</strong>
+                        ${this.escapeHTML(
+                            decision.action || "--"
+                        )}
+                        <br>
+
+                        <strong>Decision Reason:</strong>
+                        ${this.escapeHTML(
+                            decision.reason || "--"
+                        )}
+                        <br>
+
+                        <strong>Cognitive Confidence:</strong>
+                        ${Math.round(
+                            this.number(result.confidence)
+                        )}%
+                        <br>
+
+                        <strong>Processing Time:</strong>
+                        ${Math.round(
+                            this.number(result.processingMs)
+                        )} ms
+                    </div>
+                `
+            );
+        },
+
+        renderHealth(result) {
+            const checks = [
+                {
+                    name: "API Manager",
+                    ready: Boolean(
+                        window.RG23?.APIManager
+                        || window.RG23?.ApiManager
+                    )
+                },
+                {
+                    name: "Weather Engine",
+                    ready: Boolean(
+                        window.RG23?.WeatherEngine
+                    )
+                },
+                {
+                    name: "City Engine",
+                    ready: Boolean(
+                        window.RG23?.CityEngine
+                    )
+                },
+                {
+                    name: "Flood Engine",
+                    ready: Boolean(
+                        window.RG23?.FloodEngine
+                    )
+                },
+                {
+                    name: "National Data Hub",
+                    ready: Boolean(
+                        window.RG26?.NationalDataHub
+                    )
+                },
+                {
+                    name: "Forecast Verification",
+                    ready: Boolean(
+                        window.RG26?.ForecastVerification
+                    )
+                },
+                {
+                    name: "Early Warning AI",
+                    ready: Boolean(
+                        window.RG26?.EarlyWarningAI
+                    )
+                },
+                {
+                    name: "V29 Cognitive Engine",
+                    ready: Boolean(
+                        window.RG29
+                        ?.AutonomousCognitiveEngine
+                    )
+                },
+                {
+                    name: "V29 Autonomous Brain",
+                    ready: Boolean(
+                        window.RG29?.AutonomousBrain
+                    )
                 }
+            ];
+
+            const readyCount =
+                checks.filter(item => item.ready)
+                    .length;
+
+            const percent = Math.round(
+                readyCount / checks.length * 100
+            );
+
+            const checkHTML =
+                checks.map(item => `
+                    <div class="status-chip ${
+                        item.ready
+                            ? "live"
+                            : "error"
+                    }">
+                        ${this.escapeHTML(item.name)}:
+                        ${item.ready ? "READY" : "MISSING"}
+                    </div>
+                `).join("");
+
+            this.setHTML(
+                "v29HealthPanel",
+                `
+                    <div class="item ${
+                        percent === 100
+                            ? "success"
+                            : "warning"
+                    }">
+                        <h3>
+                            System Readiness: ${percent}%
+                        </h3>
+
+                        <div class="progress">
+                            <span style="width:${percent}%"></span>
+                        </div>
+
+                        <br>
+
+                        <strong>Engines Ready:</strong>
+                        ${readyCount}/${checks.length}
+                        <br>
+
+                        <strong>Last Decision:</strong>
+                        ${this.escapeHTML(
+                            result?.decision?.code || "--"
+                        )}
+                        <br>
+
+                        <strong>Last Cognitive Confidence:</strong>
+                        ${Math.round(
+                            this.number(result?.confidence)
+                        )}%
+                    </div>
+
+                    <div class="status-row">
+                        ${checkHTML}
+                    </div>
+                `
+            );
+        },
+
+        renderRadarFallback() {
+            const panel = this.getElement("radarPanel");
+
+            if (
+                !panel
+                || panel.querySelector(".radar-live")
+            ) {
+                return;
+            }
+
+            const radarAvailable =
+                Boolean(window.RG23?.RadarEngine);
+
+            panel.innerHTML = `
+                <div class="item ${
+                    radarAvailable
+                        ? "success"
+                        : "warning"
+                }">
+                    <h3>
+                        ${
+                            radarAvailable
+                                ? "Radar Engine Connected"
+                                : "Radar Engine Pending"
+                        }
+                    </h3>
+
+                    ${
+                        radarAvailable
+                            ? "The radar engine is available. Live layer rendering depends on the configured radar source."
+                            : "The radar engine file is not currently available."
+                    }
+                </div>
+            `;
+        },
+
+        renderEarlyWarningFallback(result) {
+            const panel =
+                this.getElement("earlyWarningPanel");
+
+            if (!panel) {
+                return;
+            }
+
+            const hasRenderedItems =
+                panel.querySelector(".item")
+                && !panel.querySelector(
+                    ".empty-state"
+                );
+
+            if (hasRenderedItems) {
+                return;
+            }
+
+            const observation =
+                result?.observation || {};
+
+            const warnings =
+                Array.isArray(observation.warnings)
+                    ? observation.warnings
+                    : [];
+
+            if (!warnings.length) {
+                panel.innerHTML = `
+                    <div class="item neutral">
+                        <h3>No active national warning</h3>
+                        No verified warning record was produced during the latest cycle.
+                    </div>
+                `;
+
+                return;
+            }
+
+            panel.innerHTML = warnings.map(warning => `
+                <div class="item ${
+                    warning?.overallLevel === "EMERGENCY"
+                        ? "danger"
+                        : (
+                            warning?.overallLevel === "WARNING"
+                                ? "warning"
+                                : "success"
+                        )
+                }">
+                    <h3>
+                        ${this.escapeHTML(
+                            warning?.city
+                            || warning?.cityName
+                            || "Monitored City"
+                        )}
+                    </h3>
+
+                    <strong>Level:</strong>
+                    ${this.escapeHTML(
+                        warning?.overallLevel
+                        || "NORMAL"
+                    )}
+                    <br>
+
+                    <strong>Confidence:</strong>
+                    ${Math.round(
+                        this.number(
+                            warning?.confidence
+                        )
+                    )}%
+                </div>
+            `).join("");
+        },
+
+        notifyDecisionChange(result) {
+            const decisionCode =
+                result?.decision?.code;
+
+            if (
+                !decisionCode
+                || decisionCode === this.lastDecisionCode
+            ) {
+                return;
+            }
+
+            this.lastDecisionCode = decisionCode;
+
+            const priority =
+                result?.decision?.priority || "LOW";
+
+            const type =
+                priority === "CRITICAL"
+                    ? "danger"
+                    : (
+                        priority === "HIGH"
+                            ? "warning"
+                            : "success"
+                    );
+
+            this.addCommanderMessage(
+                `V29 decision: ${decisionCode}`,
+                type
+            );
+        },
+
+        render(result) {
+            if (!result) {
+                this.renderHealth(null);
+                this.renderRadarFallback();
+                return;
+            }
+
+            this.updateKPIs(result);
+            this.updateCycle(result);
+            this.renderPlan(result);
+            this.renderExecutiveReport(result);
+            this.renderHealth(result);
+            this.renderRadarFallback();
+            this.renderEarlyWarningFallback(result);
+            this.notifyDecisionChange(result);
+
+            this.lastResultTimestamp =
+                result.generatedAt
+                || result.processingMs
+                || Date.now();
+        },
+
+        async start() {
+            const brain = this.getBrain();
+
+            if (!brain?.start) {
+                this.addCommanderMessage(
+                    "V29 autonomous brain is unavailable.",
+                    "danger"
+                );
+
+                return;
+            }
+
+            try {
+                await brain.start();
+
+                this.addCommanderMessage(
+                    "Autonomous V29 cycle started.",
+                    "success"
+                );
+            } catch (error) {
+                console.error(
+                    "V29 start error:",
+                    error
+                );
+
+                this.addCommanderMessage(
+                    "Unable to start V29. Check browser console.",
+                    "danger"
+                );
+            }
+        },
+
+        stop() {
+            const brain = this.getBrain();
+
+            if (!brain?.stop) {
+                return;
+            }
+
+            brain.stop();
+
+            this.setText(
+                "systemStatus",
+                "V29 Stopped"
+            );
+
+            this.addCommanderMessage(
+                "Autonomous V29 cycle stopped.",
+                "warning"
+            );
+        },
+
+        async refresh() {
+            const brain = this.getBrain();
+
+            if (!brain?.runCycle) {
+                this.addCommanderMessage(
+                    "V29 refresh function is unavailable.",
+                    "danger"
+                );
+
+                return;
+            }
+
+            const button =
+                this.getElement("refreshNow");
+
+            if (button) {
+                button.disabled = true;
+                button.textContent = "Refreshing...";
+            }
+
+            try {
+                await brain.runCycle();
+
+                this.render(this.getResult());
+
+                this.addCommanderMessage(
+                    "V29 data refresh completed.",
+                    "success"
+                );
+            } catch (error) {
+                console.error(
+                    "V29 refresh error:",
+                    error
+                );
+
+                this.addCommanderMessage(
+                    "V29 refresh failed. Check browser console.",
+                    "danger"
+                );
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = "Refresh Data";
+                }
+            }
+        },
+
+        generateReport() {
+            const result = this.getResult();
+
+            if (!result) {
+                this.addCommanderMessage(
+                    "No V29 result is available for report generation.",
+                    "warning"
+                );
+
+                return;
+            }
+
+            this.renderExecutiveReport(result);
+
+            this.getElement("reportPanel")
+                ?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+
+            this.addCommanderMessage(
+                "V29 executive report generated.",
+                "success"
+            );
+        },
+
+        answerCommander() {
+            const input =
+                this.getElement("commanderInput");
+
+            const question =
+                input?.value?.trim();
+
+            if (!question) {
+                return;
+            }
+
+            const result = this.getResult();
+
+            this.addCommanderMessage(
+                `User: ${question}`,
+                "info"
+            );
+
+            if (!result) {
+                this.addCommanderMessage(
+                    "V29 is still collecting national data.",
+                    "warning"
+                );
+
+                input.value = "";
+                return;
+            }
+
+            const normalized =
+                question.toLowerCase();
+
+            let response;
+
+            if (
+                normalized.includes("risk")
+                || normalized.includes("خطر")
+            ) {
+                response =
+                    `National risk is ${
+                        Math.round(
+                            this.number(
+                                result?.situation
+                                    ?.nationalRisk
+                            )
+                        )
+                    }%. Highest exposure city: ${
+                        result?.situation?.topCity
+                        || "--"
+                    }.`;
+            } else if (
+                normalized.includes("decision")
+                || normalized.includes("قرار")
+            ) {
+                response =
+                    `Current V29 decision is ${
+                        result?.decision?.code
+                        || "--"
+                    }. Recommended action: ${
+                        result?.decision?.action
+                        || "--"
+                    }.`;
+            } else if (
+                normalized.includes("confidence")
+                || normalized.includes("ثقة")
+            ) {
+                response =
+                    `Current cognitive confidence is ${
+                        Math.round(
+                            this.number(
+                                result?.confidence
+                            )
+                        )
+                    }%.`;
+            } else if (
+                normalized.includes("city")
+                || normalized.includes("مدينة")
+            ) {
+                response =
+                    `Top monitored city is ${
+                        result?.situation?.topCity
+                        || "--"
+                    }, with maximum risk ${
+                        Math.round(
+                            this.number(
+                                result?.situation
+                                    ?.maximumRisk
+                            )
+                        )
+                    }%.`;
+            } else {
+                response =
+                    `Situation: ${
+                        result?.situation?.level || "--"
+                    }. Decision: ${
+                        result?.decision?.code || "--"
+                    }. Confidence: ${
+                        Math.round(
+                            this.number(
+                                result?.confidence
+                            )
+                        )
+                    }%.`;
+            }
+
+            this.addCommanderMessage(
+                response,
+                "success"
+            );
+
+            input.value = "";
+        },
+
+        bindEvents() {
+            this.getElement("startSystem")
+                ?.addEventListener(
+                    "click",
+                    () => this.start()
+                );
+
+            this.getElement("stopSystem")
+                ?.addEventListener(
+                    "click",
+                    () => this.stop()
+                );
+
+            this.getElement("refreshNow")
+                ?.addEventListener(
+                    "click",
+                    () => this.refresh()
+                );
+
+            this.getElement("generateReport")
+                ?.addEventListener(
+                    "click",
+                    () => this.generateReport()
+                );
+
+            this.getElement("sendCommander")
+                ?.addEventListener(
+                    "click",
+                    () => this.answerCommander()
+                );
+
+            this.getElement("commanderInput")
+                ?.addEventListener(
+                    "keydown",
+                    event => {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            this.answerCommander();
+                        }
+                    }
+                );
+        },
+
+        watch() {
+            if (this.updateTimer) {
+                clearInterval(this.updateTimer);
+            }
+
+            this.updateTimer = setInterval(
+                () => {
+                    const result = this.getResult();
+
+                    this.render(result);
+                },
+                2500
+            );
+        },
+
+        init() {
+            if (this.initialized) {
+                return;
+            }
+
+            this.initialized = true;
+
+            this.bindEvents();
+            this.renderHealth(null);
+            this.renderRadarFallback();
+            this.watch();
+
+            this.addCommanderMessage(
+                "Clean V29 interface controller is active.",
+                "success"
+            );
+
+            setTimeout(
+                () => {
+                    this.render(
+                        this.getResult()
+                    );
+                },
+                2500
+            );
+
+            setTimeout(
+                () => {
+                    const result =
+                        this.getResult();
+
+                    if (!result) {
+                        this.addCommanderMessage(
+                            "Waiting for the first autonomous cognitive cycle.",
+                            "warning"
+                        );
+                    }
+                },
+                8000
             );
         }
-    });
+    };
+
+    window.V29UI = V29UI;
+
+    if (
+        document.readyState === "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            () => V29UI.init()
+        );
+    } else {
+        V29UI.init();
+    }
 
 })();
 </script>
