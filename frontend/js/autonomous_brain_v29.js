@@ -81,8 +81,27 @@ RG29.AutonomousBrain = {
                 window.RG23?.Brain
                     ?.runFullAnalysis
             ) {
-                await RG23.Brain
-                    .runFullAnalysis();
+                // تشغيل محرك البيانات الأساسي دون إسقاط دورة V29
+try {
+    const baseBrain =
+        window.RG23?.AIBrain ||
+        window.RG23?.AIBrainV23 ||
+        window.RG24?.AIBrain ||
+        null;
+
+    if (baseBrain && typeof baseBrain.runFullAnalysis === "function") {
+        await baseBrain.runFullAnalysis();
+    } else {
+        console.warn(
+            "V29: Base AI brain runFullAnalysis is unavailable. Continuing with available data."
+        );
+    }
+} catch (baseError) {
+    console.warn(
+        "V29: Base analysis failed, continuing cognitive cycle with available data:",
+        baseError
+    );
+}
             }
 
             const latestCities =
