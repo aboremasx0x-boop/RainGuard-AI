@@ -1,227 +1,745 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
 
-<title>RainGuard AI V29 - Autonomous Cognitive Command Center</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<link rel="stylesheet" href="css/v23.css">
+    <meta
+        name="description"
+        content="RainGuard AI V29 - Autonomous National Cognitive Operating System"
+    >
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <title>
+        RainGuard AI V29 - National Cognitive Operating System
+    </title>
+
+    <!-- Main Design -->
+    <link
+        rel="stylesheet"
+        href="css/v23.css?v=29"
+    >
+
+    <!-- Leaflet Map -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin=""
+    >
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        crossorigin=""
+    ></script>
 </head>
 
 <body>
 
 <div class="shell">
 
-<header class="header">
-    <div class="brand">
-        <div class="badge">V29</div>
-        <div>
-            <h1>RainGuard AI V29</h1>
-            <p>Real-Time National Intelligence Platform</p>
+    <!-- ===================================================== -->
+    <!-- HEADER -->
+    <!-- ===================================================== -->
+
+    <header class="header">
+
+        <div class="brand">
+
+            <div class="badge">
+                V29
+            </div>
+
+            <div>
+                <h1>
+                    RainGuard AI V29
+                </h1>
+
+                <p>
+                    Autonomous National Cognitive Operating System
+                </p>
+            </div>
+
         </div>
-    </div>
 
-    <div class="actions">
-        <button id="startSystem">Start V29</button>
-        <button id="stopSystem">Stop</button>
-        <button id="refreshNow">Refresh Data</button>
-        <button id="generateReport">Generate Report</button>
-    </div>
-</header>
+        <div class="actions">
 
-<section class="kpis">
-    <div class="kpi">
-        <span>System Status</span>
-        <strong id="systemStatus">Standby</strong>
-    </div>
+            <button
+                id="startSystem"
+                type="button"
+            >
+                Start V29
+            </button>
 
-    <div class="kpi">
-        <span>Current Phase</span>
-        <strong id="currentPhase">Observe</strong>
-    </div>
+            <button
+                id="stopSystem"
+                type="button"
+            >
+                Stop
+            </button>
 
-    <div class="kpi">
-        <span>National Risk</span>
-        <strong id="nationalRisk">--%</strong>
-    </div>
+            <button
+                id="refreshNow"
+                type="button"
+            >
+                Refresh Data
+            </button>
 
-    <div class="kpi">
-        <span>Top City</span>
-        <strong id="topCity">--</strong>
-    </div>
+            <button
+                id="generateReport"
+                type="button"
+            >
+                Generate Report
+            </button>
 
-    <div class="kpi">
-        <span>Weather Score</span>
-        <strong id="weatherScore">--%</strong>
-    </div>
+        </div>
 
-    <div class="kpi">
-        <span>Flood Index</span>
-        <strong id="floodIndex">--%</strong>
-    </div>
-</section>
+    </header>
 
-<section class="cycle">
-    <div data-phase="Observe" class="active">Observe</div>
-    <div data-phase="Weather">Weather</div>
-    <div data-phase="Radar">Radar</div>
-    <div data-phase="Flood">Flood</div>
-    <div data-phase="City">City</div>
-    <div data-phase="Reason">Reason</div>
-    <div data-phase="Decide">Decide</div>
-    <div data-phase="Mission">Mission</div>
-    <div data-phase="Learn">Learn</div>
-</section>
 
-<main class="grid">
+    <!-- ===================================================== -->
+    <!-- NATIONAL KPI CARDS -->
+    <!-- ===================================================== -->
 
-<section class="panel commander">
-    <h2>Executive AI Commander</h2>
-    <div id="commanderLog" class="box"></div>
+    <section class="kpis">
 
-    <div class="inputRow">
-        <input id="commanderInput" placeholder="Ask V25 National AI Commander...">
-        <button id="sendCommander">Send</button>
-    </div>
-</section>
+        <div class="kpi">
+            <span>
+                System Status
+            </span>
 
-<section class="panel mapPanel">
-    <h2>Live National Intelligence Map</h2>
-    <div id="v23Map"></div>
-</section>
+            <strong id="systemStatus">
+                Initializing V29
+            </strong>
+        </div>
 
-<section class="panel">
-    <h2>Weather Intelligence</h2>
-    <div id="weatherPanel" class="box"></div>
-</section>
+        <div class="kpi">
+            <span>
+                Current Phase
+            </span>
 
-<section class="panel">
-    <h2>Radar Intelligence</h2>
-    <div id="radarPanel" class="box"></div>
-</section>
+            <strong id="currentPhase">
+                Observe
+            </strong>
+        </div>
 
-<section class="panel">
-    <h2>Flood Intelligence</h2>
-    <div id="floodPanel" class="box"></div>
-</section>
+        <div class="kpi">
+            <span>
+                National Risk
+            </span>
 
-<section class="panel">
-    <h2>City Intelligence</h2>
-    <div id="cityPanel" class="box"></div>
-</section>
+            <strong id="nationalRisk">
+                --%
+            </strong>
+        </div>
 
-<section class="panel">
-    <h2>Infrastructure Intelligence</h2>
-    <div id="infrastructurePanel" class="box"></div>
-</section>
+        <div class="kpi">
+            <span>
+                Top City
+            </span>
 
-<section class="panel">
-    <h2>Traffic Intelligence</h2>
-    <div id="trafficPanel" class="box"></div>
-</section>
+            <strong id="topCity">
+                --
+            </strong>
+        </div>
 
-<section class="panel">
-    <h2>Forecast Verification</h2>
-    <div id="forecastVerificationPanel" class="box"></div>
-</section>
+        <div class="kpi">
+            <span>
+                Weather Score
+            </span>
 
-<section class="panel wide">
-    <h2>Early Warning AI V26</h2>
-    <div id="earlyWarningPanel" class="report"></div>
-</section>
+            <strong id="weatherScore">
+                --%
+            </strong>
+        </div>
 
-<section class="panel">
-    <h2>National Database</h2>
-    <div id="databasePanel" class="box"></div>
-</section>
+        <div class="kpi">
+            <span>
+                Flood Index
+            </span>
 
-<section class="panel">
-    <h2>Reasoning Engine V24</h2>
-    <div id="reasoningPanel" class="box"></div>
-</section>
+            <strong id="floodIndex">
+                --%
+            </strong>
+        </div>
 
-<section class="panel">
-    <h2>Decision Engine V24</h2>
-    <div id="decisionPanel" class="box"></div>
-</section>
+    </section>
 
-<section class="panel">
-    <h2>Mission Center</h2>
-    <div id="missionPanel" class="box"></div>
-</section>
 
-<section class="panel">
-    <h2>Explainable AI</h2>
-    <div id="explainabilityPanel" class="box"></div>
-</section>
+    <!-- ===================================================== -->
+    <!-- COGNITIVE CYCLE -->
+    <!-- ===================================================== -->
 
-<section class="panel">
-    <h2>National Status V25</h2>
-    <div id="nationalStatusPanel" class="box"></div>
-</section>
+    <section class="cycle">
 
-<section class="panel">
-    <h2>Autonomous Cognitive Engine V29</h2>
-    <div id="autonomousCognitiveV29Panel" class="box"></div>
-</section>
+        <div
+            data-phase="Observe"
+            class="active"
+        >
+            Observe
+        </div>
 
-<section class="panel">
-    <h2>Hypothesis Engine V29</h2>
-    <div id="hypothesisPanel" class="box"></div>
-</section>
+        <div data-phase="Understand">
+            Understand
+        </div>
 
-<section class="panel">
-    <h2>Belief Engine V29</h2>
-    <div id="beliefPanel" class="box"></div>
-</section>
+        <div data-phase="Hypothesize">
+            Hypothesize
+        </div>
 
-<section class="panel wide">
-    <h2>Decision Debate Engine V29</h2>
-    <div id="decisionDebatePanel" class="report"></div>
-</section>
+        <div data-phase="Believe">
+            Believe
+        </div>
 
-<section class="panel wide">
-    <h2>Future Simulation V29</h2>
-    <div id="futureSimulationPanel" class="report"></div>
-</section>
+        <div data-phase="Debate">
+            Debate
+        </div>
 
-<section class="panel">
-    <h2>Cognitive Memory V29</h2>
-    <div id="cognitiveMemoryPanel" class="box"></div>
-</section>
+        <div data-phase="Simulate">
+            Simulate
+        </div>
 
-<section class="panel">
-    <h2>Self Reflection V29</h2>
-    <div id="selfReflectionPanel" class="box"></div>
-</section>
+        <div data-phase="Decide">
+            Decide
+        </div>
 
-<section class="panel wide">
-    <h2>National Knowledge Graph V29</h2>
-    <div id="knowledgeGraphPanel" class="report"></div>
-</section>
+        <div data-phase="Plan">
+            Plan
+        </div>
 
-<section class="panel wide">
-    <h2>Real-Time Executive Report</h2>
-    <div id="reportPanel" class="report"></div>
-</section>
+        <div data-phase="Reflect">
+            Reflect
+        </div>
 
-<section class="panel">
-    <h2>National Data Hub V26</h2>
-    <div id="nationalDataHubPanel" class="box"></div>
-</section>
+        <div data-phase="Learn">
+            Learn
+        </div>
 
-<section class="panel wide">
-    <h2>AI Thinking Stream</h2>
-    <div id="aiThinkingPanel" class="report"></div>
-</section>
+    </section>
 
-</main>
+
+    <!-- ===================================================== -->
+    <!-- MAIN GRID -->
+    <!-- ===================================================== -->
+
+    <main class="grid">
+
+
+        <!-- ================================================= -->
+        <!-- EXECUTIVE COMMANDER -->
+        <!-- ================================================= -->
+
+        <section class="panel commander">
+
+            <h2>
+                Executive AI Commander
+            </h2>
+
+            <div
+                id="commanderLog"
+                class="box"
+            ></div>
+
+            <div class="inputRow">
+
+                <input
+                    id="commanderInput"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="Ask V29 National AI Commander..."
+                >
+
+                <button
+                    id="sendCommander"
+                    type="button"
+                >
+                    Send
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- NATIONAL MAP -->
+        <!-- ================================================= -->
+
+        <section class="panel mapPanel">
+
+            <h2>
+                Live National Intelligence Map
+            </h2>
+
+            <div id="v23Map"></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- WEATHER -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Weather Intelligence
+            </h2>
+
+            <div
+                id="weatherPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- RADAR -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Radar Intelligence
+            </h2>
+
+            <div
+                id="radarPanel"
+                class="box"
+            >
+                <div class="item">
+                    Radar engine is initializing.
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- FLOOD -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Flood Intelligence
+            </h2>
+
+            <div
+                id="floodPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- CITY -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                City Intelligence
+            </h2>
+
+            <div
+                id="cityPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- INFRASTRUCTURE -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Infrastructure Intelligence
+            </h2>
+
+            <div
+                id="infrastructurePanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- TRAFFIC -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Traffic Intelligence
+            </h2>
+
+            <div
+                id="trafficPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- FORECAST VERIFICATION -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Forecast Verification
+            </h2>
+
+            <div
+                id="forecastVerificationPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- EARLY WARNING -->
+        <!-- ================================================= -->
+
+        <section class="panel wide">
+
+            <h2>
+                Early Warning AI V26
+            </h2>
+
+            <div
+                id="earlyWarningPanel"
+                class="report"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- NATIONAL DATABASE -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                National Database
+            </h2>
+
+            <div
+                id="databasePanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- REASONING ENGINE -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Reasoning Engine V24
+            </h2>
+
+            <div
+                id="reasoningPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- DECISION ENGINE -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Decision Engine V24
+            </h2>
+
+            <div
+                id="decisionPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- MISSION CENTER -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Mission Center
+            </h2>
+
+            <div
+                id="missionPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- EXPLAINABLE AI -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Explainable AI
+            </h2>
+
+            <div
+                id="explainablePanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- NATIONAL STATUS -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                National Status V25
+            </h2>
+
+            <div
+                id="nationalStatusPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- AUTONOMOUS COGNITIVE ENGINE V29 -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Autonomous Cognitive Engine V29
+            </h2>
+
+            <div
+                id="autonomousCognitiveV29Panel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- HYPOTHESIS ENGINE -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Hypothesis Engine V29
+            </h2>
+
+            <div
+                id="hypothesisPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- BELIEF ENGINE -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Belief Engine V29
+            </h2>
+
+            <div
+                id="beliefPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- DECISION DEBATE -->
+        <!-- ================================================= -->
+
+        <section class="panel wide">
+
+            <h2>
+                Decision Debate Engine V29
+            </h2>
+
+            <div
+                id="decisionDebatePanel"
+                class="report"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- FUTURE SIMULATION -->
+        <!-- ================================================= -->
+
+        <section class="panel wide">
+
+            <h2>
+                Future Simulation V29
+            </h2>
+
+            <div
+                id="futureSimulationPanel"
+                class="report"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- COGNITIVE MEMORY -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Cognitive Memory V29
+            </h2>
+
+            <div
+                id="cognitiveMemoryPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- SELF REFLECTION -->
+        <!-- ================================================= -->
+
+        <section class="panel">
+
+            <h2>
+                Self Reflection V29
+            </h2>
+
+            <div
+                id="selfReflectionPanel"
+                class="box"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- NATIONAL PLAN -->
+        <!-- ================================================= -->
+
+        <section class="panel wide">
+
+            <h2>
+                National Cognitive Plan V29
+            </h2>
+
+            <div
+                id="nationalPlanV29Panel"
+                class="report"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- KNOWLEDGE GRAPH -->
+        <!-- ================================================= -->
+
+        <section class="panel wide">
+
+            <h2>
+                National Knowledge Graph V29
+            </h2>
+
+            <div
+                id="knowledgeGraphPanel"
+                class="report"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- COGNITIVE THINKING STREAM -->
+        <!-- ================================================= -->
+
+        <section class="panel wide">
+
+            <h2>
+                AI Cognitive Thinking Stream V29
+            </h2>
+
+            <div
+                id="aiThinkingPanel"
+                class="report"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- EXECUTIVE REPORT -->
+        <!-- ================================================= -->
+
+        <section class="panel wide">
+
+            <h2>
+                Real-Time Executive Report
+            </h2>
+
+            <div
+                id="reportPanel"
+                class="report"
+            ></div>
+
+        </section>
+
+    </main>
 
 </div>
+
+
+<!-- ========================================================= -->
+<!-- BASE DATA ENGINES -->
+<!-- ========================================================= -->
 
 <script src="js/api_manager.js?v=29"></script>
 <script src="js/weather_engine.js?v=29"></script>
@@ -231,11 +749,284 @@
 <script src="js/infrastructure_engine.js?v=29"></script>
 <script src="js/traffic_engine.js?v=29"></script>
 
+
+<!-- ========================================================= -->
+<!-- OPERATIONAL ENGINES -->
+<!-- ========================================================= -->
+
+<script src="js/national_database.js?v=29"></script>
+<script src="js/intelligence_cycle.js?v=29"></script>
+
+<script src="js/reasoning_engine_v24.js?v=29"></script>
+<script src="js/decision_engine_v24.js?v=29"></script>
+<script src="js/mission_center_v24.js?v=29"></script>
+<script src="js/explainable_ai_v24.js?v=29"></script>
+
+<script src="js/national_status_v25.js?v=29"></script>
+
+
+<!-- ========================================================= -->
+<!-- NATIONAL DATA AND WARNING LAYER -->
+<!-- ========================================================= -->
+
 <script src="js/national_data_hub_v26.js?v=29"></script>
 <script src="js/forecast_verification_v26.js?v=29"></script>
 <script src="js/early_warning_ai_v26.js?v=29"></script>
 
+
+<!-- ========================================================= -->
+<!-- LEGACY DISPLAY BRAIN -->
+<!-- يستخدم لتشغيل الخريطة والطقس والفيضانات والمدينة والتقرير -->
+<!-- ========================================================= -->
+
+<script src="js/ai_brain_v24.js?v=29"></script>
+
+
+<!-- ========================================================= -->
+<!-- AUTONOMOUS COGNITIVE OPERATING SYSTEM V29 -->
+<!-- يجب أن يكونا آخر ملفين -->
+<!-- ========================================================= -->
+
 <script src="js/autonomous_cognitive_engine_v29.js?v=29"></script>
 <script src="js/autonomous_brain_v29.js?v=29"></script>
+
+
+<!-- ========================================================= -->
+<!-- V29 INTERFACE SUPPORT -->
+<!-- ========================================================= -->
+
+<script>
+(function () {
+    "use strict";
+
+    function safelySetText(id, value) {
+        const element = document.getElementById(id);
+
+        if (element && value !== undefined && value !== null) {
+            element.textContent = value;
+        }
+    }
+
+    function renderNationalPlanV29() {
+        const panel = document.getElementById(
+            "nationalPlanV29Panel"
+        );
+
+        const result =
+            window.RG29
+                ?.AutonomousCognitiveEngine
+                ?.lastResult;
+
+        if (!panel || !result?.plan) {
+            return;
+        }
+
+        const plan = result.plan;
+
+        const phases = Array.isArray(plan.phases)
+            ? plan.phases
+            : [];
+
+        panel.innerHTML = `
+            <div class="item success">
+
+                <h3>${plan.id || "V29 National Plan"}</h3>
+
+                City:
+                ${plan.city || "--"}
+                <br>
+
+                Decision:
+                ${plan.decision || "--"}
+                <br>
+
+                Priority:
+                ${plan.priority || "--"}
+                <br>
+
+                Scenario:
+                ${plan.selectedScenario || "--"}
+                <br>
+
+                Status:
+                ${plan.status || "--"}
+
+            </div>
+
+            ${phases.map(phase => `
+                <div class="item">
+
+                    <b>
+                        Phase ${phase.phase || "--"}:
+                        ${phase.name || "--"}
+                    </b>
+
+                    <br>
+
+                    Status:
+                    ${phase.status || "--"}
+
+                    <br>
+
+                    Owner:
+                    ${phase.owner || "--"}
+
+                    <br>
+
+                    Action:
+                    ${phase.action || "--"}
+
+                </div>
+            `).join("")}
+        `;
+    }
+
+    function updateV29Kpis() {
+        const result =
+            window.RG29
+                ?.AutonomousCognitiveEngine
+                ?.lastResult;
+
+        if (!result) {
+            return;
+        }
+
+        const observation =
+            result.observation || {};
+
+        const situation =
+            result.situation || {};
+
+        safelySetText(
+            "nationalRisk",
+            `${Math.round(
+                situation.nationalRisk ??
+                observation.averageRisk ??
+                0
+            )}%`
+        );
+
+        safelySetText(
+            "topCity",
+            situation.topCity ??
+            observation.topCity ??
+            "--"
+        );
+
+        safelySetText(
+            "systemStatus",
+            "Autonomous Cognitive V29 Running"
+        );
+    }
+
+    function updatePhaseFromV29() {
+        const result =
+            window.RG29
+                ?.AutonomousCognitiveEngine
+                ?.lastResult;
+
+        if (!result) {
+            return;
+        }
+
+        const decision =
+            result.decision?.code || "";
+
+        let phase = "Observe";
+
+        if (decision === "NORMAL_MONITORING") {
+            phase = "Learn";
+        } else if (decision === "COLLECT_MORE_DATA") {
+            phase = "Observe";
+        } else if (decision === "ENHANCED_WATCH") {
+            phase = "Plan";
+        } else if (decision === "OPERATIONAL_WARNING") {
+            phase = "Decide";
+        } else if (decision === "EMERGENCY_RESPONSE") {
+            phase = "Mission";
+        }
+
+        safelySetText(
+            "currentPhase",
+            phase
+        );
+
+        document
+            .querySelectorAll(".cycle [data-phase]")
+            .forEach(element => {
+
+                const elementPhase =
+                    element.dataset.phase;
+
+                element.classList.toggle(
+                    "active",
+                    elementPhase === phase
+                );
+            });
+    }
+
+    function updateV29Interface() {
+        renderNationalPlanV29();
+        updateV29Kpis();
+        updatePhaseFromV29();
+    }
+
+    window.addEventListener("load", () => {
+
+        setTimeout(
+            updateV29Interface,
+            7000
+        );
+
+        setInterval(
+            updateV29Interface,
+            5000
+        );
+
+        const reportButton =
+            document.getElementById(
+                "generateReport"
+            );
+
+        if (reportButton) {
+            reportButton.addEventListener(
+                "click",
+                () => {
+                    updateV29Interface();
+
+                    if (
+                        window.RG23?.Brain
+                            ?.generateReport
+                    ) {
+                        RG23.Brain.generateReport();
+                    }
+                }
+            );
+        }
+
+        const commanderInput =
+            document.getElementById(
+                "commanderInput"
+            );
+
+        if (commanderInput) {
+            commanderInput.addEventListener(
+                "keydown",
+                event => {
+                    if (event.key === "Enter") {
+                        document
+                            .getElementById(
+                                "sendCommander"
+                            )
+                            ?.click();
+                    }
+                }
+            );
+        }
+    });
+
+})();
+</script>
+
 </body>
 </html>
