@@ -2226,29 +2226,16 @@ window.RG23 = window.RG23 || {};
         },
 
         getState() {
-            return {
-                version:
-                    this.version,
-
-                initialized:
-                    this.initialized,
-
-                analysisRunning:
-                    this.analysisRunning,
-
-                cityCount:
-                    this.latestCities.length,
-
-                latestDecision:
-                    this.latestDecision,
-
-                latestAnalysis:
-                    this.latestAnalysis,
-
-                mapReady:
-                    Boolean(this.map)
-            };
-        }
+    return {
+        version: this.version,
+        initialized: this.initialized,
+        analysisRunning: this.analysisRunning,
+        cityCount: this.latestCities.length,
+        latestDecision: this.latestDecision,
+        latestAnalysis: this.latestAnalysis,
+        mapReady: Boolean(this.map)
+    };
+},
 
                /* =====================================================
            V30 COMPATIBILITY
