@@ -1,7 +1,7 @@
 /* =========================================================
    RainGuard AI
    Base National Intelligence Brain V23
-   Safe compatibility layer for V26–V29
+   Safe compatibility layer for V26–V30
    File: frontend/js/ai_brain_v23.js
    ========================================================= */
 
@@ -12,7 +12,7 @@ window.RG23 = window.RG23 || {};
 
     const Brain = {
 
-        version: "23.1-safe",
+        version: "23.2-v30-safe",
 
         map: null,
         mapLayers: [],
@@ -38,17 +38,23 @@ window.RG23 = window.RG23 || {};
             try {
                 this.initMap();
             } catch (error) {
-                console.warn("RG23 Brain: map initialization skipped.", error);
+                console.warn(
+                    "RG23 Brain: map initialization skipped.",
+                    error
+                );
             }
 
             try {
                 this.bindButtons();
             } catch (error) {
-                console.warn("RG23 Brain: button binding skipped.", error);
+                console.warn(
+                    "RG23 Brain: button binding skipped.",
+                    error
+                );
             }
 
             this.writeCommander(
-                "V23 real-time intelligence brain ready."
+                "RainGuard base intelligence brain is ready for V30."
             );
 
             console.log(
@@ -80,7 +86,8 @@ window.RG23 = window.RG23 || {};
         },
 
         clamp(value, min = 0, max = 100) {
-            const number = this.safeNumber(value, min);
+            const number =
+                this.safeNumber(value, min);
 
             return Math.min(
                 max,
@@ -119,6 +126,7 @@ window.RG23 = window.RG23 || {};
                 return await Promise.resolve(
                     target[method](...args)
                 );
+
             } catch (error) {
                 console.warn(
                     `RG23 Brain: ${label} failed.`,
@@ -144,9 +152,10 @@ window.RG23 = window.RG23 || {};
         },
 
         normalizeCity(city, index = 0) {
-            const source = this.isObject(city)
-                ? city
-                : {};
+            const source =
+                this.isObject(city)
+                    ? city
+                    : {};
 
             const lat = this.safeNumber(
                 source.lat ??
@@ -222,7 +231,10 @@ window.RG23 = window.RG23 || {};
             return cities
                 .filter(Boolean)
                 .map((city, index) =>
-                    this.normalizeCity(city, index)
+                    this.normalizeCity(
+                        city,
+                        index
+                    )
                 );
         },
 
@@ -231,12 +243,15 @@ window.RG23 = window.RG23 || {};
            ===================================================== */
 
         initMap() {
-            const box = document.getElementById("v23Map");
+            const box =
+                document.getElementById("v23Map") ||
+                document.getElementById("v30Map");
 
             if (!box) {
                 console.warn(
-                    "RG23 Brain: #v23Map was not found."
+                    "RG23 Brain: map container #v23Map or #v30Map was not found."
                 );
+
                 return;
             }
 
@@ -244,17 +259,34 @@ window.RG23 = window.RG23 || {};
                 console.warn(
                     "RG23 Brain: Leaflet is unavailable."
                 );
+
                 return;
             }
 
             if (this.map) {
+                try {
+                    this.map.invalidateSize();
+                } catch (error) {
+                    console.warn(
+                        "RG23 Brain: existing map resize skipped.",
+                        error
+                    );
+                }
+
                 return;
             }
 
-            this.map = L.map("v23Map", {
-                zoomControl: true,
-                attributionControl: true
-            }).setView(
+            if (!box.id) {
+                box.id = "v23Map";
+            }
+
+            this.map = L.map(
+                box.id,
+                {
+                    zoomControl: true,
+                    attributionControl: true
+                }
+            ).setView(
                 [23.8859, 45.0792],
                 5
             );
@@ -299,7 +331,8 @@ window.RG23 = window.RG23 || {};
         },
 
         getRiskColor(risk) {
-            const safeRisk = this.clamp(risk);
+            const safeRisk =
+                this.clamp(risk);
 
             if (safeRisk >= 70) {
                 return "#ff5d6c";
@@ -349,43 +382,66 @@ window.RG23 = window.RG23 || {};
                 const color =
                     this.getRiskColor(risk);
 
-                const marker = L.circleMarker(
-                    [city.lat, city.lon],
-                    {
-                        radius: Math.max(
-                            7,
-                            Math.min(24, risk / 2)
-                        ),
-                        color,
-                        fillColor: color,
-                        fillOpacity: 0.68,
-                        weight: 2
-                    }
-                ).addTo(this.map);
+                const marker =
+                    L.circleMarker(
+                        [city.lat, city.lon],
+                        {
+                            radius: Math.max(
+                                7,
+                                Math.min(
+                                    24,
+                                    risk / 2
+                                )
+                            ),
+                            color,
+                            fillColor: color,
+                            fillOpacity: 0.68,
+                            weight: 2
+                        }
+                    ).addTo(this.map);
 
                 marker.bindPopup(`
-                    <b>${this.escapeHTML(city.name)}</b><br>
-                    Weather: ${city.weatherScore}%<br>
-                    Flood: ${city.floodIndex}%<br>
-                    Road: ${city.roadRisk}%<br>
+                    <b>
+                        ${this.escapeHTML(city.name)}
+                    </b>
+                    <br>
+
+                    Weather:
+                    ${city.weatherScore}%
+                    <br>
+
+                    Flood:
+                    ${city.floodIndex}%
+                    <br>
+
+                    Road:
+                    ${city.roadRisk}%
+                    <br>
+
                     Infrastructure:
-                    ${city.infrastructureCriticality}%<br>
-                    Final Risk: ${risk}%
+                    ${city.infrastructureCriticality}%
+                    <br>
+
+                    Final Risk:
+                    ${risk}%
                 `);
 
                 this.mapLayers.push(marker);
 
                 if (risk >= 25) {
-                    const circle = L.circle(
-                        [city.lat, city.lon],
-                        {
-                            radius: risk * 2600,
-                            color,
-                            fillColor: color,
-                            fillOpacity: 0.07,
-                            weight: 1
-                        }
-                    ).addTo(this.map);
+                    const circle =
+                        L.circle(
+                            [city.lat, city.lon],
+                            {
+                                radius:
+                                    risk * 2600,
+
+                                color,
+                                fillColor: color,
+                                fillOpacity: 0.07,
+                                weight: 1
+                            }
+                        ).addTo(this.map);
 
                     this.mapLayers.push(circle);
                 }
@@ -403,7 +459,7 @@ window.RG23 = window.RG23 || {};
             }, 100);
         },
 
-        /* =====================================================
+               /* =====================================================
            RISK AND KPI
            ===================================================== */
 
@@ -417,19 +473,23 @@ window.RG23 = window.RG23 || {};
 
             return [...normalizedCities].sort(
                 (a, b) => {
-                    const firstRisk = this.clamp(
-                        a.finalRisk ||
-                        a.floodIndex ||
-                        a.weatherScore ||
-                        0
-                    );
+                    const firstRisk =
+                        this.clamp(
+                            a.finalRisk ||
+                            a.floodIndex ||
+                            a.weatherScore ||
+                            a.baseRisk ||
+                            0
+                        );
 
-                    const secondRisk = this.clamp(
-                        b.finalRisk ||
-                        b.floodIndex ||
-                        b.weatherScore ||
-                        0
-                    );
+                    const secondRisk =
+                        this.clamp(
+                            b.finalRisk ||
+                            b.floodIndex ||
+                            b.weatherScore ||
+                            b.baseRisk ||
+                            0
+                        );
 
                     return secondRisk - firstRisk;
                 }
@@ -442,15 +502,49 @@ window.RG23 = window.RG23 || {};
 
             let risk = 0;
 
-            risk += normalized.weatherScore * 0.35;
-            risk += normalized.floodIndex * 0.30;
-            risk += normalized.roadRisk * 0.20;
+            risk +=
+                normalized.weatherScore * 0.35;
+
+            risk +=
+                normalized.floodIndex * 0.30;
+
+            risk +=
+                normalized.roadRisk * 0.20;
+
             risk +=
                 normalized.infrastructureCriticality *
                 0.15;
 
             return this.clamp(
                 Math.round(risk)
+            );
+        },
+
+        calculateNationalRisk(cities) {
+            const normalizedCities =
+                this.normalizeCities(cities);
+
+            if (!normalizedCities.length) {
+                return 0;
+            }
+
+            const totalRisk =
+                normalizedCities.reduce(
+                    (total, city) => {
+                        return (
+                            total +
+                            this.clamp(
+                                city.finalRisk ||
+                                this.calculateFinalRisk(city)
+                            )
+                        );
+                    },
+                    0
+                );
+
+            return Math.round(
+                totalRisk /
+                normalizedCities.length
             );
         },
 
@@ -461,18 +555,17 @@ window.RG23 = window.RG23 || {};
             const top =
                 this.getTopCity(normalizedCities);
 
-            if (!top || !normalizedCities.length) {
+            if (
+                !top ||
+                !normalizedCities.length
+            ) {
                 return;
             }
 
-            const averageRisk = Math.round(
-                normalizedCities.reduce(
-                    (total, city) =>
-                        total +
-                        this.clamp(city.finalRisk),
-                    0
-                ) / normalizedCities.length
-            );
+            const averageRisk =
+                this.calculateNationalRisk(
+                    normalizedCities
+                );
 
             const nationalRisk =
                 document.getElementById(
@@ -506,17 +599,22 @@ window.RG23 = window.RG23 || {};
 
             if (weatherScore) {
                 weatherScore.textContent =
-                    `${top.weatherScore}%`;
+                    `${this.clamp(
+                        top.weatherScore
+                    )}%`;
             }
 
             if (floodIndex) {
                 floodIndex.textContent =
-                    `${top.floodIndex}%`;
+                    `${this.clamp(
+                        top.floodIndex
+                    )}%`;
             }
         },
 
         getRecommendation(risk) {
-            const safeRisk = this.clamp(risk);
+            const safeRisk =
+                this.clamp(risk);
 
             if (safeRisk >= 70) {
                 return (
@@ -554,8 +652,15 @@ window.RG23 = window.RG23 || {};
                 return;
             }
 
+            const finalRisk =
+                this.clamp(
+                    top.finalRisk ||
+                    this.calculateFinalRisk(top)
+                );
+
             panel.innerHTML = `
                 <div class="item success">
+
                     <h2>
                         Real-Time National Intelligence Report
                     </h2>
@@ -563,33 +668,46 @@ window.RG23 = window.RG23 || {};
                     <br>
 
                     <b>Top City:</b>
-                    ${this.escapeHTML(top.name)}
+                    ${this.escapeHTML(
+                        top.name
+                    )}
                     <br>
 
                     <b>Weather Score:</b>
-                    ${top.weatherScore}%
+                    ${this.clamp(
+                        top.weatherScore
+                    )}%
                     <br>
 
                     <b>Flood Index:</b>
-                    ${top.floodIndex}%
+                    ${this.clamp(
+                        top.floodIndex
+                    )}%
                     <br>
 
                     <b>Road Risk:</b>
-                    ${top.roadRisk}%
+                    ${this.clamp(
+                        top.roadRisk
+                    )}%
                     <br>
 
-                    <b>Infrastructure Criticality:</b>
-                    ${top.infrastructureCriticality}%
+                    <b>
+                        Infrastructure Criticality:
+                    </b>
+                    ${this.clamp(
+                        top.infrastructureCriticality
+                    )}%
                     <br>
 
                     <b>Final Risk:</b>
-                    ${top.finalRisk}%
+                    ${finalRisk}%
                     <br><br>
 
                     <b>Recommendation:</b>
                     ${this.getRecommendation(
-                        top.finalRisk
+                        finalRisk
                     )}
+
                 </div>
             `;
         },
@@ -599,10 +717,11 @@ window.RG23 = window.RG23 || {};
            ===================================================== */
 
         async analyzeCities() {
-            const cityEngine = this.resolveEngine(
-                "CityEngine",
-                "CityIntelligenceEngine"
-            );
+            const cityEngine =
+                this.resolveEngine(
+                    "CityEngine",
+                    "CityIntelligenceEngine"
+                );
 
             if (!cityEngine) {
                 console.warn(
@@ -617,30 +736,52 @@ window.RG23 = window.RG23 || {};
             let cities = null;
 
             if (
-                this.isFunction(cityEngine.analyze)
+                this.isFunction(
+                    cityEngine.analyze
+                )
             ) {
-                cities = await this.safeExecute({
-                    label: "CityEngine.analyze",
-                    target: cityEngine,
-                    method: "analyze",
-                    fallback: null
-                });
+                cities =
+                    await this.safeExecute({
+                        label:
+                            "CityEngine.analyze",
+
+                        target:
+                            cityEngine,
+
+                        method:
+                            "analyze",
+
+                        fallback:
+                            null
+                    });
+
             } else if (
                 this.isFunction(
                     cityEngine.analyzeCities
                 )
             ) {
-                cities = await this.safeExecute({
-                    label:
-                        "CityEngine.analyzeCities",
-                    target: cityEngine,
-                    method: "analyzeCities",
-                    fallback: null
-                });
+                cities =
+                    await this.safeExecute({
+                        label:
+                            "CityEngine.analyzeCities",
+
+                        target:
+                            cityEngine,
+
+                        method:
+                            "analyzeCities",
+
+                        fallback:
+                            null
+                    });
+
             } else if (
-                Array.isArray(cityEngine.cities)
+                Array.isArray(
+                    cityEngine.cities
+                )
             ) {
-                cities = cityEngine.cities;
+                cities =
+                    cityEngine.cities;
             }
 
             return this.normalizeCities(
@@ -664,28 +805,50 @@ window.RG23 = window.RG23 || {};
             let result = cities;
 
             if (
-                this.isFunction(trafficEngine.analyze)
+                this.isFunction(
+                    trafficEngine.analyze
+                )
             ) {
-                result = await this.safeExecute({
-                    label: "TrafficEngine.analyze",
-                    target: trafficEngine,
-                    method: "analyze",
-                    args: [cities],
-                    fallback: cities
-                });
+                result =
+                    await this.safeExecute({
+                        label:
+                            "TrafficEngine.analyze",
+
+                        target:
+                            trafficEngine,
+
+                        method:
+                            "analyze",
+
+                        args:
+                            [cities],
+
+                        fallback:
+                            cities
+                    });
+
             } else if (
                 this.isFunction(
                     trafficEngine.analyzeCities
                 )
             ) {
-                result = await this.safeExecute({
-                    label:
-                        "TrafficEngine.analyzeCities",
-                    target: trafficEngine,
-                    method: "analyzeCities",
-                    args: [cities],
-                    fallback: cities
-                });
+                result =
+                    await this.safeExecute({
+                        label:
+                            "TrafficEngine.analyzeCities",
+
+                        target:
+                            trafficEngine,
+
+                        method:
+                            "analyzeCities",
+
+                        args:
+                            [cities],
+
+                        fallback:
+                            cities
+                    });
             }
 
             return this.normalizeCities(
@@ -693,7 +856,9 @@ window.RG23 = window.RG23 || {};
             );
         },
 
-        async applyInfrastructureAnalysis(cities) {
+        async applyInfrastructureAnalysis(
+            cities
+        ) {
             const infrastructureEngine =
                 this.resolveEngine(
                     "InfrastructureEngine",
@@ -711,27 +876,46 @@ window.RG23 = window.RG23 || {};
                     infrastructureEngine.analyze
                 )
             ) {
-                result = await this.safeExecute({
-                    label:
-                        "InfrastructureEngine.analyze",
-                    target: infrastructureEngine,
-                    method: "analyze",
-                    args: [cities],
-                    fallback: cities
-                });
+                result =
+                    await this.safeExecute({
+                        label:
+                            "InfrastructureEngine.analyze",
+
+                        target:
+                            infrastructureEngine,
+
+                        method:
+                            "analyze",
+
+                        args:
+                            [cities],
+
+                        fallback:
+                            cities
+                    });
+
             } else if (
                 this.isFunction(
                     infrastructureEngine.analyzeCities
                 )
             ) {
-                result = await this.safeExecute({
-                    label:
-                        "InfrastructureEngine.analyzeCities",
-                    target: infrastructureEngine,
-                    method: "analyzeCities",
-                    args: [cities],
-                    fallback: cities
-                });
+                result =
+                    await this.safeExecute({
+                        label:
+                            "InfrastructureEngine.analyzeCities",
+
+                        target:
+                            infrastructureEngine,
+
+                        method:
+                            "analyzeCities",
+
+                        args:
+                            [cities],
+
+                        fallback:
+                            cities
+                    });
             }
 
             return this.normalizeCities(
@@ -753,28 +937,50 @@ window.RG23 = window.RG23 || {};
             let result = cities;
 
             if (
-                this.isFunction(floodEngine.analyze)
+                this.isFunction(
+                    floodEngine.analyze
+                )
             ) {
-                result = await this.safeExecute({
-                    label: "FloodEngine.analyze",
-                    target: floodEngine,
-                    method: "analyze",
-                    args: [cities],
-                    fallback: cities
-                });
+                result =
+                    await this.safeExecute({
+                        label:
+                            "FloodEngine.analyze",
+
+                        target:
+                            floodEngine,
+
+                        method:
+                            "analyze",
+
+                        args:
+                            [cities],
+
+                        fallback:
+                            cities
+                    });
+
             } else if (
                 this.isFunction(
                     floodEngine.analyzeCities
                 )
             ) {
-                result = await this.safeExecute({
-                    label:
-                        "FloodEngine.analyzeCities",
-                    target: floodEngine,
-                    method: "analyzeCities",
-                    args: [cities],
-                    fallback: cities
-                });
+                result =
+                    await this.safeExecute({
+                        label:
+                            "FloodEngine.analyzeCities",
+
+                        target:
+                            floodEngine,
+
+                        method:
+                            "analyzeCities",
+
+                        args:
+                            [cities],
+
+                        fallback:
+                            cities
+                    });
             }
 
             return this.normalizeCities(
@@ -794,13 +1000,22 @@ window.RG23 = window.RG23 || {};
             }
 
             if (
-                this.isFunction(cityEngine.render)
+                this.isFunction(
+                    cityEngine.render
+                )
             ) {
                 await this.safeExecute({
-                    label: "CityEngine.render",
-                    target: cityEngine,
-                    method: "render",
-                    args: [cities]
+                    label:
+                        "CityEngine.render",
+
+                    target:
+                        cityEngine,
+
+                    method:
+                        "render",
+
+                    args:
+                        [cities]
                 });
 
                 return;
@@ -814,9 +1029,15 @@ window.RG23 = window.RG23 || {};
                 await this.safeExecute({
                     label:
                         "CityEngine.renderCities",
-                    target: cityEngine,
-                    method: "renderCities",
-                    args: [cities]
+
+                    target:
+                        cityEngine,
+
+                    method:
+                        "renderCities",
+
+                    args:
+                        [cities]
                 });
 
                 return;
@@ -830,14 +1051,20 @@ window.RG23 = window.RG23 || {};
                 await this.safeExecute({
                     label:
                         "CityEngine.updateCities",
-                    target: cityEngine,
-                    method: "updateCities",
-                    args: [cities]
+
+                    target:
+                        cityEngine,
+
+                    method:
+                        "updateCities",
+
+                    args:
+                        [cities]
                 });
             }
         },
 
-        /* =====================================================
+               /* =====================================================
            SAFE DATABASE COMPATIBILITY
            ===================================================== */
 
@@ -861,43 +1088,68 @@ window.RG23 = window.RG23 || {};
                 return {
                     ok: false,
                     skipped: true,
-                    reason:
-                        "NATIONAL_DATABASE_UNAVAILABLE"
+                    reason: "NATIONAL_DATABASE_UNAVAILABLE"
                 };
             }
 
             let updated = false;
 
             if (
-                this.isFunction(database.updateCities)
+                this.isFunction(
+                    database.updateCities
+                )
             ) {
                 await this.safeExecute({
                     label:
                         "NationalDatabase.updateCities",
-                    target: database,
-                    method: "updateCities",
-                    args: [cities]
+
+                    target:
+                        database,
+
+                    method:
+                        "updateCities",
+
+                    args:
+                        [cities],
+
+                    fallback:
+                        null
                 });
 
                 updated = true;
+
             } else if (
-                this.isFunction(database.setCities)
+                this.isFunction(
+                    database.setCities
+                )
             ) {
                 await this.safeExecute({
                     label:
                         "NationalDatabase.setCities",
-                    target: database,
-                    method: "setCities",
-                    args: [cities]
+
+                    target:
+                        database,
+
+                    method:
+                        "setCities",
+
+                    args:
+                        [cities],
+
+                    fallback:
+                        null
                 });
 
                 updated = true;
+
             } else {
-                database.cities = cities;
+                database.cities =
+                    this.normalizeCities(cities);
+
                 updated = true;
 
                 console.warn(
-                    "RG23 Brain: database has no updateCities method; cities stored directly."
+                    "RG23 Brain: database has no updateCities or setCities method; cities stored directly."
                 );
             }
 
@@ -905,12 +1157,20 @@ window.RG23 = window.RG23 || {};
                 this.getTopCity(cities);
 
             const cycleData = {
-                type: "Full Analysis",
+                type:
+                    "Full Analysis",
+
                 timestamp:
                     new Date().toISOString(),
-                cities: cities.length,
+
+                cities:
+                    Array.isArray(cities)
+                        ? cities.length
+                        : 0,
+
                 topCity:
                     topCity?.name || "--",
+
                 nationalRisk:
                     this.calculateNationalRisk(
                         cities
@@ -918,30 +1178,54 @@ window.RG23 = window.RG23 || {};
             };
 
             if (
-                this.isFunction(database.addCycle)
+                this.isFunction(
+                    database.addCycle
+                )
             ) {
                 await this.safeExecute({
                     label:
                         "NationalDatabase.addCycle",
-                    target: database,
-                    method: "addCycle",
-                    args: [cycleData]
+
+                    target:
+                        database,
+
+                    method:
+                        "addCycle",
+
+                    args:
+                        [cycleData],
+
+                    fallback:
+                        null
                 });
+
             } else if (
-                this.isFunction(database.saveCycle)
+                this.isFunction(
+                    database.saveCycle
+                )
             ) {
                 await this.safeExecute({
                     label:
                         "NationalDatabase.saveCycle",
-                    target: database,
-                    method: "saveCycle",
-                    args: [cycleData]
+
+                    target:
+                        database,
+
+                    method:
+                        "saveCycle",
+
+                    args:
+                        [cycleData],
+
+                    fallback:
+                        null
                 });
             }
 
             return {
                 ok: true,
-                updated
+                updated,
+                cycleData
             };
         },
 
@@ -950,43 +1234,74 @@ window.RG23 = window.RG23 || {};
                 this.getNationalDatabase();
 
             if (!database) {
+                console.warn(
+                    "RG23 Brain: NationalDatabase unavailable. Memory save skipped."
+                );
+
                 return false;
             }
 
             if (
-                this.isFunction(database.addMemory)
+                this.isFunction(
+                    database.addMemory
+                )
             ) {
                 await this.safeExecute({
                     label:
                         "NationalDatabase.addMemory",
-                    target: database,
-                    method: "addMemory",
-                    args: [type, text]
+
+                    target:
+                        database,
+
+                    method:
+                        "addMemory",
+
+                    args:
+                        [type, text],
+
+                    fallback:
+                        null
                 });
 
                 return true;
             }
 
             if (
-                this.isFunction(database.saveMemory)
+                this.isFunction(
+                    database.saveMemory
+                )
             ) {
                 await this.safeExecute({
                     label:
                         "NationalDatabase.saveMemory",
-                    target: database,
-                    method: "saveMemory",
-                    args: [{
-                        type,
-                        text,
-                        timestamp:
-                            new Date().toISOString()
-                    }]
+
+                    target:
+                        database,
+
+                    method:
+                        "saveMemory",
+
+                    args: [
+                        {
+                            type,
+                            text,
+                            timestamp:
+                                new Date().toISOString()
+                        }
+                    ],
+
+                    fallback:
+                        null
                 });
 
                 return true;
             }
 
-            if (!Array.isArray(database.memory)) {
+            if (
+                !Array.isArray(
+                    database.memory
+                )
+            ) {
                 database.memory = [];
             }
 
@@ -1000,22 +1315,89 @@ window.RG23 = window.RG23 || {};
             return true;
         },
 
-        calculateNationalRisk(cities) {
-            const normalizedCities =
-                this.normalizeCities(cities);
+        /* =====================================================
+           EVENT PUBLISHING
+           ===================================================== */
 
-            if (!normalizedCities.length) {
-                return 0;
+        publishAnalysisCompleted(result) {
+            try {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "rainguard:base-analysis-completed",
+                        {
+                            detail: result
+                        }
+                    )
+                );
+            } catch (error) {
+                console.warn(
+                    "RG23 Brain: compatibility completion event failed.",
+                    error
+                );
             }
 
-            return Math.round(
-                normalizedCities.reduce(
-                    (total, city) =>
-                        total +
-                        this.clamp(city.finalRisk),
-                    0
-                ) / normalizedCities.length
-            );
+            try {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "rg23:analysis-completed",
+                        {
+                            detail: {
+                                ...result,
+
+                                cities:
+                                    this.latestCities,
+
+                                topCity:
+                                    this.getTopCity(
+                                        this.latestCities
+                                    ),
+
+                                timestamp:
+                                    new Date().toISOString()
+                            }
+                        }
+                    )
+                );
+            } catch (error) {
+                console.warn(
+                    "RG23 Brain: V30 completion event failed.",
+                    error
+                );
+            }
+        },
+
+        publishAnalysisFailed(failure) {
+            try {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "rainguard:base-analysis-failed",
+                        {
+                            detail: failure
+                        }
+                    )
+                );
+            } catch (error) {
+                console.warn(
+                    "RG23 Brain: compatibility failure event failed.",
+                    error
+                );
+            }
+
+            try {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        "rg23:analysis-failed",
+                        {
+                            detail: failure
+                        }
+                    )
+                );
+            } catch (error) {
+                console.warn(
+                    "RG23 Brain: V30 failure event failed.",
+                    error
+                );
+            }
         },
 
         /* =====================================================
@@ -1032,8 +1414,10 @@ window.RG23 = window.RG23 || {};
                     this.latestAnalysis || {
                         ok: false,
                         skipped: true,
+
                         reason:
                             "ANALYSIS_ALREADY_RUNNING",
+
                         cities:
                             this.latestCities
                     }
@@ -1042,7 +1426,8 @@ window.RG23 = window.RG23 || {};
 
             this.analysisRunning = true;
 
-            const startedAt = Date.now();
+            const startedAt =
+                Date.now();
 
             this.writeCommander(
                 "Starting real-time national analysis..."
@@ -1051,6 +1436,37 @@ window.RG23 = window.RG23 || {};
             try {
                 let cities =
                     await this.analyzeCities();
+
+                if (
+                    !Array.isArray(cities) ||
+                    !cities.length
+                ) {
+                    const cityEngine =
+                        this.resolveEngine(
+                            "CityEngine",
+                            "CityIntelligenceEngine"
+                        );
+
+                    if (
+                        Array.isArray(
+                            cityEngine?.cities
+                        )
+                    ) {
+                        cities =
+                            this.normalizeCities(
+                                cityEngine.cities
+                            );
+                    }
+                }
+
+                if (
+                    !Array.isArray(cities) ||
+                    !cities.length
+                ) {
+                    throw new Error(
+                        "No city data returned by CityEngine."
+                    );
+                }
 
                 cities =
                     await this.applyTrafficAnalysis(
@@ -1067,18 +1483,27 @@ window.RG23 = window.RG23 || {};
                         cities
                     );
 
-                cities = this.normalizeCities(
-                    cities
-                ).map(city => ({
-                    ...city,
-                    finalRisk:
-                        this.calculateFinalRisk(city)
-                }));
+                cities =
+                    this.normalizeCities(
+                        cities
+                    ).map(city => {
+                        return {
+                            ...city,
 
-                this.latestCities = cities;
+                            finalRisk:
+                                this.calculateFinalRisk(
+                                    city
+                                )
+                        };
+                    });
+
+                this.latestCities =
+                    cities;
 
                 try {
-                    this.renderMap(cities);
+                    this.renderMap(
+                        cities
+                    );
                 } catch (error) {
                     console.warn(
                         "RG23 Brain: renderMap failed.",
@@ -1087,7 +1512,9 @@ window.RG23 = window.RG23 || {};
                 }
 
                 try {
-                    this.updateKPIs(cities);
+                    this.updateKPIs(
+                        cities
+                    );
                 } catch (error) {
                     console.warn(
                         "RG23 Brain: KPI update failed.",
@@ -1096,7 +1523,9 @@ window.RG23 = window.RG23 || {};
                 }
 
                 try {
-                    this.renderReport(cities);
+                    this.renderReport(
+                        cities
+                    );
                 } catch (error) {
                     console.warn(
                         "RG23 Brain: report rendering failed.",
@@ -1105,7 +1534,9 @@ window.RG23 = window.RG23 || {};
                 }
 
                 try {
-                    await this.renderCityPanel(cities);
+                    await this.renderCityPanel(
+                        cities
+                    );
                 } catch (error) {
                     console.warn(
                         "RG23 Brain: city-panel rendering failed.",
@@ -1119,7 +1550,9 @@ window.RG23 = window.RG23 || {};
                     );
 
                 const topCity =
-                    this.getTopCity(cities);
+                    this.getTopCity(
+                        cities
+                    );
 
                 const nationalRisk =
                     this.calculateNationalRisk(
@@ -1128,7 +1561,9 @@ window.RG23 = window.RG23 || {};
 
                 const result = {
                     ok: true,
-                    version: this.version,
+
+                    version:
+                        this.version,
 
                     timestamp:
                         new Date().toISOString(),
@@ -1137,34 +1572,38 @@ window.RG23 = window.RG23 || {};
                         Date.now() - startedAt,
 
                     cities,
-                    cityCount: cities.length,
+
+                    cityCount:
+                        cities.length,
 
                     topCity,
+
                     nationalRisk,
 
-                    database: databaseResult,
+                    database:
+                        databaseResult,
 
                     source:
                         options.source ||
-                        "RG23_BASE_ANALYSIS"
+                        "RG23_BASE_ANALYSIS",
+
+                    query:
+                        options.query || null
                 };
 
-                this.latestAnalysis = result;
+                this.latestAnalysis =
+                    result;
+
+                this.publishAnalysisCompleted(
+                    result
+                );
 
                 this.writeCommander(
                     "Real-time analysis completed."
                 );
 
-                window.dispatchEvent(
-                    new CustomEvent(
-                        "rainguard:base-analysis-completed",
-                        {
-                            detail: result
-                        }
-                    )
-                );
-
                 return result;
+
             } catch (error) {
                 console.error(
                     "RG23 Brain runFullAnalysis error:",
@@ -1173,7 +1612,9 @@ window.RG23 = window.RG23 || {};
 
                 const failure = {
                     ok: false,
-                    version: this.version,
+
+                    version:
+                        this.version,
 
                     timestamp:
                         new Date().toISOString(),
@@ -1188,6 +1629,9 @@ window.RG23 = window.RG23 || {};
                     cities:
                         this.latestCities || [],
 
+                    cityCount:
+                        this.latestCities?.length || 0,
+
                     topCity:
                         this.getTopCity(
                             this.latestCities
@@ -1196,37 +1640,41 @@ window.RG23 = window.RG23 || {};
                     nationalRisk:
                         this.calculateNationalRisk(
                             this.latestCities
-                        )
+                        ),
+
+                    source:
+                        options.source ||
+                        "RG23_BASE_ANALYSIS"
                 };
 
-                this.latestAnalysis = failure;
+                this.latestAnalysis =
+                    failure;
 
-                this.writeCommander(
-                    "Base analysis encountered an error. Cognitive engines may continue using the latest available data."
+                this.publishAnalysisFailed(
+                    failure
                 );
 
-                window.dispatchEvent(
-                    new CustomEvent(
-                        "rainguard:base-analysis-failed",
-                        {
-                            detail: failure
-                        }
-                    )
+                this.writeCommander(
+                    "Base analysis encountered an error. V30 may continue using the latest available data.",
+                    "danger"
                 );
 
                 return failure;
+
             } finally {
-                this.analysisRunning = false;
+                this.analysisRunning =
+                    false;
             }
         },
 
-        /* =====================================================
+               /* =====================================================
            INTELLIGENCE PHASES
            ===================================================== */
 
         async runPhase(phase) {
             const normalizedPhase =
-                String(phase || "").trim();
+                String(phase || "")
+                    .trim();
 
             try {
                 if (normalizedPhase === "Observe") {
@@ -1272,10 +1720,23 @@ window.RG23 = window.RG23 || {};
                         await this.safeExecute({
                             label:
                                 "RadarEngine.loadRadar",
-                            target: radarEngine,
-                            method: "loadRadar",
-                            args: [this.map]
+
+                            target:
+                                radarEngine,
+
+                            method:
+                                "loadRadar",
+
+                            args:
+                                [this.map],
+
+                            fallback:
+                                null
                         });
+                    } else {
+                        console.warn(
+                            "RG23 Brain: radar engine or map unavailable."
+                        );
                     }
                 }
 
@@ -1284,28 +1745,35 @@ window.RG23 = window.RG23 || {};
                         "Flood: recalculating flood risk."
                     );
 
-                    if (this.latestCities.length) {
+                    if (
+                        this.latestCities.length
+                    ) {
                         this.latestCities =
                             await this.applyFloodAnalysis(
                                 this.latestCities
                             );
 
                         this.latestCities =
-                            this.latestCities.map(
-                                city => ({
-                                    ...city,
-                                    finalRisk:
-                                        this.calculateFinalRisk(
-                                            city
-                                        )
-                                })
-                            );
+                            this.normalizeCities(
+                                this.latestCities
+                            ).map(city => ({
+                                ...city,
+
+                                finalRisk:
+                                    this.calculateFinalRisk(
+                                        city
+                                    )
+                            }));
 
                         this.updateKPIs(
                             this.latestCities
                         );
 
                         this.renderMap(
+                            this.latestCities
+                        );
+
+                        this.renderReport(
                             this.latestCities
                         );
                     }
@@ -1316,7 +1784,9 @@ window.RG23 = window.RG23 || {};
                         "City: refreshing city intelligence model."
                     );
 
-                    if (this.latestCities.length) {
+                    if (
+                        this.latestCities.length
+                    ) {
                         await this.renderCityPanel(
                             this.latestCities
                         );
@@ -1388,10 +1858,29 @@ window.RG23 = window.RG23 || {};
                     );
                 }
 
+                if (normalizedPhase === "Verify") {
+                    this.writeCommander(
+                        "Verify: requesting V30 multi-source verification."
+                    );
+
+                    window.dispatchEvent(
+                        new CustomEvent(
+                            "rg30:run-verification",
+                            {
+                                detail: {
+                                    cities:
+                                        this.latestCities
+                                }
+                            }
+                        )
+                    );
+                }
+
                 return {
                     ok: true,
                     phase: normalizedPhase
                 };
+
             } catch (error) {
                 console.warn(
                     `RG23 Brain: phase ${normalizedPhase} failed.`,
@@ -1401,6 +1890,7 @@ window.RG23 = window.RG23 || {};
                 return {
                     ok: false,
                     phase: normalizedPhase,
+
                     error:
                         error?.message ||
                         String(error)
@@ -1412,7 +1902,10 @@ window.RG23 = window.RG23 || {};
            COMMANDER
            ===================================================== */
 
-        writeCommander(text, type = "success") {
+        writeCommander(
+            text,
+            type = "success"
+        ) {
             const panel =
                 document.getElementById(
                     "commanderLog"
@@ -1425,8 +1918,18 @@ window.RG23 = window.RG23 || {};
             const safeText =
                 this.escapeHTML(text);
 
+            const safeType = [
+                "success",
+                "info",
+                "warning",
+                "danger",
+                "muted"
+            ].includes(type)
+                ? type
+                : "info";
+
             panel.innerHTML = `
-                <div class="item ${type}">
+                <div class="item ${safeType}">
                     <b>
                         ${new Date().toLocaleTimeString(
                             "ar-SA"
@@ -1436,6 +1939,14 @@ window.RG23 = window.RG23 || {};
                     ${safeText}
                 </div>
             ` + panel.innerHTML;
+
+            while (
+                panel.children.length > 30
+            ) {
+                panel.removeChild(
+                    panel.lastElementChild
+                );
+            }
         },
 
         /* =====================================================
@@ -1475,6 +1986,19 @@ window.RG23 = window.RG23 || {};
 
             if (start) {
                 start.onclick = async () => {
+                    const orchestrator =
+                        window.RG30?.Orchestrator;
+
+                    if (
+                        orchestrator &&
+                        this.isFunction(
+                            orchestrator.start
+                        )
+                    ) {
+                        await orchestrator.start();
+                        return;
+                    }
+
                     const cycle =
                         this.resolveEngine(
                             "IntelligenceCycle"
@@ -1482,25 +2006,49 @@ window.RG23 = window.RG23 || {};
 
                     if (
                         cycle &&
-                        this.isFunction(cycle.start)
+                        this.isFunction(
+                            cycle.start
+                        )
                     ) {
                         await this.safeExecute({
                             label:
                                 "IntelligenceCycle.start",
-                            target: cycle,
-                            method: "start"
+
+                            target:
+                                cycle,
+
+                            method:
+                                "start",
+
+                            fallback:
+                                null
                         });
-                    } else {
-                        await this.runFullAnalysis({
-                            source:
-                                "MANUAL_START"
-                        });
+
+                        return;
                     }
+
+                    await this.runFullAnalysis({
+                        source:
+                            "MANUAL_START"
+                    });
                 };
             }
 
             if (stop) {
                 stop.onclick = async () => {
+                    const orchestrator =
+                        window.RG30?.Orchestrator;
+
+                    if (
+                        orchestrator &&
+                        this.isFunction(
+                            orchestrator.stop
+                        )
+                    ) {
+                        orchestrator.stop();
+                        return;
+                    }
+
                     const cycle =
                         this.resolveEngine(
                             "IntelligenceCycle"
@@ -1508,13 +2056,22 @@ window.RG23 = window.RG23 || {};
 
                     if (
                         cycle &&
-                        this.isFunction(cycle.stop)
+                        this.isFunction(
+                            cycle.stop
+                        )
                     ) {
                         await this.safeExecute({
                             label:
                                 "IntelligenceCycle.stop",
-                            target: cycle,
-                            method: "stop"
+
+                            target:
+                                cycle,
+
+                            method:
+                                "stop",
+
+                            fallback:
+                                null
                         });
                     }
 
@@ -1526,15 +2083,56 @@ window.RG23 = window.RG23 || {};
             }
 
             if (refresh) {
-                refresh.onclick = () =>
-                    this.runFullAnalysis({
+                refresh.onclick = async () => {
+                    const orchestrator =
+                        window.RG30?.Orchestrator;
+
+                    if (
+                        orchestrator &&
+                        this.isFunction(
+                            orchestrator.runCycle
+                        )
+                    ) {
+                        await orchestrator.runCycle();
+                        return;
+                    }
+
+                    await this.runFullAnalysis({
                         source:
                             "MANUAL_REFRESH"
                     });
+                };
             }
 
             if (report) {
                 report.onclick = () => {
+                    const orchestrator =
+                        window.RG30?.Orchestrator;
+
+                    if (
+                        orchestrator &&
+                        this.isFunction(
+                            orchestrator.renderV30Report
+                        )
+                    ) {
+                        const summary =
+                            window.RG30
+                                ?.VerificationEngine
+                                ?.latestNationalSummary;
+
+                        const results =
+                            window.RG30
+                                ?.VerificationEngine
+                                ?.latestVerification || [];
+
+                        orchestrator.renderV30Report(
+                            summary,
+                            results
+                        );
+
+                        return;
+                    }
+
                     if (
                         this.latestCities.length
                     ) {
@@ -1560,19 +2158,38 @@ window.RG23 = window.RG23 || {};
                     }
 
                     this.writeCommander(
-                        `Commander: ${text}`
+                        `Commander: ${text}`,
+                        "info"
                     );
+
+                    input.value = "";
+
+                    const orchestrator =
+                        window.RG30?.Orchestrator;
+
+                    if (
+                        orchestrator &&
+                        this.isFunction(
+                            orchestrator.handleCommanderCommand
+                        )
+                    ) {
+                        orchestrator.handleCommanderCommand(
+                            text
+                        );
+
+                        return;
+                    }
 
                     this.writeCommander(
                         "ANI: Request received. Running refresh analysis."
                     );
 
-                    input.value = "";
-
                     await this.runFullAnalysis({
                         source:
                             "COMMANDER_REQUEST",
-                        query: text
+
+                        query:
+                            text
                     });
                 };
 
@@ -1604,64 +2221,218 @@ window.RG23 = window.RG23 || {};
             return this.latestAnalysis;
         },
 
+        getLatestDecision() {
+            return this.latestDecision;
+        },
+
         getState() {
             return {
-                version: this.version,
+                version:
+                    this.version,
+
                 initialized:
                     this.initialized,
+
                 analysisRunning:
                     this.analysisRunning,
+
                 cityCount:
                     this.latestCities.length,
+
                 latestDecision:
                     this.latestDecision,
+
                 latestAnalysis:
-                    this.latestAnalysis
+                    this.latestAnalysis,
+
+                mapReady:
+                    Boolean(this.map)
             };
         }
+
+               /* =====================================================
+           V30 COMPATIBILITY
+           ===================================================== */
+
+        registerCompatibilityAliases() {
+
+            RG23.Brain = this;
+
+            RG23.AIBrainV23 = this;
+
+            RG23.BaseIntelligenceBrain = this;
+
+            window.RG23 = RG23;
+
+            console.log(
+                "RG23 compatibility aliases registered."
+            );
+        },
+
+        startAutoRefresh() {
+
+            if (this._autoRefreshTimer) {
+                clearInterval(
+                    this._autoRefreshTimer
+                );
+            }
+
+            this._autoRefreshTimer =
+                setInterval(() => {
+
+                    if (
+                        this.analysisRunning
+                    ) {
+                        return;
+                    }
+
+                    this.runFullAnalysis({
+                        source:
+                            "AUTO_REFRESH"
+                    });
+
+                }, 10 * 60 * 1000);
+
+            console.log(
+                "RG23 automatic refresh enabled."
+            );
+        },
+
+        stopAutoRefresh() {
+
+            if (
+                this._autoRefreshTimer
+            ) {
+
+                clearInterval(
+                    this._autoRefreshTimer
+                );
+
+                this._autoRefreshTimer =
+                    null;
+            }
+        },
+
+        destroy() {
+
+            this.stopAutoRefresh();
+
+            this.clearMap();
+
+            if (this.map) {
+
+                try {
+
+                    this.map.remove();
+
+                } catch (e) {}
+
+                this.map = null;
+            }
+
+            this.initialized = false;
+        }
+
     };
 
-    /*
-     * دعم الاسم القديم المستخدم في المشروع
-     */
+    /* =====================================================
+       EXPORTS
+       ===================================================== */
+
     RG23.Brain = Brain;
 
-    /*
-     * دعم الاسم الذي قد تستخدمه محركات V29
-     */
-    RG23.AIBrain = Brain;
-
-    /*
-     * دعم إضافي لبعض الملفات القديمة
-     */
     RG23.AIBrainV23 = Brain;
+
+    RG23.BaseIntelligenceBrain = Brain;
 
 })(window.RG23);
 
-
 /* =========================================================
-   SAFE AUTO INITIALIZATION
+   AUTO INITIALIZATION
    ========================================================= */
 
-function initializeRG23Brain() {
-    try {
-        window.RG23?.Brain?.init();
-    } catch (error) {
-        console.error(
-            "RG23 Brain initialization failed:",
-            error
-        );
-    }
-}
+window.addEventListener(
+    "load",
+    async () => {
 
-if (document.readyState === "loading") {
-    document.addEventListener(
-        "DOMContentLoaded",
-        initializeRG23Brain,
-        {
-            once: true
+        try {
+
+            RG23.Brain.init();
+
+            RG23.Brain.registerCompatibilityAliases();
+
+            /*
+             * إذا كان V30 موجوداً
+             * نترك الـ Orchestrator هو المتحكم.
+             */
+
+            if (
+                window.RG30?.Orchestrator
+            ) {
+
+                console.log(
+                    "RG23 connected to V30."
+                );
+
+                return;
+            }
+
+            /*
+             * الوضع التقليدي V23
+             */
+
+            await RG23.Brain.runFullAnalysis({
+                source: "INITIAL_LOAD"
+            });
+
+            RG23.Brain.startAutoRefresh();
+
         }
-    );
-} else {
-    initializeRG23Brain();
-}
+
+        catch (error) {
+
+            console.error(
+                "RG23 initialization failed:",
+                error
+            );
+
+        }
+
+    }
+);
+
+/* =========================================================
+   GLOBAL SHORTCUTS
+   ========================================================= */
+
+window.runNationalAnalysis = function () {
+
+    return RG23.Brain.runFullAnalysis({
+        source: "GLOBAL_COMMAND"
+    });
+
+};
+
+window.getNationalBrainState = function () {
+
+    return RG23.Brain.getState();
+
+};
+
+window.getNationalCities = function () {
+
+    return RG23.Brain.getLatestCities();
+
+};
+
+window.getLatestNationalAnalysis = function () {
+
+    return RG23.Brain.getLatestAnalysis();
+
+};
+
+console.log(
+    "%cRainGuard AI Base Brain V23.2 (V30 Compatible)",
+    "color:#00d2ff;font-weight:bold;font-size:14px;"
+);
+       
