@@ -871,3 +871,273 @@ html[dir="ltr"] #v30Map .leaflet-popup-content {
         justify-content: flex-start;
     }
 }
+
+/* =========================================================
+   V30 BILINGUAL ENHANCEMENTS
+   Added for RainGuard AI V30.1
+   ========================================================= */
+
+/* Smooth transition when switching language */
+
+html,
+body,
+button,
+input,
+.panel,
+.item,
+.kpi-card,
+.phase-button,
+.verification-kpi{
+
+    transition:
+        all .20s ease;
+
+}
+
+/* Better Arabic font */
+
+html[lang="ar"] body{
+
+    font-family:
+
+        "Tahoma",
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
+}
+
+/* Better English font */
+
+html[lang="en"] body{
+
+    font-family:
+
+        Inter,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
+}
+
+/* Language button */
+
+#languageToggle{
+
+    min-width:95px;
+
+    font-weight:700;
+
+    background:
+
+        linear-gradient(
+            135deg,
+            #6b5cff,
+            #2385ff
+        );
+
+    color:white;
+
+    border-radius:10px;
+
+}
+
+#languageToggle:hover{
+
+    transform:translateY(-2px);
+
+}
+
+/* KPI numbers */
+
+.kpi-value{
+
+    letter-spacing:.3px;
+
+    font-variant-numeric:
+        tabular-nums;
+
+}
+
+/* Better Commander */
+
+#commanderLog{
+
+    scroll-behavior:smooth;
+
+}
+
+/* Better popup */
+
+.leaflet-popup-content{
+
+    line-height:1.7;
+
+}
+
+/* Tables */
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+th,
+td{
+
+    padding:10px;
+
+}
+
+/* RTL */
+
+html[dir="rtl"] table{
+
+    direction:rtl;
+
+}
+
+html[dir="ltr"] table{
+
+    direction:ltr;
+
+}
+
+/* Do NOT mirror Leaflet */
+
+html[dir="rtl"] .leaflet-container{
+
+    direction:ltr;
+
+}
+
+/* Commander */
+
+html[dir="rtl"] .commander-input-row{
+
+    direction:rtl;
+
+}
+
+html[dir="ltr"] .commander-input-row{
+
+    direction:ltr;
+
+}
+
+/* Status badges */
+
+.status-ok{
+
+    color:#19e49f;
+
+}
+
+.status-watch{
+
+    color:#ffd24a;
+
+}
+
+.status-warning{
+
+    color:#ff9833;
+
+}
+
+.status-danger{
+
+    color:#ff5372;
+
+}
+
+/* Verification cards */
+
+.verification-kpi strong{
+
+    font-size:28px;
+
+}
+
+/* Better hover */
+
+.panel:hover{
+
+    border-color:#379cff;
+
+    transition:.25s;
+
+}
+
+/* Loading animation */
+
+@keyframes rgPulse{
+
+    0%{
+
+        opacity:.55;
+
+    }
+
+    50%{
+
+        opacity:1;
+
+    }
+
+    100%{
+
+        opacity:.55;
+
+    }
+
+}
+
+.loading-line{
+
+    animation:
+
+        rgPulse
+
+        1.4s
+
+        infinite;
+
+}
+
+/* Scrollbar */
+
+::-webkit-scrollbar{
+
+    width:8px;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+    background:#2d70a3;
+
+    border-radius:20px;
+
+}
+
+/* Mobile */
+
+@media(max-width:768px){
+
+    #languageToggle{
+
+        width:100%;
+
+    }
+
+    .brand-title{
+
+        font-size:26px;
+
+    }
+
+}
