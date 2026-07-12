@@ -9,6 +9,11 @@
     >
 
     <meta
+        name="description"
+        content="RainGuard AI V30 National Multi-Source Verification Engine"
+    >
+
+    <meta
         name="theme-color"
         content="#061426"
     >
@@ -18,16 +23,23 @@
         National Multi-Source Verification Engine
     </title>
 
-    <!-- Leaflet CSS -->
+    <!-- =====================================================
+         LEAFLET MAP CSS
+         ===================================================== -->
+
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin=""
     >
 
-    <!-- V30 CSS -->
+    <!-- =====================================================
+         V30 MAIN CSS
+         ===================================================== -->
+
     <link
         rel="stylesheet"
-        href="css/national-ai-os-v30.css?v=3001"
+        href="css/national-ai-os-v30.css?v=3006"
     >
 </head>
 
@@ -35,9 +47,9 @@
 
 <main class="v30-page">
 
-    <!-- ===================================================
+    <!-- =====================================================
          HEADER
-         =================================================== -->
+         ===================================================== -->
 
     <header class="v30-header">
 
@@ -97,13 +109,15 @@
 
     </header>
 
-    <!-- ===================================================
-         TOP KPIs
-         =================================================== -->
+
+    <!-- =====================================================
+         NATIONAL TOP KPIs
+         ===================================================== -->
 
     <section class="kpi-grid">
 
         <article class="kpi-card">
+
             <span class="kpi-label">
                 System Status
             </span>
@@ -114,9 +128,11 @@
             >
                 V30 Loading
             </strong>
+
         </article>
 
         <article class="kpi-card">
+
             <span class="kpi-label">
                 Verification Phase
             </span>
@@ -127,9 +143,11 @@
             >
                 Observe
             </strong>
+
         </article>
 
         <article class="kpi-card">
+
             <span class="kpi-label">
                 Highest Verified Risk
             </span>
@@ -140,9 +158,11 @@
             >
                 0%
             </strong>
+
         </article>
 
         <article class="kpi-card">
+
             <span class="kpi-label">
                 Highest Risk City
             </span>
@@ -153,9 +173,11 @@
             >
                 --
             </strong>
+
         </article>
 
         <article class="kpi-card">
+
             <span class="kpi-label">
                 Verification Confidence
             </span>
@@ -166,9 +188,11 @@
             >
                 0%
             </strong>
+
         </article>
 
         <article class="kpi-card">
+
             <span class="kpi-label">
                 National Status
             </span>
@@ -179,15 +203,20 @@
             >
                 WAITING
             </strong>
+
         </article>
 
     </section>
 
-    <!-- ===================================================
-         PHASE BAR
-         =================================================== -->
 
-    <nav class="phase-bar">
+    <!-- =====================================================
+         V30 VERIFICATION PHASE BAR
+         ===================================================== -->
+
+    <nav
+        class="phase-bar"
+        aria-label="V30 verification cycle"
+    >
 
         <button
             class="phase-button active"
@@ -271,13 +300,16 @@
 
     </nav>
 
-    <!-- ===================================================
-         DASHBOARD
-         =================================================== -->
+
+    <!-- =====================================================
+         MAIN DASHBOARD
+         ===================================================== -->
 
     <section class="dashboard-grid">
 
-        <!-- Commander -->
+        <!-- =================================================
+             EXECUTIVE AI COMMANDER
+             ================================================= -->
 
         <article class="panel">
 
@@ -287,7 +319,7 @@
 
             <p class="panel-description">
                 Live messages from the V30 national
-                verification system.
+                verification and source-integration system.
             </p>
 
             <div class="commander-layout">
@@ -323,7 +355,10 @@
 
         </article>
 
-        <!-- Map -->
+
+        <!-- =================================================
+             NATIONAL VERIFICATION MAP
+             ================================================= -->
 
         <article class="panel map-panel">
 
@@ -332,15 +367,18 @@
             </h2>
 
             <p class="panel-description">
-                Verified national risk generated from
-                multiple weather and operational sources.
+                Verified national risk and RainViewer radar
+                visualization for monitored cities.
             </p>
 
             <div id="v30Map"></div>
 
         </article>
 
-        <!-- Health -->
+
+        <!-- =================================================
+             V30 SYSTEM HEALTH
+             ================================================= -->
 
         <article class="panel">
 
@@ -349,8 +387,8 @@
             </h2>
 
             <p class="panel-description">
-                Availability of the base intelligence
-                and verification engines.
+                Availability of the base intelligence,
+                verification and source-adapter engines.
             </p>
 
             <div
@@ -364,7 +402,38 @@
 
         </article>
 
-        <!-- Verification KPI -->
+
+        <!-- =================================================
+             NATIONAL SOURCE ADAPTER STATUS
+             ================================================= -->
+
+        <article class="panel full-width">
+
+            <h2 class="panel-title">
+                National Source Adapter Layer V30
+            </h2>
+
+            <p class="panel-description">
+                Connection status and coverage for Anwaa,
+                Open-Meteo, RainViewer and future national
+                verification sources.
+            </p>
+
+            <div
+                id="sourceAdapterStatusPanel"
+                class="box scroll-box tall-box"
+            >
+                <div class="empty-state">
+                    Waiting for the first national source collection.
+                </div>
+            </div>
+
+        </article>
+
+
+        <!-- =================================================
+             NATIONAL VERIFICATION INDICATORS
+             ================================================= -->
 
         <article class="panel full-width">
 
@@ -373,58 +442,58 @@
             </h2>
 
             <p class="panel-description">
-                Agreement, evidence quality and national
+                Agreement, evidence quality and final national
                 verification confidence.
             </p>
 
             <div class="verification-kpis">
 
                 <div class="verification-kpi">
+
                     <span>
                         Source Agreement
                     </span>
 
-                    <strong
-                        id="verificationAgreementTop"
-                    >
+                    <strong id="verificationAgreementTop">
                         0%
                     </strong>
+
                 </div>
 
                 <div class="verification-kpi">
+
                     <span>
                         Evidence Score
                     </span>
 
-                    <strong
-                        id="verificationEvidenceTop"
-                    >
+                    <strong id="verificationEvidenceTop">
                         0%
                     </strong>
+
                 </div>
 
                 <div class="verification-kpi">
+
                     <span>
                         Final Confidence
                     </span>
 
-                    <strong
-                        id="verificationConfidence"
-                    >
+                    <strong id="verificationConfidence">
                         0%
                     </strong>
+
                 </div>
 
                 <div class="verification-kpi">
+
                     <span>
                         Verification Status
                     </span>
 
-                    <strong
-                        id="verificationStatus"
-                    >
+                    <strong id="verificationStatus">
                         WAITING
                     </strong>
+
                 </div>
 
             </div>
@@ -440,7 +509,10 @@
 
         </article>
 
-        <!-- Cities Verification -->
+
+        <!-- =================================================
+             CITY-BY-CITY VERIFICATION
+             ================================================= -->
 
         <article class="panel full-width">
 
@@ -449,8 +521,8 @@
             </h2>
 
             <p class="panel-description">
-                City-by-city verification, conflict detection,
-                verified risk and final decision gate.
+                City-by-city verification, evidence agreement,
+                conflict detection, verified risk and decision gate.
             </p>
 
             <div
@@ -464,7 +536,10 @@
 
         </article>
 
-        <!-- Source Matrix -->
+
+        <!-- =================================================
+             SOURCE MATRIX
+             ================================================= -->
 
         <article class="panel full-width">
 
@@ -473,8 +548,8 @@
             </h2>
 
             <p class="panel-description">
-                Official source, radar, satellite,
-                lightning, Open-Meteo and RainGuard AI.
+                Official national source, radar, satellite,
+                lightning, Open-Meteo and RainGuard local AI.
             </p>
 
             <div
@@ -488,7 +563,10 @@
 
         </article>
 
-        <!-- Report -->
+
+        <!-- =================================================
+             EXECUTIVE REPORT
+             ================================================= -->
 
         <article class="panel full-width">
 
@@ -514,6 +592,11 @@
 
     </section>
 
+
+    <!-- =====================================================
+         FOOTER
+         ===================================================== -->
+
     <footer class="v30-footer">
         RainGuard AI V30 —
         National Multi-Source Verification Engine
@@ -521,102 +604,359 @@
 
 </main>
 
-<!-- =======================================================
+
+<!-- =========================================================
      EXTERNAL LIBRARIES
-     ======================================================= -->
+     ========================================================= -->
 
 <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
 ></script>
 
-<!-- =======================================================
+
+<!-- =========================================================
      BASE DATA ENGINES
-     Keep this order
-     ======================================================= -->
+     يجب المحافظة على هذا الترتيب
+     ========================================================= -->
 
-<script src="js/api_manager.js?v=3001"></script>
+<script src="js/api_manager.js?v=3006"></script>
 
-<script src="js/weather_engine.js?v=3001"></script>
+<script src="js/weather_engine.js?v=3006"></script>
 
-<script src="js/city_engine.js?v=3001"></script>
+<script src="js/city_engine.js?v=3006"></script>
 
-<script src="js/flood_engine.js?v=3001"></script>
+<script src="js/flood_engine.js?v=3006"></script>
 
-<script src="js/radar_engine.js?v=3001"></script>
+<script src="js/radar_engine.js?v=3006"></script>
 
-<script src="js/traffic_engine.js?v=3001"></script>
+<script src="js/traffic_engine.js?v=3006"></script>
 
-<script src="js/infrastructure_engine.js?v=3001"></script>
+<script src="js/infrastructure_engine.js?v=3006"></script>
 
-<script src="js/national_database.js?v=3001"></script>
+<script src="js/national_database.js?v=3006"></script>
 
-<!-- =======================================================
-     BASE BRAIN
-     ======================================================= -->
 
-<script src="js/ai_brain_v23.js?v=3001"></script>
+<!-- =========================================================
+     BASE NATIONAL INTELLIGENCE BRAIN
+     النسخة المعدلة تدعم v23Map و v30Map مباشرة
+     ========================================================= -->
 
-<!-- =======================================================
-     V30 VERIFICATION
-     ======================================================= -->
+<script src="js/ai_brain_v23.js?v=3006"></script>
 
-<script src="js/verification_engine_v30.js?v=3001"></script>
 
-<!-- =======================================================
+<!-- =========================================================
+     V30 SOURCE-SPECIFIC ADAPTERS
+     يجب تحميل المحولات قبل SourceAdapter
+     ========================================================= -->
+
+<script src="js/anwaa_adapter_v30.js?v=3006"></script>
+
+<script src="js/openmeteo_adapter_v30.js?v=3006"></script>
+
+<script src="js/rainviewer_adapter_v30.js?v=3006"></script>
+
+
+<!-- =========================================================
+     NATIONAL SOURCE ADAPTER LAYER
+     يجمع المحولات ويوحد البيانات
+     ========================================================= -->
+
+<script src="js/source_adapter_v30.js?v=3006"></script>
+
+
+<!-- =========================================================
+     V30 VERIFICATION ENGINE
+     ========================================================= -->
+
+<script src="js/verification_engine_v30.js?v=3006"></script>
+
+
+<!-- =========================================================
      V30 ORCHESTRATOR
-     This must be the last local script
-     ======================================================= -->
+     يجب أن يكون آخر ملف JavaScript محلي رئيسي
+     ========================================================= -->
 
-<script src="js/v30_orchestrator.js?v=3001"></script>
+<script src="js/v30_orchestrator.js?v=3006"></script>
 
-<!-- =======================================================
-     MAP BRIDGE
-     ======================================================= -->
+
+<!-- =========================================================
+     V30 SOURCE + RADAR INTEGRATION BRIDGE
+     ========================================================= -->
 
 <script>
 (function () {
     "use strict";
 
-    function initializeV30MapBridge() {
-        if (
-            !window.L ||
-            !window.RG23?.Brain
+    const V30IntegrationBridge = {
+
+        initialized: false,
+        radarAttached: false,
+        collecting: false,
+
+        init() {
+            if (this.initialized) {
+                return;
+            }
+
+            this.initialized = true;
+
+            this.bindEvents();
+
+            window.setTimeout(
+                () => {
+                    this.initializeMap();
+                    this.attachRadarLayer();
+                },
+                2500
+            );
+
+            console.log(
+                "V30 integration bridge initialized."
+            );
+        },
+
+        bindEvents() {
+            window.addEventListener(
+                "rg23:analysis-completed",
+                event => {
+                    const cities =
+                        event?.detail?.cities || [];
+
+                    if (cities.length) {
+                        this.runSourceCollection(
+                            cities
+                        );
+                    }
+
+                    this.attachRadarLayer();
+                }
+            );
+
+            window.addEventListener(
+                "rainguard:base-analysis-completed",
+                event => {
+                    const cities =
+                        event?.detail?.cities || [];
+
+                    if (
+                        cities.length &&
+                        !this.collecting
+                    ) {
+                        this.runSourceCollection(
+                            cities
+                        );
+                    }
+                }
+            );
+
+            window.addEventListener(
+                "rg30:sources-collected",
+                event => {
+                    const collection =
+                        event?.detail;
+
+                    if (
+                        collection &&
+                        window.RG30
+                            ?.SourceAdapter
+                            ?.renderStatus
+                    ) {
+                        RG30.SourceAdapter.renderStatus(
+                            collection
+                        );
+                    }
+                }
+            );
+
+            window.addEventListener(
+                "rg30:cycle-completed",
+                () => {
+                    this.attachRadarLayer();
+                }
+            );
+
+            window.addEventListener(
+                "resize",
+                () => {
+                    try {
+                        window.RG23
+                            ?.Brain
+                            ?.map
+                            ?.invalidateSize();
+                    } catch (error) {
+                        console.warn(
+                            "V30 map resize skipped:",
+                            error
+                        );
+                    }
+                }
+            );
+        },
+
+        initializeMap() {
+            if (
+                !window.L ||
+                !window.RG23?.Brain
+            ) {
+                return;
+            }
+
+            try {
+                RG23.Brain.initMap();
+
+                window.setTimeout(
+                    () => {
+                        RG23.Brain.map
+                            ?.invalidateSize();
+                    },
+                    300
+                );
+            } catch (error) {
+                console.warn(
+                    "V30 map initialization skipped:",
+                    error
+                );
+            }
+        },
+
+        async attachRadarLayer() {
+            if (
+                !window.RG30
+                    ?.RainViewerAdapter ||
+                !window.RG23
+                    ?.Brain
+                    ?.map
+            ) {
+                return;
+            }
+
+            if (this.radarAttached) {
+                return;
+            }
+
+            try {
+                await RG30
+                    .RainViewerAdapter
+                    .attachToMap(
+                        RG23.Brain.map
+                    );
+
+                this.radarAttached =
+                    true;
+
+                this.writeCommander(
+                    "RainViewer radar layer connected to the national map."
+                );
+
+            } catch (error) {
+                console.warn(
+                    "V30 RainViewer map layer skipped:",
+                    error
+                );
+
+                this.writeCommander(
+                    "RainViewer radar layer is currently unavailable.",
+                    "warning"
+                );
+            }
+        },
+
+        async runSourceCollection(cities) {
+            if (
+                this.collecting ||
+                !Array.isArray(cities) ||
+                !cities.length ||
+                !window.RG30
+                    ?.SourceAdapter
+                    ?.collectAndVerify
+            ) {
+                return;
+            }
+
+            this.collecting =
+                true;
+
+            try {
+                const result =
+                    await RG30
+                        .SourceAdapter
+                        .collectAndVerify(
+                            cities
+                        );
+
+                if (!result?.ok) {
+                    console.warn(
+                        "V30 source collection did not complete:",
+                        result
+                    );
+
+                    return;
+                }
+
+                this.writeCommander(
+                    "V30 national source collection and verification completed."
+                );
+
+            } catch (error) {
+                console.error(
+                    "V30 source integration failed:",
+                    error
+                );
+
+                this.writeCommander(
+                    "V30 source integration failed. Check browser console.",
+                    "danger"
+                );
+
+            } finally {
+                this.collecting =
+                    false;
+            }
+        },
+
+        writeCommander(
+            message,
+            type = "success"
         ) {
-            setTimeout(
-                initializeV30MapBridge,
-                500
-            );
+            if (
+                window.RG23
+                    ?.Brain
+                    ?.writeCommander
+            ) {
+                RG23.Brain.writeCommander(
+                    message,
+                    type
+                );
 
-            return;
-        }
+                return;
+            }
 
-        const mapBox =
-            document.getElementById("v30Map");
-
-        if (!mapBox) return;
-
-        /*
-         * ai_brain_v23.js expects v23Map.
-         * The following line gives the V30 map
-         * the identifier expected by the base brain.
-         */
-
-        mapBox.id = "v23Map";
-
-        try {
-            RG23.Brain.initMap();
-        } catch (error) {
-            console.warn(
-                "V30 map bridge initialization skipped:",
-                error
+            console.log(
+                `[V30 Integration] ${message}`
             );
         }
+    };
+
+    window.V30IntegrationBridge =
+        V30IntegrationBridge;
+
+    if (
+        document.readyState === "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            () => {
+                V30IntegrationBridge.init();
+            },
+            {
+                once: true
+            }
+        );
+    } else {
+        V30IntegrationBridge.init();
     }
 
-    window.addEventListener(
-        "load",
-        initializeV30MapBridge
-    );
 })();
 </script>
 
