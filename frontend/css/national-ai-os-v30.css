@@ -727,3 +727,147 @@ a {
         grid-template-columns: 1fr;
     }
 }
+
+/* =========================================================
+   V30 BILINGUAL SUPPORT — ARABIC RTL / ENGLISH LTR
+   ========================================================= */
+
+html[dir="rtl"] body {
+    direction: rtl;
+    text-align: right;
+    font-family:
+        Tahoma,
+        Arial,
+        sans-serif;
+}
+
+html[dir="ltr"] body {
+    direction: ltr;
+    text-align: left;
+}
+
+.language-button {
+    min-width: 94px;
+    background:
+        linear-gradient(
+            135deg,
+            #6d5dfc,
+            var(--blue)
+        );
+    border: 1px solid
+        rgba(255, 255, 255, 0.16);
+}
+
+html[dir="rtl"] .v30-header,
+html[dir="rtl"] .brand-block,
+html[dir="rtl"] .header-actions,
+html[dir="rtl"] .phase-bar,
+html[dir="rtl"] .commander-input-row,
+html[dir="rtl"] #commanderLog {
+    direction: rtl;
+}
+
+html[dir="ltr"] .v30-header,
+html[dir="ltr"] .brand-block,
+html[dir="ltr"] .header-actions,
+html[dir="ltr"] .phase-bar,
+html[dir="ltr"] .commander-input-row,
+html[dir="ltr"] #commanderLog {
+    direction: ltr;
+}
+
+html[dir="rtl"] .brand-title,
+html[dir="rtl"] .brand-subtitle,
+html[dir="rtl"] .panel-title,
+html[dir="rtl"] .panel-description,
+html[dir="rtl"] .kpi-label,
+html[dir="rtl"] .kpi-value,
+html[dir="rtl"] .item,
+html[dir="rtl"] .verification-kpi,
+html[dir="rtl"] th,
+html[dir="rtl"] td {
+    text-align: right;
+}
+
+html[dir="ltr"] .brand-title,
+html[dir="ltr"] .brand-subtitle,
+html[dir="ltr"] .panel-title,
+html[dir="ltr"] .panel-description,
+html[dir="ltr"] .kpi-label,
+html[dir="ltr"] .kpi-value,
+html[dir="ltr"] .item,
+html[dir="ltr"] .verification-kpi,
+html[dir="ltr"] th,
+html[dir="ltr"] td {
+    text-align: left;
+}
+
+html[dir="rtl"] .header-actions {
+    justify-content: flex-start;
+}
+
+html[dir="rtl"] .item {
+    border-left: 0;
+    border-right: 4px solid var(--cyan);
+}
+
+html[dir="rtl"] .item.success {
+    border-right-color: var(--green);
+}
+
+html[dir="rtl"] .item.info {
+    border-right-color: var(--cyan);
+}
+
+html[dir="rtl"] .item.warning {
+    border-right-color: var(--yellow);
+}
+
+html[dir="rtl"] .item.danger {
+    border-right-color: var(--red);
+}
+
+html[dir="rtl"] .item.muted {
+    border-right-color: #64778e;
+}
+
+html[dir="rtl"] #commanderInput {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir="ltr"] #commanderInput {
+    direction: ltr;
+    text-align: left;
+}
+
+html[dir="rtl"] table {
+    direction: rtl;
+}
+
+/* Leaflet itself remains LTR so controls and tiles are not mirrored. */
+#v30Map,
+#v30Map .leaflet-container,
+#v30Map .leaflet-control-container {
+    direction: ltr;
+}
+
+html[dir="rtl"] #v30Map .leaflet-popup-content {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir="ltr"] #v30Map .leaflet-popup-content {
+    direction: ltr;
+    text-align: left;
+}
+
+@media (max-width: 760px) {
+    html[dir="rtl"] .v30-header {
+        align-items: stretch;
+    }
+
+    html[dir="rtl"] .header-actions {
+        justify-content: flex-start;
+    }
+}
