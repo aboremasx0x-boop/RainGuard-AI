@@ -470,15 +470,16 @@ RG30.SourceAdapter = {
                 ar:
                     "المحول غير متاح."
             },
+
            ADAPTER_METHOD_NOT_FOUND: {
 
-    en:
-        "Adapter does not expose collect() or execute().",
+             en:
+                 "Adapter does not expose collect() or execute().",
 
-    ar:
-        "المحول لا يحتوي على الدالة collect() أو execute()."
+             ar:
+                 "المحول لا يحتوي على الدالة collect() أو execute()."
 
-},
+            },
 
             SOURCE_COLLECTION_FAILED: {
 
@@ -1579,48 +1580,51 @@ RG30.SourceAdapter = {
 
 if (!adapter) {
 
-    return this.createUnavailableResult(
-        sourceKey,
-        config.adapterName,
-        "ADAPTER_NOT_AVAILABLE"
-    );
+    const result =
+        this.createUnavailableResult(
+            sourceKey,
+            config.adapterName,
+            "ADAPTER_NOT_AVAILABLE"
+        );
 
+    state.status = "UNAVAILABLE";
+    state.failures += 1;
+    state.lastFailureAt = new Date().toISOString();
+    state.lastError = result.error;
+
+    return result;
 }
 
 let executeFunction = null;
 
 if (typeof adapter.execute === "function") {
 
-    executeFunction =
-        () => adapter.execute(city);
+    executeFunction = () =>
+        adapter.execute(city);
 
 }
 else if (typeof adapter.collect === "function") {
 
-    executeFunction =
-        () => adapter.collect(city);
+    executeFunction = () =>
+        executeFunction();
 
 }
 else {
 
-    return this.createUnavailableResult(
-        sourceKey,
-        config.adapterName,
-        "ADAPTER_METHOD_NOT_FOUND"
-    );
+    const result =
+        this.createUnavailableResult(
+            sourceKey,
+            config.adapterName,
+            "ADAPTER_METHOD_NOT_FOUND"
+        );
 
+    state.status = "UNAVAILABLE";
+    state.failures += 1;
+    state.lastFailureAt = new Date().toISOString();
+    state.lastError = result.error;
+
+    return result;
 }
-
-const rawResult =
-    await this.withTimeout(
-
-        Promise.resolve(
-            executeFunction()
-        ),
-
-        this.config.timeoutMs
-
-    );
 
             state.status =
                 "UNAVAILABLE";
