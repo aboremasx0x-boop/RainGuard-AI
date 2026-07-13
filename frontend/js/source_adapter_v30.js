@@ -1,69 +1,541 @@
 /* =========================================================
    RainGuard AI V30
    National Source Adapter Layer
+   Bilingual Arabic / English Edition
    File: frontend/js/source_adapter_v30.js
    ========================================================= */
 
-window.RG30 = window.RG30 || {};
+window.RG30 =
+    window.RG30 || {};
 
 RG30.SourceAdapter = {
 
-    version: "30.0.0",
+    version:
+        "30.1.0-bilingual",
 
-    initialized: false,
-    collecting: false,
+    initialized:
+        false,
 
-    lastCollection: null,
-    sourceStates: {},
+    collecting:
+        false,
+
+    collectionNumber:
+        0,
+
+    lastCollection:
+        null,
+
+    latestCollection:
+        null,
+
+    sourceStates:
+        {},
+
+    sourceCache:
+        new Map(),
 
     config: {
-        timeoutMs: 15000,
-        retryCount: 2,
-        retryDelayMs: 1200,
+
+        timeoutMs:
+            15000,
+
+        retryCount:
+            2,
+
+        retryDelayMs:
+            1200,
+
+        cacheTtlMs:
+            5 * 60 * 1000,
+
+        duplicateWindowMs:
+            15000,
+
+        maximumConcurrentCities:
+            4,
 
         sources: {
+
             official: {
-                enabled: true,
-                required: false,
-                priority: 1,
-                adapterName: "AnwaaAdapter"
+
+                enabled:
+                    true,
+
+                required:
+                    false,
+
+                priority:
+                    1,
+
+                adapterName:
+                    "AnwaaAdapter",
+
+                reliability:
+                    1.00
             },
 
             openMeteo: {
-                enabled: true,
-                required: true,
-                priority: 2,
-                adapterName: "OpenMeteoAdapter"
+
+                enabled:
+                    true,
+
+                required:
+                    true,
+
+                priority:
+                    2,
+
+                adapterName:
+                    "OpenMeteoAdapter",
+
+                reliability:
+                    0.80
             },
 
             radar: {
-                enabled: true,
-                required: false,
-                priority: 3,
-                adapterName: "RainViewerAdapter"
+
+                enabled:
+                    true,
+
+                required:
+                    false,
+
+                priority:
+                    3,
+
+                adapterName:
+                    "RainViewerAdapter",
+
+                reliability:
+                    0.92
             },
 
             satellite: {
-                enabled: true,
-                required: false,
-                priority: 4,
-                adapterName: "SatelliteAdapter"
+
+                enabled:
+                    true,
+
+                required:
+                    false,
+
+                priority:
+                    4,
+
+                adapterName:
+                    "SatelliteAdapter",
+
+                reliability:
+                    0.86
             },
 
             lightning: {
-                enabled: true,
-                required: false,
-                priority: 5,
-                adapterName: "LightningAdapter"
+
+                enabled:
+                    true,
+
+                required:
+                    false,
+
+                priority:
+                    5,
+
+                adapterName:
+                    "LightningAdapter",
+
+                reliability:
+                    0.84
             },
 
             localAI: {
-                enabled: true,
-                required: true,
-                priority: 6,
-                adapterName: "LocalAIAdapter"
+
+                enabled:
+                    true,
+
+                required:
+                    true,
+
+                priority:
+                    6,
+
+                adapterName:
+                    "LocalAIAdapter",
+
+                reliability:
+                    0.76
             }
         }
+    },
+
+    /* =====================================================
+       LANGUAGE HELPERS
+       ===================================================== */
+
+    isArabic() {
+
+        return (
+            window.RG30
+                ?.I18n
+                ?.language ===
+            "ar"
+        );
+
+    },
+
+    getLocale() {
+
+        return this.isArabic()
+            ? "ar-SA"
+            : "en-US";
+
+    },
+
+    text(
+        english,
+        arabic
+    ) {
+
+        return this.isArabic()
+            ? arabic
+            : english;
+
+    },
+
+    translateMessage(
+        message
+    ) {
+
+        const i18n =
+            window.RG30
+                ?.I18n;
+
+        if (
+            i18n &&
+            typeof i18n
+                .translateText ===
+                "function"
+        ) {
+
+            return i18n
+                .translateText(
+                    message
+                );
+
+        }
+
+        return String(
+            message ?? ""
+        );
+
+    },
+
+    getSourceLabel(
+        sourceKey
+    ) {
+
+        const labels = {
+
+            official: {
+
+                en:
+                    "Official National Source",
+
+                ar:
+                    "المصدر الوطني الرسمي"
+            },
+
+            openMeteo: {
+
+                en:
+                    "Open-Meteo",
+
+                ar:
+                    "Open-Meteo"
+            },
+
+            radar: {
+
+                en:
+                    "RainViewer Radar",
+
+                ar:
+                    "رادار RainViewer"
+            },
+
+            satellite: {
+
+                en:
+                    "Satellite",
+
+                ar:
+                    "الأقمار الصناعية"
+            },
+
+            lightning: {
+
+                en:
+                    "Lightning Detection",
+
+                ar:
+                    "رصد البرق"
+            },
+
+            localAI: {
+
+                en:
+                    "RainGuard Local AI",
+
+                ar:
+                    "الذكاء الاصطناعي المحلي لـ RainGuard"
+            }
+
+        };
+
+        const item =
+            labels[
+                sourceKey
+            ];
+
+        if (!item) {
+
+            return String(
+                sourceKey ?? ""
+            );
+
+        }
+
+        return this.isArabic()
+            ? item.ar
+            : item.en;
+
+    },
+
+    getStatusLabel(
+        status
+    ) {
+
+        const value =
+            String(
+                status ?? ""
+            )
+                .trim()
+                .toUpperCase();
+
+        const labels = {
+
+            WAITING: {
+
+                en:
+                    "WAITING",
+
+                ar:
+                    "بانتظار التشغيل"
+            },
+
+            CONNECTING: {
+
+                en:
+                    "CONNECTING",
+
+                ar:
+                    "جارٍ الاتصال"
+            },
+
+            CONNECTED: {
+
+                en:
+                    "CONNECTED",
+
+                ar:
+                    "متصل"
+            },
+
+            AVAILABLE: {
+
+                en:
+                    "AVAILABLE",
+
+                ar:
+                    "متاح"
+            },
+
+            ACTIVE: {
+
+                en:
+                    "ACTIVE",
+
+                ar:
+                    "نشط"
+            },
+
+            UNAVAILABLE: {
+
+                en:
+                    "UNAVAILABLE",
+
+                ar:
+                    "غير متاح"
+            },
+
+            FAILED: {
+
+                en:
+                    "FAILED",
+
+                ar:
+                    "فشل"
+            },
+
+            DISABLED: {
+
+                en:
+                    "DISABLED",
+
+                ar:
+                    "معطل"
+            },
+
+            CACHED: {
+
+                en:
+                    "CACHED",
+
+                ar:
+                    "من الذاكرة المؤقتة"
+            },
+
+            TIMEOUT: {
+
+                en:
+                    "TIMEOUT",
+
+                ar:
+                    "انتهت مهلة الاتصال"
+            },
+
+            UNKNOWN: {
+
+                en:
+                    "UNKNOWN",
+
+                ar:
+                    "غير معروف"
+            }
+        };
+
+        const item =
+            labels[
+                value
+            ];
+
+        if (!item) {
+
+            return String(
+                status ?? ""
+            );
+
+        }
+
+        return this.isArabic()
+            ? item.ar
+            : item.en;
+
+    },
+
+    getErrorLabel(
+        error
+    ) {
+
+        const value =
+            String(
+                error ?? ""
+            )
+                .trim();
+
+        if (!value) {
+
+            return this.text(
+                "No error",
+                "لا يوجد خطأ"
+            );
+
+        }
+
+        const errors = {
+
+            ADAPTER_NOT_AVAILABLE: {
+
+                en:
+                    "Adapter is not available.",
+
+                ar:
+                    "المحول غير متاح."
+            },
+
+            SOURCE_COLLECTION_FAILED: {
+
+                en:
+                    "Source collection failed.",
+
+                ar:
+                    "فشل جمع بيانات المصدر."
+            },
+
+            COLLECTION_ALREADY_RUNNING: {
+
+                en:
+                    "Another source collection is already running.",
+
+                ar:
+                    "توجد عملية جمع مصادر قيد التشغيل."
+            },
+
+            NO_CITIES: {
+
+                en:
+                    "No cities were provided.",
+
+                ar:
+                    "لم يتم تزويد النظام ببيانات مدن."
+            },
+
+            VERIFICATION_ENGINE_UNAVAILABLE: {
+
+                en:
+                    "Verification engine is unavailable.",
+
+                ar:
+                    "محرك التحقق غير متاح."
+            }
+        };
+
+        const item =
+            errors[
+                value
+            ];
+
+        if (!item) {
+
+            if (
+                value.startsWith(
+                    "SOURCE_TIMEOUT_AFTER_"
+                )
+            ) {
+
+                return this.text(
+                    "Source request timed out.",
+                    "انتهت مهلة طلب المصدر."
+                );
+
+            }
+
+            return value;
+
+        }
+
+        return this.isArabic()
+            ? item.ar
+            : item.en;
+
     },
 
     /* =====================================================
@@ -71,125 +543,373 @@ RG30.SourceAdapter = {
        ===================================================== */
 
     init() {
-        if (this.initialized) {
+
+        if (
+            this.initialized
+        ) {
+
             return;
+
         }
 
-        this.initialized = true;
+        this.initialized =
+            true;
 
         this.initializeSourceStates();
+
+        this.bindEvents();
 
         console.log(
             `RG30 Source Adapter ${this.version} initialized.`
         );
 
         window.dispatchEvent(
+
             new CustomEvent(
+
                 "rg30:source-adapter-ready",
+
                 {
                     detail: {
-                        version: this.version,
-                        timestamp: new Date().toISOString()
+
+                        version:
+                            this.version,
+
+                        timestamp:
+                            new Date()
+                                .toISOString(),
+
+                        sources:
+                            Object.keys(
+                                this.config
+                                    .sources
+                            ),
+
+                        language:
+                            window.RG30
+                                ?.I18n
+                                ?.language ||
+                            "en"
+
                     }
                 }
+
             )
+
         );
+
+    },
+
+    bindEvents() {
+
+        window.addEventListener(
+
+            "rg30:language-changed",
+
+            () => {
+
+                try {
+
+                    if (
+                        this.latestCollection
+                    ) {
+
+                        this.renderStatus(
+                            this.latestCollection
+                        );
+
+                    }
+
+                } catch (error) {
+
+                    console.warn(
+                        "RG30 Source Adapter language refresh failed:",
+                        error
+                    );
+
+                }
+
+            }
+
+        );
+
+        window.addEventListener(
+
+            "rg30:clear-source-cache",
+
+            () => {
+
+                this.clearCache();
+
+            }
+
+        );
+
     },
 
     initializeSourceStates() {
+
+        this.sourceStates =
+            {};
+
         Object.entries(
             this.config.sources
-        ).forEach(([key, source]) => {
+        )
+            .forEach(
+                (
+                    [
+                        key,
+                        source
+                    ]
+                ) => {
 
-            this.sourceStates[key] = {
-                key,
-                adapterName: source.adapterName,
-                enabled: source.enabled,
-                required: source.required,
+                    this.sourceStates[
+                        key
+                    ] = {
 
-                status: source.enabled
-                    ? "WAITING"
-                    : "DISABLED",
+                        key,
 
-                attempts: 0,
-                successes: 0,
-                failures: 0,
+                        name:
+                            this.getSourceLabel(
+                                key
+                            ),
 
-                lastSuccessAt: null,
-                lastFailureAt: null,
-                lastError: null,
-                lastDurationMs: null
-            };
-        });
+                        adapterName:
+                            source.adapterName,
+
+                        enabled:
+                            source.enabled,
+
+                        required:
+                            source.required,
+
+                        priority:
+                            source.priority,
+
+                        reliability:
+                            source.reliability,
+
+                        status:
+                            source.enabled
+                                ? "WAITING"
+                                : "DISABLED",
+
+                        attempts:
+                            0,
+
+                        successes:
+                            0,
+
+                        failures:
+                            0,
+
+                        cacheHits:
+                            0,
+
+                        lastSuccessAt:
+                            null,
+
+                        lastFailureAt:
+                            null,
+
+                        lastError:
+                            null,
+
+                        lastDurationMs:
+                            null,
+
+                        averageDurationMs:
+                            0
+
+                    };
+
+                }
+            );
+
     },
-
-    /* =====================================================
+       /* =====================================================
        PUBLIC COLLECTION
        ===================================================== */
 
-    async collectForCities(cities = []) {
-        if (this.collecting) {
+    async collectForCities(
+        cities = []
+    ) {
+
+        if (
+            this.collecting
+        ) {
+
             console.warn(
                 "RG30 Source Adapter: collection already running."
             );
 
             return (
-                this.lastCollection || {
-                    ok: false,
-                    skipped: true,
-                    reason: "COLLECTION_ALREADY_RUNNING",
-                    cities: []
+
+                this.lastCollection ||
+
+                {
+                    ok:
+                        false,
+
+                    skipped:
+                        true,
+
+                    reason:
+                        "COLLECTION_ALREADY_RUNNING",
+
+                    cities:
+                        []
                 }
+
             );
+
         }
 
         if (
-            !Array.isArray(cities) ||
+            !Array.isArray(
+                cities
+            ) ||
             !cities.length
         ) {
-            return {
-                ok: false,
-                skipped: true,
-                reason: "NO_CITIES",
-                cities: []
+
+            const failure = {
+
+                ok:
+                    false,
+
+                skipped:
+                    true,
+
+                reason:
+                    "NO_CITIES",
+
+                cities:
+                    [],
+
+                timestamp:
+                    new Date()
+                        .toISOString()
+
             };
+
+            this.writeCommander(
+
+                this.text(
+                    "Source collection skipped because no cities were provided.",
+                    "تم تجاوز جمع المصادر لعدم توفير بيانات مدن."
+                ),
+
+                "warning"
+
+            );
+
+            return failure;
+
         }
 
-        this.collecting = true;
+        this.collecting =
+            true;
 
-        const startedAt = Date.now();
+        this.collectionNumber +=
+            1;
+
+        const startedAt =
+            Date.now();
 
         this.writeCommander(
-            `V30 source collection started for ${cities.length} cities.`
+
+            this.text(
+
+                `V30 source collection started for ${cities.length} cities.`,
+
+                `بدأ جمع مصادر V30 لعدد ${cities.length} مدينة.`
+
+            )
+
         );
 
         try {
+
             const normalizedCities =
-                cities.map((city, index) =>
-                    this.normalizeCity(city, index)
+                cities
+                    .filter(
+                        Boolean
+                    )
+                    .map(
+                        (
+                            city,
+                            index
+                        ) => {
+
+                            return this.normalizeCity(
+                                city,
+                                index
+                            );
+
+                        }
+                    );
+
+            const results =
+                [];
+
+            const batches =
+                this.chunkArray(
+
+                    normalizedCities,
+
+                    this.config
+                        .maximumConcurrentCities
+
                 );
 
-            const results = [];
+            for (
+                const batch of batches
+            ) {
 
-            for (const city of normalizedCities) {
-                const result =
-                    await this.collectForCity(city);
+                const batchResults =
+                    await Promise.all(
 
-                results.push(result);
+                        batch.map(
+                            city =>
+                                this.collectForCity(
+                                    city
+                                )
+                        )
+
+                    );
+
+                results.push(
+                    ...batchResults
+                );
+
             }
 
             const summary =
-                this.buildCollectionSummary(results);
+                this.buildCollectionSummary(
+                    results
+                );
 
-            this.lastCollection = {
-                ok: true,
-                version: this.version,
+            const collection = {
+
+                ok:
+                    true,
+
+                version:
+                    this.version,
+
+                collectionNumber:
+                    this.collectionNumber,
 
                 timestamp:
-                    new Date().toISOString(),
+                    new Date()
+                        .toISOString(),
 
                 durationMs:
-                    Date.now() - startedAt,
+                    Date.now() -
+                    startedAt,
+
+                requestedCities:
+                    normalizedCities.length,
 
                 cities:
                     results,
@@ -197,90 +917,211 @@ RG30.SourceAdapter = {
                 summary,
 
                 sourceStates:
-                    this.getSourceStates()
+                    this.getSourceStates(),
+
+                cache: {
+
+                    size:
+                        this.sourceCache.size,
+
+                    ttlMs:
+                        this.config
+                            .cacheTtlMs
+
+                }
+
             };
 
+            this.lastCollection =
+                collection;
+
+            this.latestCollection =
+                collection;
+
             this.publishCollection(
-                this.lastCollection
+                collection
             );
 
             this.renderStatus(
-                this.lastCollection
+                collection
             );
 
             this.writeCommander(
-                `V30 source collection completed. Coverage: ${summary.coverage}%.`
+
+                this.text(
+
+                    `V30 source collection completed. Coverage: ${summary.coverage}%.`,
+
+                    `اكتمل جمع مصادر V30. نسبة التغطية: ${summary.coverage}%.`
+
+                )
+
             );
 
-            return this.lastCollection;
+            return collection;
 
         } catch (error) {
+
             console.error(
                 "RG30 Source Adapter collection failed:",
                 error
             );
 
             const failure = {
-                ok: false,
+
+                ok:
+                    false,
+
+                version:
+                    this.version,
+
+                collectionNumber:
+                    this.collectionNumber,
+
                 timestamp:
-                    new Date().toISOString(),
+                    new Date()
+                        .toISOString(),
 
                 durationMs:
-                    Date.now() - startedAt,
+                    Date.now() -
+                    startedAt,
 
                 error:
-                    error?.message ||
-                    String(error),
+                    error
+                        ?.message ||
+                    String(
+                        error
+                    ),
 
-                cities: []
+                cities:
+                    [],
+
+                sourceStates:
+                    this.getSourceStates()
+
             };
 
-            this.lastCollection = failure;
+            this.lastCollection =
+                failure;
+
+            this.latestCollection =
+                failure;
 
             this.writeCommander(
-                "V30 source collection failed.",
+
+                this.text(
+                    "V30 source collection failed.",
+                    "فشل جمع مصادر V30."
+                ),
+
                 "danger"
+
+            );
+
+            window.dispatchEvent(
+
+                new CustomEvent(
+
+                    "rg30:source-collection-failed",
+
+                    {
+                        detail:
+                            failure
+                    }
+
+                )
+
             );
 
             return failure;
 
         } finally {
-            this.collecting = false;
+
+            this.collecting =
+                false;
+
         }
+
     },
 
-    async collectForCity(city) {
-        const sources = {};
+    async collectForCity(
+        city
+    ) {
+
+        const sources =
+            {};
 
         const sourceEntries =
             Object.entries(
                 this.config.sources
             )
-            .filter(
-                ([, config]) =>
-                    config.enabled
-            )
-            .sort(
-                ([, a], [, b]) =>
-                    a.priority - b.priority
-            );
+                .filter(
+                    (
+                        [
+                            ,
+                            config
+                        ]
+                    ) => {
+
+                        return config
+                            .enabled;
+
+                    }
+                )
+                .sort(
+                    (
+                        [
+                            ,
+                            first
+                        ],
+
+                        [
+                            ,
+                            second
+                        ]
+                    ) => {
+
+                        return (
+
+                            first.priority -
+                            second.priority
+
+                        );
+
+                    }
+                );
 
         const promises =
             sourceEntries.map(
-                async ([sourceKey, config]) => {
+
+                async (
+                    [
+                        sourceKey,
+                        config
+                    ]
+                ) => {
 
                     const result =
                         await this.collectFromSource(
+
                             sourceKey,
+
                             config,
+
                             city
+
                         );
 
                     return {
+
                         sourceKey,
+
                         result
+
                     };
+
                 }
+
             );
 
         const settled =
@@ -288,39 +1129,375 @@ RG30.SourceAdapter = {
                 promises
             );
 
-        settled.forEach(item => {
-            if (
-                item.status === "fulfilled"
-            ) {
-                sources[
-                    item.value.sourceKey
-                ] = item.value.result;
+        settled.forEach(
+            item => {
+
+                if (
+                    item.status ===
+                    "fulfilled"
+                ) {
+
+                    sources[
+                        item.value
+                            .sourceKey
+                    ] =
+                        item.value
+                            .result;
+
+                    return;
+
+                }
+
+                console.warn(
+                    "RG30 Source Adapter city source promise rejected:",
+                    item.reason
+                );
+
             }
-        });
+        );
+
+        const availableSourceCount =
+            Object.values(
+                sources
+            )
+                .filter(
+                    source =>
+                        source
+                            .available
+                )
+                .length;
+
+        const requiredSources =
+            sourceEntries
+                .filter(
+                    (
+                        [
+                            ,
+                            config
+                        ]
+                    ) =>
+                        config.required
+                )
+                .map(
+                    (
+                        [
+                            key
+                        ]
+                    ) =>
+                        key
+                );
+
+        const missingRequiredSources =
+            requiredSources
+                .filter(
+                    key =>
+                        !sources[
+                            key
+                        ]
+                        ?.available
+                );
+
+        const cityCoverage =
+            sourceEntries.length
+                ? Math.round(
+
+                    availableSourceCount /
+                    sourceEntries.length *
+                    100
+
+                )
+                : 0;
 
         return {
-            city: city.name,
-            lat: city.lat,
-            lon: city.lon,
+
+            city:
+                city.name,
+
+            cityId:
+                city.id,
+
+            lat:
+                city.lat,
+
+            lon:
+                city.lon,
 
             sourceCount:
-                Object.keys(sources).length,
+                sourceEntries.length,
 
-            availableSourceCount:
-                Object.values(sources)
-                    .filter(
-                        source =>
-                            source.available
-                    ).length,
+            availableSourceCount,
+
+            coverage:
+                cityCoverage,
+
+            requiredSources,
+
+            missingRequiredSources,
+
+            readyForVerification:
+                missingRequiredSources
+                    .length ===
+                0,
 
             sources,
 
             collectedAt:
-                new Date().toISOString()
+                new Date()
+                    .toISOString()
+
         };
+
     },
 
     /* =====================================================
+       CACHE
+       ===================================================== */
+
+    buildCacheKey(
+        sourceKey,
+        city
+    ) {
+
+        const lat =
+            this.safeNumber(
+                city?.lat,
+                0
+            )
+            .toFixed(
+                4
+            );
+
+        const lon =
+            this.safeNumber(
+                city?.lon,
+                0
+            )
+            .toFixed(
+                4
+            );
+
+        const cityName =
+            String(
+                city?.name ||
+                city?.city ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        return `${sourceKey}:${cityName}:${lat}:${lon}`;
+
+    },
+
+    getCachedResult(
+        sourceKey,
+        city
+    ) {
+
+        const key =
+            this.buildCacheKey(
+                sourceKey,
+                city
+            );
+
+        const cached =
+            this.sourceCache.get(
+                key
+            );
+
+        if (!cached) {
+
+            return null;
+
+        }
+
+        const age =
+            Date.now() -
+            cached.cachedAt;
+
+        if (
+            age >
+            this.config
+                .cacheTtlMs
+        ) {
+
+            this.sourceCache.delete(
+                key
+            );
+
+            return null;
+
+        }
+
+        return {
+
+            ...cached.result,
+
+            status:
+                "CACHED",
+
+            cached:
+                true,
+
+            cacheAgeMs:
+                age,
+
+            cacheAgeMinutes:
+                Number(
+
+                    (
+                        age /
+                        60000
+                    )
+                    .toFixed(
+                        2
+                    )
+
+                )
+
+        };
+
+    },
+
+    setCachedResult(
+        sourceKey,
+        city,
+        result
+    ) {
+
+        if (
+            !result ||
+            result.available !==
+                true
+        ) {
+
+            return;
+
+        }
+
+        const key =
+            this.buildCacheKey(
+                sourceKey,
+                city
+            );
+
+        this.sourceCache.set(
+            key,
+            {
+                cachedAt:
+                    Date.now(),
+
+                result:
+                    {
+                        ...result,
+
+                        cached:
+                            false
+                    }
+            }
+        );
+
+    },
+
+    clearCache() {
+
+        this.sourceCache.clear();
+
+        Object.values(
+            this.sourceStates
+        )
+            .forEach(
+                state => {
+
+                    state.cacheHits =
+                        0;
+
+                }
+            );
+
+        this.writeCommander(
+
+            this.text(
+                "V30 source cache cleared.",
+                "تم مسح ذاكرة مصادر V30 المؤقتة."
+            ),
+
+            "info"
+
+        );
+
+    },
+
+    pruneCache() {
+
+        const now =
+            Date.now();
+
+        for (
+            const [
+                key,
+                item
+            ] of this.sourceCache
+        ) {
+
+            if (
+                now -
+                item.cachedAt >
+                this.config
+                    .cacheTtlMs
+            ) {
+
+                this.sourceCache.delete(
+                    key
+                );
+
+            }
+
+        }
+
+    },
+
+    chunkArray(
+        items,
+        size
+    ) {
+
+        const safeSize =
+            Math.max(
+                1,
+                this.safeNumber(
+                    size,
+                    1
+                )
+            );
+
+        const chunks =
+            [];
+
+        for (
+            let index = 0;
+            index <
+            items.length;
+            index +=
+                safeSize
+        ) {
+
+            chunks.push(
+
+                items.slice(
+                    index,
+                    index +
+                    safeSize
+                )
+
+            );
+
+        }
+
+        return chunks;
+
+    },
+       /* =====================================================
        SOURCE EXECUTION
        ===================================================== */
 
@@ -329,12 +1506,62 @@ RG30.SourceAdapter = {
         config,
         city
     ) {
-        const state =
-            this.sourceStates[sourceKey];
 
-        state.status = "CONNECTING";
-        state.attempts += 1;
-        state.lastError = null;
+        const state =
+            this.sourceStates[
+                sourceKey
+            ];
+
+        if (!state) {
+
+            return this.createUnavailableResult(
+
+                sourceKey,
+
+                config
+                    ?.adapterName ||
+                "UNKNOWN_ADAPTER",
+
+                "SOURCE_STATE_NOT_FOUND"
+
+            );
+
+        }
+
+        state.status =
+            "CONNECTING";
+
+        state.attempts +=
+            1;
+
+        state.lastError =
+            null;
+
+        this.pruneCache();
+
+        const cached =
+            this.getCachedResult(
+
+                sourceKey,
+
+                city
+
+            );
+
+        if (cached) {
+
+            state.status =
+                "CACHED";
+
+            state.cacheHits +=
+                1;
+
+            state.lastDurationMs =
+                0;
+
+            return cached;
+
+        }
 
         const adapter =
             this.resolveAdapter(
@@ -343,53 +1570,91 @@ RG30.SourceAdapter = {
 
         if (
             !adapter ||
-            typeof adapter.collect !== "function"
+            typeof adapter.collect !==
+                "function"
         ) {
+
             const result =
                 this.createUnavailableResult(
+
                     sourceKey,
+
                     config.adapterName,
+
                     "ADAPTER_NOT_AVAILABLE"
+
                 );
 
-            state.status = "UNAVAILABLE";
-            state.failures += 1;
+            state.status =
+                "UNAVAILABLE";
+
+            state.failures +=
+                1;
+
             state.lastFailureAt =
-                new Date().toISOString();
+                new Date()
+                    .toISOString();
+
             state.lastError =
                 result.error;
 
             return result;
+
         }
 
-        let lastError = null;
+        let lastError =
+            null;
+
+        const totalAttempts =
+            this.config.retryCount +
+            1;
 
         for (
             let attempt = 1;
             attempt <=
-                this.config.retryCount + 1;
-            attempt++
+            totalAttempts;
+            attempt += 1
         ) {
-            const startedAt = Date.now();
+
+            const startedAt =
+                Date.now();
 
             try {
+
                 const rawResult =
                     await this.withTimeout(
+
                         Promise.resolve(
-                            adapter.collect(city)
+
+                            adapter.collect(
+                                city
+                            )
+
                         ),
-                        this.config.timeoutMs
+
+                        this.config
+                            .timeoutMs
+
                     );
+
+                const durationMs =
+                    Date.now() -
+                    startedAt;
 
                 const result =
                     this.normalizeSourceResult({
+
                         sourceKey,
+
                         adapterName:
                             config.adapterName,
+
                         city,
+
                         rawResult,
-                        durationMs:
-                            Date.now() - startedAt
+
+                        durationMs
+
                     });
 
                 state.status =
@@ -400,55 +1665,233 @@ RG30.SourceAdapter = {
                 state.lastDurationMs =
                     result.durationMs;
 
-                if (result.available) {
-                    state.successes += 1;
+                this.updateAverageDuration(
+
+                    state,
+
+                    result.durationMs
+
+                );
+
+                if (
+                    result.available
+                ) {
+
+                    state.successes +=
+                        1;
+
                     state.lastSuccessAt =
-                        new Date().toISOString();
+                        new Date()
+                            .toISOString();
+
+                    state.lastError =
+                        null;
+
+                    this.setCachedResult(
+
+                        sourceKey,
+
+                        city,
+
+                        result
+
+                    );
+
                 } else {
-                    state.failures += 1;
+
+                    state.failures +=
+                        1;
+
                     state.lastFailureAt =
-                        new Date().toISOString();
+                        new Date()
+                            .toISOString();
+
+                    state.lastError =
+                        result.error ||
+                        "SOURCE_UNAVAILABLE";
+
                 }
 
                 return result;
 
             } catch (error) {
-                lastError = error;
+
+                lastError =
+                    error;
+
+                const message =
+                    error
+                        ?.message ||
+                    String(
+                        error
+                    );
 
                 state.lastError =
-                    error?.message ||
-                    String(error);
+                    message;
+
+                state.lastDurationMs =
+                    Date.now() -
+                    startedAt;
+
+                this.updateAverageDuration(
+
+                    state,
+
+                    state.lastDurationMs
+
+                );
+
+                const isTimeout =
+                    message.startsWith(
+                        "SOURCE_TIMEOUT_AFTER_"
+                    );
+
+                state.status =
+                    isTimeout
+                        ? "TIMEOUT"
+                        : "FAILED";
 
                 if (
-                    attempt <=
-                    this.config.retryCount
+                    attempt <
+                    totalAttempts
                 ) {
-                    await this.delay(
-                        this.config.retryDelayMs
+
+                    this.writeCommander(
+
+                        this.text(
+
+                            `${this.getSourceLabel(
+                                sourceKey
+                            )} retry ${attempt}/${this.config.retryCount}.`,
+
+                            `إعادة محاولة اتصال ${this.getSourceLabel(
+                                sourceKey
+                            )} رقم ${attempt}/${this.config.retryCount}.`
+
+                        ),
+
+                        "warning"
+
                     );
+
+                    await this.delay(
+
+                        this.config
+                            .retryDelayMs *
+                        attempt
+
+                    );
+
                 }
+
             }
+
         }
 
-        state.status = "FAILED";
-        state.failures += 1;
+        state.status =
+            "FAILED";
+
+        state.failures +=
+            1;
+
         state.lastFailureAt =
-            new Date().toISOString();
+            new Date()
+                .toISOString();
+
+        state.lastError =
+            lastError
+                ?.message ||
+            "SOURCE_COLLECTION_FAILED";
 
         return this.createUnavailableResult(
+
             sourceKey,
+
             config.adapterName,
-            lastError?.message ||
-            "SOURCE_COLLECTION_FAILED"
+
+            state.lastError
+
         );
+
     },
 
-    resolveAdapter(adapterName) {
+    resolveAdapter(
+        adapterName
+    ) {
+
+        if (!adapterName) {
+            return null;
+        }
+
         return (
-            window.RG30?.[adapterName] ||
-            window[adapterName] ||
+
+            window.RG30
+                ?.[adapterName] ||
+
+            window[
+                adapterName
+            ] ||
+
             null
+
         );
+
+    },
+
+    updateAverageDuration(
+        state,
+        durationMs
+    ) {
+
+        const duration =
+            this.safeNumber(
+                durationMs,
+                0
+            );
+
+        if (
+            duration <= 0
+        ) {
+
+            return;
+
+        }
+
+        const completedAttempts =
+            state.successes +
+            state.failures;
+
+        if (
+            completedAttempts <= 0 ||
+            state.averageDurationMs <= 0
+        ) {
+
+            state.averageDurationMs =
+                Math.round(
+                    duration
+                );
+
+            return;
+
+        }
+
+        state.averageDurationMs =
+            Math.round(
+
+                (
+                    state.averageDurationMs *
+                    completedAttempts +
+
+                    duration
+                ) /
+
+                (
+                    completedAttempts +
+                    1
+                )
+
+            );
+
     },
 
     normalizeSourceResult({
@@ -458,36 +1901,92 @@ RG30.SourceAdapter = {
         rawResult,
         durationMs
     }) {
+
         const result =
             rawResult &&
-            typeof rawResult === "object"
+            typeof rawResult ===
+                "object"
                 ? rawResult
                 : {};
 
-        return {
+        const available =
+
+            result.available ===
+                true ||
+
+            result.status ===
+                "CONNECTED" ||
+
+            result.status ===
+                "AVAILABLE" ||
+
+            result.status ===
+                "ACTIVE" ||
+
+            result.ok ===
+                true;
+
+        const configuredReliability =
+            this.config
+                .sources[
+                    sourceKey
+                ]
+                ?.reliability;
+
+        const reliability =
+            this.clamp(
+
+                result.reliability ??
+
+                result.trust ??
+
+                configuredReliability ??
+
+                0.5,
+
+                0,
+
+                1
+
+            );
+
+        const normalized = {
+
             sourceKey,
+
+            sourceName:
+                this.getSourceLabel(
+                    sourceKey
+                ),
+
             adapterName,
 
             city:
                 city.name,
 
-            available:
-                result.available === true ||
-                result.status === "CONNECTED" ||
-                result.status === "AVAILABLE" ||
-                result.ok === true,
+            cityId:
+                city.id,
+
+            lat:
+                city.lat,
+
+            lon:
+                city.lon,
+
+            available,
 
             status:
                 result.status ||
                 (
-                    result.available
+                    available
                         ? "AVAILABLE"
                         : "UNAVAILABLE"
                 ),
 
             timestamp:
                 result.timestamp ||
-                new Date().toISOString(),
+                new Date()
+                    .toISOString(),
 
             ageMinutes:
                 this.safeNumber(
@@ -495,48 +1994,71 @@ RG30.SourceAdapter = {
                     0
                 ),
 
-            reliability:
-                this.clamp(
-                    result.reliability ??
-                    result.trust ??
-                    0.5,
-                    0,
-                    1
-                ),
+            reliability,
 
             rainProbability:
                 this.clamp(
-                    result.rainProbability ??
-                    result.probability ??
+
+                    result
+                        .rainProbability ??
+
+                    result
+                        .probability ??
+
                     0,
+
                     0,
+
                     100
+
                 ),
 
             rainAmount:
                 this.clamp(
-                    result.rainAmount ??
-                    result.precipitation ??
+
+                    result
+                        .rainAmount ??
+
+                    result
+                        .precipitation ??
+
                     0,
+
                     0,
+
                     1000
+
                 ),
 
             signalScore:
                 this.clamp(
-                    result.signalScore ??
-                    result.score ??
+
+                    result
+                        .signalScore ??
+
+                    result
+                        .score ??
+
                     0,
+
                     0,
+
                     100
+
                 ),
 
             confidence:
                 this.clamp(
-                    result.confidence ??
+
+                    result
+                        .confidence ??
+
                     0,
+
                     0,
+
                     100
+
                 ),
 
             warningLevel:
@@ -545,10 +2067,12 @@ RG30.SourceAdapter = {
                 "UNKNOWN",
 
             details:
-                result.details || {},
+                result.details ||
+                {},
 
             raw:
-                result.raw || null,
+                result.raw ||
+                null,
 
             durationMs:
                 this.safeNumber(
@@ -556,9 +2080,349 @@ RG30.SourceAdapter = {
                     0
                 ),
 
+            cached:
+                false,
+
             error:
-                result.error || null
+                result.error ||
+                null
+
         };
+
+        return this.enrichSourceResult(
+
+            sourceKey,
+
+            normalized
+
+        );
+
+    },
+
+    enrichSourceResult(
+        sourceKey,
+        result
+    ) {
+
+        const enriched = {
+            ...result
+        };
+
+        if (
+            sourceKey ===
+            "official"
+        ) {
+
+            enriched.details = {
+
+                ...enriched.details,
+
+                warningLevel:
+                    enriched.details
+                        ?.warningLevel ??
+                    enriched.warningLevel,
+
+                issuedAt:
+                    enriched.details
+                        ?.issuedAt ??
+                    enriched.timestamp
+
+            };
+
+        }
+
+        if (
+            sourceKey ===
+            "radar"
+        ) {
+
+            enriched.details = {
+
+                ...enriched.details,
+
+                intensity:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.intensity ??
+
+                        enriched.rainAmount,
+
+                        0
+
+                    ),
+
+                rainDetected:
+
+                    enriched.details
+                        ?.rainDetected ===
+                        true ||
+
+                    enriched.signalScore >
+                        0 ||
+
+                    enriched.rainAmount >
+                        0,
+
+                movementConfidence:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.movementConfidence ??
+
+                        enriched.confidence,
+
+                        0
+
+                    ),
+
+                frameAgeMinutes:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.frameAgeMinutes ??
+
+                        enriched.ageMinutes,
+
+                        0
+
+                    )
+
+            };
+
+        }
+
+        if (
+            sourceKey ===
+            "satellite"
+        ) {
+
+            enriched.details = {
+
+                ...enriched.details,
+
+                cloudCover:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.cloudCover,
+
+                        0
+
+                    ),
+
+                convectionScore:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.convectionScore ??
+
+                        enriched.signalScore,
+
+                        0
+
+                    ),
+
+                cloudTemperature:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.cloudTemperature,
+
+                        0
+
+                    ),
+
+                stormCellScore:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.stormCellScore ??
+
+                        enriched.confidence,
+
+                        0
+
+                    )
+
+            };
+
+        }
+
+        if (
+            sourceKey ===
+            "lightning"
+        ) {
+
+            enriched.details = {
+
+                ...enriched.details,
+
+                strikes:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.strikes,
+
+                        0
+
+                    ),
+
+                distanceKm:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.distanceKm,
+
+                        0
+
+                    ),
+
+                activityScore:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.activityScore ??
+
+                        enriched.signalScore,
+
+                        0
+
+                    ),
+
+                trend:
+                    enriched.details
+                        ?.trend ||
+                    "STABLE"
+
+            };
+
+        }
+
+        if (
+            sourceKey ===
+            "openMeteo"
+        ) {
+
+            enriched.details = {
+
+                ...enriched.details,
+
+                humidity:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.humidity,
+
+                        0
+
+                    ),
+
+                cloudCover:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.cloudCover,
+
+                        0
+
+                    ),
+
+                windSpeed:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.windSpeed,
+
+                        0
+
+                    ),
+
+                pressure:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.pressure,
+
+                        0
+
+                    )
+
+            };
+
+        }
+
+        if (
+            sourceKey ===
+            "localAI"
+        ) {
+
+            enriched.details = {
+
+                ...enriched.details,
+
+                weatherScore:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.weatherScore ??
+
+                        enriched.signalScore,
+
+                        0
+
+                    ),
+
+                floodIndex:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.floodIndex,
+
+                        0
+
+                    ),
+
+                roadRisk:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.roadRisk,
+
+                        0
+
+                    ),
+
+                finalRisk:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.finalRisk ??
+
+                        enriched.signalScore,
+
+                        0
+
+                    ),
+
+                confidence:
+                    this.safeNumber(
+
+                        enriched.details
+                            ?.confidence ??
+
+                        enriched.confidence,
+
+                        0
+
+                    )
+
+            };
+
+        }
+
+        return enriched;
+
     },
 
     createUnavailableResult(
@@ -566,254 +2430,775 @@ RG30.SourceAdapter = {
         adapterName,
         error
     ) {
+
         return {
+
             sourceKey,
+
+            sourceName:
+                this.getSourceLabel(
+                    sourceKey
+                ),
+
             adapterName,
 
-            available: false,
-            status: "UNAVAILABLE",
+            available:
+                false,
+
+            status:
+                "UNAVAILABLE",
 
             timestamp:
-                new Date().toISOString(),
+                new Date()
+                    .toISOString(),
 
-            ageMinutes: 0,
-            reliability: 0,
+            ageMinutes:
+                0,
 
-            rainProbability: 0,
-            rainAmount: 0,
-            signalScore: 0,
-            confidence: 0,
+            reliability:
+                0,
 
-            warningLevel: "UNKNOWN",
+            rainProbability:
+                0,
 
-            details: {},
-            raw: null,
+            rainAmount:
+                0,
 
-            durationMs: 0,
-            error
+            signalScore:
+                0,
+
+            confidence:
+                0,
+
+            warningLevel:
+                "UNKNOWN",
+
+            details:
+                {},
+
+            raw:
+                null,
+
+            durationMs:
+                0,
+
+            cached:
+                false,
+
+            error:
+                error ||
+                "SOURCE_COLLECTION_FAILED"
+
         };
-    },
 
-    /* =====================================================
+    },
+       /* =====================================================
        DATA CONVERSION FOR VERIFICATION ENGINE
        ===================================================== */
 
     toVerificationCities(
         collection =
+            this.latestCollection ||
             this.lastCollection
     ) {
+
         if (
             !collection?.ok ||
-            !Array.isArray(collection.cities)
+            !Array.isArray(
+                collection.cities
+            )
         ) {
+
             return [];
+
         }
 
-        return collection.cities.map(item => {
-            const official =
-                item.sources.official || {};
+        return collection.cities.map(
+            item => {
 
-            const radar =
-                item.sources.radar || {};
+                const official =
+                    item.sources
+                        ?.official ||
+                    {};
 
-            const satellite =
-                item.sources.satellite || {};
+                const radar =
+                    item.sources
+                        ?.radar ||
+                    {};
 
-            const lightning =
-                item.sources.lightning || {};
+                const satellite =
+                    item.sources
+                        ?.satellite ||
+                    {};
 
-            const openMeteo =
-                item.sources.openMeteo || {};
+                const lightning =
+                    item.sources
+                        ?.lightning ||
+                    {};
 
-            const localAI =
-                item.sources.localAI || {};
+                const openMeteo =
+                    item.sources
+                        ?.openMeteo ||
+                    {};
 
-            return {
-                name: item.city,
-                lat: item.lat,
-                lon: item.lon,
+                const localAI =
+                    item.sources
+                        ?.localAI ||
+                    {};
 
-                officialData: {
-                    available:
-                        Boolean(
-                            official.available
-                        ),
+                return {
 
-                    status:
-                        official.status ||
-                        "PENDING_API",
+                    name:
+                        item.city,
 
-                    rainProbability:
-                        official.rainProbability || 0,
+                    city:
+                        item.city,
 
-                    rainAmount:
-                        official.rainAmount || 0,
+                    cityId:
+                        item.cityId,
 
-                    warningLevel:
-                        official.warningLevel ||
-                        "UNKNOWN"
-                },
-
-                radarData: {
-                    available:
-                        Boolean(
-                            radar.available
-                        ),
-
-                    intensity:
+                    lat:
                         this.safeNumber(
-                            radar.details?.intensity ??
-                            radar.rainAmount,
+                            item.lat,
                             0
                         ),
 
-                    rainDetected:
-                        Boolean(
-                            radar.details?.rainDetected
+                    lon:
+                        this.safeNumber(
+                            item.lon,
+                            0
                         ),
 
-                    movementConfidence:
+                    sourceCoverage:
                         this.safeNumber(
-                            radar.details
-                                ?.movementConfidence,
+                            item.coverage,
                             0
+                        ),
+
+                    readyForVerification:
+                        item
+                            .readyForVerification ===
+                        true,
+
+                    missingRequiredSources:
+                        Array.isArray(
+                            item
+                                .missingRequiredSources
                         )
-                },
+                            ? [
+                                ...item
+                                    .missingRequiredSources
+                            ]
+                            : [],
 
-                satelliteData: {
-                    available:
-                        Boolean(
-                            satellite.available
-                        ),
+                    officialData: {
 
-                    cloudCover:
-                        this.safeNumber(
-                            satellite.details
-                                ?.cloudCover,
-                            0
-                        ),
+                        available:
+                            official
+                                .available ===
+                            true,
 
-                    convectionScore:
-                        this.safeNumber(
-                            satellite.details
-                                ?.convectionScore,
-                            satellite.signalScore || 0
-                        ),
+                        status:
+                            official.status ||
+                            "PENDING_API",
 
-                    cloudTemperature:
-                        this.safeNumber(
-                            satellite.details
-                                ?.cloudTemperature,
-                            0
-                        )
-                },
+                        rainProbability:
+                            this.safeNumber(
 
-                lightningData: {
-                    available:
-                        Boolean(
-                            lightning.available
-                        ),
+                                official
+                                    .rainProbability,
 
-                    strikes:
-                        this.safeNumber(
-                            lightning.details
-                                ?.strikes,
-                            0
-                        ),
+                                0
 
-                    distanceKm:
-                        this.safeNumber(
-                            lightning.details
-                                ?.distanceKm,
-                            0
-                        ),
+                            ),
 
-                    activityScore:
-                        this.safeNumber(
-                            lightning.details
-                                ?.activityScore,
-                            lightning.signalScore || 0
-                        )
-                },
+                        rainAmount:
+                            this.safeNumber(
 
-                openMeteoData: {
-                    available:
-                        Boolean(
-                            openMeteo.available
-                        ),
+                                official
+                                    .rainAmount,
 
-                    rainProbability:
-                        openMeteo.rainProbability ||
-                        0,
+                                0
 
-                    rainAmount:
-                        openMeteo.rainAmount ||
-                        0,
+                            ),
 
-                    humidity:
-                        this.safeNumber(
-                            openMeteo.details?.humidity,
-                            0
-                        ),
+                        warningLevel:
+                            official
+                                .warningLevel ||
+                            official
+                                .details
+                                ?.warningLevel ||
+                            "UNKNOWN",
 
-                    cloudCover:
-                        this.safeNumber(
-                            openMeteo.details
-                                ?.cloudCover,
-                            0
-                        ),
+                        issuedAt:
+                            official
+                                .details
+                                ?.issuedAt ||
+                            official
+                                .timestamp ||
+                            null,
 
-                    windSpeed:
-                        this.safeNumber(
-                            openMeteo.details
-                                ?.windSpeed,
-                            0
-                        )
-                },
+                        reliability:
+                            this.safeNumber(
 
-                weatherScore:
-                    this.safeNumber(
-                        localAI.details
-                            ?.weatherScore,
-                        localAI.signalScore || 0
-                    ),
+                                official
+                                    .reliability,
 
-                floodIndex:
-                    this.safeNumber(
-                        localAI.details
-                            ?.floodIndex,
-                        0
-                    ),
+                                0
 
-                roadRisk:
-                    this.safeNumber(
-                        localAI.details
-                            ?.roadRisk,
-                        0
-                    ),
+                            ),
 
-                finalRisk:
-                    this.safeNumber(
-                        localAI.details
-                            ?.finalRisk,
-                        localAI.signalScore || 0
-                    )
-            };
-        });
+                        confidence:
+                            this.safeNumber(
+
+                                official
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        signalScore:
+                            this.safeNumber(
+
+                                official
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        sourceStatus:
+                            official
+                                .status ||
+                            "UNAVAILABLE"
+                    },
+
+                    radarData: {
+
+                        available:
+                            radar
+                                .available ===
+                            true,
+
+                        intensity:
+                            this.safeNumber(
+
+                                radar
+                                    .details
+                                    ?.intensity ??
+
+                                radar
+                                    .rainAmount,
+
+                                0
+
+                            ),
+
+                        rainDetected:
+
+                            radar
+                                .details
+                                ?.rainDetected ===
+                                true ||
+
+                            radar
+                                .signalScore >
+                                0 ||
+
+                            radar
+                                .rainAmount >
+                                0,
+
+                        movementConfidence:
+                            this.safeNumber(
+
+                                radar
+                                    .details
+                                    ?.movementConfidence ??
+
+                                radar
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        frameAgeMinutes:
+                            this.safeNumber(
+
+                                radar
+                                    .details
+                                    ?.frameAgeMinutes ??
+
+                                radar
+                                    .ageMinutes,
+
+                                0
+
+                            ),
+
+                        reliability:
+                            this.safeNumber(
+
+                                radar
+                                    .reliability,
+
+                                0
+
+                            ),
+
+                        confidence:
+                            this.safeNumber(
+
+                                radar
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        signalScore:
+                            this.safeNumber(
+
+                                radar
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        sourceStatus:
+                            radar
+                                .status ||
+                            "UNAVAILABLE"
+                    },
+
+                    satelliteData: {
+
+                        available:
+                            satellite
+                                .available ===
+                            true,
+
+                        cloudCover:
+                            this.safeNumber(
+
+                                satellite
+                                    .details
+                                    ?.cloudCover,
+
+                                0
+
+                            ),
+
+                        convectionScore:
+                            this.safeNumber(
+
+                                satellite
+                                    .details
+                                    ?.convectionScore ??
+
+                                satellite
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        cloudTemperature:
+                            this.safeNumber(
+
+                                satellite
+                                    .details
+                                    ?.cloudTemperature,
+
+                                0
+
+                            ),
+
+                        stormCellScore:
+                            this.safeNumber(
+
+                                satellite
+                                    .details
+                                    ?.stormCellScore ??
+
+                                satellite
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        reliability:
+                            this.safeNumber(
+
+                                satellite
+                                    .reliability,
+
+                                0
+
+                            ),
+
+                        confidence:
+                            this.safeNumber(
+
+                                satellite
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        signalScore:
+                            this.safeNumber(
+
+                                satellite
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        sourceStatus:
+                            satellite
+                                .status ||
+                            "UNAVAILABLE"
+                    },
+
+                    lightningData: {
+
+                        available:
+                            lightning
+                                .available ===
+                            true,
+
+                        strikes:
+                            this.safeNumber(
+
+                                lightning
+                                    .details
+                                    ?.strikes,
+
+                                0
+
+                            ),
+
+                        distanceKm:
+                            this.safeNumber(
+
+                                lightning
+                                    .details
+                                    ?.distanceKm,
+
+                                0
+
+                            ),
+
+                        activityScore:
+                            this.safeNumber(
+
+                                lightning
+                                    .details
+                                    ?.activityScore ??
+
+                                lightning
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        trend:
+                            lightning
+                                .details
+                                ?.trend ||
+                            "STABLE",
+
+                        reliability:
+                            this.safeNumber(
+
+                                lightning
+                                    .reliability,
+
+                                0
+
+                            ),
+
+                        confidence:
+                            this.safeNumber(
+
+                                lightning
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        signalScore:
+                            this.safeNumber(
+
+                                lightning
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        sourceStatus:
+                            lightning
+                                .status ||
+                            "UNAVAILABLE"
+                    },
+
+                    openMeteoData: {
+
+                        available:
+                            openMeteo
+                                .available ===
+                            true,
+
+                        rainProbability:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .rainProbability,
+
+                                0
+
+                            ),
+
+                        rainAmount:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .rainAmount,
+
+                                0
+
+                            ),
+
+                        humidity:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .details
+                                    ?.humidity,
+
+                                0
+
+                            ),
+
+                        cloudCover:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .details
+                                    ?.cloudCover,
+
+                                0
+
+                            ),
+
+                        windSpeed:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .details
+                                    ?.windSpeed,
+
+                                0
+
+                            ),
+
+                        pressure:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .details
+                                    ?.pressure,
+
+                                0
+
+                            ),
+
+                        reliability:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .reliability,
+
+                                0
+
+                            ),
+
+                        confidence:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        signalScore:
+                            this.safeNumber(
+
+                                openMeteo
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        sourceStatus:
+                            openMeteo
+                                .status ||
+                            "UNAVAILABLE"
+                    },
+
+                    localModelData: {
+
+                        available:
+                            localAI
+                                .available ===
+                            true,
+
+                        weatherScore:
+                            this.safeNumber(
+
+                                localAI
+                                    .details
+                                    ?.weatherScore ??
+
+                                localAI
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        floodIndex:
+                            this.safeNumber(
+
+                                localAI
+                                    .details
+                                    ?.floodIndex,
+
+                                0
+
+                            ),
+
+                        roadRisk:
+                            this.safeNumber(
+
+                                localAI
+                                    .details
+                                    ?.roadRisk,
+
+                                0
+
+                            ),
+
+                        finalRisk:
+                            this.safeNumber(
+
+                                localAI
+                                    .details
+                                    ?.finalRisk ??
+
+                                localAI
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        confidence:
+                            this.safeNumber(
+
+                                localAI
+                                    .details
+                                    ?.confidence ??
+
+                                localAI
+                                    .confidence,
+
+                                0
+
+                            ),
+
+                        reliability:
+                            this.safeNumber(
+
+                                localAI
+                                    .reliability,
+
+                                0
+
+                            ),
+
+                        signalScore:
+                            this.safeNumber(
+
+                                localAI
+                                    .signalScore,
+
+                                0
+
+                            ),
+
+                        sourceStatus:
+                            localAI
+                                .status ||
+                            "UNAVAILABLE"
+                    }
+
+                };
+
+            }
+        );
+
     },
 
-    async collectAndVerify(cities = []) {
+    async collectAndVerify(
+        cities = []
+    ) {
+
         const collection =
             await this.collectForCities(
                 cities
             );
 
-        if (!collection?.ok) {
+        if (
+            !collection?.ok
+        ) {
+
             return {
-                ok: false,
+
+                ok:
+                    false,
+
                 collection,
-                verification: []
+
+                verificationCities:
+                    [],
+
+                verification:
+                    [],
+
+                summary:
+                    null,
+
+                reason:
+                    collection
+                        ?.reason ||
+                    "SOURCE_COLLECTION_FAILED"
+
             };
+
         }
 
         const verificationCities =
@@ -822,199 +3207,752 @@ RG30.SourceAdapter = {
             );
 
         if (
-            !window.RG30
-                ?.VerificationEngine
-                ?.run
+            !verificationCities.length
         ) {
+
             return {
-                ok: false,
+
+                ok:
+                    false,
+
                 collection,
+
+                verificationCities:
+                    [],
+
+                verification:
+                    [],
+
+                summary:
+                    null,
+
+                reason:
+                    "NO_VERIFICATION_CITIES"
+
+            };
+
+        }
+
+        const verificationEngine =
+            window.RG30
+                ?.VerificationEngine;
+
+        if (
+            !verificationEngine ||
+            typeof verificationEngine
+                .run !==
+                "function"
+        ) {
+
+            return {
+
+                ok:
+                    false,
+
+                collection,
+
                 verificationCities,
-                verification: [],
+
+                verification:
+                    [],
+
+                summary:
+                    null,
+
                 reason:
                     "VERIFICATION_ENGINE_UNAVAILABLE"
+
             };
+
+        }
+
+        if (
+            verificationEngine
+                .cycleInProgress
+        ) {
+
+            this.writeCommander(
+
+                this.text(
+
+                    "Verification engine is already running. Waiting for the current verification cycle.",
+
+                    "محرك التحقق يعمل حاليًا. جارٍ انتظار انتهاء دورة التحقق الحالية."
+
+                ),
+
+                "warning"
+
+            );
+
+            const waitResult =
+                await this.waitForCondition(
+
+                    () =>
+                        !verificationEngine
+                            .cycleInProgress,
+
+                    this.config
+                        .timeoutMs
+
+                );
+
+            if (
+                !waitResult
+            ) {
+
+                return {
+
+                    ok:
+                        false,
+
+                    collection,
+
+                    verificationCities,
+
+                    verification:
+                        verificationEngine
+                            .latestVerification ||
+                        [],
+
+                    summary:
+                        verificationEngine
+                            .latestNationalSummary ||
+                        null,
+
+                    reason:
+                        "VERIFICATION_ENGINE_BUSY_TIMEOUT"
+
+                };
+
+            }
+
         }
 
         const verification =
-            await RG30.VerificationEngine.run(
-                verificationCities
-            );
+            await verificationEngine
+                .run(
+                    verificationCities
+                );
 
-        return {
-            ok: true,
-            collection,
-            verificationCities,
-            verification,
+        const summary =
+            verificationEngine
+                .latestNationalSummary ||
+            null;
 
-            summary:
-                RG30.VerificationEngine
-                    .latestNationalSummary
-        };
-    },
+        const result = {
 
-    /* =====================================================
-       SUMMARY
-       ===================================================== */
+            ok:
+                true,
 
-    buildCollectionSummary(results) {
-        const totalCities =
-            results.length;
-
-        const totalPossibleSources =
-            totalCities *
-            Object.values(
-                this.config.sources
-            )
-            .filter(
-                source =>
-                    source.enabled
-            ).length;
-
-        const totalAvailableSources =
-            results.reduce(
-                (sum, city) =>
-                    sum +
-                    city.availableSourceCount,
-                0
-            );
-
-        const coverage =
-            totalPossibleSources
-                ? Math.round(
-                    totalAvailableSources /
-                    totalPossibleSources *
-                    100
-                )
-                : 0;
-
-        const cityCoverage =
-            results.map(city => ({
-                city: city.city,
-
-                available:
-                    city.availableSourceCount,
-
-                total:
-                    city.sourceCount,
-
-                coverage:
-                    city.sourceCount
-                        ? Math.round(
-                            city.availableSourceCount /
-                            city.sourceCount *
-                            100
-                        )
-                        : 0
-            }));
-
-        return {
-            cities:
-                totalCities,
-
-            totalPossibleSources,
-            totalAvailableSources,
-            coverage,
-
-            cityCoverage,
-
-            timestamp:
-                new Date().toISOString()
-        };
-    },
-
-    /* =====================================================
-       STATE
-       ===================================================== */
-
-    getSourceStates() {
-        return JSON.parse(
-            JSON.stringify(
-                this.sourceStates
-            )
-        );
-    },
-
-    getState() {
-        return {
             version:
                 this.version,
 
-            initialized:
-                this.initialized,
+            timestamp:
+                new Date()
+                    .toISOString(),
 
-            collecting:
-                this.collecting,
+            collection,
 
-            lastCollection:
-                this.lastCollection,
+            verificationCities,
 
-            sourceStates:
-                this.getSourceStates()
+            verification:
+                Array.isArray(
+                    verification
+                )
+                    ? verification
+                    : [],
+
+            summary
+
         };
-    },
 
-    setSourceEnabled(
-        sourceKey,
-        enabled
-    ) {
-        const source =
-            this.config.sources[
-                sourceKey
-            ];
-
-        if (!source) {
-            return false;
-        }
-
-        source.enabled =
-            Boolean(enabled);
-
-        if (
-            this.sourceStates[
-                sourceKey
-            ]
-        ) {
-            this.sourceStates[
-                sourceKey
-            ].enabled =
-                Boolean(enabled);
-
-            this.sourceStates[
-                sourceKey
-            ].status =
-                enabled
-                    ? "WAITING"
-                    : "DISABLED";
-        }
-
-        return true;
-    },
-
-    /* =====================================================
-       EVENTS
-       ===================================================== */
-
-    publishCollection(collection) {
-        window.RG30.latestSourceCollection =
-            collection;
+        window.RG30
+            .latestSourceVerification =
+            result;
 
         window.dispatchEvent(
+
             new CustomEvent(
-                "rg30:sources-collected",
+
+                "rg30:source-verification-completed",
+
                 {
                     detail:
-                        collection
+                        result
                 }
+
             )
+
         );
+
+        return result;
+
+    },
+
+    waitForCondition(
+        condition,
+        timeoutMs = 15000,
+        intervalMs = 200
+    ) {
+
+        return new Promise(
+            resolve => {
+
+                const startedAt =
+                    Date.now();
+
+                const check =
+                    () => {
+
+                        let completed =
+                            false;
+
+                        try {
+
+                            completed =
+                                Boolean(
+                                    condition()
+                                );
+
+                        } catch (error) {
+
+                            completed =
+                                false;
+
+                        }
+
+                        if (
+                            completed
+                        ) {
+
+                            resolve(
+                                true
+                            );
+
+                            return;
+
+                        }
+
+                        if (
+                            Date.now() -
+                            startedAt >=
+                            timeoutMs
+                        ) {
+
+                            resolve(
+                                false
+                            );
+
+                            return;
+
+                        }
+
+                        window.setTimeout(
+                            check,
+                            intervalMs
+                        );
+
+                    };
+
+                check();
+
+            }
+        );
+
+    },
+       /* =====================================================
+       SUMMARY AND SOURCE HEALTH
+       ===================================================== */
+
+    buildCollectionSummary(
+        cityResults = []
+    ) {
+
+        const sourceNames =
+            Object.keys(
+                this.config.sources
+            );
+
+        const sourceSummary =
+            {};
+
+        sourceNames.forEach(
+            key => {
+
+                sourceSummary[key] = {
+
+                    name:
+                        this.getSourceLabel(
+                            key
+                        ),
+
+                    available:
+                        0,
+
+                    unavailable:
+                        0,
+
+                    cached:
+                        0,
+
+                    averageResponse:
+                        0,
+
+                    reliability:
+                        this.config.sources[key]
+                            .reliability,
+
+                    health:
+                        "UNKNOWN"
+
+                };
+
+            }
+        );
+
+        cityResults.forEach(
+            city => {
+
+                Object.entries(
+                    city.sources || {}
+                )
+                .forEach(
+                    (
+                        [
+                            sourceKey,
+                            source
+                        ]
+                    ) => {
+
+                        if (
+                            !sourceSummary[
+                                sourceKey
+                            ]
+                        ) {
+
+                            return;
+
+                        }
+
+                        if (
+                            source.available
+                        ) {
+
+                            sourceSummary[
+                                sourceKey
+                            ].available++;
+
+                        } else {
+
+                            sourceSummary[
+                                sourceKey
+                            ].unavailable++;
+
+                        }
+
+                        if (
+                            source.cached
+                        ) {
+
+                            sourceSummary[
+                                sourceKey
+                            ].cached++;
+
+                        }
+
+                        sourceSummary[
+                            sourceKey
+                        ].averageResponse +=
+                            this.safeNumber(
+                                source.durationMs,
+                                0
+                            );
+
+                    }
+                );
+
+            }
+        );
+
+        sourceNames.forEach(
+            key => {
+
+                const summary =
+                    sourceSummary[key];
+
+                const total =
+
+                    summary.available +
+                    summary.unavailable;
+
+                if (
+                    total > 0
+                ) {
+
+                    summary.averageResponse =
+                        Math.round(
+
+                            summary.averageResponse /
+                            total
+
+                        );
+
+                }
+
+                const ratio =
+                    total > 0
+                        ? summary.available / total
+                        : 0;
+
+                if (
+                    ratio >= 0.90
+                ) {
+
+                    summary.health =
+                        "EXCELLENT";
+
+                } else if (
+                    ratio >= 0.75
+                ) {
+
+                    summary.health =
+                        "GOOD";
+
+                } else if (
+                    ratio >= 0.50
+                ) {
+
+                    summary.health =
+                        "WARNING";
+
+                } else {
+
+                    summary.health =
+                        "CRITICAL";
+
+                }
+
+            }
+        );
+
+        const coverage =
+
+            cityResults.length > 0
+
+                ?
+
+                Math.round(
+
+                    cityResults.reduce(
+
+                        (
+                            total,
+                            city
+                        ) => {
+
+                            return (
+
+                                total +
+
+                                this.safeNumber(
+                                    city.coverage,
+                                    0
+                                )
+
+                            );
+
+                        },
+
+                        0
+
+                    ) /
+
+                    cityResults.length
+
+                )
+
+                :
+
+                0;
+
+        return {
+
+            coverage,
+
+            totalCities:
+                cityResults.length,
+
+            sourceSummary,
+
+            rankedSources:
+                this.rankSources(),
+
+            timestamp:
+                new Date()
+                    .toISOString()
+
+        };
+
     },
 
     /* =====================================================
+       SOURCE HEALTH
+       ===================================================== */
+
+    getSourceStates() {
+
+        return Object.values(
+            this.sourceStates
+        )
+        .map(
+            state => ({
+
+                ...state,
+
+                health:
+                    this.evaluateHealth(
+                        state
+                    )
+
+            })
+        );
+
+    },
+
+    evaluateHealth(
+        state
+    ) {
+
+        const attempts =
+            state.successes +
+            state.failures;
+
+        if (
+            attempts === 0
+        ) {
+
+            return "UNKNOWN";
+
+        }
+
+        const ratio =
+            state.successes /
+            attempts;
+
+        if (
+            ratio >= 0.95
+        ) {
+
+            return "EXCELLENT";
+
+        }
+
+        if (
+            ratio >= 0.80
+        ) {
+
+            return "GOOD";
+
+        }
+
+        if (
+            ratio >= 0.60
+        ) {
+
+            return "WARNING";
+
+        }
+
+        return "CRITICAL";
+
+    },
+
+    /* =====================================================
+       SOURCE RANKING
+       ===================================================== */
+
+    rankSources() {
+
+        return Object.values(
+            this.sourceStates
+        )
+        .sort(
+
+            (
+                first,
+                second
+            ) => {
+
+                const firstScore =
+
+                    first.reliability * 100 +
+
+                    first.successes -
+
+                    first.failures;
+
+                const secondScore =
+
+                    second.reliability * 100 +
+
+                    second.successes -
+
+                    second.failures;
+
+                return (
+                    secondScore -
+                    firstScore
+                );
+
+            }
+
+        )
+        .map(
+            (
+                state,
+                index
+            ) => ({
+
+                rank:
+                    index + 1,
+
+                key:
+                    state.key,
+
+                name:
+                    state.name,
+
+                reliability:
+                    state.reliability,
+
+                health:
+                    this.evaluateHealth(
+                        state
+                    )
+
+            })
+        );
+
+    },
+
+    /* =====================================================
+       MISSING REQUIRED SOURCES
+       ===================================================== */
+
+    findMissingRequiredSources(
+        city
+    ) {
+
+        const missing =
+            [];
+
+        Object.entries(
+            this.config.sources
+        )
+        .forEach(
+
+            (
+                [
+                    key,
+                    config
+                ]
+            ) => {
+
+                if (
+                    !config.required
+                ) {
+
+                    return;
+
+                }
+
+                if (
+                    !city.sources?.[
+                        key
+                    ]?.available
+                ) {
+
+                    missing.push(
+                        this.getSourceLabel(
+                            key
+                        )
+                    );
+
+                }
+
+            }
+
+        );
+
+        return missing;
+
+    },
+
+    /* =====================================================
+       RESPONSE TIME
+       ===================================================== */
+
+    getAverageResponseTime() {
+
+        const states =
+            Object.values(
+                this.sourceStates
+            );
+
+        if (
+            !states.length
+        ) {
+
+            return 0;
+
+        }
+
+        const total =
+            states.reduce(
+
+                (
+                    sum,
+                    state
+                ) => {
+
+                    return (
+
+                        sum +
+
+                        this.safeNumber(
+
+                            state.averageDurationMs,
+
+                            0
+
+                        )
+
+                    );
+
+                },
+
+                0
+
+            );
+
+        return Math.round(
+
+            total /
+            states.length
+
+        );
+
+    },
+       /* =====================================================
        RENDERING
        ===================================================== */
 
-    renderStatus(collection) {
+    renderStatus(
+        collection =
+            this.latestCollection
+    ) {
+
         const panel =
             document.getElementById(
                 "sourceAdapterStatusPanel"
@@ -1024,204 +3962,435 @@ RG30.SourceAdapter = {
             return;
         }
 
-        const summary =
-            collection?.summary;
+        if (
+            !collection ||
+            !collection.sourceStates
+        ) {
 
-        if (!summary) {
             panel.innerHTML = `
-                <div class="item warning">
-                    No source collection result is available.
+                <div class="empty-state">
+
+                    ${this.text(
+                        "Waiting for source collection...",
+                        "بانتظار جمع بيانات المصادر..."
+                    )}
+
                 </div>
             `;
 
             return;
         }
 
-        const sourceItems =
-            Object.values(
-                collection.sourceStates || {}
-            ).map(state => {
+        const states =
+            collection.sourceStates;
 
-                const className =
-                    state.status === "CONNECTED"
-                        ? "success"
-                        : state.status === "FAILED"
-                            ? "danger"
-                            : "warning";
+        let html = "";
 
-                return `
-                    <div class="item ${className}">
-                        <b>
-                            ${this.escapeHTML(
-                                state.key
-                            )}
-                        </b>
-                        <br>
+        html += `
+            <div class="item info">
 
-                        Status:
-                        ${this.escapeHTML(
-                            state.status
-                        )}
-                        <br>
-
-                        Attempts:
-                        ${state.attempts}
-                        <br>
-
-                        Successes:
-                        ${state.successes}
-                        <br>
-
-                        Failures:
-                        ${state.failures}
-                    </div>
-                `;
-            }).join("");
-
-        panel.innerHTML = `
-            <div class="item success">
                 <h3>
-                    National Source Adapter V30
+
+                    ${this.text(
+                        "National Source Adapter Layer",
+                        "طبقة محولات المصادر الوطنية"
+                    )}
+
                 </h3>
 
-                Cities:
-                ${summary.cities}
+                <b>
+                ${this.text(
+                    "Collection",
+                    "رقم الدورة"
+                )}
+                :</b>
+
+                ${collection.collectionNumber}
+
                 <br>
 
-                Source Coverage:
-                ${summary.coverage}%
+                <b>
+                ${this.text(
+                    "Coverage",
+                    "التغطية"
+                )}
+                :</b>
+
+                ${collection.summary.coverage}%
+
                 <br>
 
-                Available Sources:
-                ${summary.totalAvailableSources}
-                /
-                ${summary.totalPossibleSources}
+                <b>
+                ${this.text(
+                    "Cities",
+                    "المدن"
+                )}
+                :</b>
+
+                ${collection.summary.totalCities}
+
+                <br>
+
+                <b>
+                ${this.text(
+                    "Average Response",
+                    "متوسط زمن الاستجابة"
+                )}
+                :</b>
+
+                ${this.getAverageResponseTime()} ms
+
             </div>
-
-            ${sourceItems}
         `;
+
+        states.forEach(
+            state => {
+
+                html +=
+                    this.renderSourceCard(
+                        state
+                    );
+
+            }
+        );
+
+        panel.innerHTML =
+            html;
+
+    },
+
+    renderSourceCard(
+        state
+    ) {
+
+        const health =
+            this.evaluateHealth(
+                state
+            );
+
+        let css =
+            "info";
+
+        switch (
+            health
+        ) {
+
+            case "EXCELLENT":
+                css =
+                    "success";
+                break;
+
+            case "GOOD":
+                css =
+                    "success";
+                break;
+
+            case "WARNING":
+                css =
+                    "warning";
+                break;
+
+            case "CRITICAL":
+                css =
+                    "danger";
+                break;
+
+        }
+
+        return `
+
+        <div class="item ${css}">
+
+            <h3>
+
+                ${this.escapeHtml(
+                    state.name
+                )}
+
+            </h3>
+
+            <b>
+
+            ${this.text(
+                "Adapter",
+                "المحول"
+            )}
+
+            :</b>
+
+            ${state.adapterName}
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Status",
+                "الحالة"
+            )}
+
+            :</b>
+
+            ${this.getStatusLabel(
+                state.status
+            )}
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Health",
+                "الصحة"
+            )}
+
+            :</b>
+
+            ${this.getHealthLabel(
+                health
+            )}
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Reliability",
+                "الاعتمادية"
+            )}
+
+            :</b>
+
+            ${Math.round(
+                state.reliability *
+                100
+            )}%
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Attempts",
+                "المحاولات"
+            )}
+
+            :</b>
+
+            ${state.attempts}
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Success",
+                "النجاح"
+            )}
+
+            :</b>
+
+            ${state.successes}
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Failures",
+                "الإخفاقات"
+            )}
+
+            :</b>
+
+            ${state.failures}
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Cache Hits",
+                "استخدام الذاكرة"
+            )}
+
+            :</b>
+
+            ${state.cacheHits}
+
+            <br>
+
+            <b>
+
+            ${this.text(
+                "Average Response",
+                "متوسط الاستجابة"
+            )}
+
+            :</b>
+
+            ${state.averageDurationMs} ms
+
+        </div>
+
+        `;
+
+    },
+
+    getHealthLabel(
+        health
+    ) {
+
+        const labels = {
+
+            EXCELLENT: {
+
+                en:
+                    "Excellent",
+
+                ar:
+                    "ممتاز"
+
+            },
+
+            GOOD: {
+
+                en:
+                    "Good",
+
+                ar:
+                    "جيد"
+
+            },
+
+            WARNING: {
+
+                en:
+                    "Warning",
+
+                ar:
+                    "تحذير"
+
+            },
+
+            CRITICAL: {
+
+                en:
+                    "Critical",
+
+                ar:
+                    "حرج"
+
+            },
+
+            UNKNOWN: {
+
+                en:
+                    "Unknown",
+
+                ar:
+                    "غير معروف"
+
+            }
+
+        };
+
+        const item =
+            labels[
+                String(
+                    health ||
+                    "UNKNOWN"
+                )
+                .toUpperCase()
+            ];
+
+        if (!item) {
+
+            return health;
+
+        }
+
+        return this.isArabic()
+            ? item.ar
+            : item.en;
+
+    },
+
+    refreshUI() {
+
+        if (
+            this.latestCollection
+        ) {
+
+            this.renderStatus(
+                this.latestCollection
+            );
+
+        }
+
+    },
+       /* =====================================================
+       EVENTS
+       ===================================================== */
+
+    publishCollection(
+        collection
+    ) {
+
+        window.RG30 =
+            window.RG30 || {};
+
+        window.RG30.latestSourceCollection =
+            collection;
+
+        window.dispatchEvent(
+
+            new CustomEvent(
+
+                "rg30:sources-collected",
+
+                {
+                    detail:
+                        collection
+                }
+
+            )
+
+        );
+
+        window.dispatchEvent(
+
+            new CustomEvent(
+
+                "rg30:source-status-updated",
+
+                {
+                    detail:
+                        this.getSourceStates()
+                }
+
+            )
+
+        );
+
     },
 
     /* =====================================================
-       HELPERS
+       COMMANDER
        ===================================================== */
-
-    normalizeCity(city, index = 0) {
-        const source =
-            city &&
-            typeof city === "object"
-                ? city
-                : {};
-
-        return {
-            ...source,
-
-            id:
-                source.id ??
-                source.code ??
-                `city-${index + 1}`,
-
-            name:
-                source.name ??
-                source.city ??
-                source.cityName ??
-                `City ${index + 1}`,
-
-            lat:
-                this.safeNumber(
-                    source.lat ??
-                    source.latitude,
-                    24
-                ),
-
-            lon:
-                this.safeNumber(
-                    source.lon ??
-                    source.lng ??
-                    source.longitude,
-                    45
-                )
-        };
-    },
-
-    safeNumber(
-        value,
-        fallback = 0
-    ) {
-        const number =
-            Number(value);
-
-        return Number.isFinite(number)
-            ? number
-            : fallback;
-    },
-
-    clamp(
-        value,
-        min = 0,
-        max = 100
-    ) {
-        const number =
-            this.safeNumber(
-                value,
-                min
-            );
-
-        return Math.min(
-            max,
-            Math.max(min, number)
-        );
-    },
-
-    withTimeout(
-        promise,
-        timeoutMs
-    ) {
-        return Promise.race([
-            promise,
-
-            new Promise(
-                (_, reject) => {
-                    setTimeout(
-                        () => {
-                            reject(
-                                new Error(
-                                    `SOURCE_TIMEOUT_AFTER_${timeoutMs}_MS`
-                                )
-                            );
-                        },
-                        timeoutMs
-                    );
-                }
-            )
-        ]);
-    },
-
-    delay(ms) {
-        return new Promise(
-            resolve =>
-                setTimeout(
-                    resolve,
-                    ms
-                )
-        );
-    },
-
-    escapeHTML(value) {
-        return String(value ?? "")
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
-    },
 
     writeCommander(
         message,
-        type = "success"
+        type = "info"
     ) {
+
+        const translated =
+            this.translateMessage(
+                message
+            );
+
         console.log(
-            `[RG30 Source Adapter] ${message}`
+            `[RG30 SourceAdapter] ${translated}`
         );
 
         if (
@@ -1229,30 +4398,337 @@ RG30.SourceAdapter = {
                 ?.Brain
                 ?.writeCommander
         ) {
-            RG23.Brain.writeCommander(
-                message,
-                type
-            );
+
+            try {
+
+                window.RG23.Brain.writeCommander(
+                    translated,
+                    type
+                );
+
+                return;
+
+            } catch (e) {}
+
         }
+
+        if (
+            window.RG30
+                ?.Orchestrator
+                ?.writeCommander
+        ) {
+
+            try {
+
+                window.RG30.Orchestrator.writeCommander(
+                    translated,
+                    type
+                );
+
+            } catch (e) {}
+
+        }
+
+    },
+
+    /* =====================================================
+       HELPERS
+       ===================================================== */
+
+    delay(
+        ms
+    ) {
+
+        return new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    ms
+                )
+        );
+
+    },
+
+    withTimeout(
+        promise,
+        timeout
+    ) {
+
+        return Promise.race([
+
+            promise,
+
+            new Promise(
+
+                (
+                    _,
+                    reject
+                ) => {
+
+                    setTimeout(
+
+                        () => {
+
+                            reject(
+
+                                new Error(
+
+                                    `SOURCE_TIMEOUT_AFTER_${timeout}`
+
+                                )
+
+                            );
+
+                        },
+
+                        timeout
+
+                    );
+
+                }
+
+            )
+
+        ]);
+
+    },
+
+    normalizeCity(
+        city,
+        index = 0
+    ) {
+
+        return {
+
+            id:
+                city.id ??
+                index,
+
+            name:
+                city.name ||
+                city.city ||
+                "Unknown",
+
+            lat:
+                this.safeNumber(
+                    city.lat,
+                    city.latitude
+                ),
+
+            lon:
+                this.safeNumber(
+                    city.lon,
+                    city.longitude
+                ),
+
+            raw:
+                city
+
+        };
+
+    },
+
+    safeNumber(
+        value,
+        fallback = 0
+    ) {
+
+        const number =
+            Number(
+                value
+            );
+
+        return Number.isFinite(
+            number
+        )
+            ? number
+            : fallback;
+
+    },
+
+    clamp(
+        value,
+        min,
+        max
+    ) {
+
+        return Math.min(
+
+            max,
+
+            Math.max(
+                min,
+                this.safeNumber(
+                    value,
+                    min
+                )
+            )
+
+        );
+
+    },
+
+    escapeHtml(
+        text
+    ) {
+
+        return String(
+            text ?? ""
+        )
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+    },
+
+    /* =====================================================
+       RESET
+       ===================================================== */
+
+    reset() {
+
+        this.collecting =
+            false;
+
+        this.collectionNumber =
+            0;
+
+        this.lastCollection =
+            null;
+
+        this.latestCollection =
+            null;
+
+        this.sourceCache.clear();
+
+        this.initializeSourceStates();
+
+        this.writeCommander(
+
+            this.text(
+
+                "Source Adapter has been reset.",
+
+                "تمت إعادة ضبط محولات المصادر."
+
+            ),
+
+            "warning"
+
+        );
+
+    },
+
+    destroy() {
+
+        this.reset();
+
+        this.initialized =
+            false;
+
+        console.log(
+            "RG30 Source Adapter destroyed."
+        );
+
     }
+
 };
 
 /* =========================================================
-   INITIALIZATION
+   GLOBAL SHORTCUTS
    ========================================================= */
 
-if (
-    document.readyState === "loading"
-) {
-    document.addEventListener(
-        "DOMContentLoaded",
-        () => {
+window.collectNationalSources =
+    cities =>
+
+        RG30.SourceAdapter.collectForCities(
+            cities
+        );
+
+window.collectAndVerifyNationalSources =
+    cities =>
+
+        RG30.SourceAdapter.collectAndVerify(
+            cities
+        );
+
+window.getSourceAdapterState =
+    () =>
+
+        RG30.SourceAdapter.getSourceStates();
+
+window.clearSourceCache =
+    () =>
+
+        RG30.SourceAdapter.clearCache();
+
+window.resetSourceAdapter =
+    () =>
+
+        RG30.SourceAdapter.reset();
+
+/* =========================================================
+   AUTO START
+   ========================================================= */
+
+window.addEventListener(
+
+    "DOMContentLoaded",
+
+    () => {
+
+        try {
+
             RG30.SourceAdapter.init();
-        },
-        {
-            once: true
+
+            console.log(
+
+                "%cRainGuard AI V30 Source Adapter Ready",
+
+                "color:#1dd1a1;font-weight:bold;font-size:14px;"
+
+            );
+
         }
-    );
-} else {
-    RG30.SourceAdapter.init();
-}
+
+        catch (error) {
+
+            console.error(
+
+                "Source Adapter initialization failed:",
+
+                error
+
+            );
+
+        }
+
+    },
+
+    {
+        once: true
+    }
+
+);
