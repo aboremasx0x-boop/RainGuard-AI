@@ -1507,6 +1507,7 @@ RG30.SourceAdapter = {
         return chunks;
 
     },
+
        /* =====================================================
        SOURCE EXECUTION
        ===================================================== */
@@ -1525,15 +1526,10 @@ RG30.SourceAdapter = {
         if (!state) {
 
             return this.createUnavailableResult(
-
                 sourceKey,
-
-                config
-                    ?.adapterName ||
-                "UNKNOWN_ADAPTER",
-
+                config?.adapterName ||
+                    "UNKNOWN_ADAPTER",
                 "SOURCE_STATE_NOT_FOUND"
-
             );
 
         }
@@ -1551,11 +1547,8 @@ RG30.SourceAdapter = {
 
         const cached =
             this.getCachedResult(
-
                 sourceKey,
-
                 city
-
             );
 
         if (cached) {
@@ -1574,57 +1567,69 @@ RG30.SourceAdapter = {
         }
 
         const adapter =
-    this.resolveAdapter(
-        config.adapterName
-    );
+            this.resolveAdapter(
+                config.adapterName
+            );
 
-if (!adapter) {
+        if (!adapter) {
 
-    const result =
-        this.createUnavailableResult(
-            sourceKey,
-            config.adapterName,
-            "ADAPTER_NOT_AVAILABLE"
-        );
+            const result =
+                this.createUnavailableResult(
+                    sourceKey,
+                    config.adapterName,
+                    "ADAPTER_NOT_AVAILABLE"
+                );
 
-    state.status = "UNAVAILABLE";
-    state.failures += 1;
-    state.lastFailureAt = new Date().toISOString();
-    state.lastError = result.error;
+            state.status =
+                "UNAVAILABLE";
 
-    return result;
-}
+            state.failures +=
+                1;
 
-let executeFunction = null;
+            state.lastFailureAt =
+                new Date()
+                    .toISOString();
 
-if (typeof adapter.execute === "function") {
+            state.lastError =
+                result.error;
 
-    executeFunction = () =>
-        adapter.execute(city);
+            return result;
 
-}
-else if (typeof adapter.collect === "function") {
+        }
 
-    executeFunction = () =>
-        executeFunction();
+        let executeFunction =
+            null;
 
-}
-else {
+        if (
+            typeof adapter.execute ===
+            "function"
+        ) {
 
-    const result =
-        this.createUnavailableResult(
-            sourceKey,
-            config.adapterName,
-            "ADAPTER_METHOD_NOT_FOUND"
-        );
+            executeFunction =
+                () =>
+                    adapter.execute(
+                        city
+                    );
 
-    state.status = "UNAVAILABLE";
-    state.failures += 1;
-    state.lastFailureAt = new Date().toISOString();
-    state.lastError = result.error;
+        } else if (
+            typeof adapter.collect ===
+            "function"
+        ) {
 
-    return result;
-}
+            executeFunction =
+                () =>
+                    adapter.collect(
+                        city
+                    );
+
+        } else {
+
+            const result =
+                this.createUnavailableResult(
+                    sourceKey,
+                    config.adapterName,
+                    "ADAPTER_METHOD_NOT_FOUND"
+                );
 
             state.status =
                 "UNAVAILABLE";
@@ -1653,7 +1658,7 @@ else {
         for (
             let attempt = 1;
             attempt <=
-            totalAttempts;
+                totalAttempts;
             attempt += 1
         ) {
 
@@ -1666,11 +1671,7 @@ else {
                     await this.withTimeout(
 
                         Promise.resolve(
-
-                            adapter.collect(
-                                city
-                            )
-
+                            executeFunction()
                         ),
 
                         this.config
@@ -1707,11 +1708,8 @@ else {
                     result.durationMs;
 
                 this.updateAverageDuration(
-
                     state,
-
                     result.durationMs
-
                 );
 
                 if (
@@ -1729,13 +1727,9 @@ else {
                         null;
 
                     this.setCachedResult(
-
                         sourceKey,
-
                         city,
-
                         result
-
                     );
 
                 } else {
@@ -1761,8 +1755,7 @@ else {
                     error;
 
                 const message =
-                    error
-                        ?.message ||
+                    error?.message ||
                     String(
                         error
                     );
@@ -1775,11 +1768,8 @@ else {
                     startedAt;
 
                 this.updateAverageDuration(
-
                     state,
-
                     state.lastDurationMs
-
                 );
 
                 const isTimeout =
@@ -1840,21 +1830,17 @@ else {
                 .toISOString();
 
         state.lastError =
-            lastError
-                ?.message ||
+            lastError?.message ||
             "SOURCE_COLLECTION_FAILED";
 
         return this.createUnavailableResult(
-
             sourceKey,
-
             config.adapterName,
-
             state.lastError
-
         );
 
     },
+   
 
     resolveAdapter(
         adapterName
