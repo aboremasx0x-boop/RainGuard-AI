@@ -64,13 +64,13 @@ RG30.VerificationEngine = {
         thresholds: {
 
             verified:
-                75,
-
-            supported:
                 55,
 
+            supported:
+                45,
+
             uncertain:
-                35
+                30
 
         },
 
