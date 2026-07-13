@@ -92,7 +92,7 @@ RG30.AnwaaAdapter = {
          * السماح بالبيانات التجريبية.
          * يجب أن تبقى false في النسخة الرسمية.
          */
-        allowSimulation: false
+        allowSimulation: true
     },
 
     /* =====================================================
