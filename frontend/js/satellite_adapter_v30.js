@@ -1439,9 +1439,14 @@ RG30.SatelliteAdapter = {
             analysis
         );
 
-        return this.buildSourceResult(
-            analysis
-        );
+        const sourceResult = this.buildSourceResult(analysis);
+
+      sourceResult.adapter = "SatelliteAdapter";
+      sourceResult.provider = this.config.provider;
+      sourceResult.available = true;
+      sourceResult.status = "ACTIVE";
+
+      return sourceResult;
 
     },
 
