@@ -470,6 +470,15 @@ RG30.SourceAdapter = {
                 ar:
                     "المحول غير متاح."
             },
+           ADAPTER_METHOD_NOT_FOUND: {
+
+    en:
+        "Adapter does not expose collect() or execute().",
+
+    ar:
+        "المحول لا يحتوي على الدالة collect() أو execute()."
+
+},
 
             SOURCE_COLLECTION_FAILED: {
 
@@ -1564,26 +1573,54 @@ RG30.SourceAdapter = {
         }
 
         const adapter =
-            this.resolveAdapter(
-                config.adapterName
-            );
+    this.resolveAdapter(
+        config.adapterName
+    );
 
-        if (
-            !adapter ||
-            typeof adapter.collect !==
-                "function"
-        ) {
+if (!adapter) {
 
-            const result =
-                this.createUnavailableResult(
+    return this.createUnavailableResult(
+        sourceKey,
+        config.adapterName,
+        "ADAPTER_NOT_AVAILABLE"
+    );
 
-                    sourceKey,
+}
 
-                    config.adapterName,
+let executeFunction = null;
 
-                    "ADAPTER_NOT_AVAILABLE"
+if (typeof adapter.execute === "function") {
 
-                );
+    executeFunction =
+        () => adapter.execute(city);
+
+}
+else if (typeof adapter.collect === "function") {
+
+    executeFunction =
+        () => adapter.collect(city);
+
+}
+else {
+
+    return this.createUnavailableResult(
+        sourceKey,
+        config.adapterName,
+        "ADAPTER_METHOD_NOT_FOUND"
+    );
+
+}
+
+const rawResult =
+    await this.withTimeout(
+
+        Promise.resolve(
+            executeFunction()
+        ),
+
+        this.config.timeoutMs
+
+    );
 
             state.status =
                 "UNAVAILABLE";
