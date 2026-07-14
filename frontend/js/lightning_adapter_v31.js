@@ -1648,11 +1648,12 @@ RG31.LightningAdapter = {
 
             );
 
-            this.publishSuccess(
-                normalized
-            );
+            const enriched =
+          this.publishSuccess(
+           normalized
+    );
 
-            return normalized;
+         return enriched;
 
         } catch (error) {
 
