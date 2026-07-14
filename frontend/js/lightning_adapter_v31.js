@@ -6936,3 +6936,10 @@ window.destroyLightningV31 =
     }
 
 })();
+
+/* ==========================================================
+   Compatibility with V30 Source Adapter
+========================================================== */
+
+window.RG30 = window.RG30 || {};
+window.RG30.LightningAdapter = RG31.LightningAdapter;
