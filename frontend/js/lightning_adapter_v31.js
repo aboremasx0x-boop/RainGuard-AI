@@ -1710,14 +1710,19 @@ RG31.LightningAdapter = {
     },
 
     async execute(
-        city = {}
-    ) {
+    city = {}
+) {
 
-        return this.collect(
+    const result =
+        await this.collect(
             city
         );
 
-    },
+    return this.buildSourceAdapterResult(
+        result
+    );
+
+},
 
     /* =====================================================
        RETRY ENGINE
