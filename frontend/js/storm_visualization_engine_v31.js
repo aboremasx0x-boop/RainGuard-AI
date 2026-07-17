@@ -10675,21 +10675,15 @@ RG31.StormVisualizationEngine = {
         mapInstance
     ) {
 
-        if (
-            !this.isLeafletMap(
-                mapInstance
-            )
-        ) {
+        if (!this.isLeafletMap(mapInstance)) {
 
-            this.writeLog(
-                "Invalid Leaflet map instance.",
-                "warning"
-            );
+    console.warn(
+        "Storm Visualization waiting for Leaflet map..."
+    );
 
-            return false;
+    return false;
 
-        }
-
+}
         this.removeExistingLayers();
 
         this.map =
