@@ -1141,3 +1141,84 @@ html[dir="ltr"] .commander-input-row{
     }
 
 }
+
+/* =========================================================
+   V31 — إزالة الفراغات الزائدة من البطاقات النصية فقط
+   لا يطبق على الخريطة أو مناطق العرض التفاعلية
+   ========================================================= */
+
+.verification-section,
+.sources-section,
+.source-matrix-section,
+.national-summary-section,
+.executive-report-section,
+.verification-report-section {
+    min-height: auto !important;
+    height: auto !important;
+}
+
+/* البطاقات الداخلية التي تحتوي نصوصًا وتقارير */
+.verification-section .panel,
+.sources-section .panel,
+.source-matrix-section .panel,
+.national-summary-section .panel,
+.executive-report-section .panel,
+.verification-report-section .panel {
+    min-height: auto !important;
+    height: auto !important;
+}
+
+/* تقليل الفراغ داخل صناديق النتائج */
+.verification-section .card-body,
+.sources-section .card-body,
+.source-matrix-section .card-body,
+.national-summary-section .card-body,
+.executive-report-section .card-body,
+.verification-report-section .card-body {
+    min-height: auto !important;
+    height: auto !important;
+    padding-bottom: 20px !important;
+}
+
+/* الحاويات التي تحتوي بطاقات متتابعة */
+.sources-grid,
+.verification-grid,
+.source-matrix-grid,
+.national-summary-grid,
+.executive-report-grid {
+    align-items: start !important;
+    grid-auto-rows: auto !important;
+}
+
+/* منع تمدد البطاقة بسبب grid أو flex */
+.sources-grid > *,
+.verification-grid > *,
+.source-matrix-grid > *,
+.national-summary-grid > *,
+.executive-report-grid > * {
+    align-self: start !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+/* =========================================================
+   عناصر يجب الحفاظ على ارتفاعها
+   ========================================================= */
+
+#nationalVerificationMap,
+#verificationMap,
+.leaflet-container,
+.map-container,
+.verification-map-container {
+    min-height: 420px !important;
+}
+
+/* لوحة القائد تحتاج مساحة محددة مع تمرير داخلي */
+#aiCommanderConsole,
+.ai-commander-console,
+.commander-messages {
+    min-height: 320px !important;
+    max-height: 420px !important;
+    overflow-y: auto !important;
+}
+
