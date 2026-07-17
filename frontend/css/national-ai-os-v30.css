@@ -1222,3 +1222,55 @@ html[dir="ltr"] .commander-input-row{
     overflow-y: auto !important;
 }
 
+/* =========================================================
+   RainGuard V30/V31 — Dynamic Panel Height Fix
+   ========================================================= */
+
+#nationalVerificationSummary,
+#multiSourceVerificationPanel,
+#verificationSourceMatrix,
+#reportPanel,
+#sourceAdapterStatusPanel,
+#verificationKpis,
+#v30SystemHealth {
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+
+    align-items: start !important;
+    align-content: start !important;
+
+    grid-auto-rows: max-content !important;
+}
+
+#nationalVerificationSummary > .item,
+#multiSourceVerificationPanel > .item,
+#verificationSourceMatrix > .item,
+#reportPanel > .item,
+#sourceAdapterStatusPanel > .item,
+#v30SystemHealth > .item {
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+
+    align-self: start !important;
+}
+
+/* منع تمدد البطاقات بسبب Grid/Flex */
+.section .panel,
+.panel-content,
+.verification-panel,
+.verification-grid,
+.source-matrix,
+.report-content {
+    align-items: start !important;
+    align-content: start !important;
+}
+
+/* لا نغيّر ارتفاع الخريطة */
+#nationalMap,
+#map,
+.leaflet-container {
+    min-height: 380px;
+}
+
