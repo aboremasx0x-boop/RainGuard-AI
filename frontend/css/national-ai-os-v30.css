@@ -1274,3 +1274,53 @@ html[dir="ltr"] .commander-input-row{
     min-height: 380px;
 }
 
+/* =========================================================
+   RainGuard V31 — Verification Source Matrix Grid Fix
+   ========================================================= */
+
+#verificationSourceMatrix {
+    display: grid !important;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(320px, 1fr)
+    ) !important;
+
+    gap: 14px !important;
+    align-items: start !important;
+    align-content: start !important;
+
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+
+    overflow: visible !important;
+}
+
+/* بطاقة الملخص الأولى تمتد بعرض القسم كاملًا */
+#verificationSourceMatrix > .item:first-child {
+    grid-column: 1 / -1 !important;
+}
+
+/* منع تمدد بطاقات المصادر */
+#verificationSourceMatrix > .item {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+
+    align-self: start !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+}
+
+/* تنظيم النص داخل البطاقات */
+#verificationSourceMatrix > .item h3 {
+    margin-top: 0 !important;
+    margin-bottom: 14px !important;
+}
+
+#verificationSourceMatrix > .item br {
+    line-height: 1.35 !important;
+}
+
