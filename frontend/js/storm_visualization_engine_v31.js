@@ -8580,71 +8580,301 @@ RG31.StormVisualizationEngine = {
 
     saveState() {
 
-        try {
+    try {
 
-            const state = {
+        const report =
+            this.latestVisualizationReport &&
+            typeof this.latestVisualizationReport === "object"
+                ? this.latestVisualizationReport
+                : {};
 
-                version:
-                    this.version,
+        const cells =
+            Array.isArray(report.cells)
+                ? report.cells
+                : Array.isArray(report.activeCells)
+                    ? report.activeCells
+                    : [];
 
-                initialized:
-                    this.initialized,
+        const paths =
+            Array.isArray(report.paths)
+                ? report.paths
+                : Array.isArray(report.predictedPaths)
+                    ? report.predictedPaths
+                    : [];
 
-                cycleNumber:
-                    this.cycleNumber,
+        const compactCells =
+            cells
+                .slice(0, 20)
+                .map(cell => ({
 
-                lastRenderAt:
-                    this.lastRenderAt,
+                    id:
+                        cell.id ??
+                        cell.cellId ??
+                        null,
 
-                latestVisualizationReport:
-                    this.latestVisualizationReport,
+                    lat:
+                        Number.isFinite(Number(cell.lat))
+                            ? Number(cell.lat)
+                            : null,
 
-                config: {
+                    lon:
+                        Number.isFinite(Number(cell.lon ?? cell.lng))
+                            ? Number(cell.lon ?? cell.lng)
+                            : null,
 
-                    automaticRendering:
-                        this.config
-                            .automaticRendering,
+                    intensity:
+                        Number.isFinite(Number(cell.intensity))
+                            ? Number(cell.intensity)
+                            : 0,
 
-                    display:
-                        this.config
-                            .display,
+                    riskLevel:
+                        cell.riskLevel ??
+                        cell.level ??
+                        null,
 
-                    animation:
-                        this.config
-                            .animation
+                    confidence:
+                        Number.isFinite(Number(cell.confidence))
+                            ? Number(cell.confidence)
+                            : 0,
 
-                },
+                    updatedAt:
+                        cell.updatedAt ??
+                        cell.timestamp ??
+                        null
 
-                savedAt:
-                    new Date()
-                        .toISOString()
+                }));
+
+        const compactPaths =
+            paths
+                .slice(0, 10)
+                .map(path => ({
+
+                    id:
+                        path.id ??
+                        path.pathId ??
+                        null,
+
+                    cellId:
+                        path.cellId ??
+                        null,
+
+                    confidence:
+                        Number.isFinite(Number(path.confidence))
+                            ? Number(path.confidence)
+                            : 0,
+
+                    riskLevel:
+                        path.riskLevel ??
+                        path.level ??
+                        null,
+
+                    pointCount:
+                        Array.isArray(path.points)
+                            ? path.points.length
+                            : 0,
+
+                    updatedAt:
+                        path.updatedAt ??
+                        path.timestamp ??
+                        null
+
+                }));
+
+        const compactReport = {
+
+            timestamp:
+                report.timestamp ??
+                report.generatedAt ??
+                this.lastRenderAt ??
+                null,
+
+            city:
+                report.city ??
+                report.cityName ??
+                null,
+
+            cellCount:
+                cells.length,
+
+            pathCount:
+                paths.length,
+
+            cells:
+                compactCells,
+
+            paths:
+                compactPaths
+
+        };
+
+        const state = {
+
+            version:
+                this.version,
+
+            initialized:
+                this.initialized,
+
+            cycleNumber:
+                this.cycleNumber,
+
+            lastRenderAt:
+                this.lastRenderAt,
+
+            latestVisualizationReport:
+                compactReport,
+
+            config: {
+
+                automaticRendering:
+                    this.config
+                        ?.automaticRendering,
+
+                display:
+                    this.config
+                        ?.display,
+
+                animation:
+                    this.config
+                        ?.animation
+
+            },
+
+            savedAt:
+                new Date()
+                    .toISOString()
+
+        };
+
+        const serializedState =
+            JSON.stringify(state);
+
+        const maximumStorageLength =
+            750000;
+
+        if (
+            serializedState.length >
+            maximumStorageLength
+        ) {
+
+            state.latestVisualizationReport = {
+
+                timestamp:
+                    compactReport.timestamp,
+
+                city:
+                    compactReport.city,
+
+                cellCount:
+                    compactReport.cellCount,
+
+                pathCount:
+                    compactReport.pathCount,
+
+                cells:
+                    [],
+
+                paths:
+                    []
 
             };
 
-            localStorage.setItem(
+        }
 
-                this.storageKey,
+        localStorage.setItem(
 
-                JSON.stringify(
-                    state
-                )
+            this.storageKey,
 
-            );
+            JSON.stringify(state)
 
-            return true;
+        );
 
-        } catch (error) {
+        return true;
 
-            console.warn(
-                "Storm Visualization state save failed:",
-                error
-            );
+    } catch (error) {
 
-            return false;
+        if (
+            error?.name === "QuotaExceededError" ||
+            error?.code === 22 ||
+            error?.code === 1014
+        ) {
+
+            try {
+
+                localStorage.removeItem(
+                    this.storageKey
+                );
+
+                localStorage.setItem(
+
+                    this.storageKey,
+
+                    JSON.stringify({
+
+                        version:
+                            this.version,
+
+                        cycleNumber:
+                            this.cycleNumber,
+
+                        lastRenderAt:
+                            this.lastRenderAt,
+
+                        latestVisualizationReport: {
+
+                            cellCount:
+                                Array.isArray(
+                                    this.latestVisualizationReport?.cells
+                                )
+                                    ? this.latestVisualizationReport.cells.length
+                                    : 0,
+
+                            pathCount:
+                                Array.isArray(
+                                    this.latestVisualizationReport?.paths
+                                )
+                                    ? this.latestVisualizationReport.paths.length
+                                    : 0
+
+                        },
+
+                        savedAt:
+                            new Date()
+                                .toISOString()
+
+                    })
+
+                );
+
+                console.warn(
+                    "Storm Visualization storage was compacted after reaching browser quota."
+                );
+
+                return true;
+
+            } catch (fallbackError) {
+
+                console.warn(
+                    "Storm Visualization compact state save failed:",
+                    fallbackError
+                );
+
+                return false;
+
+            }
 
         }
 
-    },
+        console.warn(
+            "Storm Visualization state save failed:",
+            error
+        );
+
+        return false;
+
+    }
+
+},
 
     /* ======================================================
        LOAD STATE
