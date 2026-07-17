@@ -1,0 +1,550 @@
+/* =========================================================
+   RainGuard AI V31
+   Storm Visualization Styles
+   ========================================================= */
+
+.rg31-storm-div-icon,
+.rg31-forecast-point-div-icon,
+.rg31-impacted-city-div-icon,
+.rg31-storm-direction-div-icon,
+.rg31-storm-animation-div-icon {
+    background: transparent !important;
+    border: 0 !important;
+}
+
+.rg31-storm-marker {
+    position: relative;
+    width: var(--rg31-storm-size);
+    height: var(--rg31-storm-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 0 10px var(--rg31-storm-color));
+    transition:
+        transform 0.2s ease,
+        filter 0.2s ease;
+}
+
+.rg31-storm-marker-hover {
+    transform: scale(1.15);
+}
+
+.rg31-storm-marker-core {
+    position: absolute;
+    inset: 20%;
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            circle at 35% 30%,
+            #ffffff 0%,
+            var(--rg31-storm-color) 35%,
+            rgba(15, 23, 42, 0.95) 100%
+        );
+    border: 2px solid #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+}
+
+.rg31-storm-marker-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid var(--rg31-storm-color);
+    opacity: 0.75;
+    z-index: 1;
+}
+
+.rg31-storm-pulse .rg31-storm-marker-ring {
+    animation:
+        rg31StormPulse
+        var(--rg31-storm-pulse-duration)
+        ease-out
+        infinite;
+}
+
+.rg31-storm-marker-value {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    text-shadow: 0 1px 4px #000000;
+}
+
+.rg31-storm-lightning-symbol {
+    position: absolute;
+    top: -9px;
+    right: -6px;
+    z-index: 5;
+    font-size: 16px;
+    filter: drop-shadow(0 0 6px #facc15);
+}
+
+.rg31-storm-simulated {
+    opacity: 0.75;
+}
+
+.rg31-storm-direction-arrow {
+    position: relative;
+    width: calc(var(--rg31-arrow-size) * 2);
+    height: calc(var(--rg31-arrow-size) * 2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rg31-arrow-color);
+}
+
+.rg31-storm-arrow-symbol {
+    display: block;
+    font-size: var(--rg31-arrow-size);
+    transform:
+        rotate(var(--rg31-arrow-rotation));
+    transform-origin: center;
+    filter:
+        drop-shadow(
+            0 0 5px
+            var(--rg31-arrow-color)
+        );
+}
+
+.rg31-storm-arrow-speed {
+    position: absolute;
+    bottom: -10px;
+    min-width: 28px;
+    padding: 1px 4px;
+    border-radius: 5px;
+    background: rgba(15, 23, 42, 0.88);
+    color: #ffffff;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.rg31-forecast-point {
+    position: relative;
+    width: var(--rg31-point-size);
+    height: var(--rg31-point-size);
+    opacity: var(--rg31-point-opacity);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rg31-forecast-point-core {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    background: var(--rg31-point-color);
+    color: #ffffff;
+    font-size: 8px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        0 0 10px
+        var(--rg31-point-color);
+}
+
+.rg31-forecast-point-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid var(--rg31-point-color);
+    opacity: 0.45;
+}
+
+.rg31-storm-forecast-path-animated {
+    stroke-dashoffset: 0;
+    animation:
+        rg31ForecastDash
+        var(--rg31-path-speed, 1.2s)
+        linear
+        infinite;
+}
+
+.rg31-storm-animation-marker {
+    position: relative;
+    width: var(--rg31-animation-size);
+    height: var(--rg31-animation-size);
+}
+
+.rg31-storm-animation-core {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid var(--rg31-animation-color);
+    box-shadow:
+        0 0 12px
+        var(--rg31-animation-color);
+    z-index: 2;
+}
+
+.rg31-storm-animation-glow {
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    background: var(--rg31-animation-color);
+    opacity: 0.35;
+    animation:
+        rg31AnimationGlow
+        1.2s
+        ease-in-out
+        infinite;
+}
+
+.rg31-impacted-city-marker {
+    min-width: 100px;
+    height: 36px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid var(--rg31-impact-color);
+    box-shadow:
+        0 0 10px
+        color-mix(
+            in srgb,
+            var(--rg31-impact-color) 55%,
+            transparent
+        );
+    color: #ffffff;
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 5px;
+}
+
+.rg31-impacted-city-symbol {
+    color: var(--rg31-impact-color);
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.rg31-impacted-city-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.rg31-impacted-city-arrival {
+    color: var(--rg31-impact-color);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.rg31-storm-popup-content,
+.rg31-storm-path-popup-content,
+.rg31-storm-forecast-popup-content,
+.rg31-impacted-city-popup-content {
+    min-width: 230px;
+    color: #e2e8f0;
+    direction: inherit;
+}
+
+.rg31-storm-popup .leaflet-popup-content-wrapper,
+.rg31-storm-path-popup .leaflet-popup-content-wrapper,
+.rg31-storm-forecast-point-popup .leaflet-popup-content-wrapper,
+.rg31-impacted-city-popup .leaflet-popup-content-wrapper {
+    background:
+        linear-gradient(
+            145deg,
+            rgba(15, 23, 42, 0.98),
+            rgba(30, 41, 59, 0.98)
+        );
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    box-shadow:
+        0 18px 40px
+        rgba(0, 0, 0, 0.45);
+    color: #e2e8f0;
+}
+
+.rg31-storm-popup .leaflet-popup-tip,
+.rg31-storm-path-popup .leaflet-popup-tip,
+.rg31-storm-forecast-point-popup .leaflet-popup-tip,
+.rg31-impacted-city-popup .leaflet-popup-tip {
+    background: #1e293b;
+}
+
+.rg31-storm-popup-header,
+.rg31-impacted-city-popup-header,
+.rg31-storm-popup-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.rg31-storm-popup-id {
+    margin-top: 3px;
+    color: #94a3b8;
+    font-size: 10px;
+}
+
+.rg31-storm-risk-badge,
+.rg31-impact-badge {
+    padding: 4px 7px;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.rg31-storm-popup-location {
+    margin-top: 8px;
+    padding-bottom: 8px;
+    border-bottom:
+        1px solid
+        rgba(148, 163, 184, 0.16);
+}
+
+.rg31-storm-popup-location span {
+    display: block;
+    margin-top: 2px;
+    color: #94a3b8;
+    font-size: 10px;
+}
+
+.rg31-storm-popup-grid,
+.rg31-impacted-city-popup-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+    gap: 7px;
+}
+
+.rg31-storm-popup-metric {
+    padding: 6px 7px;
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.55);
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.12);
+}
+
+.rg31-storm-popup-metric span {
+    display: block;
+    color: #94a3b8;
+    font-size: 9px;
+}
+
+.rg31-storm-popup-metric strong {
+    display: block;
+    margin-top: 2px;
+    color: #ffffff;
+    font-size: 11px;
+}
+
+.rg31-storm-popup-sources,
+.rg31-impacted-city-source {
+    margin-top: 10px;
+    font-size: 10px;
+}
+
+.rg31-storm-popup-source-scores {
+    margin-top: 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.rg31-storm-source-score-header {
+    display: flex;
+    justify-content: space-between;
+    color: #cbd5e1;
+    font-size: 9px;
+}
+
+.rg31-storm-source-score-track {
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.18);
+}
+
+.rg31-storm-source-score-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background:
+        linear-gradient(
+            90deg,
+            #38bdf8,
+            #a78bfa
+        );
+}
+
+.rg31-storm-popup-section,
+.rg31-impacted-city-forecast-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top:
+        1px solid
+        rgba(148, 163, 184, 0.16);
+}
+
+.rg31-storm-popup-section h4,
+.rg31-impacted-city-forecast-section h4 {
+    margin: 0 0 8px;
+    font-size: 11px;
+}
+
+.rg31-storm-forecast-row,
+.rg31-storm-impact-city-row,
+.rg31-impacted-city-forecast-row {
+    padding: 7px 0;
+    border-bottom:
+        1px solid
+        rgba(148, 163, 184, 0.10);
+}
+
+.rg31-storm-forecast-time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rg31-storm-forecast-dot,
+.rg31-storm-impact-city-indicator {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+}
+
+.rg31-storm-forecast-city {
+    margin-top: 3px;
+    display: flex;
+    justify-content: space-between;
+    color: #e2e8f0;
+    font-size: 10px;
+}
+
+.rg31-storm-forecast-city small {
+    color: #94a3b8;
+}
+
+.rg31-storm-forecast-values,
+.rg31-impacted-city-forecast-row {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 9px;
+}
+
+.rg31-storm-impact-city-row {
+    display: grid;
+    grid-template-columns:
+        8px
+        minmax(0, 1fr)
+        auto;
+    gap: 7px;
+    align-items: center;
+}
+
+.rg31-storm-impact-city-name small,
+.rg31-storm-impact-city-arrival span {
+    display: block;
+    color: #94a3b8;
+    font-size: 8px;
+}
+
+.rg31-storm-impact-city-arrival {
+    text-align: end;
+}
+
+.rg31-storm-impact-city-stats {
+    grid-column:
+        2 /
+        span 2;
+    display: flex;
+    gap: 8px;
+    color: #94a3b8;
+    font-size: 8px;
+}
+
+.rg31-storm-popup-warning {
+    margin-top: 10px;
+    padding: 7px;
+    border-radius: 7px;
+    background: rgba(245, 158, 11, 0.12);
+    border:
+        1px solid
+        rgba(245, 158, 11, 0.32);
+    color: #fbbf24;
+    font-size: 9px;
+}
+
+.rg31-storm-popup-footer {
+    margin-top: 10px;
+    color: #64748b;
+    font-size: 8px;
+}
+
+.rg31-storm-tooltip {
+    background: rgba(15, 23, 42, 0.96) !important;
+    border:
+        1px solid
+        rgba(148, 163, 184, 0.24) !important;
+    border-radius: 7px !important;
+    color: #ffffff !important;
+    box-shadow:
+        0 8px 20px
+        rgba(0, 0, 0, 0.32);
+}
+
+.rg31-storm-tooltip::before {
+    border-top-color:
+        rgba(15, 23, 42, 0.96) !important;
+}
+
+@keyframes rg31StormPulse {
+    0% {
+        transform: scale(0.72);
+        opacity: 0.88;
+    }
+
+    70% {
+        transform: scale(1.40);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1.40);
+        opacity: 0;
+    }
+}
+
+@keyframes rg31ForecastDash {
+    from {
+        stroke-dashoffset: 36;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes rg31AnimationGlow {
+    0%,
+    100% {
+        transform: scale(0.85);
+        opacity: 0.22;
+    }
+
+    50% {
+        transform: scale(1.55);
+        opacity: 0.55;
+    }
+}
