@@ -5027,213 +5027,2618 @@ RG31.StormCellTrackingEngine = {
         return 10;
 
     },
-      /* =====================================================
-       SAVE STATE
-       ===================================================== */
 
-    saveState() {
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   COMPACT CELL
+   ===================================================== */
+
+createCompactCell(
+    cell = {},
+    options = {}
+) {
+
+    const includeHistory =
+        options.includeHistory === true;
+
+    const maximumHistory =
+        Math.max(
+            0,
+            this.safeNumber(
+                options.maximumHistory,
+                0
+            )
+        );
+
+    const compactCell = {
+
+        cellId:
+            String(
+                cell.cellId ||
+                ""
+            ),
+
+        city:
+            String(
+                cell.city ||
+                "Unknown"
+            ),
+
+        previousCity:
+            cell.previousCity ||
+            null,
+
+        region:
+            String(
+                cell.region ||
+                ""
+            ),
+
+        currentLat:
+            this.safeNumber(
+                cell.currentLat,
+                0
+            ),
+
+        currentLon:
+            this.safeNumber(
+                cell.currentLon,
+                0
+            ),
+
+        previousLat:
+            cell.previousLat === null ||
+            cell.previousLat === undefined
+                ? null
+                : this.safeNumber(
+                    cell.previousLat,
+                    0
+                ),
+
+        previousLon:
+            cell.previousLon === null ||
+            cell.previousLon === undefined
+                ? null
+                : this.safeNumber(
+                    cell.previousLon,
+                    0
+                ),
+
+        intensity:
+            Math.round(
+                this.clamp(
+                    cell.intensity,
+                    0,
+                    100
+                )
+            ),
+
+        previousIntensity:
+            cell.previousIntensity === null ||
+            cell.previousIntensity === undefined
+                ? null
+                : Math.round(
+                    this.clamp(
+                        cell.previousIntensity,
+                        0,
+                        100
+                    )
+                ),
+
+        radarScore:
+            Math.round(
+                this.clamp(
+                    cell.radarScore,
+                    0,
+                    100
+                )
+            ),
+
+        satelliteScore:
+            Math.round(
+                this.clamp(
+                    cell.satelliteScore,
+                    0,
+                    100
+                )
+            ),
+
+        lightningScore:
+            Math.round(
+                this.clamp(
+                    cell.lightningScore,
+                    0,
+                    100
+                )
+            ),
+
+        compositeScore:
+            Math.round(
+                this.clamp(
+                    cell.compositeScore,
+                    0,
+                    100
+                )
+            ),
+
+        confidence:
+            Math.round(
+                this.clamp(
+                    cell.confidence,
+                    0,
+                    100
+                )
+            ),
+
+        riskScore:
+            Math.round(
+                this.clamp(
+                    cell.riskScore,
+                    0,
+                    100
+                )
+            ),
+
+        riskLevel:
+            String(
+                cell.riskLevel ||
+                "MINIMAL"
+            ),
+
+        trend:
+            String(
+                cell.trend ||
+                "STABLE"
+            ),
+
+        lifecycleStage:
+            String(
+                cell.lifecycleStage ||
+                "NEW"
+            ),
+
+        speedKmh:
+            Number(
+                this.safeNumber(
+                    cell.speedKmh,
+                    0
+                )
+                .toFixed(
+                    2
+                )
+            ),
+
+        directionDegrees:
+            cell.directionDegrees === null ||
+            cell.directionDegrees === undefined
+                ? null
+                : Number(
+                    this.safeNumber(
+                        cell.directionDegrees,
+                        0
+                    )
+                    .toFixed(
+                        2
+                    )
+                ),
+
+        directionLabel:
+            String(
+                cell.directionLabel ||
+                "UNKNOWN"
+            ),
+
+        movementDistanceKm:
+            Number(
+                this.safeNumber(
+                    cell.movementDistanceKm,
+                    0
+                )
+                .toFixed(
+                    2
+                )
+            ),
+
+        ageMinutes:
+            Math.round(
+                this.safeNumber(
+                    cell.ageMinutes,
+                    0
+                )
+            ),
+
+        firstSeenAt:
+            cell.firstSeenAt ||
+            null,
+
+        lastSeenAt:
+            cell.lastSeenAt ||
+            null,
+
+        lastUpdatedAt:
+            cell.lastUpdatedAt ||
+            null,
+
+        archivedAt:
+            cell.archivedAt ||
+            null,
+
+        archiveReason:
+            cell.archiveReason ||
+            null,
+
+        missedCycles:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        cell.missedCycles,
+                        0
+                    )
+                )
+            ),
+
+        trackingCycles:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        cell.trackingCycles,
+                        0
+                    )
+                )
+            ),
+
+        cityTransitionCount:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        cell.cityTransitionCount,
+                        0
+                    )
+                )
+            ),
+
+        sourceCount:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        cell.sourceCount,
+                        0
+                    )
+                )
+            ),
+
+        simulated:
+            cell.simulated === true,
+
+        verificationStatus:
+            cell.verificationStatus ||
+            null,
+
+        finalConfidence:
+            Math.round(
+                this.clamp(
+                    cell.finalConfidence,
+                    0,
+                    100
+                )
+            ),
+
+        verifiedRisk:
+            Math.round(
+                this.clamp(
+                    cell.verifiedRisk,
+                    0,
+                    100
+                )
+            ),
+
+        rainConsensus:
+            Math.round(
+                this.clamp(
+                    cell.rainConsensus,
+                    0,
+                    100
+                )
+            ),
+
+        lightningThreat:
+            Math.round(
+                this.clamp(
+                    cell.lightningThreat,
+                    0,
+                    100
+                )
+            ),
+
+        sourceKeys:
+            Array.isArray(
+                cell.sourceKeys
+            )
+                ? cell.sourceKeys
+                    .slice(
+                        0,
+                        6
+                    )
+                    .map(
+                        sourceKey =>
+                            String(
+                                sourceKey
+                            )
+                    )
+                : [],
+
+        nearestCities:
+            Array.isArray(
+                cell.nearestCities
+            )
+                ? cell.nearestCities
+                    .slice(
+                        0,
+                        3
+                    )
+                : [],
+
+        history:
+            []
+
+    };
+
+    if (
+        includeHistory &&
+        maximumHistory > 0 &&
+        Array.isArray(
+            cell.history
+        )
+    ) {
+
+        compactCell.history =
+            cell.history
+                .slice(
+                    0,
+                    maximumHistory
+                )
+                .map(
+                    item => ({
+
+                        lat:
+                            this.safeNumber(
+                                item.lat,
+                                0
+                            ),
+
+                        lon:
+                            this.safeNumber(
+                                item.lon,
+                                0
+                            ),
+
+                        city:
+                            String(
+                                item.city ||
+                                "Unknown"
+                            ),
+
+                        intensity:
+                            Math.round(
+                                this.clamp(
+                                    item.intensity,
+                                    0,
+                                    100
+                                )
+                            ),
+
+                        compositeScore:
+                            Math.round(
+                                this.clamp(
+                                    item.compositeScore,
+                                    0,
+                                    100
+                                )
+                            ),
+
+                        confidence:
+                            Math.round(
+                                this.clamp(
+                                    item.confidence,
+                                    0,
+                                    100
+                                )
+                            ),
+
+                        riskScore:
+                            Math.round(
+                                this.clamp(
+                                    item.riskScore,
+                                    0,
+                                    100
+                                )
+                            ),
+
+                        speedKmh:
+                            Number(
+                                this.safeNumber(
+                                    item.speedKmh,
+                                    0
+                                )
+                                .toFixed(
+                                    2
+                                )
+                            ),
+
+                        directionDegrees:
+                            item.directionDegrees === null ||
+                            item.directionDegrees === undefined
+                                ? null
+                                : Number(
+                                    this.safeNumber(
+                                        item.directionDegrees,
+                                        0
+                                    )
+                                    .toFixed(
+                                        2
+                                    )
+                                ),
+
+                        directionLabel:
+                            String(
+                                item.directionLabel ||
+                                "UNKNOWN"
+                            ),
+
+                        timestamp:
+                            item.timestamp ||
+                            null
+
+                    })
+                );
+
+    }
+
+    return compactCell;
+
+},
+
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   COMPACT ACTIVE CELLS
+   ===================================================== */
+
+createCompactActiveCells() {
+
+    const compact = {};
+
+    Object.entries(
+        this.activeCells || {}
+    ).forEach(
+
+        ([cellId, cell]) => {
+
+            compact[cellId] =
+                this.createCompactCell(
+                    cell,
+                    {
+                        includeHistory: false
+                    }
+                );
+
+        }
+
+    );
+
+    return compact;
+
+},
+      /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   SMART SAVE STATE
+   ===================================================== */
+
+saveState() {
+
+    const storageLimits =
+        this.getStorageLimits();
+
+    const compactReport =
+        this.createCompactReport();
+
+    const compactActiveCells =
+        this.createCompactActiveCells();
+
+    const compactArchive =
+        this.createCompactArchive();
+
+    const compactTransitions =
+        this.createCompactTransitions();
+
+    const baseState = {
+
+        version:
+            "31.1",
+
+        savedAt:
+            new Date().toISOString(),
+
+        cycleNumber:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        this.cycleNumber,
+                        0
+                    )
+                )
+            ),
+
+        lastTrackingAt:
+            this.lastTrackingAt ||
+            null,
+
+        report:
+            compactReport,
+
+        activeCells:
+            compactActiveCells,
+
+        archivedCells:
+            compactArchive,
+
+        cityTransitions:
+            compactTransitions
+
+    };
+
+    let payload =
+        baseState;
+
+    let payloadInfo =
+        this.isPayloadTooLarge(
+            payload
+        );
+
+    /*
+     * المستوى الأول:
+     * إزالة الأرشيف إذا أصبح الحجم كبيرًا
+     */
+
+    if (
+        payloadInfo.warning
+    ) {
+
+        payload = {
+
+            ...payload,
+
+            archivedCells: {}
+
+        };
+
+        payloadInfo =
+            this.isPayloadTooLarge(
+                payload
+            );
+
+    }
+
+    /*
+     * المستوى الثاني:
+     * تقليل انتقالات المدن
+     */
+
+    if (
+        payloadInfo.tooLarge
+    ) {
+
+        payload = {
+
+            ...payload,
+
+            cityTransitions:
+                compactTransitions.slice(
+                    0,
+                    20
+                )
+
+        };
+
+        payloadInfo =
+            this.isPayloadTooLarge(
+                payload
+            );
+
+    }
+
+    /*
+     * المستوى الثالث:
+     * حذف التقرير التفصيلي
+     */
+
+    if (
+        payloadInfo.tooLarge
+    ) {
+
+        payload = {
+
+            ...payload,
+
+            report:
+                compactReport
+                    ? {
+                        cycleNumber:
+                            compactReport.cycleNumber,
+
+                        activeCellCount:
+                            compactReport.activeCellCount,
+
+                        nationalConfidence:
+                            compactReport.nationalConfidence,
+
+                        nationalStatus:
+                            compactReport.nationalStatus,
+
+                        timestamp:
+                            compactReport.timestamp
+                    }
+                    : null
+
+        };
+
+        payloadInfo =
+            this.isPayloadTooLarge(
+                payload
+            );
+
+    }
+
+    /*
+     * المستوى الرابع:
+     * Snapshot طوارئ
+     */
+
+    if (
+        payloadInfo.emergency
+    ) {
+
+        payload = {
+
+            version:
+                "31.1-emergency",
+
+            savedAt:
+                new Date().toISOString(),
+
+            cycleNumber:
+                Math.max(
+                    0,
+                    Math.round(
+                        this.safeNumber(
+                            this.cycleNumber,
+                            0
+                        )
+                    )
+                ),
+
+            lastTrackingAt:
+                this.lastTrackingAt ||
+                null,
+
+            report:
+                compactReport
+                    ? {
+                        cycleNumber:
+                            compactReport.cycleNumber,
+
+                        activeCellCount:
+                            compactReport.activeCellCount,
+
+                        nationalConfidence:
+                            compactReport.nationalConfidence,
+
+                        nationalStatus:
+                            compactReport.nationalStatus,
+
+                        timestamp:
+                            compactReport.timestamp
+                    }
+                    : null,
+
+            activeCells:
+                compactActiveCells,
+
+            archivedCells: {},
+
+            cityTransitions: []
+
+        };
+
+        payloadInfo =
+            this.isPayloadTooLarge(
+                payload
+            );
+
+    }
+
+    try {
+
+        localStorage.setItem(
+
+            this.storageKey,
+
+            JSON.stringify(
+                payload
+            )
+
+        );
+
+        /*
+         * تخزين الأرشيف منفصلًا فقط عند توفر مساحة مناسبة
+         */
+
+        if (
+            !payloadInfo.warning &&
+            Object.keys(
+                compactArchive
+            ).length > 0
+        ) {
+
+            try {
+
+                localStorage.setItem(
+
+                    this.archiveStorageKey,
+
+                    JSON.stringify({
+                        version:
+                            "31.1",
+
+                        savedAt:
+                            new Date().toISOString(),
+
+                        archivedCells:
+                            compactArchive
+                    })
+
+                );
+
+            } catch (
+                archiveError
+            ) {
+
+                console.warn(
+                    "Storm archive storage skipped:",
+                    archiveError
+                );
+
+                try {
+
+                    localStorage.removeItem(
+                        this.archiveStorageKey
+                    );
+
+                } catch (
+                    cleanupError
+                ) {
+
+                    console.warn(
+                        "Unable to clear archive storage:",
+                        cleanupError
+                    );
+
+                }
+
+            }
+
+        } else {
+
+            try {
+
+                localStorage.removeItem(
+                    this.archiveStorageKey
+                );
+
+            } catch (
+                cleanupError
+            ) {
+
+                console.warn(
+                    "Unable to clear archive storage:",
+                    cleanupError
+                );
+
+            }
+
+        }
+
+        /*
+         * تخزين الانتقالات منفصلة عند توفر مساحة
+         */
+
+        if (
+            !payloadInfo.tooLarge &&
+            compactTransitions.length > 0
+        ) {
+
+            try {
+
+                localStorage.setItem(
+
+                    this.transitionStorageKey,
+
+                    JSON.stringify({
+                        version:
+                            "31.1",
+
+                        savedAt:
+                            new Date().toISOString(),
+
+                        cityTransitions:
+                            compactTransitions
+                    })
+
+                );
+
+            } catch (
+                transitionError
+            ) {
+
+                console.warn(
+                    "Storm transition storage skipped:",
+                    transitionError
+                );
+
+                try {
+
+                    localStorage.removeItem(
+                        this.transitionStorageKey
+                    );
+
+                } catch (
+                    cleanupError
+                ) {
+
+                    console.warn(
+                        "Unable to clear transition storage:",
+                        cleanupError
+                    );
+
+                }
+
+            }
+
+        } else {
+
+            try {
+
+                localStorage.removeItem(
+                    this.transitionStorageKey
+                );
+
+            } catch (
+                cleanupError
+            ) {
+
+                console.warn(
+                    "Unable to clear transition storage:",
+                    cleanupError
+                );
+
+            }
+
+        }
+
+        this.lastStorageSnapshot = {
+
+            ok:
+                true,
+
+            bytes:
+                payloadInfo.bytes,
+
+            warning:
+                payloadInfo.warning,
+
+            tooLarge:
+                payloadInfo.tooLarge,
+
+            emergency:
+                payloadInfo.emergency,
+
+            activeCellCount:
+                Object.keys(
+                    compactActiveCells
+                ).length,
+
+            archivedCellCount:
+                Object.keys(
+                    compactArchive
+                ).length,
+
+            transitionCount:
+                compactTransitions.length,
+
+            savedAt:
+                payload.savedAt
+
+        };
+
+        return true;
+
+    } catch (error) {
+
+        const isQuotaError =
+
+            error?.name ===
+                "QuotaExceededError" ||
+
+            error?.name ===
+                "NS_ERROR_DOM_QUOTA_REACHED" ||
+
+            error?.code ===
+                22 ||
+
+            error?.code ===
+                1014;
+
+        if (
+            !isQuotaError
+        ) {
+
+            console.error(
+                "Storm tracking state save failed:",
+                error
+            );
+
+            this.lastStorageSnapshot = {
+
+                ok:
+                    false,
+
+                reason:
+                    "SAVE_ERROR",
+
+                error:
+                    String(
+                        error?.message ||
+                        error
+                    ),
+
+                savedAt:
+                    new Date().toISOString()
+
+            };
+
+            return false;
+
+        }
+
+        console.warn(
+            "Storage quota reached. Running emergency cleanup."
+        );
+
+        /*
+         * تنظيف مفاتيح التخزين الثانوية
+         */
 
         try {
 
-            const state = {
+            localStorage.removeItem(
+                this.archiveStorageKey
+            );
 
-                version:
-                    this.version,
+        } catch (_) {}
 
-                cycleNumber:
-                    this.cycleNumber,
+        try {
 
-                lastTrackingAt:
-                    this.lastTrackingAt,
+            localStorage.removeItem(
+                this.transitionStorageKey
+            );
 
-                latestTrackingReport:
-                    this.latestTrackingReport,
+        } catch (_) {}
 
-                activeCells:
-                    this.activeCells,
+        /*
+         * Snapshot فائق الصغر
+         */
 
-                savedAt:
-                    new Date()
-                        .toISOString()
+        const emergencyState = {
 
-            };
+            version:
+                "31.1-minimal",
+
+            savedAt:
+                new Date().toISOString(),
+
+            cycleNumber:
+                Math.max(
+                    0,
+                    Math.round(
+                        this.safeNumber(
+                            this.cycleNumber,
+                            0
+                        )
+                    )
+                ),
+
+            lastTrackingAt:
+                this.lastTrackingAt ||
+                null,
+
+            activeCells:
+                compactActiveCells,
+
+            report:
+                compactReport
+                    ? {
+                        activeCellCount:
+                            compactReport.activeCellCount,
+
+                        nationalConfidence:
+                            compactReport.nationalConfidence,
+
+                        nationalStatus:
+                            compactReport.nationalStatus,
+
+                        timestamp:
+                            compactReport.timestamp
+                    }
+                    : null
+
+        };
+
+        try {
 
             localStorage.setItem(
 
                 this.storageKey,
 
                 JSON.stringify(
-                    state
+                    emergencyState
                 )
 
             );
 
-            localStorage.setItem(
+            const emergencySize =
+                this.getStoragePayloadSize(
+                    emergencyState
+                );
 
-                this.archiveStorageKey,
+            this.lastStorageSnapshot = {
 
-                JSON.stringify(
-                    this.archivedCells
-                )
+                ok:
+                    true,
 
-            );
+                emergency:
+                    true,
 
-            localStorage.setItem(
+                bytes:
+                    emergencySize.bytes,
 
-                this.transitionStorageKey,
+                activeCellCount:
+                    Object.keys(
+                        compactActiveCells
+                    ).length,
 
-                JSON.stringify(
-                    this.cityTransitions
-                )
+                archivedCellCount:
+                    0,
 
-            );
+                transitionCount:
+                    0,
+
+                savedAt:
+                    emergencyState.savedAt
+
+            };
 
             return true;
 
-        } catch (error) {
+        } catch (
+            emergencyError
+        ) {
 
-            console.warn(
-                "Storm Cell Tracking state save failed:",
-                error
+            console.error(
+                "Emergency storm state save failed:",
+                emergencyError
             );
+
+            try {
+
+                localStorage.removeItem(
+                    this.storageKey
+                );
+
+            } catch (_) {}
+
+            this.lastStorageSnapshot = {
+
+                ok:
+                    false,
+
+                reason:
+                    "QUOTA_EXCEEDED",
+
+                error:
+                    String(
+                        emergencyError?.message ||
+                        emergencyError
+                    ),
+
+                savedAt:
+                    new Date().toISOString()
+
+            };
 
             return false;
 
         }
 
-    },
+    }
 
-    /* =====================================================
-       LOAD STATE
-       ===================================================== */
+},
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   COMPACT ARCHIVE
+   ===================================================== */
 
-    loadState() {
+createCompactArchive() {
+
+    const compact = {};
+
+    const archiveEntries = Object.entries(
+        this.archivedCells || {}
+    )
+
+    .sort(
+
+        (a, b) =>
+
+            new Date(
+                b[1].archivedAt ||
+                b[1].lastSeenAt ||
+                0
+            ).getTime()
+
+            -
+
+            new Date(
+                a[1].archivedAt ||
+                a[1].lastSeenAt ||
+                0
+            ).getTime()
+
+    )
+
+    .slice(
+        0,
+        30
+    );
+
+    archiveEntries.forEach(
+
+        ([cellId, cell]) => {
+
+            compact[cellId] =
+                this.createCompactCell(
+
+                    cell,
+
+                    {
+
+                        includeHistory: false
+
+                    }
+
+                );
+
+        }
+
+    );
+
+    return compact;
+
+},
+
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   COMPACT TRANSITIONS
+   ===================================================== */
+
+createCompactTransitions() {
+
+    return (this.cityTransitions || [])
+
+        .sort(
+
+            (first, second) =>
+
+                new Date(
+                    second.timestamp || 0
+                ).getTime()
+
+                -
+
+                new Date(
+                    first.timestamp || 0
+                ).getTime()
+
+        )
+
+        .slice(
+            0,
+            50
+        )
+
+        .map(
+
+            transition => ({
+
+                transitionId:
+                    transition.transitionId,
+
+                cellId:
+                    transition.cellId,
+
+                fromCity:
+                    transition.fromCity,
+
+                toCity:
+                    transition.toCity,
+
+                fromLat:
+                    this.safeNumber(
+                        transition.fromLat,
+                        0
+                    ),
+
+                fromLon:
+                    this.safeNumber(
+                        transition.fromLon,
+                        0
+                    ),
+
+                toLat:
+                    this.safeNumber(
+                        transition.toLat,
+                        0
+                    ),
+
+                toLon:
+                    this.safeNumber(
+                        transition.toLon,
+                        0
+                    ),
+
+                distanceKm:
+                    Number(
+
+                        this.safeNumber(
+                            transition.distanceKm,
+                            0
+                        ).toFixed(2)
+
+                    ),
+
+                speedKmh:
+                    Number(
+
+                        this.safeNumber(
+                            transition.speedKmh,
+                            0
+                        ).toFixed(2)
+
+                    ),
+
+                directionDegrees:
+                    transition.directionDegrees === null ||
+                    transition.directionDegrees === undefined
+
+                        ? null
+
+                        : Number(
+
+                            this.safeNumber(
+                                transition.directionDegrees,
+                                0
+                            ).toFixed(2)
+
+                        ),
+
+                directionLabel:
+                    transition.directionLabel,
+
+                intensity:
+                    Math.round(
+
+                        this.clamp(
+                            transition.intensity,
+                            0,
+                            100
+                        )
+
+                    ),
+
+                riskScore:
+                    Math.round(
+
+                        this.clamp(
+                            transition.riskScore,
+                            0,
+                            100
+                        )
+
+                    ),
+
+                riskLevel:
+                    transition.riskLevel,
+
+                timestamp:
+                    transition.timestamp
+
+            })
+
+        );
+
+},
+
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   COMPACT LATEST TRACKING REPORT
+   ===================================================== */
+
+createCompactReport() {
+
+    const report =
+        this.latestTrackingReport;
+
+    if (
+        !report ||
+        typeof report !==
+            "object"
+    ) {
+
+        return null;
+
+    }
+
+    return {
+
+        cycleNumber:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.cycleNumber,
+                        0
+                    )
+                )
+            ),
+
+        citiesAnalyzed:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.citiesAnalyzed,
+                        0
+                    )
+                )
+            ),
+
+        candidatesDetected:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.candidatesDetected,
+                        0
+                    )
+                )
+            ),
+
+        cellsCreated:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.cellsCreated,
+                        0
+                    )
+                )
+            ),
+
+        cellsUpdated:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.cellsUpdated,
+                        0
+                    )
+                )
+            ),
+
+        cellsMerged:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.cellsMerged,
+                        0
+                    )
+                )
+            ),
+
+        cellsArchived:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.cellsArchived,
+                        0
+                    )
+                )
+            ),
+
+        activeCellCount:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.activeCellCount,
+                        0
+                    )
+                )
+            ),
+
+        cityTransitionCount:
+            Array.isArray(
+                report.cityTransitions
+            )
+                ? report.cityTransitions.length
+                : Math.max(
+                    0,
+                    Math.round(
+                        this.safeNumber(
+                            report.cityTransitionCount,
+                            0
+                        )
+                    )
+                ),
+
+        nationalConfidence:
+            Math.round(
+                this.clamp(
+                    report.nationalConfidence,
+                    0,
+                    100
+                )
+            ),
+
+        nationalStatus:
+            String(
+                report.nationalStatus ||
+                "UNKNOWN"
+            ),
+
+        durationMs:
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        report.durationMs,
+                        0
+                    )
+                )
+            ),
+
+        timestamp:
+            report.timestamp ||
+            this.lastTrackingAt ||
+            null
+
+    };
+
+},
+
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   STORAGE PAYLOAD SIZE
+   ===================================================== */
+
+getStoragePayloadSize(payload) {
+
+    try {
+
+        const json =
+            JSON.stringify(payload);
+
+        return {
+
+            bytes:
+                new Blob([json]).size,
+
+            characters:
+                json.length,
+
+            json
+
+        };
+
+    } catch (error) {
+
+        console.warn(
+            "Unable to calculate storage payload size:",
+            error
+        );
+
+        return {
+
+            bytes: 0,
+
+            characters: 0,
+
+            json: ""
+
+        };
+
+    }
+
+},
+
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   STORAGE LIMITS
+   ===================================================== */
+
+getStorageLimits() {
+
+    return {
+
+        warningBytes:
+            500000,
+
+        maximumBytes:
+            700000,
+
+        emergencyBytes:
+            900000
+
+    };
+
+},
+
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   STORAGE HEALTH CHECK
+   ===================================================== */
+
+isPayloadTooLarge(payload) {
+
+    const size =
+        this.getStoragePayloadSize(
+            payload
+        );
+
+    const limits =
+        this.getStorageLimits();
+
+    return {
+
+        ...size,
+
+        warning:
+            size.bytes >=
+            limits.warningBytes,
+
+        tooLarge:
+            size.bytes >=
+            limits.maximumBytes,
+
+        emergency:
+            size.bytes >=
+            limits.emergencyBytes
+
+    };
+
+},
+
+   /* =====================================================
+   V31.1 STORAGE OPTIMIZER
+   SMART LOAD STATE
+   ===================================================== */
+
+loadState() {
+
+    try {
+
+        const rawState =
+            localStorage.getItem(
+                this.storageKey
+            );
+
+        if (!rawState) {
+
+            return false;
+
+        }
+
+        const state =
+            JSON.parse(rawState);
+
+        if (
+            !state ||
+            typeof state !== "object"
+        ) {
+
+            return false;
+
+        }
+
+        this.cycleNumber =
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        state.cycleNumber,
+                        0
+                    )
+                )
+            );
+
+        this.lastTrackingAt =
+            state.lastTrackingAt ||
+            null;
+
+        this.latestTrackingReport =
+            state.report || null;
+
+        this.activeCells = {};
+
+        Object.entries(
+            state.activeCells || {}
+        ).forEach(
+
+            ([cellId, cell]) => {
+
+                this.activeCells[cellId] = {
+
+                    history: [],
+
+                    nearestCities: [],
+
+                    sourceKeys: [],
+
+                    ...cell
+
+                };
+
+            }
+
+        );
+
+        /*
+         * تحميل الأرشيف
+         */
+
+        this.archivedCells = {};
 
         try {
 
-            const savedState =
-                localStorage.getItem(
-                    this.storageKey
-                );
-
-            const savedArchive =
+            const archiveRaw =
                 localStorage.getItem(
                     this.archiveStorageKey
                 );
 
-            const savedTransitions =
+            if (archiveRaw) {
+
+                const archive =
+                    JSON.parse(
+                        archiveRaw
+                    );
+
+                this.archivedCells =
+                    archive.archivedCells ||
+                    {};
+
+            }
+
+        } catch (archiveError) {
+
+            console.warn(
+                "Archive restore skipped:",
+                archiveError
+            );
+
+        }
+
+        /*
+         * تحميل انتقالات المدن
+         */
+
+        this.cityTransitions = [];
+
+        try {
+
+            const transitionRaw =
                 localStorage.getItem(
                     this.transitionStorageKey
                 );
 
-            if (
-                savedState
-            ) {
+            if (transitionRaw) {
 
-                const parsed =
+                const transitions =
                     JSON.parse(
-                        savedState
-                    );
-
-                if (
-                    parsed &&
-                    typeof parsed ===
-                        "object"
-                ) {
-
-                    this.cycleNumber =
-                        this.safeNumber(
-                            parsed.cycleNumber,
-                            0
-                        );
-
-                    this.lastTrackingAt =
-                        parsed.lastTrackingAt ||
-                        null;
-
-                    this.latestTrackingReport =
-                        parsed.latestTrackingReport ||
-                        null;
-
-                    this.activeCells =
-                        parsed.activeCells &&
-                        typeof parsed.activeCells ===
-                            "object"
-                            ? parsed.activeCells
-                            : {};
-
-                }
-
-            }
-
-            if (
-                savedArchive
-            ) {
-
-                const parsedArchive =
-                    JSON.parse(
-                        savedArchive
-                    );
-
-                this.archivedCells =
-                    parsedArchive &&
-                    typeof parsedArchive ===
-                        "object"
-                        ? parsedArchive
-                        : {};
-
-            }
-
-            if (
-                savedTransitions
-            ) {
-
-                const parsedTransitions =
-                    JSON.parse(
-                        savedTransitions
+                        transitionRaw
                     );
 
                 this.cityTransitions =
-                    Array.isArray(
-                        parsedTransitions
-                    )
-                        ? parsedTransitions.slice(
-                            0,
-                            this.config.maximumTransitions
-                        )
-                        : [];
+                    transitions.cityTransitions ||
+                    [];
 
             }
 
-            this.limitActiveCells();
+        } catch (transitionError) {
 
-            this.limitArchivedCells();
+            console.warn(
+                "Transition restore skipped:",
+                transitionError
+            );
 
-            this.limitCityTransitions();
+        }
 
-            return true;
+        this.lastStorageSnapshot = {
+
+            ok: true,
+
+            restoredAt:
+                new Date().toISOString(),
+
+            activeCellCount:
+                Object.keys(
+                    this.activeCells
+                ).length,
+
+            archivedCellCount:
+                Object.keys(
+                    this.archivedCells
+                ).length,
+
+            transitionCount:
+                this.cityTransitions.length
+
+        };
+
+        console.info(
+
+            "[StormTracking] State restored.",
+
+            this.lastStorageSnapshot
+
+        );
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "Storm state restore failed:",
+            error
+        );
+
+        try {
+
+            localStorage.removeItem(
+                this.storageKey
+            );
+
+        } catch (_) {}
+
+        try {
+
+            localStorage.removeItem(
+                this.archiveStorageKey
+            );
+
+        } catch (_) {}
+
+        try {
+
+            localStorage.removeItem(
+                this.transitionStorageKey
+            );
+
+        } catch (_) {}
+
+        this.activeCells = {};
+        this.archivedCells = {};
+        this.cityTransitions = [];
+        this.latestTrackingReport = null;
+
+        this.lastStorageSnapshot = {
+
+            ok: false,
+
+            reason: "LOAD_FAILED",
+
+            restoredAt:
+                new Date().toISOString()
+
+        };
+
+        return false;
+
+    }
+
+},
+
+   /* =====================================================
+   V31.2 MEMORY MANAGER
+   CLEANUP CELL HISTORIES
+   ===================================================== */
+
+cleanupCellHistories() {
+
+    const maximumHistoryEntries = 20;
+
+    let cleanedCells = 0;
+
+    let removedEntries = 0;
+
+    Object.values(
+        this.activeCells || {}
+    ).forEach(
+
+        cell => {
+
+            if (
+                !cell ||
+                typeof cell !== "object"
+            ) {
+                return;
+            }
+
+            /*
+             * تنظيف سجل المواقع والحالة
+             */
+
+            if (
+                Array.isArray(
+                    cell.history
+                ) &&
+                cell.history.length >
+                    maximumHistoryEntries
+            ) {
+
+                const originalLength =
+                    cell.history.length;
+
+                cell.history =
+                    cell.history.slice(
+                        -maximumHistoryEntries
+                    );
+
+                removedEntries +=
+                    originalLength -
+                    cell.history.length;
+
+                cleanedCells++;
+
+            }
+
+            /*
+             * تنظيف نقاط المواقع السابقة
+             */
+
+            if (
+                Array.isArray(
+                    cell.positions
+                ) &&
+                cell.positions.length > 20
+            ) {
+
+                const originalLength =
+                    cell.positions.length;
+
+                cell.positions =
+                    cell.positions.slice(-20);
+
+                removedEntries +=
+                    originalLength -
+                    cell.positions.length;
+
+            }
+
+            /*
+             * تنظيف نقاط التنبؤ
+             */
+
+            if (
+                Array.isArray(
+                    cell.predictions
+                ) &&
+                cell.predictions.length > 8
+            ) {
+
+                const originalLength =
+                    cell.predictions.length;
+
+                cell.predictions =
+                    cell.predictions.slice(-8);
+
+                removedEntries +=
+                    originalLength -
+                    cell.predictions.length;
+
+            }
+
+            /*
+             * تنظيف نقاط المسار المتوقع
+             */
+
+            if (
+                Array.isArray(
+                    cell.forecastPoints
+                ) &&
+                cell.forecastPoints.length > 8
+            ) {
+
+                const originalLength =
+                    cell.forecastPoints.length;
+
+                cell.forecastPoints =
+                    cell.forecastPoints.slice(-8);
+
+                removedEntries +=
+                    originalLength -
+                    cell.forecastPoints.length;
+
+            }
+
+            /*
+             * تنظيف المدن القريبة
+             */
+
+            if (
+                Array.isArray(
+                    cell.nearestCities
+                ) &&
+                cell.nearestCities.length > 5
+            ) {
+
+                cell.nearestCities =
+                    cell.nearestCities.slice(0, 5);
+
+            }
+
+            /*
+             * تنظيف مصادر التحقق
+             */
+
+            if (
+                Array.isArray(
+                    cell.sourceKeys
+                ) &&
+                cell.sourceKeys.length > 8
+            ) {
+
+                cell.sourceKeys = [
+                    ...new Set(
+                        cell.sourceKeys
+                    )
+                ].slice(0, 8);
+
+            }
+
+            /*
+             * تنظيف السجلات التشخيصية
+             */
+
+            if (
+                Array.isArray(
+                    cell.debugLogs
+                ) &&
+                cell.debugLogs.length > 10
+            ) {
+
+                const originalLength =
+                    cell.debugLogs.length;
+
+                cell.debugLogs =
+                    cell.debugLogs.slice(-10);
+
+                removedEntries +=
+                    originalLength -
+                    cell.debugLogs.length;
+
+            }
+
+        }
+
+    );
+
+    const result = {
+
+        cleanedCells,
+
+        removedEntries,
+
+        activeCellCount:
+            Object.keys(
+                this.activeCells || {}
+            ).length,
+
+        cleanedAt:
+            new Date().toISOString()
+
+    };
+
+    this.lastMemoryCleanup = result;
+
+    if (removedEntries > 0) {
+
+        console.info(
+            "[StormTracking] Cell histories cleaned:",
+            result
+        );
+
+    }
+
+    return result;
+
+},
+
+   /* =====================================================
+   V31.2 MEMORY MANAGER
+   CLEANUP INACTIVE CELLS
+   ===================================================== */
+
+cleanupInactiveCells() {
+
+    const now = Date.now();
+
+    const inactiveMinutes = 180;
+
+    const maxArchivedCells = 100;
+
+    let archived = 0;
+
+    let removed = 0;
+
+    if (!this.activeCells) {
+        this.activeCells = {};
+    }
+
+    if (!this.archivedCells) {
+        this.archivedCells = {};
+    }
+
+    Object.entries(this.activeCells).forEach(
+
+        ([cellId, cell]) => {
+
+            if (!cell) return;
+
+            const lastSeen = new Date(
+
+                cell.lastSeenAt ||
+
+                cell.updatedAt ||
+
+                cell.createdAt ||
+
+                0
+
+            ).getTime();
+
+            if (!lastSeen) {
+
+                delete this.activeCells[cellId];
+
+                removed++;
+
+                return;
+
+            }
+
+            const ageMinutes =
+
+                (now - lastSeen) /
+
+                60000;
+
+            if (ageMinutes < inactiveMinutes) {
+
+                return;
+
+            }
+
+            this.archivedCells[cellId] = {
+
+                ...this.createCompactCell(cell),
+
+                archivedAt:
+                    new Date().toISOString(),
+
+                archiveReason:
+                    "inactive"
+
+            };
+
+            delete this.activeCells[cellId];
+
+            archived++;
+
+        }
+
+    );
+
+    /*
+     * الاحتفاظ بأحدث 100 خلية فقط
+     */
+
+    const archiveEntries =
+
+        Object.entries(
+            this.archivedCells
+        )
+
+        .sort(
+
+            (a, b) =>
+
+                new Date(
+
+                    b[1].archivedAt ||
+
+                    0
+
+                ).getTime()
+
+                -
+
+                new Date(
+
+                    a[1].archivedAt ||
+
+                    0
+
+                ).getTime()
+
+        )
+
+        .slice(
+
+            0,
+
+            maxArchivedCells
+
+        );
+
+    this.archivedCells =
+
+        Object.fromEntries(
+            archiveEntries
+        );
+
+    const result = {
+
+        archived,
+
+        removed,
+
+        activeCells:
+
+            Object.keys(
+                this.activeCells
+            ).length,
+
+        archivedCells:
+
+            Object.keys(
+                this.archivedCells
+            ).length,
+
+        executedAt:
+
+            new Date().toISOString()
+
+    };
+
+    this.lastInactiveCleanup =
+        result;
+
+    if (
+
+        archived > 0 ||
+
+        removed > 0
+
+    ) {
+
+        console.info(
+
+            "[StormTracking] Inactive cleanup:",
+
+            result
+
+        );
+
+    }
+
+    return result;
+
+},
+
+   /* =====================================================
+   V31.2 MEMORY MANAGER
+   RUN MEMORY MAINTENANCE
+   ===================================================== */
+
+runMemoryMaintenance(options = {}) {
+
+    const {
+
+        saveAfterCleanup = true,
+
+        force = false
+
+    } = options;
+
+    const now = Date.now();
+
+    const maintenanceIntervalMs =
+        10 * 60 * 1000;
+
+    const lastRunAt = new Date(
+
+        this.lastMemoryMaintenanceAt ||
+
+        0
+
+    ).getTime();
+
+    if (
+
+        !force &&
+
+        lastRunAt &&
+
+        now - lastRunAt <
+            maintenanceIntervalMs
+
+    ) {
+
+        return {
+
+            skipped: true,
+
+            reason:
+                "MAINTENANCE_INTERVAL_NOT_REACHED",
+
+            nextRunInMs:
+
+                maintenanceIntervalMs -
+
+                (
+                    now -
+                    lastRunAt
+                ),
+
+            executedAt:
+                new Date().toISOString()
+
+        };
+
+    }
+
+    const startedAt =
+        performance.now();
+
+    let historyCleanup = null;
+
+    let inactiveCleanup = null;
+
+    let saveResult = null;
+
+    try {
+
+        historyCleanup =
+            this.cleanupCellHistories();
+
+    } catch (error) {
+
+        console.warn(
+
+            "[StormTracking] History cleanup failed:",
+
+            error
+
+        );
+
+        historyCleanup = {
+
+            ok: false,
+
+            error:
+                String(
+                    error?.message ||
+                    error
+                )
+
+        };
+
+    }
+
+    try {
+
+        inactiveCleanup =
+            this.cleanupInactiveCells();
+
+    } catch (error) {
+
+        console.warn(
+
+            "[StormTracking] Inactive cleanup failed:",
+
+            error
+
+        );
+
+        inactiveCleanup = {
+
+            ok: false,
+
+            error:
+                String(
+                    error?.message ||
+                    error
+                )
+
+        };
+
+    }
+
+    if (saveAfterCleanup) {
+
+        try {
+
+            saveResult =
+                this.saveState();
 
         } catch (error) {
 
             console.warn(
-                "Storm Cell Tracking state load failed:",
+
+                "[StormTracking] Save after cleanup failed:",
+
                 error
+
             );
 
-            this.activeCells =
-                {};
-
-            this.archivedCells =
-                {};
-
-            this.cityTransitions =
-                [];
-
-            return false;
+            saveResult = false;
 
         }
 
-    },
+    }
+
+    const result = {
+
+        skipped: false,
+
+        historyCleanup,
+
+        inactiveCleanup,
+
+        stateSaved:
+            saveAfterCleanup
+                ? saveResult === true
+                : null,
+
+        activeCellCount:
+
+            Object.keys(
+                this.activeCells || {}
+            ).length,
+
+        archivedCellCount:
+
+            Object.keys(
+                this.archivedCells || {}
+            ).length,
+
+        transitionCount:
+
+            Array.isArray(
+                this.cityTransitions
+            )
+
+                ? this.cityTransitions.length
+
+                : 0,
+
+        durationMs:
+
+            Math.round(
+
+                performance.now() -
+                startedAt
+
+            ),
+
+        executedAt:
+            new Date().toISOString()
+
+    };
+
+    this.lastMemoryMaintenanceAt =
+        result.executedAt;
+
+    this.lastMemoryMaintenance =
+        result;
+
+    console.info(
+
+        "[StormTracking] Memory maintenance completed:",
+
+        result
+
+    );
+
+    return result;
+
+},
+
+   /* =====================================================
+   V31.2 MEMORY MANAGER
+   START MEMORY MAINTENANCE
+   ===================================================== */
+
+startMemoryMaintenance() {
+
+    /*
+     * منع إنشاء أكثر من Timer
+     */
+
+    if (this.memoryMaintenanceTimer) {
+
+        clearInterval(
+            this.memoryMaintenanceTimer
+        );
+
+        this.memoryMaintenanceTimer = null;
+
+    }
+
+    const intervalMinutes = 10;
+
+    const intervalMs =
+        intervalMinutes * 60 * 1000;
+
+    /*
+     * تشغيل أول مرة بعد دقيقة
+     */
+
+    this.memoryMaintenanceStartupTimer =
+
+    setTimeout(() => {
+
+        try {
+
+            this.runMemoryMaintenance();
+
+        } catch (error) {
+
+            console.warn(
+
+                "[StormTracking] Initial maintenance failed:",
+
+                error
+
+            );
+
+        }
+
+        this.memoryMaintenanceStartupTimer = null;
+
+    }, 60000);
+
+    /*
+     * التشغيل الدوري
+     */
+
+    this.memoryMaintenanceTimer =
+
+        setInterval(() => {
+
+            try {
+
+                this.runMemoryMaintenance();
+
+            } catch (error) {
+
+                console.warn(
+
+                    "[StormTracking] Scheduled maintenance failed:",
+
+                    error
+
+                );
+
+            }
+
+        }, intervalMs);
+
+    console.info(
+
+        `[StormTracking] Memory maintenance started (${intervalMinutes} min interval).`
+
+    );
+
+    return true;
+
+},
+
+   /* =====================================================
+   V31.2 MEMORY MANAGER
+   STOP MEMORY MAINTENANCE
+   ===================================================== */
+
+stopMemoryMaintenance() {
+
+    let stopped = false;
+
+    /*
+     * إيقاف مؤقت الصيانة
+     */
+
+    if (this.memoryMaintenanceTimer) {
+
+        clearInterval(
+            this.memoryMaintenanceTimer
+        );
+
+        this.memoryMaintenanceTimer = null;
+
+        stopped = true;
+
+    }
+
+    /*
+     * إلغاء أي Timeout ابتدائي إن وجد
+     */
+
+    if (this.memoryMaintenanceStartupTimer) {
+
+        clearTimeout(
+            this.memoryMaintenanceStartupTimer
+        );
+
+        this.memoryMaintenanceStartupTimer = null;
+
+        stopped = true;
+
+    }
+
+    this.lastMemoryMaintenanceStoppedAt =
+        new Date().toISOString();
+
+    console.info(
+
+        "[StormTracking] Memory maintenance stopped."
+
+    );
+
+    return {
+
+        stopped,
+
+        stoppedAt:
+            this.lastMemoryMaintenanceStoppedAt
+
+    };
+
+},
 
     /* =====================================================
        PUBLISH TRACKING REPORT
