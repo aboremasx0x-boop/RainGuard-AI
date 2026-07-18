@@ -4602,72 +4602,132 @@ RG31.AdaptiveLearningEngine = {
         return snapshot;
 
     },
-      /* =====================================================
-       SAVE STATE
-       ===================================================== */
+     /* =====================================================
+   SAVE STATE (OPTIMIZED)
+   ===================================================== */
 
-    saveState() {
+saveState() {
 
-        try {
+    try {
 
-            const state = {
+        // حفظ نسخة خفيفة من ملفات المصادر
+        const compactProfiles = {};
 
-                version:
-                    this.version,
+        Object.entries(this.sourceProfiles || {}).forEach(([key, profile]) => {
 
-                cycleNumber:
-                    this.cycleNumber,
+            compactProfiles[key] = {
 
-                lastLearningAt:
-                    this.lastLearningAt,
+                sourceKey: profile.sourceKey,
 
-                sourceProfiles:
-                    this.sourceProfiles,
+                multiplier: profile.multiplier,
+                trustScore: profile.trustScore,
+                accuracyScore: profile.accuracyScore,
+                agreementScore: profile.agreementScore,
+                dataQualityScore: profile.dataQualityScore,
+                confidenceScore: profile.confidenceScore,
+                freshnessScore: profile.freshnessScore,
+                conflictScore: profile.conflictScore,
 
-                latestLearningReport:
-                    this.latestLearningReport,
+                learningCycles: profile.learningCycles,
+                successCount: profile.successCount,
+                failureCount: profile.failureCount,
+                conflictCount: profile.conflictCount,
+                simulationCount: profile.simulationCount,
 
-                savedAt:
-                    new Date()
-                        .toISOString()
+                lastAdjustment: profile.lastAdjustment,
+                lastUpdatedAt: profile.lastUpdatedAt,
+
+                // لا نحفظ history
+                history: []
 
             };
 
-            localStorage.setItem(
+        });
 
-                this.storageKey,
+        // حفظ ملخص التقرير فقط
+        const compactReport = this.latestLearningReport ? {
 
-                JSON.stringify(
-                    state
-                )
+            cycleNumber: this.latestLearningReport.cycleNumber,
+            citiesAnalyzed: this.latestLearningReport.citiesAnalyzed,
+            sourcesAnalyzed: this.latestLearningReport.sourcesAnalyzed,
+            nationalConfidence: this.latestLearningReport.nationalConfidence,
+            nationalStatus: this.latestLearningReport.nationalStatus,
+            averageDataQuality: this.latestLearningReport.averageDataQuality,
+            durationMs: this.latestLearningReport.durationMs,
+            timestamp: this.latestLearningReport.timestamp
 
-            );
+        } : null;
 
-            localStorage.setItem(
+        const state = {
 
-                this.historyStorageKey,
+            version: this.version,
+            cycleNumber: this.cycleNumber,
+            lastLearningAt: this.lastLearningAt,
 
-                JSON.stringify(
-                    this.learningHistory
-                )
+            sourceProfiles: compactProfiles,
+            latestLearningReport: compactReport,
 
-            );
+            savedAt: new Date().toISOString()
 
-            return true;
+        };
 
-        } catch (error) {
+        // حفظ آخر 20 دورة فقط وبشكل مختصر
+        const compactHistory = (this.learningHistory || [])
+            .slice(0, 20)
+            .map(item => ({
+                cycleNumber: item.cycleNumber,
+                nationalConfidence: item.nationalConfidence,
+                averageDataQuality: item.averageDataQuality,
+                timestamp: item.timestamp
+            }));
 
-            console.warn(
-                "Adaptive Learning state save failed:",
-                error
-            );
+        localStorage.setItem(
+            this.storageKey,
+            JSON.stringify(state)
+        );
 
-            return false;
+        localStorage.setItem(
+            this.historyStorageKey,
+            JSON.stringify(compactHistory)
+        );
+
+        return true;
+
+    } catch (error) {
+
+        if (error?.name === "QuotaExceededError") {
+
+            console.warn("Adaptive Learning storage quota exceeded. Saving minimal state.");
+
+            try {
+
+                localStorage.removeItem(this.historyStorageKey);
+
+                localStorage.setItem(
+                    this.storageKey,
+                    JSON.stringify({
+                        version: this.version,
+                        cycleNumber: this.cycleNumber,
+                        lastLearningAt: this.lastLearningAt
+                    })
+                );
+
+                return true;
+
+            } catch {}
 
         }
 
-    },
+        console.warn(
+            "Adaptive Learning state save failed:",
+            error
+        );
 
+        return false;
+
+    }
+
+},
     /* =====================================================
        LOAD STATE
        ===================================================== */
