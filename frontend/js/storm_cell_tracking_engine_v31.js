@@ -9475,6 +9475,30 @@ stopMemoryMaintenance() {
 
     reset() {
 
+       reset() {
+
+    /*
+     * إيقاف صيانة الذاكرة قبل إعادة التهيئة
+     */
+
+    try {
+
+        this.stopMemoryMaintenance();
+
+    } catch (error) {
+
+        console.warn(
+
+            "[StormTracking] Unable to stop memory maintenance during reset:",
+
+            error
+
+        );
+
+    }
+
+    // بقية كود reset الحالي...
+
         this.trackingInProgress =
             false;
 
