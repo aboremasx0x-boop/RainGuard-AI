@@ -1555,13 +1555,25 @@
             return normalizedError;
         }
 
+                /* ==================================================================
+         * Event system
+         * ================================================================== */
+
         emit(
             eventName,
-            payload
+            payload = {},
+            options = {}
         ) {
 
-            this.sequence.event += 1;
+            const normalizedName =
+                String(eventName || "")
+                    .trim();
 
+            if (!normalizedName) {
+                return null;
+            }
+
+            this.sequence.event += 1;
             this.statistics.totalEventsEmitted += 1;
 
             const event = {
@@ -1570,30 +1582,43 @@
                     this.sequence.event,
 
                 name:
-                    String(eventName || ""),
+                    normalizedName,
 
                 timestamp:
                     this.clock.now(),
 
+                source:
+                    this.name,
+
+                version:
+                    this.version,
+
+                instanceId:
+                    this.instanceId,
+
                 payload:
+                    this.clonePlainValue(payload),
+
+                metadata:
                     this.clonePlainValue(
-                        payload
+                        options.metadata || {}
                     )
             };
 
             if (
-                this.config.enableInternalEventHistory
+                this.config.enableInternalEventHistory === true
             ) {
 
-                this.internalEventHistory.push(
-                    event
-                );
+                this.internalEventHistory.push(event);
 
                 const maximum =
                     Number.isFinite(
                         this.config.maximumEventHistory
                     )
-                        ? this.config.maximumEventHistory
+                        ? Math.max(
+                            1,
+                            this.config.maximumEventHistory
+                        )
                         : DEFAULT_MAXIMUM_EVENT_HISTORY;
 
                 if (
@@ -1608,63 +1633,2072 @@
                 }
             }
 
+            this.dispatchInternalEvent(
+                normalizedName,
+                event
+            );
+
+            if (
+                this.config.useExternalEventBus === true &&
+                options.external !== false
+            ) {
+                this.dispatchExternalEvent(
+                    normalizedName,
+                    event
+                );
+            }
+
+            if (
+                this.config.emitWindowEvents === true &&
+                options.window !== false
+            ) {
+                this.dispatchWindowEvent(
+                    normalizedName,
+                    event
+                );
+            }
+
             return event;
         }
 
-        on() {
-            return () => {};
+        dispatchInternalEvent(
+            eventName,
+            event
+        ) {
+
+            const persistentListeners =
+                this.listeners.get(eventName);
+
+            if (
+                persistentListeners instanceof Set
+            ) {
+
+                for (
+                    const listener
+                    of [...persistentListeners]
+                ) {
+
+                    try {
+                        listener(
+                            event.payload,
+                            event
+                        );
+                    } catch (error) {
+                        this.captureError(
+                            error,
+                            `event-listener:${eventName}`
+                        );
+                    }
+                }
+            }
+
+            const singleUseListeners =
+                this.onceListeners.get(eventName);
+
+            if (
+                singleUseListeners instanceof Set
+            ) {
+
+                this.onceListeners.delete(eventName);
+
+                for (
+                    const listener
+                    of [...singleUseListeners]
+                ) {
+
+                    try {
+                        listener(
+                            event.payload,
+                            event
+                        );
+                    } catch (error) {
+                        this.captureError(
+                            error,
+                            `once-listener:${eventName}`
+                        );
+                    }
+                }
+            }
+
+            const wildcardListeners =
+                this.listeners.get("*");
+
+            if (
+                wildcardListeners instanceof Set
+            ) {
+
+                for (
+                    const listener
+                    of [...wildcardListeners]
+                ) {
+
+                    try {
+                        listener(
+                            event.payload,
+                            event
+                        );
+                    } catch (error) {
+                        this.captureError(
+                            error,
+                            "event-listener:wildcard"
+                        );
+                    }
+                }
+            }
         }
 
-        off() {
+        dispatchExternalEvent(
+            eventName,
+            event
+        ) {
+
+            const bus =
+                this.externalEventBus;
+
+            if (!bus) {
+                return false;
+            }
+
+            try {
+
+                if (
+                    typeof bus.emit === "function"
+                ) {
+                    bus.emit(
+                        eventName,
+                        event.payload,
+                        event
+                    );
+
+                    return true;
+                }
+
+                if (
+                    typeof bus.publish === "function"
+                ) {
+                    bus.publish(
+                        eventName,
+                        event
+                    );
+
+                    return true;
+                }
+
+                if (
+                    typeof bus.dispatch === "function"
+                ) {
+                    bus.dispatch(
+                        eventName,
+                        event
+                    );
+
+                    return true;
+                }
+
+                if (
+                    typeof bus.dispatchEvent === "function" &&
+                    typeof CustomEvent !== "undefined"
+                ) {
+
+                    bus.dispatchEvent(
+                        new CustomEvent(
+                            eventName,
+                            {
+                                detail: event
+                            }
+                        )
+                    );
+
+                    return true;
+                }
+
+            } catch (error) {
+                this.captureError(
+                    error,
+                    `external-event:${eventName}`
+                );
+            }
+
             return false;
         }
 
-        once() {
-            return () => {};
+        dispatchWindowEvent(
+            eventName,
+            event
+        ) {
+
+            if (
+                typeof globalScope?.dispatchEvent !==
+                    "function" ||
+                typeof CustomEvent === "undefined"
+            ) {
+                return false;
+            }
+
+            try {
+
+                globalScope.dispatchEvent(
+                    new CustomEvent(
+                        eventName,
+                        {
+                            detail: event
+                        }
+                    )
+                );
+
+                return true;
+
+            } catch (error) {
+
+                this.captureError(
+                    error,
+                    `window-event:${eventName}`
+                );
+
+                return false;
+            }
         }
+
+        on(
+            eventName,
+            listener
+        ) {
+
+            const normalizedName =
+                String(eventName || "")
+                    .trim();
+
+            if (
+                !normalizedName ||
+                typeof listener !== "function"
+            ) {
+                return () => {};
+            }
+
+            if (
+                !this.listeners.has(normalizedName)
+            ) {
+                this.listeners.set(
+                    normalizedName,
+                    new Set()
+                );
+            }
+
+            this.listeners
+                .get(normalizedName)
+                .add(listener);
+
+            this.refreshMemoryMetrics();
+
+            return () => {
+                this.off(
+                    normalizedName,
+                    listener
+                );
+            };
+        }
+
+        once(
+            eventName,
+            listener
+        ) {
+
+            const normalizedName =
+                String(eventName || "")
+                    .trim();
+
+            if (
+                !normalizedName ||
+                typeof listener !== "function"
+            ) {
+                return () => {};
+            }
+
+            if (
+                !this.onceListeners.has(normalizedName)
+            ) {
+                this.onceListeners.set(
+                    normalizedName,
+                    new Set()
+                );
+            }
+
+            this.onceListeners
+                .get(normalizedName)
+                .add(listener);
+
+            this.refreshMemoryMetrics();
+
+            return () => {
+
+                const listeners =
+                    this.onceListeners.get(
+                        normalizedName
+                    );
+
+                if (
+                    !(listeners instanceof Set)
+                ) {
+                    return false;
+                }
+
+                const deleted =
+                    listeners.delete(listener);
+
+                if (
+                    listeners.size === 0
+                ) {
+                    this.onceListeners.delete(
+                        normalizedName
+                    );
+                }
+
+                this.refreshMemoryMetrics();
+
+                return deleted;
+            };
+        }
+
+        off(
+            eventName,
+            listener
+        ) {
+
+            const normalizedName =
+                String(eventName || "")
+                    .trim();
+
+            if (!normalizedName) {
+                return false;
+            }
+
+            let deleted =
+                false;
+
+            const persistentListeners =
+                this.listeners.get(normalizedName);
+
+            if (
+                persistentListeners instanceof Set
+            ) {
+
+                if (
+                    typeof listener === "function"
+                ) {
+                    deleted =
+                        persistentListeners.delete(
+                            listener
+                        ) || deleted;
+                } else {
+                    deleted =
+                        persistentListeners.size > 0 ||
+                        deleted;
+
+                    persistentListeners.clear();
+                }
+
+                if (
+                    persistentListeners.size === 0
+                ) {
+                    this.listeners.delete(
+                        normalizedName
+                    );
+                }
+            }
+
+            const singleUseListeners =
+                this.onceListeners.get(
+                    normalizedName
+                );
+
+            if (
+                singleUseListeners instanceof Set
+            ) {
+
+                if (
+                    typeof listener === "function"
+                ) {
+                    deleted =
+                        singleUseListeners.delete(
+                            listener
+                        ) || deleted;
+                } else {
+                    deleted =
+                        singleUseListeners.size > 0 ||
+                        deleted;
+
+                    singleUseListeners.clear();
+                }
+
+                if (
+                    singleUseListeners.size === 0
+                ) {
+                    this.onceListeners.delete(
+                        normalizedName
+                    );
+                }
+            }
+
+            this.refreshMemoryMetrics();
+
+            return deleted;
+        }
+
+        removeAllListeners(
+            eventName = null
+        ) {
+
+            if (
+                eventName !== null &&
+                eventName !== undefined
+            ) {
+
+                const normalizedName =
+                    String(eventName)
+                        .trim();
+
+                this.listeners.delete(
+                    normalizedName
+                );
+
+                this.onceListeners.delete(
+                    normalizedName
+                );
+
+                this.refreshMemoryMetrics();
+
+                return true;
+            }
+
+            this.listeners.clear();
+            this.onceListeners.clear();
+
+            this.refreshMemoryMetrics();
+
+            return true;
+        }
+
+        /* ==================================================================
+         * Logger
+         * ================================================================== */
+
+        shouldLog(level) {
+
+            const normalizedLevel =
+                this.normalizeLogLevel(level);
+
+            const currentPriority =
+                ENGINE_LOG_LEVEL_PRIORITY[
+                    this.logLevel
+                ] ??
+                ENGINE_LOG_LEVEL_PRIORITY.info;
+
+            const requestedPriority =
+                ENGINE_LOG_LEVEL_PRIORITY[
+                    normalizedLevel
+                ] ??
+                ENGINE_LOG_LEVEL_PRIORITY.info;
+
+            return (
+                requestedPriority >=
+                    currentPriority &&
+                this.logLevel !==
+                    ENGINE_LOG_LEVELS.SILENT
+            );
+        }
+
+        writeLog(
+            level,
+            message,
+            context = {}
+        ) {
+
+            const normalizedLevel =
+                this.normalizeLogLevel(level);
+
+            const entry = {
+
+                timestamp:
+                    this.clock.now(),
+
+                level:
+                    normalizedLevel,
+
+                engine:
+                    this.name,
+
+                version:
+                    this.version,
+
+                instanceId:
+                    this.instanceId,
+
+                message:
+                    String(message || ""),
+
+                context:
+                    this.clonePlainValue(
+                        context
+                    )
+            };
+
+            this.logHistory.push(entry);
+
+            const maximum =
+                Number.isFinite(
+                    this.config.maximumLogHistory
+                )
+                    ? Math.max(
+                        1,
+                        this.config.maximumLogHistory
+                    )
+                    : DEFAULT_MAXIMUM_LOG_HISTORY;
+
+            if (
+                this.logHistory.length >
+                maximum
+            ) {
+                this.logHistory.splice(
+                    0,
+                    this.logHistory.length -
+                    maximum
+                );
+            }
+
+            if (
+                this.externalLogger &&
+                typeof this.externalLogger[
+                    normalizedLevel
+                ] === "function"
+            ) {
+
+                try {
+                    this.externalLogger[
+                        normalizedLevel
+                    ](
+                        entry.message,
+                        entry.context,
+                        entry
+                    );
+
+                    return entry;
+                } catch (error) {
+                    this.captureError(
+                        error,
+                        "external-logger"
+                    );
+                }
+            }
+
+            if (
+                !this.shouldLog(
+                    normalizedLevel
+                )
+            ) {
+                return entry;
+            }
+
+            const prefix =
+                `[RainGuard V32 Rain Arrival]`;
+
+            const consoleMethod =
+                normalizedLevel ===
+                    ENGINE_LOG_LEVELS.TRACE
+                    ? "debug"
+                    : normalizedLevel;
+
+            const outputMethod =
+                typeof console?.[
+                    consoleMethod
+                ] === "function"
+                    ? consoleMethod
+                    : "log";
+
+            console[outputMethod](
+                prefix,
+                entry.message,
+                entry.context
+            );
+
+            return entry;
+        }
+
+        log(
+            message,
+            context = {}
+        ) {
+            return this.writeLog(
+                ENGINE_LOG_LEVELS.INFO,
+                message,
+                context
+            );
+        }
+
+        info(
+            message,
+            context = {}
+        ) {
+            return this.writeLog(
+                ENGINE_LOG_LEVELS.INFO,
+                message,
+                context
+            );
+        }
+
+        warn(
+            message,
+            context = {}
+        ) {
+
+            this.sequence.warning += 1;
+            this.statistics.totalWarnings += 1;
+
+            const warning = {
+
+                id:
+                    this.sequence.warning,
+
+                timestamp:
+                    this.clock.now(),
+
+                message:
+                    String(message || ""),
+
+                context:
+                    this.clonePlainValue(
+                        context
+                    )
+            };
+
+            this.lastWarning =
+                warning;
+
+            this.warningHistory.push(
+                warning
+            );
+
+            const maximum =
+                Number.isFinite(
+                    this.config.maximumErrorHistory
+                )
+                    ? Math.max(
+                        1,
+                        this.config.maximumErrorHistory
+                    )
+                    : DEFAULT_MAXIMUM_ERROR_HISTORY;
+
+            if (
+                this.warningHistory.length >
+                maximum
+            ) {
+                this.warningHistory.splice(
+                    0,
+                    this.warningHistory.length -
+                    maximum
+                );
+            }
+
+            this.status.warnings =
+                this.statistics.totalWarnings;
+
+            this.emit(
+                ENGINE_EVENT_NAMES.WARNING,
+                warning
+            );
+
+            return this.writeLog(
+                ENGINE_LOG_LEVELS.WARN,
+                message,
+                context
+            );
+        }
+
+        error(
+            message,
+            context = {}
+        ) {
+
+            const normalizedError =
+                message instanceof Error
+                    ? message
+                    : new Error(
+                        String(message || "Unknown error")
+                    );
+
+            const captured =
+                this.captureError(
+                    normalizedError,
+                    context?.operation ||
+                    context?.context ||
+                    "engine"
+                );
+
+            this.status.healthy =
+                false;
+
+            this.emit(
+                ENGINE_EVENT_NAMES.ERROR,
+                captured
+            );
+
+            this.writeLog(
+                ENGINE_LOG_LEVELS.ERROR,
+                captured.message,
+                {
+                    ...context,
+                    error:
+                        captured
+                }
+            );
+
+            return captured;
+        }
+
+        debug(
+            message,
+            context = {}
+        ) {
+
+            if (
+                this.debugEnabled !== true
+            ) {
+                return null;
+            }
+
+            return this.writeLog(
+                ENGINE_LOG_LEVELS.DEBUG,
+                message,
+                context
+            );
+        }
+
+        trace(
+            message,
+            context = {}
+        ) {
+
+            if (
+                this.debugEnabled !== true
+            ) {
+                return null;
+            }
+
+            return this.writeLog(
+                ENGINE_LOG_LEVELS.TRACE,
+                message,
+                context
+            );
+        }
+
+        setLogLevel(level) {
+
+            this.logLevel =
+                this.normalizeLogLevel(level);
+
+            this.config.logLevel =
+                this.logLevel;
+
+            return this.logLevel;
+        }
+
+        setDebug(enabled) {
+
+            this.debugEnabled =
+                Boolean(enabled);
+
+            this.config.debug =
+                this.debugEnabled;
+
+            return this.debugEnabled;
+        }
+
+        getLogs(
+            limit = 100,
+            level = null
+        ) {
+
+            const safeLimit =
+                Number.isFinite(Number(limit))
+                    ? Math.max(
+                        1,
+                        Math.floor(Number(limit))
+                    )
+                    : 100;
+
+            let records =
+                [...this.logHistory];
+
+            if (level) {
+
+                const normalizedLevel =
+                    this.normalizeLogLevel(level);
+
+                records =
+                    records.filter(
+                        (entry) =>
+                            entry.level ===
+                            normalizedLevel
+                    );
+            }
+
+            return this.clonePlainValue(
+                records.slice(-safeLimit)
+            );
+        }
+
+        /* ==================================================================
+         * Initialization
+         * ================================================================== */
+
+        async initialize() {
+
+            if (this.destroyed) {
+                throw new Error(
+                    "Cannot initialize a destroyed engine."
+                );
+            }
+
+            if (this.initialized) {
+                return this.getStatus();
+            }
+
+            if (
+                this.initializing &&
+                this.pendingStartPromise
+            ) {
+                return this.pendingStartPromise;
+            }
+
+            this.initializing =
+                true;
+
+            this.updateRuntimeState(
+                ENGINE_RUNTIME_STATES.INITIALIZING,
+                {
+                    reason:
+                        "initialize"
+                }
+            );
+
+            try {
+
+                this.validateConfiguration();
+
+                this.status.healthy =
+                    true;
+
+                this.initialized =
+                    true;
+
+                this.status.initialized =
+                    true;
+
+                this.initializing =
+                    false;
+
+                this.updateRuntimeState(
+                    ENGINE_RUNTIME_STATES.READY,
+                    {
+                        reason:
+                            "initialization-completed"
+                    }
+                );
+
+                this.recordOperation(
+                    "engine-initialized",
+                    {
+                        instanceId:
+                            this.instanceId
+                    }
+                );
+
+                this.emit(
+                    ENGINE_EVENT_NAMES.INITIALIZED,
+                    this.getStatus()
+                );
+
+                this.debug(
+                    "Engine initialized successfully.",
+                    {
+                        instanceId:
+                            this.instanceId
+                    }
+                );
+
+                return this.getStatus();
+
+            } catch (error) {
+
+                this.initializing =
+                    false;
+
+                this.initialized =
+                    false;
+
+                this.status.initialized =
+                    false;
+
+                this.updateRuntimeState(
+                    ENGINE_RUNTIME_STATES.ERROR,
+                    {
+                        reason:
+                            "initialization-failed"
+                    }
+                );
+
+                this.error(
+                    error,
+                    {
+                        operation:
+                            "initialize"
+                    }
+                );
+
+                throw error;
+            }
+        }
+
+        validateConfiguration() {
+
+            const horizons =
+                Array.isArray(
+                    this.config.predictionHorizonsMinutes
+                )
+                    ? this.config
+                        .predictionHorizonsMinutes
+                    : [];
+
+            const normalizedHorizons =
+                [...new Set(
+                    horizons
+                        .map(Number)
+                        .filter(
+                            (value) =>
+                                Number.isFinite(value) &&
+                                value > 0 &&
+                                value <=
+                                    this.config
+                                        .maximumPredictionMinutes
+                        )
+                        .map(
+                            (value) =>
+                                Math.round(value)
+                        )
+                )]
+                    .sort(
+                        (a, b) => a - b
+                    );
+
+            if (
+                normalizedHorizons.length === 0
+            ) {
+                throw new Error(
+                    "predictionHorizonsMinutes must contain at least one valid horizon."
+                );
+            }
+
+            this.config.predictionHorizonsMinutes =
+                normalizedHorizons;
+
+            this.config.updateIntervalMs =
+                Math.max(
+                    1000,
+                    Number(
+                        this.config.updateIntervalMs
+                    ) ||
+                    DEFAULT_UPDATE_INTERVAL_MS
+                );
+
+            this.config.cleanupIntervalMs =
+                Math.max(
+                    1000,
+                    Number(
+                        this.config.cleanupIntervalMs
+                    ) ||
+                    DEFAULT_CLEANUP_INTERVAL_MS
+                );
+
+            this.config.staleCellMinutes =
+                Math.max(
+                    1,
+                    Number(
+                        this.config.staleCellMinutes
+                    ) ||
+                    DEFAULT_STALE_CELL_MINUTES
+                );
+
+            this.config.minimumTrackingPoints =
+                Math.max(
+                    1,
+                    Math.floor(
+                        Number(
+                            this.config
+                                .minimumTrackingPoints
+                        ) ||
+                        DEFAULT_MINIMUM_TRACKING_POINTS
+                    )
+                );
+
+            this.config.maximumTrackingPoints =
+                Math.max(
+                    this.config.minimumTrackingPoints,
+                    Math.floor(
+                        Number(
+                            this.config
+                                .maximumTrackingPoints
+                        ) ||
+                        DEFAULT_MAXIMUM_TRACKING_POINTS
+                    )
+                );
+
+            this.config.minimumConfidence =
+                Math.max(
+                    MINIMUM_CONFIDENCE,
+                    Math.min(
+                        MAXIMUM_CONFIDENCE,
+                        Number(
+                            this.config
+                                .minimumConfidence
+                        ) || 0
+                    )
+                );
+
+            this.config.maximumConfidence =
+                Math.max(
+                    this.config.minimumConfidence,
+                    Math.min(
+                        MAXIMUM_CONFIDENCE,
+                        Number(
+                            this.config
+                                .maximumConfidence
+                        ) ||
+                        MAXIMUM_CONFIDENCE
+                    )
+                );
+
+            return true;
+        }
+
+        /* ==================================================================
+         * Lifecycle
+         * ================================================================== */
 
         async start() {
-            throw new Error(
-                "start() will be implemented in Stage 1 Part 1B."
-            );
+
+            if (this.destroyed) {
+                throw new Error(
+                    "Cannot start a destroyed engine."
+                );
+            }
+
+            if (
+                this.running &&
+                !this.paused
+            ) {
+                return this.getStatus();
+            }
+
+            if (this.pendingStartPromise) {
+                return this.pendingStartPromise;
+            }
+
+            this.pendingStartPromise =
+                (async () => {
+
+                    try {
+
+                        if (!this.initialized) {
+                            await this.initialize();
+                        }
+
+                        this.running =
+                            true;
+
+                        this.paused =
+                            false;
+
+                        this.stopping =
+                            false;
+
+                        this.startedAt =
+                            this.startedAt ||
+                            this.clock.now();
+
+                        this.stoppedAt =
+                            null;
+
+                        this.pausedAt =
+                            null;
+
+                        this.resumedAt =
+                            null;
+
+                        this.status.startedAt =
+                            this.startedAt;
+
+                        this.status.stoppedAt =
+                            null;
+
+                        this.status.pausedAt =
+                            null;
+
+                        this.statistics.totalStarts += 1;
+
+                        this.updateRuntimeState(
+                            ENGINE_RUNTIME_STATES.RUNNING,
+                            {
+                                reason:
+                                    "start"
+                            }
+                        );
+
+                        this.startRuntimeTimers();
+
+                        this.recordOperation(
+                            "engine-started",
+                            {
+                                startedAt:
+                                    this.startedAt
+                            }
+                        );
+
+                        this.emit(
+                            ENGINE_EVENT_NAMES.STARTED,
+                            this.getStatus()
+                        );
+
+                        this.log(
+                            "Rain Arrival Prediction Engine started.",
+                            {
+                                version:
+                                    this.version,
+
+                                instanceId:
+                                    this.instanceId
+                            }
+                        );
+
+                        return this.getStatus();
+
+                    } catch (error) {
+
+                        this.running =
+                            false;
+
+                        this.paused =
+                            false;
+
+                        this.updateRuntimeState(
+                            ENGINE_RUNTIME_STATES.ERROR,
+                            {
+                                reason:
+                                    "start-failed"
+                            }
+                        );
+
+                        this.error(
+                            error,
+                            {
+                                operation:
+                                    "start"
+                            }
+                        );
+
+                        throw error;
+
+                    } finally {
+
+                        this.pendingStartPromise =
+                            null;
+                    }
+                })();
+
+            return this.pendingStartPromise;
         }
 
-        async stop() {
-            throw new Error(
-                "stop() will be implemented in Stage 1 Part 1B."
-            );
+        async stop(
+            options = {}
+        ) {
+
+            if (this.destroyed) {
+                return this.getStatus();
+            }
+
+            if (
+                !this.running &&
+                this.runtimeState ===
+                    ENGINE_RUNTIME_STATES.STOPPED
+            ) {
+                return this.getStatus();
+            }
+
+            if (this.pendingStopPromise) {
+                return this.pendingStopPromise;
+            }
+
+            this.pendingStopPromise =
+                (async () => {
+
+                    try {
+
+                        this.stopping =
+                            true;
+
+                        this.stopRuntimeTimers();
+
+                        this.running =
+                            false;
+
+                        this.paused =
+                            false;
+
+                        this.stoppedAt =
+                            this.clock.now();
+
+                        this.status.stoppedAt =
+                            this.stoppedAt;
+
+                        this.statistics.totalStops += 1;
+
+                        this.updateRuntimeState(
+                            ENGINE_RUNTIME_STATES.STOPPED,
+                            {
+                                reason:
+                                    options.reason ||
+                                    "stop"
+                            }
+                        );
+
+                        if (
+                            options.clear === true ||
+                            (
+                                options.clear ===
+                                    undefined &&
+                                this.config
+                                    .preserveStateOnStop ===
+                                    false
+                            )
+                        ) {
+                            this.clear({
+                                preserveCities:
+                                    true,
+
+                                preserveRegions:
+                                    true,
+
+                                preserveListeners:
+                                    true
+                            });
+                        }
+
+                        this.recordOperation(
+                            "engine-stopped",
+                            {
+                                stoppedAt:
+                                    this.stoppedAt,
+
+                                reason:
+                                    options.reason ||
+                                    "stop"
+                            }
+                        );
+
+                        this.emit(
+                            ENGINE_EVENT_NAMES.STOPPED,
+                            this.getStatus()
+                        );
+
+                        this.log(
+                            "Rain Arrival Prediction Engine stopped.",
+                            {
+                                stoppedAt:
+                                    this.stoppedAt
+                            }
+                        );
+
+                        return this.getStatus();
+
+                    } catch (error) {
+
+                        this.error(
+                            error,
+                            {
+                                operation:
+                                    "stop"
+                            }
+                        );
+
+                        throw error;
+
+                    } finally {
+
+                        this.stopping =
+                            false;
+
+                        this.pendingStopPromise =
+                            null;
+                    }
+                })();
+
+            return this.pendingStopPromise;
         }
 
         async pause() {
-            throw new Error(
-                "pause() will be implemented in Stage 1 Part 1B."
+
+            if (this.destroyed) {
+                throw new Error(
+                    "Cannot pause a destroyed engine."
+                );
+            }
+
+            if (!this.running) {
+                throw new Error(
+                    "Engine must be running before it can be paused."
+                );
+            }
+
+            if (this.paused) {
+                return this.getStatus();
+            }
+
+            this.stopRuntimeTimers();
+
+            this.paused =
+                true;
+
+            this.running =
+                false;
+
+            this.pausedAt =
+                this.clock.now();
+
+            this.status.pausedAt =
+                this.pausedAt;
+
+            this.statistics.totalPauses += 1;
+
+            this.updateRuntimeState(
+                ENGINE_RUNTIME_STATES.PAUSED,
+                {
+                    reason:
+                        "pause"
+                }
             );
+
+            this.recordOperation(
+                "engine-paused",
+                {
+                    pausedAt:
+                        this.pausedAt
+                }
+            );
+
+            this.emit(
+                ENGINE_EVENT_NAMES.PAUSED,
+                this.getStatus()
+            );
+
+            this.log(
+                "Rain Arrival Prediction Engine paused.",
+                {
+                    pausedAt:
+                        this.pausedAt
+                }
+            );
+
+            return this.getStatus();
         }
 
         async resume() {
-            throw new Error(
-                "resume() will be implemented in Stage 1 Part 1B."
+
+            if (this.destroyed) {
+                throw new Error(
+                    "Cannot resume a destroyed engine."
+                );
+            }
+
+            if (!this.paused) {
+
+                if (this.running) {
+                    return this.getStatus();
+                }
+
+                return this.start();
+            }
+
+            this.paused =
+                false;
+
+            this.running =
+                true;
+
+            this.resumedAt =
+                this.clock.now();
+
+            this.status.resumedAt =
+                this.resumedAt;
+
+            this.statistics.totalResumes += 1;
+
+            this.updateRuntimeState(
+                ENGINE_RUNTIME_STATES.RUNNING,
+                {
+                    reason:
+                        "resume"
+                }
+            );
+
+            this.startRuntimeTimers();
+
+            this.recordOperation(
+                "engine-resumed",
+                {
+                    resumedAt:
+                        this.resumedAt
+                }
+            );
+
+            this.emit(
+                ENGINE_EVENT_NAMES.RESUMED,
+                this.getStatus()
+            );
+
+            this.log(
+                "Rain Arrival Prediction Engine resumed.",
+                {
+                    resumedAt:
+                        this.resumedAt
+                }
+            );
+
+            return this.getStatus();
+        }
+
+        async restart(
+            options = {}
+        ) {
+
+            if (this.destroyed) {
+                throw new Error(
+                    "Cannot restart a destroyed engine."
+                );
+            }
+
+            if (this.restartInProgress) {
+                return this.getStatus();
+            }
+
+            this.restartInProgress =
+                true;
+
+            try {
+
+                await this.stop({
+                    reason:
+                        "restart",
+
+                    clear:
+                        options.clear === true
+                });
+
+                if (
+                    Number.isFinite(
+                        Number(options.delayMs)
+                    ) &&
+                    Number(options.delayMs) > 0
+                ) {
+                    await this.delay(
+                        Number(options.delayMs)
+                    );
+                }
+
+                const result =
+                    await this.start();
+
+                this.statistics.totalRestarts += 1;
+
+                this.recordOperation(
+                    "engine-restarted",
+                    {
+                        timestamp:
+                            this.clock.now()
+                    }
+                );
+
+                this.emit(
+                    ENGINE_EVENT_NAMES.RESTARTED,
+                    result
+                );
+
+                return result;
+
+            } finally {
+
+                this.restartInProgress =
+                    false;
+            }
+        }
+
+        /* ==================================================================
+         * Runtime timers
+         * ================================================================== */
+
+        startRuntimeTimers() {
+
+            this.stopRuntimeTimers();
+
+            const updateInterval =
+                Math.max(
+                    1000,
+                    Number(
+                        this.config.updateIntervalMs
+                    ) ||
+                    DEFAULT_UPDATE_INTERVAL_MS
+                );
+
+            this.heartbeatTimer =
+                globalScope.setInterval(
+                    () => {
+
+                        try {
+                            this.runHeartbeat();
+                        } catch (error) {
+                            this.error(
+                                error,
+                                {
+                                    operation:
+                                        "heartbeat"
+                                }
+                            );
+                        }
+                    },
+                    updateInterval
+                );
+
+            if (
+                this.config.autoCleanup === true
+            ) {
+
+                const cleanupInterval =
+                    Math.max(
+                        1000,
+                        Number(
+                            this.config.cleanupIntervalMs
+                        ) ||
+                        DEFAULT_CLEANUP_INTERVAL_MS
+                    );
+
+                this.cleanupTimer =
+                    globalScope.setInterval(
+                        () => {
+
+                            try {
+
+                                if (
+                                    typeof this
+                                        .cleanupStaleRuntimeData ===
+                                    "function"
+                                ) {
+                                    this.cleanupStaleRuntimeData();
+                                }
+
+                            } catch (error) {
+                                this.error(
+                                    error,
+                                    {
+                                        operation:
+                                            "automatic-cleanup"
+                                    }
+                                );
+                            }
+                        },
+                        cleanupInterval
+                    );
+            }
+
+            return true;
+        }
+
+        stopRuntimeTimers() {
+
+            if (this.updateTimer) {
+                globalScope.clearInterval(
+                    this.updateTimer
+                );
+
+                globalScope.clearTimeout(
+                    this.updateTimer
+                );
+
+                this.updateTimer =
+                    null;
+            }
+
+            if (this.cleanupTimer) {
+                globalScope.clearInterval(
+                    this.cleanupTimer
+                );
+
+                globalScope.clearTimeout(
+                    this.cleanupTimer
+                );
+
+                this.cleanupTimer =
+                    null;
+            }
+
+            if (this.heartbeatTimer) {
+                globalScope.clearInterval(
+                    this.heartbeatTimer
+                );
+
+                globalScope.clearTimeout(
+                    this.heartbeatTimer
+                );
+
+                this.heartbeatTimer =
+                    null;
+            }
+
+            return true;
+        }
+
+        runHeartbeat() {
+
+            if (
+                !this.running ||
+                this.paused ||
+                this.destroyed
+            ) {
+                return false;
+            }
+
+            const now =
+                this.clock.now();
+
+            this.lastUpdateAt =
+                now;
+
+            this.status.lastUpdateAt =
+                now;
+
+            this.updateUptime();
+            this.refreshStatusCounters();
+            this.refreshMemoryMetrics();
+
+            this.emit(
+                ENGINE_EVENT_NAMES.STATUS_CHANGED,
+                this.getStatus(),
+                {
+                    window:
+                        false
+                }
+            );
+
+            return true;
+        }
+
+        updateUptime() {
+
+            const now =
+                this.clock.now();
+
+            const uptime =
+                this.startedAt
+                    ? Math.max(
+                        0,
+                        now -
+                        this.startedAt
+                    )
+                    : 0;
+
+            this.status.uptimeMs =
+                uptime;
+
+            this.metrics.engineUptimeMs =
+                uptime;
+
+            return uptime;
+        }
+
+        /* ==================================================================
+         * Status and metrics
+         * ================================================================== */
+
+        isRunning() {
+            return (
+                this.running === true &&
+                this.paused === false &&
+                this.destroyed === false
             );
         }
 
-        async restart() {
-            throw new Error(
-                "restart() will be implemented in Stage 1 Part 1B."
+        isPaused() {
+            return (
+                this.paused === true &&
+                this.destroyed === false
             );
         }
 
-        clear() {
-            throw new Error(
-                "clear() will be implemented in Stage 1 Part 1C."
+        isDestroyed() {
+            return this.destroyed === true;
+        }
+
+        isReady() {
+            return (
+                this.initialized === true &&
+                this.destroyed === false &&
+                this.runtimeState !==
+                    ENGINE_RUNTIME_STATES.ERROR
             );
         }
 
-        async destroy() {
-            throw new Error(
-                "destroy() will be implemented in Stage 1 Part 1C."
+        getVersion() {
+
+            return {
+
+                name:
+                    this.name,
+
+                version:
+                    this.version,
+
+                build:
+                    this.build,
+
+                namespace:
+                    this.namespace,
+
+                instanceId:
+                    this.instanceId
+            };
+        }
+
+        getStatus() {
+
+            this.updateUptime();
+            this.refreshStatusCounters();
+            this.refreshMemoryMetrics();
+
+            const result = {
+
+                ...this.status,
+
+                state:
+                    this.runtimeState,
+
+                running:
+                    this.isRunning(),
+
+                paused:
+                    this.isPaused(),
+
+                initialized:
+                    this.initialized,
+
+                destroyed:
+                    this.destroyed,
+
+                version:
+                    this.version,
+
+                build:
+                    this.build,
+
+                instanceId:
+                    this.instanceId,
+
+                lastError:
+                    this.clonePlainValue(
+                        this.lastError
+                    ),
+
+                lastWarning:
+                    this.clonePlainValue(
+                        this.lastWarning
+                    )
+            };
+
+            return this.clonePublicResult(
+                result
             );
         }
-    }
+
+        getStatistics() {
+
+            return this.clonePublicResult({
+
+                ...this.statistics,
+
+                activeCells:
+                    this.cells.size,
+
+                registeredCities:
+                    this.cities.size,
+
+                registeredRegions:
+                    this.regions.size,
+
+                eventHistorySize:
+                    this.internalEventHistory
+                        .length,
+
+                errorHistorySize:
+                    this.errorHistory.length,
+
+                warningHistorySize:
+                    this.warningHistory.length,
+
+                logHistorySize:
+                    this.logHistory.length
+            });
+        }
+
+        getMetrics() {
+
+            this.updateUptime();
+            this.refreshMemoryMetrics();
+
+            return this.clonePublicResult(
+                this.metrics
+            );
+        }
+
+        getHealth() {
+
+            const healthy =
+                this.destroyed === false &&
+                this.runtimeState !==
+                    ENGINE_RUNTIME_STATES.ERROR &&
+                this.status.healthy !== false;
+
+            return this.clonePublicResult({
+
+                healthy,
+
+                state:
+                    this.runtimeState,
+
+                running:
+                    this.isRunning(),
+
+                initialized:
+                    this.initialized,
+
+                destroyed:
+                    this.destroyed,
+
+                errors:
+                    this.statistics.totalErrors,
+
+                warnings:
+                    this.statistics.totalWarnings,
+
+                lastError:
+                    this.lastError,
+
+                lastUpdateAt:
+                    this.lastUpdateAt,
+
+                uptimeMs:
+                    this.updateUptime()
+            });
+        }
+
+        refreshStatusCounters() {
+
+            this.status.cellsTracked =
+                this.cells.size;
+
+            this.status.citiesRegistered =
+                this.cities.size;
+
+            this.status.regionsRegistered =
+                this.regions.size;
+
+            this.status.activePredictions =
+                this.predictionHistory.size;
+
+            this.status.pendingOperations =
+                this.pendingOperations.size;
+
+            this.status.errors =
+                this.statistics.totalErrors;
+
+            this.status.warnings =
+                this.statistics.totalWarnings;
+
+            return this.status;
+        }
+
+        refreshMemoryMetrics() {
+
+            const historyStores = [
+
+                this.cellHistory,
+                this.cityImpactHistory,
+                this.arrivalHistory,
+                this.motionHistory,
+                this.weightHistory,
+                this.predictionHistory,
+                this.trackingHistory,
+                this.sourceQualityHistory,
+                this.finalMotionHistory,
+                this.corridorHistory
+            ];
+
+            const totalHistoryRecords =
+                historyStores.reduce(
+                    (
+                        total,
+                        store
+                    ) => {
+
+                        if (
+                            !(store instanceof Map)
+                        ) {
+                            return total;
+                        }
+
+                        let count =
+                            store.size;
+
+                        for (
+                            const value
+                            of store.values()
+                        ) {
+
+                            if (
+                                Array.isArray(value)
+                            ) {
+                                count +=
+                                    value.length;
+                            }
+                        }
+
+                        return total + count;
+                    },
+                    0
+                );
+
+            const listenerCount =
+                this.countListeners(
+                    this.listeners
+                ) +
+                this.countListeners(
+                    this.onceListeners
+                );
+
+            this.metrics.memory = {
+
+                cells:
+                    this.cells.size,
+
+                cities:
+                    this.cities.size,
+
+                regions:
+                    this.regions.size,
+
+                cache:
+                    this.cache.size,
+
+                histories:
+                    totalHistoryRecords,
+
+                listeners:
+                    listenerCount,
+
+                pendingOperations:
+                    this.pendingOperations.size
+            };
+
+            return this.metrics.memory;
+        }
+
+        countListeners(store) {
+
+            if (
+                !(store instanceof Map)
+            ) {
+                return 0;
+            }
+
+            let count =
+                0;
+
+            for (
+                const value
+                of store.values()
+            ) {
+
+                if (
+                    value instanceof Set
+                ) {
+                    count +=
+                        value.size;
+                }
+            }
+
+            return count;
+        }
+
+        clonePublicResult(value) {
+
+            const result =
+                this.clonePlainValue(value);
+
+            if (
+                this.config.freezePublicResults ===
+                true
+            ) {
+                return this.deepFreezeValue(
+                    result
+                );
+            }
+
+            return result;
+        }
+
+        deepFreezeValue(value) {
+
+            if (
+                !value ||
+                typeof value !== "object" ||
+                Object.isFrozen(value)
+            ) {
+                return value;
+            }
+
+            Object.freeze(value);
+
+            for (
+                const child
+                of Object.values(value)
+            ) {
+                this.deepFreezeValue(child);
+            }
+
+            return value;
+        }
+
+        delay(milliseconds = 0) {
+
+            const safeDelay =
+                Math.max(
+                    0,
+                    Number(milliseconds) || 0
+                );
+
+            return new Promise(
+                (resolve) => {
+                    globalScope.setTimeout(
+                        resolve,
+                        safeDelay
+                    );
+                }
+            );
+        }
 
     /* ======================================================================
      * Temporary export
