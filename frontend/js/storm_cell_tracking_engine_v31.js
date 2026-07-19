@@ -310,54 +310,70 @@ RG31.StormCellTrackingEngine = {
        INITIALIZATION
        ===================================================== */
 
-    init() {
+   init() {
 
-        if (
-            this.initialized
-        ) {
+    if (
+        this.initialized
+    ) {
 
-            return;
+        return;
 
-        }
+    }
 
-        this.initialized =
-            true;
+    this.initialized =
+        true;
 
-        this.loadState();
+    this.loadState();
 
-        this.bindEvents();
+    try {
 
-        this.writeLog(
-            "Storm Cell Tracking Engine V31 initialized."
+        this.startMemoryMaintenance();
+
+    } catch (error) {
+
+        console.warn(
+
+            "[StormTracking] Unable to start memory maintenance:",
+
+            error
+
         );
 
-        window.dispatchEvent(
+    }
 
-            new CustomEvent(
+    this.bindEvents();
 
-                "rg31:storm-cell-tracking-ready",
+    this.writeLog(
+        "Storm Cell Tracking Engine V31 initialized."
+    );
 
-                {
-                    detail: {
+    window.dispatchEvent(
 
-                        version:
-                            this.version,
+        new CustomEvent(
 
-                        activeCells:
-                            this.getActiveCells(),
+            "rg31:storm-cell-tracking-ready",
 
-                        timestamp:
-                            new Date()
-                                .toISOString()
+            {
+                detail: {
 
-                    }
+                    version:
+                        this.version,
+
+                    activeCells:
+                        this.getActiveCells(),
+
+                    timestamp:
+                        new Date()
+                            .toISOString()
+
                 }
+            }
 
-            )
+        )
 
-        );
+    );
 
-    },
+},
 
     /* =====================================================
        EVENT BINDINGS
@@ -7496,6 +7512,22 @@ runMemoryMaintenance(options = {}) {
 
 startMemoryMaintenance() {
 
+   /*
+ * منع تشغيل أكثر من دورة صيانة
+ */
+
+if (this.memoryMaintenanceRunning) {
+
+    console.info(
+        "[StormTracking] Memory maintenance is already running."
+    );
+
+    return false;
+
+}
+
+this.memoryMaintenanceRunning = true;
+
     /*
      * منع إنشاء أكثر من Timer
      */
@@ -7628,6 +7660,8 @@ stopMemoryMaintenance() {
         "[StormTracking] Memory maintenance stopped."
 
     );
+
+   this.memoryMaintenanceRunning = false;
 
     return {
 
