@@ -9475,8 +9475,6 @@ stopMemoryMaintenance() {
 
     reset() {
 
-       reset() {
-
     /*
      * إيقاف صيانة الذاكرة قبل إعادة التهيئة
      */
@@ -9566,30 +9564,48 @@ stopMemoryMaintenance() {
 
         window.dispatchEvent(
 
-            new CustomEvent(
+    new CustomEvent(
 
-                "rg31:storm-cell-tracking-reset",
+        "rg31:storm-cell-tracking-reset",
 
-                {
-                    detail: {
+        {
+            detail: {
 
-                        version:
-                            this.version,
+                version:
+                    this.version,
 
-                        timestamp:
-                            new Date()
-                                .toISOString()
+                timestamp:
+                    new Date()
+                        .toISOString()
 
-                    }
-                }
+            }
+        }
 
-            )
+    )
 
-        );
+);
 
-        return true;
+/*
+ * إعادة تشغيل صيانة الذاكرة
+ */
 
-    },
+try {
+
+    this.startMemoryMaintenance();
+
+} catch (error) {
+
+    console.warn(
+
+        "[StormTracking] Unable to restart memory maintenance after reset:",
+
+        error
+
+    );
+
+}
+
+return true;
 
     /* =====================================================
        CLEAR ARCHIVE
