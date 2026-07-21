@@ -2281,21 +2281,20 @@
              * Bind Public Runtime Methods
              * ============================================================== */
 
-            this.initialize =
-                this.initialize.bind(this);
+            const runtimeMethodsToBind = [
+    'initialize',
+    'start',
+    'stop',
+    'pause',
+    'resume'
+];
 
-            this.start =
-                this.start.bind(this);
-
-            this.stop =
-                this.stop.bind(this);
-
-            this.pause =
-                this.pause.bind(this);
-
-            this.resume =
-                this.resume.bind(this);
-
+for (const methodName of runtimeMethodsToBind) {
+    if (typeof this[methodName] === 'function') {
+        this[methodName] =
+            this[methodName].bind(this);
+    }
+}
             this.restart =
                 this.restart.bind(this);
 
