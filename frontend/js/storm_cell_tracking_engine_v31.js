@@ -9640,7 +9640,7 @@ return true;
 
         return true;
 
-    },
+    }
 
     /* =====================================================
        CLEAR TRANSITIONS
