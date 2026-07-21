@@ -9621,7 +9621,7 @@ clearArchive() {
     );
 
     return true;
-}
+},
 
     /* =====================================================
        CLEAR TRANSITIONS
@@ -9655,8 +9655,7 @@ clearArchive() {
         );
 
         return true;
-
-    },
+},
 
     /* =====================================================
        EXPORT TRACKING STATE
