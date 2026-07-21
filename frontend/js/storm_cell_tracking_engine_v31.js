@@ -9558,31 +9558,24 @@ stopMemoryMaintenance() {
         );
 
         this.writeLog(
-            "Storm Cell Tracking Engine V31 reset.",
-            "warning"
-        );
+    "Storm Cell Tracking Engine V31 reset.",
+    "warning"
+);
 
-        window.dispatchEvent(
-
+window.dispatchEvent(
     new CustomEvent(
-
         "rg31:storm-cell-tracking-reset",
-
         {
             detail: {
-
                 version:
                     this.version,
 
                 timestamp:
                     new Date()
                         .toISOString()
-
             }
         }
-
     )
-
 );
 
 /*
@@ -9590,57 +9583,45 @@ stopMemoryMaintenance() {
  */
 
 try {
-
     this.startMemoryMaintenance();
-
 } catch (error) {
-
     console.warn(
-
         "[StormTracking] Unable to restart memory maintenance after reset:",
-
         error
-
     );
-
 }
 
 return true;
+}
 
-    /* =====================================================
-       CLEAR ARCHIVE
-       ===================================================== */
+/* =====================================================
+   CLEAR ARCHIVE
+   ===================================================== */
 
-    clearArchive() {
+clearArchive() {
+    this.archivedCells =
+        {};
 
-        this.archivedCells =
-            {};
-
-        try {
-
-            localStorage.removeItem(
-                this.archiveStorageKey
-            );
-
-        } catch (error) {
-
-            console.warn(
-                "Storm archive clear skipped:",
-                error
-            );
-
-        }
-
-        this.saveState();
-
-        this.writeLog(
-            "Storm cell archive cleared.",
-            "warning"
+    try {
+        localStorage.removeItem(
+            this.archiveStorageKey
         );
-
-        return true;
-
+    } catch (error) {
+        console.warn(
+            "Storm archive clear skipped:",
+            error
+        );
     }
+
+    this.saveState();
+
+    this.writeLog(
+        "Storm cell archive cleared.",
+        "warning"
+    );
+
+    return true;
+}
 
     /* =====================================================
        CLEAR TRANSITIONS
