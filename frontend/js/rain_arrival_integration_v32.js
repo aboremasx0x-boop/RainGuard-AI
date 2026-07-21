@@ -41024,3 +41024,21206 @@
         : window
 );
 
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.2E-1A
+ *
+ * Responsibilities:
+ * - Discover connected RainGuard engines
+ * - Build engine registry
+ * - Track engine readiness
+ * - Prepare cross-engine synchronization
+ */
+
+(function rainArrivalIntegrationV32EngineRegistry(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.2D-2B must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    const ENGINE_PATHS =
+        Object.freeze({
+            arrivalPrediction: [
+                'RainGuardAI.V32.rainArrivalPrediction',
+                'RainGuardAI.V32.arrivalPredictionEngine',
+                'RainArrivalPredictionEngineV32'
+            ],
+
+            stormTracking: [
+                'RainGuardAI.V31.stormCellTracking',
+                'RainGuardAI.V31.stormTrackingEngine',
+                'StormCellTrackingEngineV31'
+            ],
+
+            stormPath: [
+                'RainGuardAI.V31.stormPathPrediction',
+                'RainGuardAI.V31.stormPathEngine',
+                'StormPathPredictionEngineV31'
+            ],
+
+            verification: [
+                'RainGuardAI.V30.verificationEngine',
+                'RainGuardAI.verificationEngine',
+                'VerificationEngineV30'
+            ],
+
+            sourceAdapter: [
+                'RainGuardAI.V30.sourceAdapter',
+                'RainGuardAI.sourceAdapter',
+                'SourceAdapterV30'
+            ],
+
+            mapBridge: [
+                'RainGuardAI.map',
+                'RainGuardAI.mapEngine',
+                'RainGuardMap'
+            ],
+
+            notificationEngine: [
+                'RainGuardAI.notifications',
+                'RainGuardAI.notificationEngine',
+                'RainGuardNotificationEngine'
+            ]
+        });
+
+    function ensureEngineRegistryState() {
+        if (
+            !runtimeState.engineRegistry ||
+            typeof runtimeState.engineRegistry !==
+                'object'
+        ) {
+            runtimeState.engineRegistry = {
+                engines: {},
+                discoveredAt: null,
+                discoveredAtIso: null,
+                discoveryCount: 0,
+                failures: 0
+            };
+        }
+
+        return runtimeState.engineRegistry;
+    }
+
+    function resolveObjectPath(path) {
+        if (
+            !path ||
+            typeof path !==
+                'string'
+        ) {
+            return null;
+        }
+
+        return path
+            .split('.')
+            .reduce(
+                (current, key) =>
+                    current &&
+                    Object.prototype
+                        .hasOwnProperty
+                        .call(
+                            current,
+                            key
+                        )
+                        ? current[key]
+                        : null,
+                globalObject
+            );
+    }
+
+    function discoverEngine(
+        engineName,
+        paths
+    ) {
+        for (
+            const path
+            of paths
+        ) {
+            const engine =
+                resolveObjectPath(
+                    path
+                );
+
+            if (engine) {
+                return {
+                    name:
+                        engineName,
+
+                    available:
+                        true,
+
+                    path,
+
+                    engine
+                };
+            }
+        }
+
+        return {
+            name:
+                engineName,
+
+            available:
+                false,
+
+            path:
+                null,
+
+            engine:
+                null
+        };
+    }
+
+    function discoverConnectedEngines() {
+        const registry =
+            ensureEngineRegistryState();
+
+        const engines = {};
+
+        try {
+            for (
+                const [
+                    engineName,
+                    paths
+                ]
+                of Object.entries(
+                    ENGINE_PATHS
+                )
+            ) {
+                engines[
+                    engineName
+                ] =
+                    discoverEngine(
+                        engineName,
+                        paths
+                    );
+            }
+
+            registry.engines =
+                engines;
+
+            registry.discoveryCount +=
+                1;
+
+            registry.discoveredAt =
+                Date.now();
+
+            registry.discoveredAtIso =
+                new Date(
+                    registry.discoveredAt
+                ).toISOString();
+
+            return {
+                discovered:
+                    true,
+
+                engines:
+                    Object.fromEntries(
+                        Object.entries(
+                            engines
+                        ).map(
+                            ([
+                                name,
+                                item
+                            ]) => [
+                                name,
+                                {
+                                    available:
+                                        item.available,
+
+                                    path:
+                                        item.path
+                                }
+                            ]
+                        )
+                    )
+            };
+        } catch (error) {
+            registry.failures +=
+                1;
+
+            log(
+                'error',
+                'Connected engine discovery failed.',
+                {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                }
+            );
+
+            return {
+                discovered:
+                    false,
+
+                reason:
+                    'engine_discovery_failed'
+            };
+        }
+    }
+
+    function getConnectedEngine(
+        engineName
+    ) {
+        const registry =
+            ensureEngineRegistryState();
+
+        const item =
+            registry.engines[
+                engineName
+            ];
+
+        return item &&
+            item.available
+            ? item.engine
+            : null;
+    }
+
+    function getEngineRegistryStatus() {
+        const registry =
+            ensureEngineRegistryState();
+
+        return {
+            discoveryCount:
+                registry.discoveryCount,
+
+            failures:
+                registry.failures,
+
+            discoveredAt:
+                registry.discoveredAt,
+
+            discoveredAtIso:
+                registry.discoveredAtIso,
+
+            engines:
+                Object.fromEntries(
+                    Object.entries(
+                        registry.engines
+                    ).map(
+                        ([
+                            name,
+                            item
+                        ]) => [
+                            name,
+                            {
+                                available:
+                                    Boolean(
+                                        item.available
+                                    ),
+
+                                path:
+                                    item.path ||
+                                    null
+                            }
+                        ]
+                    )
+                )
+        };
+    }
+
+    function isEngineAvailable(
+        engineName
+    ) {
+        return Boolean(
+            getConnectedEngine(
+                engineName
+            )
+        );
+    }
+
+    integrationApi
+        .discoverConnectedEngines =
+        discoverConnectedEngines;
+
+    integrationApi
+        .getConnectedEngine =
+        getConnectedEngine;
+
+    integrationApi
+        .getEngineRegistryStatus =
+        getEngineRegistryStatus;
+
+    integrationApi
+        .isEngineAvailable =
+        isEngineAvailable;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.2E-1A',
+
+        nextPart:
+            '2.2E-1B',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ENGINE_PATHS,
+            ensureEngineRegistryState,
+            resolveObjectPath,
+            discoverEngine
+        }
+    );
+
+    try {
+        discoverConnectedEngines();
+    } catch (error) {
+        log(
+            'debug',
+            'Initial connected engine discovery failed.',
+            {
+                part:
+                    '2.2E-1A',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            }
+        );
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.2E-1A loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.2E-1B
+ *
+ * Responsibilities:
+ * - Detect connected engine capabilities
+ * - Normalize engine method access
+ * - Build engine readiness report
+ * - Refresh stale registry entries
+ */
+
+(function rainArrivalIntegrationV32EngineCapabilities(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.2E-1A must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensureEngineRegistryState,
+        normalizeError,
+        log
+    } = internal;
+
+    const ENGINE_CAPABILITY_METHODS =
+        Object.freeze({
+            predict: [
+                'predict',
+                'runPrediction',
+                'calculate',
+                'execute'
+            ],
+
+            getLatest: [
+                'getLatest',
+                'getLatestPrediction',
+                'getLatestPredictions',
+                'getResults'
+            ],
+
+            subscribe: [
+                'subscribe',
+                'on',
+                'addListener'
+            ],
+
+            refresh: [
+                'refresh',
+                'reload',
+                'update'
+            ],
+
+            initialize: [
+                'initialize',
+                'init',
+                'start'
+            ],
+
+            destroy: [
+                'destroy',
+                'dispose',
+                'stop'
+            ],
+
+            getStatus: [
+                'getStatus',
+                'status',
+                'health'
+            ]
+        });
+
+    function findEngineMethod(
+        engine,
+        methodNames
+    ) {
+        if (
+            !engine ||
+            !Array.isArray(
+                methodNames
+            )
+        ) {
+            return null;
+        }
+
+        for (
+            const methodName
+            of methodNames
+        ) {
+            if (
+                typeof engine[
+                    methodName
+                ] ===
+                'function'
+            ) {
+                return methodName;
+            }
+        }
+
+        return null;
+    }
+
+    function inspectEngineCapabilities(
+        engineName
+    ) {
+        const registry =
+            ensureEngineRegistryState();
+
+        const entry =
+            registry.engines[
+                engineName
+            ];
+
+        if (
+            !entry ||
+            !entry.available ||
+            !entry.engine
+        ) {
+            return {
+                engineName,
+                available:
+                    false,
+                ready:
+                    false,
+                methods:
+                    {}
+            };
+        }
+
+        const methods = {};
+
+        for (
+            const [
+                capability,
+                methodNames
+            ]
+            of Object.entries(
+                ENGINE_CAPABILITY_METHODS
+            )
+        ) {
+            methods[
+                capability
+            ] =
+                findEngineMethod(
+                    entry.engine,
+                    methodNames
+                );
+        }
+
+        const ready =
+            Boolean(
+                methods.predict ||
+                methods.getLatest ||
+                methods.refresh
+            );
+
+        entry.capabilities =
+            methods;
+
+        entry.ready =
+            ready;
+
+        entry.inspectedAt =
+            Date.now();
+
+        return {
+            engineName,
+            available:
+                true,
+            ready,
+            path:
+                entry.path,
+            methods: {
+                ...methods
+            }
+        };
+    }
+
+    function inspectAllEngineCapabilities() {
+        const registry =
+            ensureEngineRegistryState();
+
+        const report = {};
+
+        for (
+            const engineName
+            of Object.keys(
+                registry.engines
+            )
+        ) {
+            report[
+                engineName
+            ] =
+                inspectEngineCapabilities(
+                    engineName
+                );
+        }
+
+        registry.lastCapabilityReport =
+            report;
+
+        registry.capabilityInspectionAt =
+            Date.now();
+
+        registry.capabilityInspectionAtIso =
+            new Date(
+                registry.capabilityInspectionAt
+            ).toISOString();
+
+        return report;
+    }
+
+    function resolveEngineMethod(
+        engineName,
+        capability
+    ) {
+        const registry =
+            ensureEngineRegistryState();
+
+        let entry =
+            registry.engines[
+                engineName
+            ];
+
+        if (
+            !entry ||
+            !entry.available
+        ) {
+            integrationApi
+                .discoverConnectedEngines();
+
+            entry =
+                registry.engines[
+                    engineName
+                ];
+        }
+
+        if (
+            !entry ||
+            !entry.available ||
+            !entry.engine
+        ) {
+            return null;
+        }
+
+        if (
+            !entry.capabilities
+        ) {
+            inspectEngineCapabilities(
+                engineName
+            );
+        }
+
+        const methodName =
+            entry.capabilities &&
+            entry.capabilities[
+                capability
+            ];
+
+        if (
+            !methodName ||
+            typeof entry.engine[
+                methodName
+            ] !==
+                'function'
+        ) {
+            return null;
+        }
+
+        return entry.engine[
+            methodName
+        ].bind(
+            entry.engine
+        );
+    }
+
+    function invokeEngineCapability(
+        engineName,
+        capability,
+        ...args
+    ) {
+        const method =
+            resolveEngineMethod(
+                engineName,
+                capability
+            );
+
+        if (!method) {
+            return {
+                invoked:
+                    false,
+                engineName,
+                capability,
+                reason:
+                    'engine_capability_unavailable'
+            };
+        }
+
+        try {
+            const result =
+                method(
+                    ...args
+                );
+
+            return {
+                invoked:
+                    true,
+                engineName,
+                capability,
+                result
+            };
+        } catch (error) {
+            log(
+                'error',
+                'Connected engine capability invocation failed.',
+                {
+                    engineName,
+                    capability,
+                    error:
+                        normalizeError(
+                            error
+                        )
+                }
+            );
+
+            return {
+                invoked:
+                    false,
+                engineName,
+                capability,
+                reason:
+                    'engine_invocation_failed',
+                error:
+                    normalizeError(
+                        error
+                    )
+            };
+        }
+    }
+
+    function getEngineReadinessReport() {
+        const registry =
+            ensureEngineRegistryState();
+
+        if (
+            !registry.lastCapabilityReport
+        ) {
+            inspectAllEngineCapabilities();
+        }
+
+        const engines =
+            registry.lastCapabilityReport ||
+            {};
+
+        const available =
+            Object.values(
+                engines
+            ).filter(
+                (item) =>
+                    item.available
+            ).length;
+
+        const ready =
+            Object.values(
+                engines
+            ).filter(
+                (item) =>
+                    item.ready
+            ).length;
+
+        return {
+            total:
+                Object.keys(
+                    engines
+                ).length,
+            available,
+            ready,
+            unavailable:
+                Math.max(
+                    0,
+                    Object.keys(
+                        engines
+                    ).length -
+                    available
+                ),
+            engines,
+            inspectedAt:
+                registry
+                    .capabilityInspectionAt ||
+                null,
+            inspectedAtIso:
+                registry
+                    .capabilityInspectionAtIso ||
+                null
+        };
+    }
+
+    integrationApi
+        .inspectEngineCapabilities =
+        inspectEngineCapabilities;
+
+    integrationApi
+        .inspectAllEngineCapabilities =
+        inspectAllEngineCapabilities;
+
+    integrationApi
+        .resolveEngineMethod =
+        resolveEngineMethod;
+
+    integrationApi
+        .invokeEngineCapability =
+        invokeEngineCapability;
+
+    integrationApi
+        .getEngineReadinessReport =
+        getEngineReadinessReport;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.2E-1B',
+
+        nextPart:
+            '2.2E-1C',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ENGINE_CAPABILITY_METHODS,
+            findEngineMethod,
+            inspectEngineCapabilities,
+            resolveEngineMethod
+        }
+    );
+
+    try {
+        inspectAllEngineCapabilities();
+    } catch (error) {
+        log(
+            'debug',
+            'Initial engine capability inspection failed.',
+            {
+                part:
+                    '2.2E-1B',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            }
+        );
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.2E-1B loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.2E-1C
+ *
+ * Responsibilities:
+ * - Normalize connected engine outputs
+ * - Merge engine results
+ * - Remove duplicate city predictions
+ * - Preserve strongest prediction per city
+ */
+
+(function rainArrivalIntegrationV32EngineResultMerger(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.2E-1B must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        toFiniteNumber,
+        clamp,
+        normalizeRiskLevel,
+        normalizeDashboardPrediction,
+        log
+    } = internal;
+
+    const RISK_WEIGHT =
+        Object.freeze({
+            unknown:
+                0,
+
+            minimal:
+                10,
+
+            low:
+                20,
+
+            moderate:
+                40,
+
+            high:
+                70,
+
+            extreme:
+                100
+        });
+
+    function extractEngineResults(
+        value
+    ) {
+        if (
+            Array.isArray(
+                value
+            )
+        ) {
+            return value;
+        }
+
+        if (
+            !value ||
+            typeof value !==
+                'object'
+        ) {
+            return [];
+        }
+
+        if (
+            Array.isArray(
+                value.predictions
+            )
+        ) {
+            return value.predictions;
+        }
+
+        if (
+            Array.isArray(
+                value.results
+            )
+        ) {
+            return value.results;
+        }
+
+        if (
+            Array.isArray(
+                value.cities
+            )
+        ) {
+            return value.cities;
+        }
+
+        if (
+            value.prediction &&
+            typeof value.prediction ===
+                'object'
+        ) {
+            return [
+                value.prediction
+            ];
+        }
+
+        return [];
+    }
+
+    function buildPredictionKey(
+        prediction
+    ) {
+        if (!prediction) {
+            return null;
+        }
+
+        const cityId =
+            prediction.cityId ||
+            prediction.id ||
+            prediction.cityCode ||
+            null;
+
+        if (cityId) {
+            return String(
+                cityId
+            )
+                .trim()
+                .toLowerCase();
+        }
+
+        const cityName =
+            prediction.cityName ||
+            prediction.cityNameAr ||
+            prediction.name ||
+            null;
+
+        return cityName
+            ? String(
+                cityName
+            )
+                .trim()
+                .toLowerCase()
+            : null;
+    }
+
+    function calculatePredictionStrength(
+        prediction
+    ) {
+        const confidence =
+            clamp(
+                toFiniteNumber(
+                    prediction.confidence,
+                    0
+                ),
+                0,
+                100
+            );
+
+        const probability =
+            clamp(
+                toFiniteNumber(
+                    prediction.probability ??
+                    prediction.rainProbability,
+                    0
+                ),
+                0,
+                100
+            );
+
+        const riskLevel =
+            normalizeRiskLevel(
+                prediction.riskLevel ??
+                prediction.risk
+            );
+
+        const arrivalBonus =
+            Number.isFinite(
+                prediction.arrivalMinutes
+            )
+                ? Math.max(
+                    0,
+                    30 -
+                    Math.min(
+                        30,
+                        prediction.arrivalMinutes /
+                        4
+                    )
+                )
+                : 0;
+
+        return (
+            confidence *
+            0.4
+        ) + (
+            probability *
+            0.35
+        ) + (
+            RISK_WEIGHT[
+                riskLevel
+            ] *
+            0.2
+        ) + (
+            arrivalBonus *
+            0.05
+        );
+    }
+
+    function mergePredictionPair(
+        current,
+        incoming
+    ) {
+        if (!current) {
+            return incoming;
+        }
+
+        if (!incoming) {
+            return current;
+        }
+
+        const currentStrength =
+            calculatePredictionStrength(
+                current
+            );
+
+        const incomingStrength =
+            calculatePredictionStrength(
+                incoming
+            );
+
+        const primary =
+            incomingStrength >
+            currentStrength
+                ? incoming
+                : current;
+
+        const secondary =
+            primary === incoming
+                ? current
+                : incoming;
+
+        return {
+            ...secondary,
+            ...primary,
+
+            sources: [
+                ...new Set([
+                    ...(
+                        Array.isArray(
+                            current.sources
+                        )
+                            ? current.sources
+                            : []
+                    ),
+
+                    ...(
+                        Array.isArray(
+                            incoming.sources
+                        )
+                            ? incoming.sources
+                            : []
+                    ),
+
+                    current.source,
+                    incoming.source
+                ].filter(Boolean))
+            ],
+
+            merged:
+                true,
+
+            mergeStrength:
+                Math.max(
+                    currentStrength,
+                    incomingStrength
+                )
+        };
+    }
+
+    function normalizeEnginePrediction(
+        prediction,
+        sourceName
+    ) {
+        const normalized =
+            normalizeDashboardPrediction(
+                prediction
+            );
+
+        if (!normalized) {
+            return null;
+        }
+
+        return {
+            ...normalized,
+
+            source:
+                sourceName ||
+                prediction.source ||
+                null,
+
+            sources: [
+                sourceName ||
+                prediction.source
+            ].filter(Boolean),
+
+            riskLevel:
+                normalizeRiskLevel(
+                    normalized.riskLevel
+                )
+        };
+    }
+
+    function mergeEngineResults(
+        engineResults = {}
+    ) {
+        const predictionMap =
+            new Map();
+
+        for (
+            const [
+                sourceName,
+                rawResult
+            ]
+            of Object.entries(
+                engineResults
+            )
+        ) {
+            const results =
+                extractEngineResults(
+                    rawResult
+                );
+
+            for (
+                const result
+                of results
+            ) {
+                const normalized =
+                    normalizeEnginePrediction(
+                        result,
+                        sourceName
+                    );
+
+                const key =
+                    buildPredictionKey(
+                        normalized
+                    );
+
+                if (
+                    !normalized ||
+                    !key
+                ) {
+                    continue;
+                }
+
+                predictionMap.set(
+                    key,
+                    mergePredictionPair(
+                        predictionMap.get(
+                            key
+                        ),
+                        normalized
+                    )
+                );
+            }
+        }
+
+        return Array.from(
+            predictionMap.values()
+        ).sort(
+            (left, right) =>
+                calculatePredictionStrength(
+                    right
+                ) -
+                calculatePredictionStrength(
+                    left
+                )
+        );
+    }
+
+    integrationApi
+        .extractEngineResults =
+        extractEngineResults;
+
+    integrationApi
+        .buildPredictionKey =
+        buildPredictionKey;
+
+    integrationApi
+        .calculatePredictionStrength =
+        calculatePredictionStrength;
+
+    integrationApi
+        .mergePredictionPair =
+        mergePredictionPair;
+
+    integrationApi
+        .normalizeEnginePrediction =
+        normalizeEnginePrediction;
+
+    integrationApi
+        .mergeEngineResults =
+        mergeEngineResults;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.2E-1C',
+
+        nextPart:
+            '2.2E-1D',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            RISK_WEIGHT,
+            extractEngineResults,
+            buildPredictionKey,
+            calculatePredictionStrength,
+            mergePredictionPair,
+            normalizeEnginePrediction
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.2E-1C loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.2E-1D
+ *
+ * Responsibilities:
+ * - Collect outputs from connected engines
+ * - Support sync and async engine results
+ * - Merge all available predictions
+ * - Update latest predictions
+ * - Synchronize dashboard after collection
+ */
+
+(function rainArrivalIntegrationV32EngineCollector(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.2E-1C must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensureEngineRegistryState,
+        normalizeError,
+        log
+    } = internal;
+
+    const DEFAULT_ENGINE_COLLECTION_ORDER =
+        Object.freeze([
+            'arrivalPrediction',
+            'stormTracking',
+            'stormPath',
+            'verification',
+            'sourceAdapter'
+        ]);
+
+    function ensureEngineCollectionState() {
+        const registry =
+            ensureEngineRegistryState();
+
+        if (
+            !registry.collection ||
+            typeof registry.collection !==
+                'object'
+        ) {
+            registry.collection = {
+                running:
+                    false,
+
+                runs:
+                    0,
+
+                failures:
+                    0,
+
+                lastRunAt:
+                    null,
+
+                lastRunAtIso:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastResultCount:
+                    0,
+
+                lastSources:
+                    []
+            };
+        }
+
+        return registry.collection;
+    }
+
+    function isPromiseLike(
+        value
+    ) {
+        return Boolean(
+            value &&
+            (
+                typeof value ===
+                    'object' ||
+                typeof value ===
+                    'function'
+            ) &&
+            typeof value.then ===
+                'function'
+        );
+    }
+
+    async function resolveInvocationResult(
+        invocation
+    ) {
+        if (
+            !invocation ||
+            invocation.invoked !==
+                true
+        ) {
+            return null;
+        }
+
+        if (
+            isPromiseLike(
+                invocation.result
+            )
+        ) {
+            return invocation.result;
+        }
+
+        return invocation.result;
+    }
+
+    async function collectEngineOutput(
+        engineName,
+        input = null
+    ) {
+        let invocation =
+            integrationApi
+                .invokeEngineCapability(
+                    engineName,
+                    'getLatest'
+                );
+
+        if (
+            !invocation ||
+            invocation.invoked !==
+                true
+        ) {
+            invocation =
+                integrationApi
+                    .invokeEngineCapability(
+                        engineName,
+                        'predict',
+                        input
+                    );
+        }
+
+        if (
+            !invocation ||
+            invocation.invoked !==
+                true
+        ) {
+            invocation =
+                integrationApi
+                    .invokeEngineCapability(
+                        engineName,
+                        'refresh',
+                        input
+                    );
+        }
+
+        if (
+            !invocation ||
+            invocation.invoked !==
+                true
+        ) {
+            return {
+                engineName,
+
+                collected:
+                    false,
+
+                reason:
+                    'engine_output_unavailable',
+
+                result:
+                    null
+            };
+        }
+
+        try {
+            const result =
+                await resolveInvocationResult(
+                    invocation
+                );
+
+            return {
+                engineName,
+
+                collected:
+                    true,
+
+                capability:
+                    invocation.capability,
+
+                result
+            };
+        } catch (error) {
+            return {
+                engineName,
+
+                collected:
+                    false,
+
+                reason:
+                    'engine_output_failed',
+
+                error:
+                    normalizeError(
+                        error
+                    ),
+
+                result:
+                    null
+            };
+        }
+    }
+
+    function setLatestPredictions(
+        predictions
+    ) {
+        runtimeState.latestPredictions =
+            Array.isArray(
+                predictions
+            )
+                ? predictions
+                : [];
+
+        runtimeState.latestPredictionsAt =
+            Date.now();
+
+        runtimeState.latestPredictionsAtIso =
+            new Date(
+                runtimeState
+                    .latestPredictionsAt
+            ).toISOString();
+
+        return runtimeState
+            .latestPredictions;
+    }
+
+    function getLatestPredictions() {
+        return Array.isArray(
+            runtimeState.latestPredictions
+        )
+            ? runtimeState.latestPredictions
+            : [];
+    }
+
+    async function collectConnectedEngineResults(
+        options = {}
+    ) {
+        const collectionState =
+            ensureEngineCollectionState();
+
+        if (
+            collectionState.running
+        ) {
+            return {
+                collected:
+                    false,
+
+                reason:
+                    'collection_already_running',
+
+                predictions:
+                    getLatestPredictions()
+            };
+        }
+
+        collectionState.running =
+            true;
+
+        const startedAt =
+            Date.now();
+
+        try {
+            integrationApi
+                .discoverConnectedEngines();
+
+            integrationApi
+                .inspectAllEngineCapabilities();
+
+            const engineOrder =
+                Array.isArray(
+                    options.engines
+                ) &&
+                options.engines.length >
+                    0
+                    ? options.engines
+                    : DEFAULT_ENGINE_COLLECTION_ORDER;
+
+            const tasks =
+                engineOrder.map(
+                    (engineName) =>
+                        collectEngineOutput(
+                            engineName,
+                            options.input ||
+                            null
+                        )
+                );
+
+            const settled =
+                await Promise.all(
+                    tasks
+                );
+
+            const engineResults = {};
+
+            for (
+                const item
+                of settled
+            ) {
+                if (
+                    item.collected
+                ) {
+                    engineResults[
+                        item.engineName
+                    ] =
+                        item.result;
+                } else {
+                    collectionState.failures +=
+                        1;
+                }
+            }
+
+            const predictions =
+                integrationApi
+                    .mergeEngineResults(
+                        engineResults
+                    );
+
+            setLatestPredictions(
+                predictions
+            );
+
+            collectionState.runs +=
+                1;
+
+            collectionState.lastRunAt =
+                Date.now();
+
+            collectionState.lastRunAtIso =
+                new Date(
+                    collectionState.lastRunAt
+                ).toISOString();
+
+            collectionState.lastDurationMs =
+                collectionState.lastRunAt -
+                startedAt;
+
+            collectionState.lastResultCount =
+                predictions.length;
+
+            collectionState.lastSources =
+                Object.keys(
+                    engineResults
+                );
+
+            if (
+                options.synchronizeDashboard !==
+                false &&
+                typeof integrationApi
+                    .synchronizeDashboard ===
+                    'function'
+            ) {
+                integrationApi
+                    .synchronizeDashboard(
+                        predictions,
+                        options.dashboardOptions ||
+                        {}
+                    );
+            }
+
+            return {
+                collected:
+                    true,
+
+                predictions,
+
+                sources:
+                    collectionState
+                        .lastSources,
+
+                durationMs:
+                    collectionState
+                        .lastDurationMs
+            };
+        } catch (error) {
+            collectionState.failures +=
+                1;
+
+            log(
+                'error',
+                'Connected engine result collection failed.',
+                {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                }
+            );
+
+            return {
+                collected:
+                    false,
+
+                reason:
+                    'engine_collection_failed',
+
+                error:
+                    normalizeError(
+                        error
+                    ),
+
+                predictions:
+                    getLatestPredictions()
+            };
+        } finally {
+            collectionState.running =
+                false;
+        }
+    }
+
+    function getEngineCollectionStatus() {
+        const state =
+            ensureEngineCollectionState();
+
+        return {
+            running:
+                state.running,
+
+            runs:
+                state.runs,
+
+            failures:
+                state.failures,
+
+            lastRunAt:
+                state.lastRunAt,
+
+            lastRunAtIso:
+                state.lastRunAtIso,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastResultCount:
+                state.lastResultCount,
+
+            lastSources: [
+                ...state.lastSources
+            ]
+        };
+    }
+
+    integrationApi
+        .collectEngineOutput =
+        collectEngineOutput;
+
+    integrationApi
+        .collectConnectedEngineResults =
+        collectConnectedEngineResults;
+
+    integrationApi
+        .setLatestPredictions =
+        setLatestPredictions;
+
+    integrationApi
+        .getLatestPredictions =
+        getLatestPredictions;
+
+    integrationApi
+        .getEngineCollectionStatus =
+        getEngineCollectionStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.2E-1D',
+
+        nextPart:
+            '2.2E-2A',
+
+        status:
+            'section_complete',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_ENGINE_COLLECTION_ORDER,
+            ensureEngineCollectionState,
+            isPromiseLike,
+            resolveInvocationResult
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.2E-1D loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.2E-2A
+ *
+ * Responsibilities:
+ * - Dispatch merged predictions
+ * - Notify map and notification engines
+ * - Emit integration events
+ * - Track delivery results
+ */
+
+(function rainArrivalIntegrationV32EngineDispatcher(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.2E-1D must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    function ensureDispatchState() {
+        if (
+            !runtimeState.dispatch ||
+            typeof runtimeState.dispatch !==
+                'object'
+        ) {
+            runtimeState.dispatch = {
+                runs: 0,
+                failures: 0,
+                lastRunAt: null,
+                lastRunAtIso: null,
+                lastResult: null
+            };
+        }
+
+        return runtimeState.dispatch;
+    }
+
+    function emitIntegrationEvent(
+        eventName,
+        detail
+    ) {
+        if (
+            typeof globalObject.CustomEvent !==
+                'function'
+        ) {
+            return false;
+        }
+
+        const event =
+            new globalObject.CustomEvent(
+                eventName,
+                {
+                    detail
+                }
+            );
+
+        let emitted =
+            false;
+
+        if (
+            globalObject.document &&
+            typeof globalObject.document
+                .dispatchEvent ===
+                'function'
+        ) {
+            globalObject.document
+                .dispatchEvent(
+                    event
+                );
+
+            emitted =
+                true;
+        }
+
+        if (
+            typeof globalObject.dispatchEvent ===
+                'function'
+        ) {
+            globalObject.dispatchEvent(
+                new globalObject.CustomEvent(
+                    eventName,
+                    {
+                        detail
+                    }
+                )
+            );
+
+            emitted =
+                true;
+        }
+
+        return emitted;
+    }
+
+    function deliverToMap(
+        predictions
+    ) {
+        const mapEngine =
+            integrationApi
+                .getConnectedEngine(
+                    'mapBridge'
+                );
+
+        if (!mapEngine) {
+            return {
+                delivered:
+                    false,
+
+                reason:
+                    'map_engine_unavailable'
+            };
+        }
+
+        const methods = [
+            'renderRainArrival',
+            'updateRainArrival',
+            'setRainArrivalPredictions',
+            'updatePredictions',
+            'renderPredictions'
+        ];
+
+        for (
+            const methodName
+            of methods
+        ) {
+            if (
+                typeof mapEngine[
+                    methodName
+                ] ===
+                'function'
+            ) {
+                try {
+                    mapEngine[
+                        methodName
+                    ](
+                        predictions
+                    );
+
+                    return {
+                        delivered:
+                            true,
+
+                        method:
+                            methodName
+                    };
+                } catch (error) {
+                    return {
+                        delivered:
+                            false,
+
+                        reason:
+                            'map_delivery_failed',
+
+                        error:
+                            normalizeError(
+                                error
+                            )
+                    };
+                }
+            }
+        }
+
+        return {
+            delivered:
+                false,
+
+            reason:
+                'map_method_unavailable'
+        };
+    }
+
+    function deliverToNotifications(
+        predictions
+    ) {
+        const notificationEngine =
+            integrationApi
+                .getConnectedEngine(
+                    'notificationEngine'
+                );
+
+        if (!notificationEngine) {
+            return {
+                delivered:
+                    false,
+
+                reason:
+                    'notification_engine_unavailable'
+            };
+        }
+
+        const methods = [
+            'processRainArrival',
+            'handlePredictions',
+            'updatePredictions',
+            'notifyPredictions'
+        ];
+
+        for (
+            const methodName
+            of methods
+        ) {
+            if (
+                typeof notificationEngine[
+                    methodName
+                ] ===
+                'function'
+            ) {
+                try {
+                    notificationEngine[
+                        methodName
+                    ](
+                        predictions
+                    );
+
+                    return {
+                        delivered:
+                            true,
+
+                        method:
+                            methodName
+                    };
+                } catch (error) {
+                    return {
+                        delivered:
+                            false,
+
+                        reason:
+                            'notification_delivery_failed',
+
+                        error:
+                            normalizeError(
+                                error
+                            )
+                    };
+                }
+            }
+        }
+
+        return {
+            delivered:
+                false,
+
+            reason:
+                'notification_method_unavailable'
+        };
+    }
+
+    function dispatchPredictions(
+        predictions,
+        options = {}
+    ) {
+        const state =
+            ensureDispatchState();
+
+        const safePredictions =
+            Array.isArray(
+                predictions
+            )
+                ? predictions
+                : [];
+
+        try {
+            const mapResult =
+                options.map ===
+                    false
+                    ? {
+                        delivered:
+                            false,
+
+                        reason:
+                            'map_delivery_disabled'
+                    }
+                    : deliverToMap(
+                        safePredictions
+                    );
+
+            const notificationResult =
+                options.notifications ===
+                    false
+                    ? {
+                        delivered:
+                            false,
+
+                        reason:
+                            'notification_delivery_disabled'
+                    }
+                    : deliverToNotifications(
+                        safePredictions
+                    );
+
+            const eventResult =
+                options.events ===
+                    false
+                    ? false
+                    : emitIntegrationEvent(
+                        'rainguard:rain-arrival:predictions-updated',
+                        {
+                            predictions:
+                                safePredictions,
+
+                            source:
+                                options.source ||
+                                'engine_dispatcher',
+
+                            timestamp:
+                                Date.now()
+                        }
+                    );
+
+            state.runs +=
+                1;
+
+            state.lastRunAt =
+                Date.now();
+
+            state.lastRunAtIso =
+                new Date(
+                    state.lastRunAt
+                ).toISOString();
+
+            state.lastResult = {
+                predictionCount:
+                    safePredictions.length,
+
+                map:
+                    mapResult,
+
+                notifications:
+                    notificationResult,
+
+                eventEmitted:
+                    eventResult
+            };
+
+            return {
+                dispatched:
+                    true,
+
+                ...state.lastResult
+            };
+        } catch (error) {
+            state.failures +=
+                1;
+
+            log(
+                'error',
+                'Prediction dispatch failed.',
+                {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                }
+            );
+
+            return {
+                dispatched:
+                    false,
+
+                reason:
+                    'dispatch_failed',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            };
+        }
+    }
+
+    function getDispatchStatus() {
+        const state =
+            ensureDispatchState();
+
+        return {
+            runs:
+                state.runs,
+
+            failures:
+                state.failures,
+
+            lastRunAt:
+                state.lastRunAt,
+
+            lastRunAtIso:
+                state.lastRunAtIso,
+
+            lastResult:
+                state.lastResult
+                    ? {
+                        ...state.lastResult
+                    }
+                    : null
+        };
+    }
+
+    integrationApi
+        .emitIntegrationEvent =
+        emitIntegrationEvent;
+
+    integrationApi
+        .deliverPredictionsToMap =
+        deliverToMap;
+
+    integrationApi
+        .deliverPredictionsToNotifications =
+        deliverToNotifications;
+
+    integrationApi
+        .dispatchPredictions =
+        dispatchPredictions;
+
+    integrationApi
+        .getDispatchStatus =
+        getDispatchStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.2E-2A',
+
+        nextPart:
+            '2.2E-2B',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ensureDispatchState,
+            emitIntegrationEvent,
+            deliverToMap,
+            deliverToNotifications
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.2E-2A loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.2E-2B
+ *
+ * Responsibilities:
+ * - Run collection and dispatch pipeline
+ * - Prevent overlapping pipeline runs
+ * - Track pipeline performance
+ * - Expose manual synchronization API
+ */
+
+(function rainArrivalIntegrationV32Pipeline(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.2E-2A must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    function ensurePipelineState() {
+        if (
+            !runtimeState.pipeline ||
+            typeof runtimeState.pipeline !==
+                'object'
+        ) {
+            runtimeState.pipeline = {
+                running: false,
+                runs: 0,
+                failures: 0,
+                lastStartedAt: null,
+                lastCompletedAt: null,
+                lastDurationMs: null,
+                lastPredictionCount: 0,
+                lastResult: null
+            };
+        }
+
+        return runtimeState.pipeline;
+    }
+
+    async function runIntegrationPipeline(
+        options = {}
+    ) {
+        const state =
+            ensurePipelineState();
+
+        if (state.running) {
+            return {
+                completed: false,
+                reason: 'pipeline_already_running',
+                predictions:
+                    typeof integrationApi
+                        .getLatestPredictions ===
+                        'function'
+                        ? integrationApi
+                            .getLatestPredictions()
+                        : []
+            };
+        }
+
+        state.running = true;
+        state.lastStartedAt =
+            Date.now();
+
+        try {
+            const collection =
+                await integrationApi
+                    .collectConnectedEngineResults({
+                        engines:
+                            options.engines,
+                        input:
+                            options.input,
+                        synchronizeDashboard:
+                            false
+                    });
+
+            const predictions =
+                collection &&
+                Array.isArray(
+                    collection.predictions
+                )
+                    ? collection.predictions
+                    : [];
+
+            const dispatch =
+                integrationApi
+                    .dispatchPredictions(
+                        predictions,
+                        {
+                            map:
+                                options.map,
+                            notifications:
+                                options.notifications,
+                            events:
+                                options.events,
+                            source:
+                                options.source ||
+                                'integration_pipeline'
+                        }
+                    );
+
+            let dashboard = null;
+
+            if (
+                options.dashboard !==
+                    false &&
+                typeof integrationApi
+                    .synchronizeDashboard ===
+                    'function'
+            ) {
+                dashboard =
+                    integrationApi
+                        .synchronizeDashboard(
+                            predictions,
+                            options.dashboardOptions ||
+                            {}
+                        );
+            }
+
+            state.runs += 1;
+            state.lastCompletedAt =
+                Date.now();
+            state.lastDurationMs =
+                state.lastCompletedAt -
+                state.lastStartedAt;
+            state.lastPredictionCount =
+                predictions.length;
+
+            state.lastResult = {
+                collection,
+                dispatch,
+                dashboard
+            };
+
+            return {
+                completed: true,
+                predictions,
+                collection,
+                dispatch,
+                dashboard,
+                durationMs:
+                    state.lastDurationMs
+            };
+        } catch (error) {
+            state.failures += 1;
+            state.lastCompletedAt =
+                Date.now();
+            state.lastDurationMs =
+                state.lastCompletedAt -
+                state.lastStartedAt;
+
+            log(
+                'error',
+                'Integration pipeline failed.',
+                {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                }
+            );
+
+            return {
+                completed: false,
+                reason:
+                    'pipeline_failed',
+                error:
+                    normalizeError(
+                        error
+                    )
+            };
+        } finally {
+            state.running = false;
+        }
+    }
+
+    function getPipelineStatus() {
+        const state =
+            ensurePipelineState();
+
+        return {
+            running:
+                state.running,
+            runs:
+                state.runs,
+            failures:
+                state.failures,
+            lastStartedAt:
+                state.lastStartedAt,
+            lastCompletedAt:
+                state.lastCompletedAt,
+            lastDurationMs:
+                state.lastDurationMs,
+            lastPredictionCount:
+                state.lastPredictionCount,
+            lastResult:
+                state.lastResult
+                    ? {
+                        ...state.lastResult
+                    }
+                    : null
+        };
+    }
+
+    integrationApi
+        .runIntegrationPipeline =
+        runIntegrationPipeline;
+
+    integrationApi
+        .synchronizeAllEngines =
+        runIntegrationPipeline;
+
+    integrationApi
+        .getIntegrationPipelineStatus =
+        getPipelineStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.2E-2B',
+
+        nextPart:
+            '2.3A-1',
+
+        status:
+            'section_complete',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ensurePipelineState
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.2E-2B loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.3A-1
+ *
+ * Responsibilities:
+ * - Create persistence state
+ * - Normalize storage options
+ * - Validate storage availability
+ * - Build safe storage access layer
+ */
+
+(function rainArrivalIntegrationV32PersistenceBase(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.2E-2B must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        toFiniteNumber,
+        normalizeError,
+        log
+    } = internal;
+
+    const DEFAULT_PERSISTENCE_OPTIONS =
+        Object.freeze({
+            enabled:
+                true,
+
+            storageKey:
+                'rainguard:v32:rain-arrival-integration',
+
+            storageType:
+                'localStorage',
+
+            schemaVersion:
+                1,
+
+            maximumAgeMs:
+                21600000,
+
+            maximumPredictions:
+                100,
+
+            persistPredictions:
+                true,
+
+            persistDashboard:
+                true,
+
+            persistMetadata:
+                true
+        });
+
+    function ensurePersistenceState() {
+        if (
+            !runtimeState.persistence ||
+            typeof runtimeState.persistence !==
+                'object'
+        ) {
+            runtimeState.persistence = {
+                options: {
+                    ...DEFAULT_PERSISTENCE_OPTIONS
+                },
+
+                available:
+                    false,
+
+                storage:
+                    null,
+
+                writes:
+                    0,
+
+                reads:
+                    0,
+
+                failures:
+                    0,
+
+                lastWriteAt:
+                    null,
+
+                lastReadAt:
+                    null,
+
+                lastError:
+                    null
+            };
+        }
+
+        return runtimeState.persistence;
+    }
+
+    function normalizePersistenceOptions(
+        options = {}
+    ) {
+        const state =
+            ensurePersistenceState();
+
+        const normalized = {
+            ...DEFAULT_PERSISTENCE_OPTIONS,
+            ...state.options,
+            ...options
+        };
+
+        normalized.enabled =
+            normalized.enabled !==
+            false;
+
+        normalized.persistPredictions =
+            normalized.persistPredictions !==
+            false;
+
+        normalized.persistDashboard =
+            normalized.persistDashboard !==
+            false;
+
+        normalized.persistMetadata =
+            normalized.persistMetadata !==
+            false;
+
+        normalized.storageKey =
+            String(
+                normalized.storageKey ||
+                DEFAULT_PERSISTENCE_OPTIONS
+                    .storageKey
+            );
+
+        normalized.storageType =
+            normalized.storageType ===
+                'sessionStorage'
+                ? 'sessionStorage'
+                : 'localStorage';
+
+        normalized.schemaVersion =
+            Math.max(
+                1,
+                Math.round(
+                    toFiniteNumber(
+                        normalized.schemaVersion,
+                        1
+                    )
+                )
+            );
+
+        normalized.maximumAgeMs =
+            Math.max(
+                60000,
+                toFiniteNumber(
+                    normalized.maximumAgeMs,
+                    DEFAULT_PERSISTENCE_OPTIONS
+                        .maximumAgeMs
+                )
+            );
+
+        normalized.maximumPredictions =
+            Math.max(
+                1,
+                Math.round(
+                    toFiniteNumber(
+                        normalized.maximumPredictions,
+                        DEFAULT_PERSISTENCE_OPTIONS
+                            .maximumPredictions
+                    )
+                )
+            );
+
+        state.options =
+            normalized;
+
+        return {
+            ...normalized
+        };
+    }
+
+    function resolvePersistenceStorage(
+        options = {}
+    ) {
+        const state =
+            ensurePersistenceState();
+
+        const normalized =
+            normalizePersistenceOptions(
+                options
+            );
+
+        if (
+            !normalized.enabled
+        ) {
+            state.available =
+                false;
+
+            state.storage =
+                null;
+
+            return null;
+        }
+
+        try {
+            const storage =
+                globalObject[
+                    normalized.storageType
+                ];
+
+            if (
+                !storage ||
+                typeof storage.getItem !==
+                    'function' ||
+                typeof storage.setItem !==
+                    'function' ||
+                typeof storage.removeItem !==
+                    'function'
+            ) {
+                state.available =
+                    false;
+
+                state.storage =
+                    null;
+
+                return null;
+            }
+
+            const testKey =
+                `${normalized.storageKey}:test`;
+
+            storage.setItem(
+                testKey,
+                '1'
+            );
+
+            storage.removeItem(
+                testKey
+            );
+
+            state.available =
+                true;
+
+            state.storage =
+                storage;
+
+            return storage;
+        } catch (error) {
+            state.available =
+                false;
+
+            state.storage =
+                null;
+
+            state.failures +=
+                1;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            log(
+                'debug',
+                'Persistence storage unavailable.',
+                {
+                    error:
+                        state.lastError
+                }
+            );
+
+            return null;
+        }
+    }
+
+    function getPersistenceStorage() {
+        const state =
+            ensurePersistenceState();
+
+        if (
+            state.storage &&
+            state.available
+        ) {
+            return state.storage;
+        }
+
+        return resolvePersistenceStorage();
+    }
+
+    function getPersistenceStatus() {
+        const state =
+            ensurePersistenceState();
+
+        return {
+            available:
+                state.available,
+
+            writes:
+                state.writes,
+
+            reads:
+                state.reads,
+
+            failures:
+                state.failures,
+
+            lastWriteAt:
+                state.lastWriteAt,
+
+            lastReadAt:
+                state.lastReadAt,
+
+            lastError:
+                state.lastError,
+
+            options: {
+                ...state.options
+            }
+        };
+    }
+
+    integrationApi
+        .setPersistenceOptions =
+        normalizePersistenceOptions;
+
+    integrationApi
+        .resolvePersistenceStorage =
+        resolvePersistenceStorage;
+
+    integrationApi
+        .getPersistenceStorage =
+        getPersistenceStorage;
+
+    integrationApi
+        .getPersistenceStatus =
+        getPersistenceStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.3A-1',
+
+        nextPart:
+            '2.3A-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_PERSISTENCE_OPTIONS,
+            ensurePersistenceState,
+            normalizePersistenceOptions,
+            resolvePersistenceStorage
+        }
+    );
+
+    try {
+        normalizePersistenceOptions();
+
+        resolvePersistenceStorage();
+    } catch (error) {
+        log(
+            'debug',
+            'Persistence initialization failed.',
+            {
+                part:
+                    '2.3A-1',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            }
+        );
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.3A-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.3A-2
+ *
+ * Responsibilities:
+ * - Build persistence payload
+ * - Sanitize persisted predictions
+ * - Write integration snapshot safely
+ * - Track persistence writes
+ */
+
+(function rainArrivalIntegrationV32PersistenceWriter(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.3A-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensurePersistenceState,
+        normalizePersistenceOptions,
+        normalizeError,
+        log
+    } = internal;
+
+    function sanitizePersistedPrediction(
+        prediction
+    ) {
+        if (
+            !prediction ||
+            typeof prediction !==
+                'object'
+        ) {
+            return null;
+        }
+
+        return {
+            id:
+                prediction.id ||
+                null,
+
+            cityId:
+                prediction.cityId ||
+                null,
+
+            cityName:
+                prediction.cityName ||
+                null,
+
+            cityNameAr:
+                prediction.cityNameAr ||
+                null,
+
+            arrivalMinutes:
+                Number.isFinite(
+                    prediction.arrivalMinutes
+                )
+                    ? prediction.arrivalMinutes
+                    : null,
+
+            arrivalTime:
+                prediction.arrivalTime ||
+                null,
+
+            confidence:
+                Number.isFinite(
+                    prediction.confidence
+                )
+                    ? prediction.confidence
+                    : 0,
+
+            probability:
+                Number.isFinite(
+                    prediction.probability
+                )
+                    ? prediction.probability
+                    : 0,
+
+            intensity:
+                Number.isFinite(
+                    prediction.intensity
+                )
+                    ? prediction.intensity
+                    : 0,
+
+            riskLevel:
+                prediction.riskLevel ||
+                'unknown',
+
+            willRain:
+                prediction.willRain ===
+                true,
+
+            accepted:
+                prediction.accepted !==
+                false,
+
+            latitude:
+                Number.isFinite(
+                    prediction.latitude
+                )
+                    ? prediction.latitude
+                    : null,
+
+            longitude:
+                Number.isFinite(
+                    prediction.longitude
+                )
+                    ? prediction.longitude
+                    : null,
+
+            source:
+                prediction.source ||
+                null,
+
+            sources:
+                Array.isArray(
+                    prediction.sources
+                )
+                    ? prediction.sources
+                        .filter(Boolean)
+                        .slice(0, 10)
+                    : []
+        };
+    }
+
+    function buildPersistencePayload(
+        options = {}
+    ) {
+        const state =
+            ensurePersistenceState();
+
+        const normalized =
+            normalizePersistenceOptions(
+                options
+            );
+
+        const payload = {
+            schemaVersion:
+                normalized.schemaVersion,
+
+            savedAt:
+                Date.now(),
+
+            savedAtIso:
+                new Date()
+                    .toISOString(),
+
+            predictions:
+                [],
+
+            dashboard:
+                null,
+
+            metadata:
+                null
+        };
+
+        if (
+            normalized.persistPredictions
+        ) {
+            const predictions =
+                typeof integrationApi
+                    .getLatestPredictions ===
+                    'function'
+                    ? integrationApi
+                        .getLatestPredictions()
+                    : (
+                        Array.isArray(
+                            runtimeState
+                                .latestPredictions
+                        )
+                            ? runtimeState
+                                .latestPredictions
+                            : []
+                    );
+
+            payload.predictions =
+                predictions
+                    .map(
+                        sanitizePersistedPrediction
+                    )
+                    .filter(Boolean)
+                    .slice(
+                        0,
+                        normalized
+                            .maximumPredictions
+                    );
+        }
+
+        if (
+            normalized.persistDashboard &&
+            runtimeState.dashboard
+        ) {
+            payload.dashboard = {
+                lastSummary:
+                    runtimeState
+                        .dashboard
+                        .lastSummary ||
+                    null,
+
+                renderCount:
+                    runtimeState
+                        .dashboard
+                        .renderCount ||
+                    0,
+
+                lastRenderAt:
+                    runtimeState
+                        .dashboard
+                        .lastRenderAt ||
+                    null
+            };
+        }
+
+        if (
+            normalized.persistMetadata
+        ) {
+            payload.metadata = {
+                latestPredictionsAt:
+                    runtimeState
+                        .latestPredictionsAt ||
+                    null,
+
+                latestPredictionsAtIso:
+                    runtimeState
+                        .latestPredictionsAtIso ||
+                    null,
+
+                integrationMetadata:
+                    integrationApi
+                        .metadata
+                        ? {
+                            ...integrationApi
+                                .metadata
+                        }
+                        : null
+            };
+        }
+
+        state.lastPayload =
+            payload;
+
+        return payload;
+    }
+
+    function persistIntegrationSnapshot(
+        options = {}
+    ) {
+        const state =
+            ensurePersistenceState();
+
+        const normalized =
+            normalizePersistenceOptions(
+                options
+            );
+
+        if (
+            !normalized.enabled
+        ) {
+            return {
+                persisted:
+                    false,
+
+                reason:
+                    'persistence_disabled'
+            };
+        }
+
+        const storage =
+            integrationApi
+                .getPersistenceStorage();
+
+        if (!storage) {
+            return {
+                persisted:
+                    false,
+
+                reason:
+                    'storage_unavailable'
+            };
+        }
+
+        try {
+            const payload =
+                buildPersistencePayload(
+                    normalized
+                );
+
+            const serialized =
+                JSON.stringify(
+                    payload
+                );
+
+            storage.setItem(
+                normalized.storageKey,
+                serialized
+            );
+
+            state.writes +=
+                1;
+
+            state.lastWriteAt =
+                Date.now();
+
+            state.lastError =
+                null;
+
+            return {
+                persisted:
+                    true,
+
+                bytes:
+                    serialized.length,
+
+                predictionCount:
+                    payload.predictions
+                        .length,
+
+                savedAt:
+                    payload.savedAt,
+
+                savedAtIso:
+                    payload.savedAtIso
+            };
+        } catch (error) {
+            state.failures +=
+                1;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            log(
+                'error',
+                'Integration snapshot persistence failed.',
+                {
+                    error:
+                        state.lastError
+                }
+            );
+
+            return {
+                persisted:
+                    false,
+
+                reason:
+                    'persistence_write_failed',
+
+                error:
+                    state.lastError
+            };
+        }
+    }
+
+    integrationApi
+        .sanitizePersistedPrediction =
+        sanitizePersistedPrediction;
+
+    integrationApi
+        .buildPersistencePayload =
+        buildPersistencePayload;
+
+    integrationApi
+        .persistIntegrationSnapshot =
+        persistIntegrationSnapshot;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.3A-2',
+
+        nextPart:
+            '2.3B-1',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            sanitizePersistedPrediction,
+            buildPersistencePayload
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.3A-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.3B-1
+ *
+ * Responsibilities:
+ * - Read persisted snapshot
+ * - Validate schema and age
+ * - Restore predictions safely
+ * - Track persistence reads
+ */
+
+(function rainArrivalIntegrationV32PersistenceReader(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.3A-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensurePersistenceState,
+        normalizePersistenceOptions,
+        normalizeError,
+        log
+    } = internal;
+
+    function validatePersistencePayload(
+        payload,
+        options = {}
+    ) {
+        const normalized =
+            normalizePersistenceOptions(
+                options
+            );
+
+        if (
+            !payload ||
+            typeof payload !==
+                'object'
+        ) {
+            return {
+                valid:
+                    false,
+
+                reason:
+                    'invalid_payload'
+            };
+        }
+
+        if (
+            payload.schemaVersion !==
+            normalized.schemaVersion
+        ) {
+            return {
+                valid:
+                    false,
+
+                reason:
+                    'schema_mismatch'
+            };
+        }
+
+        if (
+            !Number.isFinite(
+                payload.savedAt
+            )
+        ) {
+            return {
+                valid:
+                    false,
+
+                reason:
+                    'missing_saved_at'
+            };
+        }
+
+        const ageMs =
+            Date.now() -
+            payload.savedAt;
+
+        if (
+            ageMs >
+            normalized.maximumAgeMs
+        ) {
+            return {
+                valid:
+                    false,
+
+                reason:
+                    'snapshot_expired',
+
+                ageMs
+            };
+        }
+
+        return {
+            valid:
+                true,
+
+            ageMs
+        };
+    }
+
+    function readPersistencePayload(
+        options = {}
+    ) {
+        const state =
+            ensurePersistenceState();
+
+        const normalized =
+            normalizePersistenceOptions(
+                options
+            );
+
+        if (
+            !normalized.enabled
+        ) {
+            return {
+                read:
+                    false,
+
+                reason:
+                    'persistence_disabled'
+            };
+        }
+
+        const storage =
+            integrationApi
+                .getPersistenceStorage();
+
+        if (!storage) {
+            return {
+                read:
+                    false,
+
+                reason:
+                    'storage_unavailable'
+            };
+        }
+
+        try {
+            const serialized =
+                storage.getItem(
+                    normalized.storageKey
+                );
+
+            state.reads +=
+                1;
+
+            state.lastReadAt =
+                Date.now();
+
+            if (!serialized) {
+                return {
+                    read:
+                        false,
+
+                    reason:
+                        'snapshot_missing'
+                };
+            }
+
+            const payload =
+                JSON.parse(
+                    serialized
+                );
+
+            const validation =
+                validatePersistencePayload(
+                    payload,
+                    normalized
+                );
+
+            if (
+                !validation.valid
+            ) {
+                return {
+                    read:
+                        false,
+
+                    reason:
+                        validation.reason,
+
+                    ageMs:
+                        validation.ageMs ||
+                        null
+                };
+            }
+
+            state.lastError =
+                null;
+
+            state.lastPayload =
+                payload;
+
+            return {
+                read:
+                    true,
+
+                payload,
+
+                ageMs:
+                    validation.ageMs
+            };
+        } catch (error) {
+            state.failures +=
+                1;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            log(
+                'error',
+                'Integration snapshot read failed.',
+                {
+                    error:
+                        state.lastError
+                }
+            );
+
+            return {
+                read:
+                    false,
+
+                reason:
+                    'persistence_read_failed',
+
+                error:
+                    state.lastError
+            };
+        }
+    }
+
+    function restoreIntegrationSnapshot(
+        options = {}
+    ) {
+        const result =
+            readPersistencePayload(
+                options
+            );
+
+        if (
+            !result.read ||
+            !result.payload
+        ) {
+            return {
+                restored:
+                    false,
+
+                reason:
+                    result.reason ||
+                    'snapshot_unavailable'
+            };
+        }
+
+        const payload =
+            result.payload;
+
+        const predictions =
+            Array.isArray(
+                payload.predictions
+            )
+                ? payload.predictions
+                : [];
+
+        if (
+            typeof integrationApi
+                .setLatestPredictions ===
+                'function'
+        ) {
+            integrationApi
+                .setLatestPredictions(
+                    predictions
+                );
+        } else {
+            runtimeState.latestPredictions =
+                predictions;
+        }
+
+        if (
+            payload.dashboard &&
+            runtimeState.dashboard
+        ) {
+            runtimeState
+                .dashboard
+                .lastSummary =
+                payload.dashboard
+                    .lastSummary ||
+                null;
+
+            runtimeState
+                .dashboard
+                .renderCount =
+                payload.dashboard
+                    .renderCount ||
+                0;
+
+            runtimeState
+                .dashboard
+                .lastRenderAt =
+                payload.dashboard
+                    .lastRenderAt ||
+                null;
+        }
+
+        if (
+            typeof integrationApi
+                .synchronizeDashboard ===
+                'function' &&
+            options.synchronizeDashboard !==
+                false
+        ) {
+            integrationApi
+                .synchronizeDashboard(
+                    predictions,
+                    options.dashboardOptions ||
+                    {}
+                );
+        }
+
+        return {
+            restored:
+                true,
+
+            predictionCount:
+                predictions.length,
+
+            ageMs:
+                result.ageMs,
+
+            savedAt:
+                payload.savedAt,
+
+            savedAtIso:
+                payload.savedAtIso ||
+                null
+        };
+    }
+
+    integrationApi
+        .validatePersistencePayload =
+        validatePersistencePayload;
+
+    integrationApi
+        .readPersistencePayload =
+        readPersistencePayload;
+
+    integrationApi
+        .restoreIntegrationSnapshot =
+        restoreIntegrationSnapshot;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.3B-1',
+
+        nextPart:
+            '2.3B-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            validatePersistencePayload,
+            readPersistencePayload
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.3B-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.3B-2
+ *
+ * Responsibilities:
+ * - Remove invalid snapshots
+ * - Auto persist after updates
+ * - Debounce persistence writes
+ * - Complete persistence lifecycle
+ */
+
+(function rainArrivalIntegrationV32PersistenceLifecycle(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.3B-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensurePersistenceState,
+        normalizePersistenceOptions,
+        normalizeError,
+        log
+    } = internal;
+
+    function ensurePersistenceLifecycleState() {
+        const state =
+            ensurePersistenceState();
+
+        if (
+            !state.lifecycle ||
+            typeof state.lifecycle !==
+                'object'
+        ) {
+            state.lifecycle = {
+                installed:
+                    false,
+
+                timer:
+                    null,
+
+                delayMs:
+                    1500,
+
+                listeners:
+                    [],
+
+                scheduledWrites:
+                    0,
+
+                completedWrites:
+                    0
+            };
+        }
+
+        return state.lifecycle;
+    }
+
+    function clearPersistedSnapshot(
+        options = {}
+    ) {
+        const normalized =
+            normalizePersistenceOptions(
+                options
+            );
+
+        const storage =
+            integrationApi
+                .getPersistenceStorage();
+
+        if (!storage) {
+            return {
+                cleared:
+                    false,
+
+                reason:
+                    'storage_unavailable'
+            };
+        }
+
+        try {
+            storage.removeItem(
+                normalized.storageKey
+            );
+
+            return {
+                cleared:
+                    true
+            };
+        } catch (error) {
+            return {
+                cleared:
+                    false,
+
+                reason:
+                    'snapshot_clear_failed',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            };
+        }
+    }
+
+    function schedulePersistenceWrite(
+        options = {}
+    ) {
+        const lifecycle =
+            ensurePersistenceLifecycleState();
+
+        const delayMs =
+            Math.max(
+                100,
+                Number(
+                    options.delayMs ??
+                    lifecycle.delayMs
+                ) ||
+                lifecycle.delayMs
+            );
+
+        if (
+            lifecycle.timer
+        ) {
+            globalObject.clearTimeout(
+                lifecycle.timer
+            );
+        }
+
+        lifecycle.scheduledWrites +=
+            1;
+
+        lifecycle.timer =
+            globalObject.setTimeout(
+                () => {
+                    lifecycle.timer =
+                        null;
+
+                    const result =
+                        integrationApi
+                            .persistIntegrationSnapshot(
+                                options
+                            );
+
+                    if (
+                        result &&
+                        result.persisted
+                    ) {
+                        lifecycle.completedWrites +=
+                            1;
+                    }
+                },
+                delayMs
+            );
+
+        return {
+            scheduled:
+                true,
+
+            delayMs
+        };
+    }
+
+    function registerPersistenceListener(
+        target,
+        eventName,
+        handler
+    ) {
+        const lifecycle =
+            ensurePersistenceLifecycleState();
+
+        if (
+            !target ||
+            typeof target.addEventListener !==
+                'function'
+        ) {
+            return false;
+        }
+
+        target.addEventListener(
+            eventName,
+            handler
+        );
+
+        lifecycle.listeners.push({
+            target,
+            eventName,
+            handler
+        });
+
+        return true;
+    }
+
+    function installPersistenceLifecycle() {
+        const lifecycle =
+            ensurePersistenceLifecycleState();
+
+        if (
+            lifecycle.installed
+        ) {
+            return {
+                installed:
+                    true,
+
+                reused:
+                    true
+            };
+        }
+
+        const handler =
+            () => {
+                schedulePersistenceWrite();
+            };
+
+        const documentTarget =
+            globalObject.document ||
+            null;
+
+        registerPersistenceListener(
+            documentTarget,
+            'rainguard:rain-arrival:predictions-updated',
+            handler
+        );
+
+        registerPersistenceListener(
+            documentTarget,
+            'rainguard:rain-arrival:city-updated',
+            handler
+        );
+
+        registerPersistenceListener(
+            globalObject,
+            'beforeunload',
+            () => {
+                try {
+                    integrationApi
+                        .persistIntegrationSnapshot();
+                } catch (error) {
+                    log(
+                        'debug',
+                        'Final persistence write failed.',
+                        {
+                            error:
+                                normalizeError(
+                                    error
+                                )
+                        }
+                    );
+                }
+            }
+        );
+
+        lifecycle.installed =
+            lifecycle.listeners.length >
+            0;
+
+        return {
+            installed:
+                lifecycle.installed,
+
+            listenerCount:
+                lifecycle.listeners
+                    .length
+        };
+    }
+
+    function removePersistenceLifecycle() {
+        const lifecycle =
+            ensurePersistenceLifecycleState();
+
+        for (
+            const listener
+            of lifecycle.listeners
+        ) {
+            try {
+                listener.target
+                    .removeEventListener(
+                        listener.eventName,
+                        listener.handler
+                    );
+            } catch (error) {
+                log(
+                    'debug',
+                    'Persistence listener removal failed.',
+                    {
+                        error:
+                            normalizeError(
+                                error
+                            )
+                    }
+                );
+            }
+        }
+
+        if (
+            lifecycle.timer
+        ) {
+            globalObject.clearTimeout(
+                lifecycle.timer
+            );
+
+            lifecycle.timer =
+                null;
+        }
+
+        const removedCount =
+            lifecycle.listeners.length;
+
+        lifecycle.listeners =
+            [];
+
+        lifecycle.installed =
+            false;
+
+        return {
+            removed:
+                true,
+
+            removedCount
+        };
+    }
+
+    function getPersistenceLifecycleStatus() {
+        const lifecycle =
+            ensurePersistenceLifecycleState();
+
+        return {
+            installed:
+                lifecycle.installed,
+
+            listenerCount:
+                lifecycle.listeners
+                    .length,
+
+            scheduledWrites:
+                lifecycle.scheduledWrites,
+
+            completedWrites:
+                lifecycle.completedWrites,
+
+            pending:
+                Boolean(
+                    lifecycle.timer
+                ),
+
+            delayMs:
+                lifecycle.delayMs
+        };
+    }
+
+    integrationApi
+        .clearPersistedSnapshot =
+        clearPersistedSnapshot;
+
+    integrationApi
+        .schedulePersistenceWrite =
+        schedulePersistenceWrite;
+
+    integrationApi
+        .installPersistenceLifecycle =
+        installPersistenceLifecycle;
+
+    integrationApi
+        .removePersistenceLifecycle =
+        removePersistenceLifecycle;
+
+    integrationApi
+        .getPersistenceLifecycleStatus =
+        getPersistenceLifecycleStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.3B-2',
+
+        nextPart:
+            '2.4A-1',
+
+        status:
+            'section_complete',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ensurePersistenceLifecycleState,
+            registerPersistenceListener
+        }
+    );
+
+    try {
+        const restoreResult =
+            integrationApi
+                .restoreIntegrationSnapshot();
+
+        if (
+            !restoreResult.restored &&
+            [
+                'schema_mismatch',
+                'snapshot_expired',
+                'invalid_payload'
+            ].includes(
+                restoreResult.reason
+            )
+        ) {
+            clearPersistedSnapshot();
+        }
+
+        installPersistenceLifecycle();
+    } catch (error) {
+        log(
+            'debug',
+            'Persistence lifecycle initialization failed.',
+            {
+                part:
+                    '2.3B-2',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            }
+        );
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.3B-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.4A-1
+ *
+ * Responsibilities:
+ * - Create diagnostics state
+ * - Register diagnostic checks
+ * - Execute health checks
+ * - Build health summary
+ */
+
+(function rainArrivalIntegrationV32DiagnosticsBase(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.3B-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    function ensureDiagnosticsState() {
+        if (
+            !runtimeState.diagnostics ||
+            typeof runtimeState.diagnostics !==
+                'object'
+        ) {
+            runtimeState.diagnostics = {
+                checks:
+                    new Map(),
+
+                runs:
+                    0,
+
+                failures:
+                    0,
+
+                lastRunAt:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastReport:
+                    null
+            };
+        }
+
+        return runtimeState.diagnostics;
+    }
+
+    function registerDiagnosticCheck(
+        name,
+        check
+    ) {
+        const state =
+            ensureDiagnosticsState();
+
+        if (
+            !name ||
+            typeof check !==
+                'function'
+        ) {
+            return false;
+        }
+
+        state.checks.set(
+            String(name),
+            check
+        );
+
+        return true;
+    }
+
+    async function executeDiagnosticCheck(
+        name,
+        check
+    ) {
+        const startedAt =
+            Date.now();
+
+        try {
+            const value =
+                await check();
+
+            const normalized =
+                value &&
+                typeof value ===
+                    'object'
+                    ? value
+                    : {
+                        healthy:
+                            Boolean(value)
+                    };
+
+            return {
+                name,
+                healthy:
+                    normalized.healthy !==
+                    false,
+
+                status:
+                    normalized.status ||
+                    (
+                        normalized.healthy ===
+                        false
+                            ? 'failed'
+                            : 'passed'
+                    ),
+
+                details:
+                    normalized.details ||
+                    null,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        } catch (error) {
+            return {
+                name,
+                healthy:
+                    false,
+
+                status:
+                    'error',
+
+                details: {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                },
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+    }
+
+    async function runDiagnostics() {
+        const state =
+            ensureDiagnosticsState();
+
+        const startedAt =
+            Date.now();
+
+        const results =
+            [];
+
+        for (
+            const [
+                name,
+                check
+            ]
+            of state.checks.entries()
+        ) {
+            results.push(
+                await executeDiagnosticCheck(
+                    name,
+                    check
+                )
+            );
+        }
+
+        const failed =
+            results.filter(
+                item =>
+                    !item.healthy
+            );
+
+        const report = {
+            healthy:
+                failed.length ===
+                0,
+
+            status:
+                failed.length ===
+                0
+                    ? 'healthy'
+                    : (
+                        failed.length ===
+                        results.length
+                            ? 'critical'
+                            : 'degraded'
+                    ),
+
+            totalChecks:
+                results.length,
+
+            passedChecks:
+                results.length -
+                failed.length,
+
+            failedChecks:
+                failed.length,
+
+            results,
+
+            generatedAt:
+                Date.now(),
+
+            generatedAtIso:
+                new Date()
+                    .toISOString()
+        };
+
+        state.runs +=
+            1;
+
+        state.failures +=
+            failed.length;
+
+        state.lastRunAt =
+            report.generatedAt;
+
+        state.lastDurationMs =
+            Date.now() -
+            startedAt;
+
+        state.lastReport =
+            report;
+
+        return {
+            ...report,
+
+            durationMs:
+                state.lastDurationMs
+        };
+    }
+
+    function getDiagnosticsStatus() {
+        const state =
+            ensureDiagnosticsState();
+
+        return {
+            registeredChecks:
+                Array.from(
+                    state.checks.keys()
+                ),
+
+            runs:
+                state.runs,
+
+            failures:
+                state.failures,
+
+            lastRunAt:
+                state.lastRunAt,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastReport:
+                state.lastReport
+                    ? {
+                        ...state.lastReport
+                    }
+                    : null
+        };
+    }
+
+    registerDiagnosticCheck(
+        'engine_registry',
+        () => {
+            const report =
+                typeof integrationApi
+                    .getEngineReadinessReport ===
+                    'function'
+                    ? integrationApi
+                        .getEngineReadinessReport()
+                    : null;
+
+            return {
+                healthy:
+                    Boolean(
+                        report &&
+                        report.readyCount >
+                        0
+                    ),
+
+                details:
+                    report
+            };
+        }
+    );
+
+    registerDiagnosticCheck(
+        'persistence',
+        () => {
+            const status =
+                typeof integrationApi
+                    .getPersistenceStatus ===
+                    'function'
+                    ? integrationApi
+                        .getPersistenceStatus()
+                    : null;
+
+            return {
+                healthy:
+                    Boolean(
+                        status &&
+                        (
+                            status.available ||
+                            status.options
+                                .enabled ===
+                                false
+                        )
+                    ),
+
+                details:
+                    status
+            };
+        }
+    );
+
+    registerDiagnosticCheck(
+        'pipeline',
+        () => {
+            const status =
+                typeof integrationApi
+                    .getIntegrationPipelineStatus ===
+                    'function'
+                    ? integrationApi
+                        .getIntegrationPipelineStatus()
+                    : null;
+
+            return {
+                healthy:
+                    Boolean(status),
+
+                details:
+                    status
+            };
+        }
+    );
+
+    integrationApi
+        .registerDiagnosticCheck =
+        registerDiagnosticCheck;
+
+    integrationApi
+        .runDiagnostics =
+        runDiagnostics;
+
+    integrationApi
+        .getDiagnosticsStatus =
+        getDiagnosticsStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.4A-1',
+
+        nextPart:
+            '2.4A-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ensureDiagnosticsState,
+            executeDiagnosticCheck
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.4A-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.4A-2
+ *
+ * Responsibilities:
+ * - Add event and data-flow diagnostics
+ * - Add dashboard and prediction health checks
+ * - Classify diagnostic severity
+ * - Complete diagnostics registration layer
+ */
+
+(function rainArrivalIntegrationV32DiagnosticsChecks(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.4A-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensureDiagnosticsState,
+        toFiniteNumber,
+        normalizeError,
+        log
+    } = internal;
+
+    function classifyDiagnosticSeverity(
+        input
+    ) {
+        if (
+            !input ||
+            typeof input !==
+                'object'
+        ) {
+            return 'unknown';
+        }
+
+        if (
+            input.healthy ===
+            true
+        ) {
+            return 'ok';
+        }
+
+        const failureCount =
+            Math.max(
+                0,
+                toFiniteNumber(
+                    input.failureCount ??
+                    input.failedChecks ??
+                    input.failures,
+                    0
+                )
+            );
+
+        const totalCount =
+            Math.max(
+                0,
+                toFiniteNumber(
+                    input.totalCount ??
+                    input.totalChecks ??
+                    input.total,
+                    0
+                )
+            );
+
+        if (
+            totalCount > 0 &&
+            failureCount >=
+            totalCount
+        ) {
+            return 'critical';
+        }
+
+        if (
+            failureCount >=
+            3
+        ) {
+            return 'high';
+        }
+
+        if (
+            failureCount >=
+            1
+        ) {
+            return 'warning';
+        }
+
+        return 'degraded';
+    }
+
+    function getPredictionDiagnosticSnapshot() {
+        const predictions =
+            typeof integrationApi
+                .getLatestPredictions ===
+                'function'
+                ? integrationApi
+                    .getLatestPredictions()
+                : (
+                    Array.isArray(
+                        runtimeState
+                            .latestPredictions
+                    )
+                        ? runtimeState
+                            .latestPredictions
+                        : []
+                );
+
+        const valid =
+            predictions.filter(
+                prediction =>
+                    prediction &&
+                    typeof prediction ===
+                        'object' &&
+                    prediction.accepted !==
+                        false
+            );
+
+        const raining =
+            valid.filter(
+                prediction =>
+                    prediction.willRain ===
+                    true
+            );
+
+        const staleThresholdMs =
+            1800000;
+
+        const updatedAt =
+            toFiniteNumber(
+                runtimeState
+                    .latestPredictionsAt,
+                0
+            );
+
+        const ageMs =
+            updatedAt > 0
+                ? Date.now() -
+                    updatedAt
+                : null;
+
+        return {
+            total:
+                predictions.length,
+
+            valid:
+                valid.length,
+
+            raining:
+                raining.length,
+
+            updatedAt:
+                updatedAt ||
+                null,
+
+            ageMs,
+
+            stale:
+                ageMs ===
+                null ||
+                ageMs >
+                staleThresholdMs
+        };
+    }
+
+    function getDashboardDiagnosticSnapshot() {
+        const dashboard =
+            runtimeState.dashboard;
+
+        if (
+            !dashboard ||
+            typeof dashboard !==
+                'object'
+        ) {
+            return {
+                available:
+                    false,
+
+                mounted:
+                    false,
+
+                renderCount:
+                    0,
+
+                lastRenderAt:
+                    null
+            };
+        }
+
+        return {
+            available:
+                true,
+
+            mounted:
+                Boolean(
+                    dashboard.rootElement ||
+                    dashboard.container ||
+                    dashboard.mounted
+                ),
+
+            renderCount:
+                Math.max(
+                    0,
+                    toFiniteNumber(
+                        dashboard.renderCount,
+                        0
+                    )
+                ),
+
+            lastRenderAt:
+                dashboard.lastRenderAt ||
+                null,
+
+            hasSummary:
+                Boolean(
+                    dashboard.lastSummary
+                )
+        };
+    }
+
+    function getEventBusDiagnosticSnapshot() {
+        const eventBus =
+            runtimeState.eventBus ||
+            integrationApi.eventBus ||
+            null;
+
+        if (!eventBus) {
+            return {
+                available:
+                    false,
+
+                listenerCount:
+                    0
+            };
+        }
+
+        let listenerCount =
+            0;
+
+        try {
+            if (
+                typeof eventBus
+                    .getListenerCount ===
+                    'function'
+            ) {
+                listenerCount =
+                    toFiniteNumber(
+                        eventBus
+                            .getListenerCount(),
+                        0
+                    );
+            } else if (
+                eventBus.listeners &&
+                typeof eventBus.listeners
+                    .size ===
+                    'number'
+            ) {
+                listenerCount =
+                    eventBus.listeners
+                        .size;
+            } else if (
+                Array.isArray(
+                    eventBus.listeners
+                )
+            ) {
+                listenerCount =
+                    eventBus.listeners
+                        .length;
+            }
+        } catch (error) {
+            log(
+                'debug',
+                'Event bus diagnostic inspection failed.',
+                {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                }
+            );
+        }
+
+        return {
+            available:
+                true,
+
+            listenerCount:
+                Math.max(
+                    0,
+                    listenerCount
+                )
+        };
+    }
+
+    integrationApi
+        .registerDiagnosticCheck(
+            'predictions',
+            () => {
+                const snapshot =
+                    getPredictionDiagnosticSnapshot();
+
+                return {
+                    healthy:
+                        snapshot.valid >
+                        0 &&
+                        snapshot.stale ===
+                        false,
+
+                    status:
+                        snapshot.valid ===
+                        0
+                            ? 'empty'
+                            : (
+                                snapshot.stale
+                                    ? 'stale'
+                                    : 'passed'
+                            ),
+
+                    details:
+                        snapshot
+                };
+            }
+        );
+
+    integrationApi
+        .registerDiagnosticCheck(
+            'dashboard',
+            () => {
+                const snapshot =
+                    getDashboardDiagnosticSnapshot();
+
+                return {
+                    healthy:
+                        snapshot.available &&
+                        (
+                            snapshot.mounted ||
+                            snapshot.renderCount >
+                            0
+                        ),
+
+                    status:
+                        snapshot.available
+                            ? (
+                                snapshot.mounted ||
+                                snapshot.renderCount >
+                                0
+                                    ? 'passed'
+                                    : 'idle'
+                            )
+                            : 'unavailable',
+
+                    details:
+                        snapshot
+                };
+            }
+        );
+
+    integrationApi
+        .registerDiagnosticCheck(
+            'event_bus',
+            () => {
+                const snapshot =
+                    getEventBusDiagnosticSnapshot();
+
+                return {
+                    healthy:
+                        snapshot.available,
+
+                    status:
+                        snapshot.available
+                            ? 'passed'
+                            : 'unavailable',
+
+                    details:
+                        snapshot
+                };
+            }
+        );
+
+    integrationApi
+        .registerDiagnosticCheck(
+            'data_flow',
+            () => {
+                const predictions =
+                    getPredictionDiagnosticSnapshot();
+
+                const pipeline =
+                    typeof integrationApi
+                        .getIntegrationPipelineStatus ===
+                        'function'
+                        ? integrationApi
+                            .getIntegrationPipelineStatus()
+                        : null;
+
+                const hasCompletedRun =
+                    Boolean(
+                        pipeline &&
+                        (
+                            pipeline.completedRuns >
+                            0 ||
+                            pipeline.lastCompletedAt
+                        )
+                    );
+
+                return {
+                    healthy:
+                        predictions.valid >
+                        0 ||
+                        hasCompletedRun,
+
+                    status:
+                        predictions.valid >
+                        0
+                            ? 'active'
+                            : (
+                                hasCompletedRun
+                                    ? 'completed'
+                                    : 'idle'
+                            ),
+
+                    details: {
+                        predictions,
+                        pipeline
+                    }
+                };
+            }
+        );
+
+    const originalRunDiagnostics =
+        integrationApi
+            .runDiagnostics;
+
+    integrationApi
+        .runDiagnostics =
+        async function runDiagnosticsWithSeverity() {
+            const report =
+                await originalRunDiagnostics();
+
+            const severity =
+                classifyDiagnosticSeverity({
+                    healthy:
+                        report.healthy,
+
+                    failureCount:
+                        report.failedChecks,
+
+                    totalCount:
+                        report.totalChecks
+                });
+
+            const state =
+                ensureDiagnosticsState();
+
+            const enhancedReport = {
+                ...report,
+                severity
+            };
+
+            state.lastReport =
+                enhancedReport;
+
+            return enhancedReport;
+        };
+
+    integrationApi
+        .classifyDiagnosticSeverity =
+        classifyDiagnosticSeverity;
+
+    integrationApi
+        .getPredictionDiagnosticSnapshot =
+        getPredictionDiagnosticSnapshot;
+
+    integrationApi
+        .getDashboardDiagnosticSnapshot =
+        getDashboardDiagnosticSnapshot;
+
+    integrationApi
+        .getEventBusDiagnosticSnapshot =
+        getEventBusDiagnosticSnapshot;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.4A-2',
+
+        nextPart:
+            '2.4B-1',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            classifyDiagnosticSeverity,
+            getPredictionDiagnosticSnapshot,
+            getDashboardDiagnosticSnapshot,
+            getEventBusDiagnosticSnapshot
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.4A-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.4B-1
+ *
+ * Responsibilities:
+ * - Create health monitor state
+ * - Schedule periodic diagnostics
+ * - Track health transitions
+ * - Emit health status events
+ */
+
+(function rainArrivalIntegrationV32HealthMonitor(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.4A-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        toFiniteNumber,
+        normalizeError,
+        log
+    } = internal;
+
+    const DEFAULT_HEALTH_MONITOR_OPTIONS =
+        Object.freeze({
+            enabled:
+                true,
+
+            intervalMs:
+                300000,
+
+            runImmediately:
+                true,
+
+            emitEvents:
+                true,
+
+            stopOnHidden:
+                false
+        });
+
+    function ensureHealthMonitorState() {
+        if (
+            !runtimeState.healthMonitor ||
+            typeof runtimeState.healthMonitor !==
+                'object'
+        ) {
+            runtimeState.healthMonitor = {
+                options: {
+                    ...DEFAULT_HEALTH_MONITOR_OPTIONS
+                },
+
+                running:
+                    false,
+
+                timer:
+                    null,
+
+                runs:
+                    0,
+
+                transitions:
+                    0,
+
+                lastStatus:
+                    null,
+
+                lastSeverity:
+                    null,
+
+                lastRunAt:
+                    null,
+
+                lastError:
+                    null
+            };
+        }
+
+        return runtimeState.healthMonitor;
+    }
+
+    function normalizeHealthMonitorOptions(
+        options = {}
+    ) {
+        const state =
+            ensureHealthMonitorState();
+
+        const normalized = {
+            ...DEFAULT_HEALTH_MONITOR_OPTIONS,
+            ...state.options,
+            ...options
+        };
+
+        normalized.enabled =
+            normalized.enabled !==
+            false;
+
+        normalized.runImmediately =
+            normalized.runImmediately !==
+            false;
+
+        normalized.emitEvents =
+            normalized.emitEvents !==
+            false;
+
+        normalized.stopOnHidden =
+            normalized.stopOnHidden ===
+            true;
+
+        normalized.intervalMs =
+            Math.max(
+                60000,
+                toFiniteNumber(
+                    normalized.intervalMs,
+                    DEFAULT_HEALTH_MONITOR_OPTIONS
+                        .intervalMs
+                )
+            );
+
+        state.options =
+            normalized;
+
+        return {
+            ...normalized
+        };
+    }
+
+    function emitHealthEvent(
+        report
+    ) {
+        const state =
+            ensureHealthMonitorState();
+
+        if (
+            !state.options.emitEvents ||
+            !globalObject.document ||
+            typeof globalObject.document
+                .dispatchEvent !==
+                'function'
+        ) {
+            return false;
+        }
+
+        try {
+            globalObject.document
+                .dispatchEvent(
+                    new globalObject.CustomEvent(
+                        'rainguard:rain-arrival:health',
+                        {
+                            detail: {
+                                report,
+                                timestamp:
+                                    Date.now()
+                            }
+                        }
+                    )
+                );
+
+            return true;
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            return false;
+        }
+    }
+
+    async function runHealthMonitorCycle() {
+        const state =
+            ensureHealthMonitorState();
+
+        if (
+            !state.running
+        ) {
+            return {
+                executed:
+                    false,
+
+                reason:
+                    'health_monitor_stopped'
+            };
+        }
+
+        if (
+            state.options.stopOnHidden &&
+            globalObject.document &&
+            globalObject.document.hidden
+        ) {
+            return {
+                executed:
+                    false,
+
+                reason:
+                    'document_hidden'
+            };
+        }
+
+        try {
+            const report =
+                await integrationApi
+                    .runDiagnostics();
+
+            const nextStatus =
+                report.status ||
+                (
+                    report.healthy
+                        ? 'healthy'
+                        : 'degraded'
+                );
+
+            const nextSeverity =
+                report.severity ||
+                (
+                    report.healthy
+                        ? 'ok'
+                        : 'warning'
+                );
+
+            if (
+                state.lastStatus !==
+                    null &&
+                (
+                    state.lastStatus !==
+                        nextStatus ||
+                    state.lastSeverity !==
+                        nextSeverity
+                )
+            ) {
+                state.transitions +=
+                    1;
+            }
+
+            state.runs +=
+                1;
+
+            state.lastStatus =
+                nextStatus;
+
+            state.lastSeverity =
+                nextSeverity;
+
+            state.lastRunAt =
+                Date.now();
+
+            state.lastError =
+                null;
+
+            emitHealthEvent(
+                report
+            );
+
+            return {
+                executed:
+                    true,
+
+                report
+            };
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            log(
+                'error',
+                'Health monitor cycle failed.',
+                {
+                    error:
+                        state.lastError
+                }
+            );
+
+            return {
+                executed:
+                    false,
+
+                reason:
+                    'health_monitor_cycle_failed',
+
+                error:
+                    state.lastError
+            };
+        }
+    }
+
+    function scheduleNextHealthMonitorCycle() {
+        const state =
+            ensureHealthMonitorState();
+
+        if (
+            !state.running
+        ) {
+            return false;
+        }
+
+        if (
+            state.timer
+        ) {
+            globalObject.clearTimeout(
+                state.timer
+            );
+        }
+
+        state.timer =
+            globalObject.setTimeout(
+                async () => {
+                    state.timer =
+                        null;
+
+                    await runHealthMonitorCycle();
+
+                    scheduleNextHealthMonitorCycle();
+                },
+                state.options.intervalMs
+            );
+
+        return true;
+    }
+
+    function startHealthMonitor(
+        options = {}
+    ) {
+        const state =
+            ensureHealthMonitorState();
+
+        const normalized =
+            normalizeHealthMonitorOptions(
+                options
+            );
+
+        if (
+            !normalized.enabled
+        ) {
+            return {
+                started:
+                    false,
+
+                reason:
+                    'health_monitor_disabled'
+            };
+        }
+
+        if (
+            state.running
+        ) {
+            return {
+                started:
+                    true,
+
+                reused:
+                    true
+            };
+        }
+
+        state.running =
+            true;
+
+        if (
+            normalized.runImmediately
+        ) {
+            Promise.resolve()
+                .then(
+                    () =>
+                        runHealthMonitorCycle()
+                )
+                .catch(
+                    error => {
+                        state.lastError =
+                            normalizeError(
+                                error
+                            );
+                    }
+                );
+        }
+
+        scheduleNextHealthMonitorCycle();
+
+        return {
+            started:
+                true,
+
+            intervalMs:
+                normalized.intervalMs
+        };
+    }
+
+    function stopHealthMonitor() {
+        const state =
+            ensureHealthMonitorState();
+
+        state.running =
+            false;
+
+        if (
+            state.timer
+        ) {
+            globalObject.clearTimeout(
+                state.timer
+            );
+
+            state.timer =
+                null;
+        }
+
+        return {
+            stopped:
+                true,
+
+            runs:
+                state.runs
+        };
+    }
+
+    function getHealthMonitorStatus() {
+        const state =
+            ensureHealthMonitorState();
+
+        return {
+            running:
+                state.running,
+
+            runs:
+                state.runs,
+
+            transitions:
+                state.transitions,
+
+            lastStatus:
+                state.lastStatus,
+
+            lastSeverity:
+                state.lastSeverity,
+
+            lastRunAt:
+                state.lastRunAt,
+
+            lastError:
+                state.lastError,
+
+            options: {
+                ...state.options
+            }
+        };
+    }
+
+    integrationApi
+        .normalizeHealthMonitorOptions =
+        normalizeHealthMonitorOptions;
+
+    integrationApi
+        .runHealthMonitorCycle =
+        runHealthMonitorCycle;
+
+    integrationApi
+        .startHealthMonitor =
+        startHealthMonitor;
+
+    integrationApi
+        .stopHealthMonitor =
+        stopHealthMonitor;
+
+    integrationApi
+        .getHealthMonitorStatus =
+        getHealthMonitorStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.4B-1',
+
+        nextPart:
+            '2.4B-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_HEALTH_MONITOR_OPTIONS,
+            ensureHealthMonitorState,
+            emitHealthEvent,
+            scheduleNextHealthMonitorCycle
+        }
+    );
+
+    try {
+        startHealthMonitor();
+    } catch (error) {
+        log(
+            'debug',
+            'Health monitor initialization failed.',
+            {
+                part:
+                    '2.4B-1',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            }
+        );
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.4B-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.4B-2
+ *
+ * Responsibilities:
+ * - Maintain health history
+ * - Detect repeated degradation
+ * - Trigger recovery actions
+ * - Complete health monitoring section
+ */
+
+(function rainArrivalIntegrationV32HealthRecovery(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.4B-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensureHealthMonitorState,
+        toFiniteNumber,
+        normalizeError,
+        log
+    } = internal;
+
+    const DEFAULT_HEALTH_RECOVERY_OPTIONS =
+        Object.freeze({
+            enabled:
+                true,
+
+            historyLimit:
+                50,
+
+            degradationThreshold:
+                3,
+
+            criticalThreshold:
+                2,
+
+            recoveryCooldownMs:
+                300000,
+
+            rerunPipeline:
+                true,
+
+            refreshDashboard:
+                true,
+
+            persistAfterRecovery:
+                true
+        });
+
+    function ensureHealthRecoveryState() {
+        const healthState =
+            ensureHealthMonitorState();
+
+        if (
+            !healthState.recovery ||
+            typeof healthState.recovery !==
+                'object'
+        ) {
+            healthState.recovery = {
+                options: {
+                    ...DEFAULT_HEALTH_RECOVERY_OPTIONS
+                },
+
+                history:
+                    [],
+
+                degradationStreak:
+                    0,
+
+                criticalStreak:
+                    0,
+
+                attempts:
+                    0,
+
+                successes:
+                    0,
+
+                failures:
+                    0,
+
+                lastAttemptAt:
+                    null,
+
+                lastSuccessAt:
+                    null,
+
+                lastResult:
+                    null,
+
+                active:
+                    false
+            };
+        }
+
+        return healthState.recovery;
+    }
+
+    function normalizeHealthRecoveryOptions(
+        options = {}
+    ) {
+        const state =
+            ensureHealthRecoveryState();
+
+        const normalized = {
+            ...DEFAULT_HEALTH_RECOVERY_OPTIONS,
+            ...state.options,
+            ...options
+        };
+
+        normalized.enabled =
+            normalized.enabled !==
+            false;
+
+        normalized.rerunPipeline =
+            normalized.rerunPipeline !==
+            false;
+
+        normalized.refreshDashboard =
+            normalized.refreshDashboard !==
+            false;
+
+        normalized.persistAfterRecovery =
+            normalized.persistAfterRecovery !==
+            false;
+
+        normalized.historyLimit =
+            Math.max(
+                5,
+                Math.round(
+                    toFiniteNumber(
+                        normalized.historyLimit,
+                        DEFAULT_HEALTH_RECOVERY_OPTIONS
+                            .historyLimit
+                    )
+                )
+            );
+
+        normalized.degradationThreshold =
+            Math.max(
+                1,
+                Math.round(
+                    toFiniteNumber(
+                        normalized.degradationThreshold,
+                        DEFAULT_HEALTH_RECOVERY_OPTIONS
+                            .degradationThreshold
+                    )
+                )
+            );
+
+        normalized.criticalThreshold =
+            Math.max(
+                1,
+                Math.round(
+                    toFiniteNumber(
+                        normalized.criticalThreshold,
+                        DEFAULT_HEALTH_RECOVERY_OPTIONS
+                            .criticalThreshold
+                    )
+                )
+            );
+
+        normalized.recoveryCooldownMs =
+            Math.max(
+                60000,
+                toFiniteNumber(
+                    normalized.recoveryCooldownMs,
+                    DEFAULT_HEALTH_RECOVERY_OPTIONS
+                        .recoveryCooldownMs
+                )
+            );
+
+        state.options =
+            normalized;
+
+        return {
+            ...normalized
+        };
+    }
+
+    function recordHealthHistory(
+        report
+    ) {
+        const state =
+            ensureHealthRecoveryState();
+
+        const options =
+            normalizeHealthRecoveryOptions();
+
+        const entry = {
+            healthy:
+                report &&
+                report.healthy ===
+                true,
+
+            status:
+                report &&
+                report.status
+                    ? report.status
+                    : 'unknown',
+
+            severity:
+                report &&
+                report.severity
+                    ? report.severity
+                    : 'unknown',
+
+            failedChecks:
+                report &&
+                Number.isFinite(
+                    report.failedChecks
+                )
+                    ? report.failedChecks
+                    : 0,
+
+            timestamp:
+                Date.now(),
+
+            timestampIso:
+                new Date()
+                    .toISOString()
+        };
+
+        state.history.push(
+            entry
+        );
+
+        if (
+            state.history.length >
+            options.historyLimit
+        ) {
+            state.history.splice(
+                0,
+                state.history.length -
+                options.historyLimit
+            );
+        }
+
+        if (
+            entry.healthy
+        ) {
+            state.degradationStreak =
+                0;
+
+            state.criticalStreak =
+                0;
+        } else {
+            state.degradationStreak +=
+                1;
+
+            if (
+                entry.status ===
+                    'critical' ||
+                entry.severity ===
+                    'critical'
+            ) {
+                state.criticalStreak +=
+                    1;
+            } else {
+                state.criticalStreak =
+                    0;
+            }
+        }
+
+        return {
+            ...entry,
+
+            degradationStreak:
+                state.degradationStreak,
+
+            criticalStreak:
+                state.criticalStreak
+        };
+    }
+
+    function shouldAttemptHealthRecovery() {
+        const state =
+            ensureHealthRecoveryState();
+
+        const options =
+            normalizeHealthRecoveryOptions();
+
+        if (
+            !options.enabled ||
+            state.active
+        ) {
+            return false;
+        }
+
+        if (
+            state.lastAttemptAt &&
+            Date.now() -
+                state.lastAttemptAt <
+                options.recoveryCooldownMs
+        ) {
+            return false;
+        }
+
+        return (
+            state.degradationStreak >=
+                options.degradationThreshold ||
+            state.criticalStreak >=
+                options.criticalThreshold
+        );
+    }
+
+    async function executeHealthRecovery(
+        options = {}
+    ) {
+        const state =
+            ensureHealthRecoveryState();
+
+        const normalized =
+            normalizeHealthRecoveryOptions(
+                options
+            );
+
+        if (
+            !normalized.enabled
+        ) {
+            return {
+                recovered:
+                    false,
+
+                reason:
+                    'health_recovery_disabled'
+            };
+        }
+
+        if (
+            state.active
+        ) {
+            return {
+                recovered:
+                    false,
+
+                reason:
+                    'health_recovery_active'
+            };
+        }
+
+        state.active =
+            true;
+
+        state.attempts +=
+            1;
+
+        state.lastAttemptAt =
+            Date.now();
+
+        const actions =
+            [];
+
+        try {
+            if (
+                normalized.rerunPipeline &&
+                typeof integrationApi
+                    .runIntegrationPipeline ===
+                    'function'
+            ) {
+                const pipelineResult =
+                    await integrationApi
+                        .runIntegrationPipeline({
+                            force:
+                                true,
+
+                            reason:
+                                'health_recovery'
+                        });
+
+                actions.push({
+                    action:
+                        'pipeline_rerun',
+
+                    success:
+                        Boolean(
+                            pipelineResult
+                        ),
+
+                    result:
+                        pipelineResult ||
+                        null
+                });
+            }
+
+            if (
+                normalized.refreshDashboard &&
+                typeof integrationApi
+                    .synchronizeDashboard ===
+                    'function'
+            ) {
+                const predictions =
+                    typeof integrationApi
+                        .getLatestPredictions ===
+                        'function'
+                        ? integrationApi
+                            .getLatestPredictions()
+                        : (
+                            Array.isArray(
+                                runtimeState
+                                    .latestPredictions
+                            )
+                                ? runtimeState
+                                    .latestPredictions
+                                : []
+                        );
+
+                const dashboardResult =
+                    integrationApi
+                        .synchronizeDashboard(
+                            predictions,
+                            {
+                                force:
+                                    true,
+
+                                reason:
+                                    'health_recovery'
+                            }
+                        );
+
+                actions.push({
+                    action:
+                        'dashboard_refresh',
+
+                    success:
+                        dashboardResult !==
+                        false,
+
+                    result:
+                        dashboardResult ||
+                        null
+                });
+            }
+
+            if (
+                normalized.persistAfterRecovery &&
+                typeof integrationApi
+                    .persistIntegrationSnapshot ===
+                    'function'
+            ) {
+                const persistenceResult =
+                    integrationApi
+                        .persistIntegrationSnapshot();
+
+                actions.push({
+                    action:
+                        'snapshot_persist',
+
+                    success:
+                        Boolean(
+                            persistenceResult &&
+                            persistenceResult
+                                .persisted
+                        ),
+
+                    result:
+                        persistenceResult
+                });
+            }
+
+            const diagnostics =
+                typeof integrationApi
+                    .runDiagnostics ===
+                    'function'
+                    ? await integrationApi
+                        .runDiagnostics()
+                    : null;
+
+            const recovered =
+                Boolean(
+                    diagnostics &&
+                    diagnostics.healthy
+                );
+
+            if (
+                recovered
+            ) {
+                state.successes +=
+                    1;
+
+                state.lastSuccessAt =
+                    Date.now();
+
+                state.degradationStreak =
+                    0;
+
+                state.criticalStreak =
+                    0;
+            } else {
+                state.failures +=
+                    1;
+            }
+
+            state.lastResult = {
+                recovered,
+                actions,
+                diagnostics,
+                completedAt:
+                    Date.now()
+            };
+
+            return {
+                ...state.lastResult
+            };
+        } catch (error) {
+            state.failures +=
+                1;
+
+            const normalizedError =
+                normalizeError(
+                    error
+                );
+
+            state.lastResult = {
+                recovered:
+                    false,
+
+                actions,
+
+                error:
+                    normalizedError,
+
+                completedAt:
+                    Date.now()
+            };
+
+            log(
+                'error',
+                'Health recovery failed.',
+                {
+                    error:
+                        normalizedError
+                }
+            );
+
+            return {
+                ...state.lastResult
+            };
+        } finally {
+            state.active =
+                false;
+        }
+    }
+
+    function getHealthRecoveryStatus() {
+        const state =
+            ensureHealthRecoveryState();
+
+        return {
+            active:
+                state.active,
+
+            degradationStreak:
+                state.degradationStreak,
+
+            criticalStreak:
+                state.criticalStreak,
+
+            attempts:
+                state.attempts,
+
+            successes:
+                state.successes,
+
+            failures:
+                state.failures,
+
+            lastAttemptAt:
+                state.lastAttemptAt,
+
+            lastSuccessAt:
+                state.lastSuccessAt,
+
+            lastResult:
+                state.lastResult,
+
+            history:
+                state.history
+                    .map(
+                        entry => ({
+                            ...entry
+                        })
+                    ),
+
+            options: {
+                ...state.options
+            }
+        };
+    }
+
+    const originalRunHealthMonitorCycle =
+        integrationApi
+            .runHealthMonitorCycle;
+
+    integrationApi
+        .runHealthMonitorCycle =
+        async function runHealthMonitorCycleWithRecovery() {
+            const cycleResult =
+                await originalRunHealthMonitorCycle();
+
+            if (
+                !cycleResult ||
+                !cycleResult.executed ||
+                !cycleResult.report
+            ) {
+                return cycleResult;
+            }
+
+            const historyEntry =
+                recordHealthHistory(
+                    cycleResult.report
+                );
+
+            let recoveryResult =
+                null;
+
+            if (
+                shouldAttemptHealthRecovery()
+            ) {
+                recoveryResult =
+                    await executeHealthRecovery();
+            }
+
+            return {
+                ...cycleResult,
+
+                historyEntry,
+
+                recoveryResult
+            };
+        };
+
+    integrationApi
+        .normalizeHealthRecoveryOptions =
+        normalizeHealthRecoveryOptions;
+
+    integrationApi
+        .recordHealthHistory =
+        recordHealthHistory;
+
+    integrationApi
+        .shouldAttemptHealthRecovery =
+        shouldAttemptHealthRecovery;
+
+    integrationApi
+        .executeHealthRecovery =
+        executeHealthRecovery;
+
+    integrationApi
+        .getHealthRecoveryStatus =
+        getHealthRecoveryStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.4B-2',
+
+        nextPart:
+            '2.5A-1',
+
+        status:
+            'section_complete',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_HEALTH_RECOVERY_OPTIONS,
+            ensureHealthRecoveryState,
+            normalizeHealthRecoveryOptions,
+            recordHealthHistory,
+            shouldAttemptHealthRecovery
+        }
+    );
+
+    normalizeHealthRecoveryOptions();
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.4B-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.5A-1
+ *
+ * Responsibilities:
+ * - Create validation state
+ * - Register validation rules
+ * - Execute compatibility checks
+ * - Build validation report
+ */
+
+(function rainArrivalIntegrationV32ValidationBase(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.4B-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    function ensureValidationState() {
+        if (
+            !runtimeState.validation ||
+            typeof runtimeState.validation !==
+                'object'
+        ) {
+            runtimeState.validation = {
+                rules:
+                    new Map(),
+
+                runs:
+                    0,
+
+                failures:
+                    0,
+
+                lastRunAt:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastReport:
+                    null
+            };
+        }
+
+        return runtimeState.validation;
+    }
+
+    function registerValidationRule(
+        name,
+        validator
+    ) {
+        const state =
+            ensureValidationState();
+
+        if (
+            !name ||
+            typeof validator !==
+                'function'
+        ) {
+            return false;
+        }
+
+        state.rules.set(
+            String(name),
+            validator
+        );
+
+        return true;
+    }
+
+    async function executeValidationRule(
+        name,
+        validator
+    ) {
+        const startedAt =
+            Date.now();
+
+        try {
+            const result =
+                await validator();
+
+            const normalized =
+                result &&
+                typeof result ===
+                    'object'
+                    ? result
+                    : {
+                        valid:
+                            Boolean(result)
+                    };
+
+            return {
+                name,
+
+                valid:
+                    normalized.valid !==
+                    false,
+
+                status:
+                    normalized.status ||
+                    (
+                        normalized.valid ===
+                        false
+                            ? 'failed'
+                            : 'passed'
+                    ),
+
+                required:
+                    normalized.required !==
+                    false,
+
+                details:
+                    normalized.details ||
+                    null,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        } catch (error) {
+            return {
+                name,
+
+                valid:
+                    false,
+
+                status:
+                    'error',
+
+                required:
+                    true,
+
+                details: {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                },
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+    }
+
+    async function runValidationSuite() {
+        const state =
+            ensureValidationState();
+
+        const startedAt =
+            Date.now();
+
+        const results =
+            [];
+
+        for (
+            const [
+                name,
+                validator
+            ]
+            of state.rules.entries()
+        ) {
+            results.push(
+                await executeValidationRule(
+                    name,
+                    validator
+                )
+            );
+        }
+
+        const requiredFailures =
+            results.filter(
+                result =>
+                    result.required &&
+                    !result.valid
+            );
+
+        const optionalFailures =
+            results.filter(
+                result =>
+                    !result.required &&
+                    !result.valid
+            );
+
+        const report = {
+            valid:
+                requiredFailures.length ===
+                0,
+
+            status:
+                requiredFailures.length >
+                0
+                    ? 'failed'
+                    : (
+                        optionalFailures.length >
+                        0
+                            ? 'warning'
+                            : 'passed'
+                    ),
+
+            totalRules:
+                results.length,
+
+            passedRules:
+                results.filter(
+                    result =>
+                        result.valid
+                ).length,
+
+            requiredFailures:
+                requiredFailures.length,
+
+            optionalFailures:
+                optionalFailures.length,
+
+            results,
+
+            generatedAt:
+                Date.now(),
+
+            generatedAtIso:
+                new Date()
+                    .toISOString()
+        };
+
+        state.runs +=
+            1;
+
+        state.failures +=
+            requiredFailures.length;
+
+        state.lastRunAt =
+            report.generatedAt;
+
+        state.lastDurationMs =
+            Date.now() -
+            startedAt;
+
+        state.lastReport =
+            report;
+
+        return {
+            ...report,
+
+            durationMs:
+                state.lastDurationMs
+        };
+    }
+
+    function getValidationStatus() {
+        const state =
+            ensureValidationState();
+
+        return {
+            registeredRules:
+                Array.from(
+                    state.rules.keys()
+                ),
+
+            runs:
+                state.runs,
+
+            failures:
+                state.failures,
+
+            lastRunAt:
+                state.lastRunAt,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastReport:
+                state.lastReport
+                    ? {
+                        ...state.lastReport
+                    }
+                    : null
+        };
+    }
+
+    registerValidationRule(
+        'global_environment',
+        () => ({
+            valid:
+                Boolean(
+                    globalObject &&
+                    typeof globalObject
+                        .setTimeout ===
+                        'function' &&
+                    typeof globalObject
+                        .clearTimeout ===
+                        'function'
+                ),
+
+            details: {
+                hasGlobalObject:
+                    Boolean(
+                        globalObject
+                    ),
+
+                hasTimers:
+                    Boolean(
+                        globalObject &&
+                        typeof globalObject
+                            .setTimeout ===
+                            'function' &&
+                        typeof globalObject
+                            .clearTimeout ===
+                            'function'
+                    )
+            }
+        })
+    );
+
+    registerValidationRule(
+        'integration_api',
+        () => {
+            const requiredMethods = [
+                'runIntegrationPipeline',
+                'getIntegrationPipelineStatus',
+                'runDiagnostics',
+                'persistIntegrationSnapshot',
+                'restoreIntegrationSnapshot'
+            ];
+
+            const missing =
+                requiredMethods.filter(
+                    methodName =>
+                        typeof integrationApi[
+                            methodName
+                        ] !==
+                        'function'
+                );
+
+            return {
+                valid:
+                    missing.length ===
+                    0,
+
+                details: {
+                    requiredMethods,
+                    missing
+                }
+            };
+        }
+    );
+
+    registerValidationRule(
+        'runtime_state',
+        () => ({
+            valid:
+                Boolean(
+                    runtimeState &&
+                    typeof runtimeState ===
+                        'object'
+                ),
+
+            details: {
+                hasState:
+                    Boolean(
+                        runtimeState
+                    ),
+
+                stateKeys:
+                    runtimeState &&
+                    typeof runtimeState ===
+                        'object'
+                        ? Object.keys(
+                            runtimeState
+                        )
+                        : []
+            }
+        })
+    );
+
+    registerValidationRule(
+        'browser_events',
+        () => ({
+            valid:
+                Boolean(
+                    globalObject.document &&
+                    typeof globalObject
+                        .CustomEvent ===
+                        'function'
+                ),
+
+            required:
+                false,
+
+            details: {
+                hasDocument:
+                    Boolean(
+                        globalObject.document
+                    ),
+
+                hasCustomEvent:
+                    typeof globalObject
+                        .CustomEvent ===
+                        'function'
+            }
+        })
+    );
+
+    integrationApi
+        .registerValidationRule =
+        registerValidationRule;
+
+    integrationApi
+        .runValidationSuite =
+        runValidationSuite;
+
+    integrationApi
+        .getValidationStatus =
+        getValidationStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.5A-1',
+
+        nextPart:
+            '2.5A-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ensureValidationState,
+            executeValidationRule
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.5A-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.5A-2
+ *
+ * Responsibilities:
+ * - Add prediction structure validation
+ * - Add engine compatibility validation
+ * - Add storage and dashboard validation
+ * - Complete validation rules section
+ */
+
+(function rainArrivalIntegrationV32ValidationRules(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.5A-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        toFiniteNumber,
+        normalizeError,
+        log
+    } = internal;
+
+    function validatePredictionRecord(
+        prediction,
+        index = 0
+    ) {
+        const errors =
+            [];
+
+        const warnings =
+            [];
+
+        if (
+            !prediction ||
+            typeof prediction !==
+                'object'
+        ) {
+            return {
+                valid:
+                    false,
+
+                index,
+
+                errors: [
+                    'prediction_not_object'
+                ],
+
+                warnings
+            };
+        }
+
+        const cityIdentifier =
+            prediction.cityId ||
+            prediction.cityName ||
+            prediction.cityNameAr;
+
+        if (!cityIdentifier) {
+            errors.push(
+                'missing_city_identifier'
+            );
+        }
+
+        if (
+            prediction.arrivalMinutes !==
+                null &&
+            prediction.arrivalMinutes !==
+                undefined &&
+            !Number.isFinite(
+                Number(
+                    prediction.arrivalMinutes
+                )
+            )
+        ) {
+            errors.push(
+                'invalid_arrival_minutes'
+            );
+        }
+
+        const confidence =
+            toFiniteNumber(
+                prediction.confidence,
+                null
+            );
+
+        if (
+            confidence ===
+            null
+        ) {
+            warnings.push(
+                'missing_confidence'
+            );
+        } else if (
+            confidence < 0 ||
+            confidence > 100
+        ) {
+            errors.push(
+                'confidence_out_of_range'
+            );
+        }
+
+        const probability =
+            toFiniteNumber(
+                prediction.probability,
+                null
+            );
+
+        if (
+            probability !==
+                null &&
+            (
+                probability < 0 ||
+                probability > 100
+            )
+        ) {
+            errors.push(
+                'probability_out_of_range'
+            );
+        }
+
+        const latitude =
+            toFiniteNumber(
+                prediction.latitude,
+                null
+            );
+
+        if (
+            latitude !==
+                null &&
+            (
+                latitude < -90 ||
+                latitude > 90
+            )
+        ) {
+            errors.push(
+                'latitude_out_of_range'
+            );
+        }
+
+        const longitude =
+            toFiniteNumber(
+                prediction.longitude,
+                null
+            );
+
+        if (
+            longitude !==
+                null &&
+            (
+                longitude < -180 ||
+                longitude > 180
+            )
+        ) {
+            errors.push(
+                'longitude_out_of_range'
+            );
+        }
+
+        if (
+            prediction.willRain ===
+                true &&
+            prediction.arrivalMinutes ===
+                null
+        ) {
+            warnings.push(
+                'rain_without_arrival_time'
+            );
+        }
+
+        if (
+            prediction.accepted ===
+                false
+        ) {
+            warnings.push(
+                'prediction_rejected'
+            );
+        }
+
+        return {
+            valid:
+                errors.length ===
+                0,
+
+            index,
+
+            cityIdentifier:
+                cityIdentifier ||
+                null,
+
+            errors,
+
+            warnings
+        };
+    }
+
+    function validatePredictionCollection(
+        predictions
+    ) {
+        if (
+            !Array.isArray(
+                predictions
+            )
+        ) {
+            return {
+                valid:
+                    false,
+
+                total:
+                    0,
+
+                validCount:
+                    0,
+
+                invalidCount:
+                    0,
+
+                warningCount:
+                    0,
+
+                results:
+                    [],
+
+                reason:
+                    'predictions_not_array'
+            };
+        }
+
+        const results =
+            predictions.map(
+                (
+                    prediction,
+                    index
+                ) =>
+                    validatePredictionRecord(
+                        prediction,
+                        index
+                    )
+            );
+
+        const invalid =
+            results.filter(
+                result =>
+                    !result.valid
+            );
+
+        const warningCount =
+            results.reduce(
+                (
+                    total,
+                    result
+                ) =>
+                    total +
+                    result.warnings.length,
+                0
+            );
+
+        return {
+            valid:
+                invalid.length ===
+                0,
+
+            total:
+                results.length,
+
+            validCount:
+                results.length -
+                invalid.length,
+
+            invalidCount:
+                invalid.length,
+
+            warningCount,
+
+            results
+        };
+    }
+
+    function getRegisteredEngineValidation() {
+        const report =
+            typeof integrationApi
+                .getEngineReadinessReport ===
+                'function'
+                ? integrationApi
+                    .getEngineReadinessReport()
+                : null;
+
+        if (!report) {
+            return {
+                valid:
+                    false,
+
+                reason:
+                    'engine_report_unavailable',
+
+                report:
+                    null
+            };
+        }
+
+        const total =
+            toFiniteNumber(
+                report.totalEngines ??
+                report.total,
+                0
+            );
+
+        const ready =
+            toFiniteNumber(
+                report.readyCount,
+                0
+            );
+
+        return {
+            valid:
+                total > 0 &&
+                ready > 0,
+
+            total,
+
+            ready,
+
+            unavailable:
+                Math.max(
+                    0,
+                    total -
+                    ready
+                ),
+
+            report
+        };
+    }
+
+    integrationApi
+        .registerValidationRule(
+            'prediction_collection',
+            () => {
+                const predictions =
+                    typeof integrationApi
+                        .getLatestPredictions ===
+                        'function'
+                        ? integrationApi
+                            .getLatestPredictions()
+                        : runtimeState
+                            .latestPredictions;
+
+                const result =
+                    validatePredictionCollection(
+                        predictions ||
+                        []
+                    );
+
+                return {
+                    valid:
+                        result.valid,
+
+                    status:
+                        result.total ===
+                        0
+                            ? 'empty'
+                            : (
+                                result.valid
+                                    ? 'passed'
+                                    : 'failed'
+                            ),
+
+                    details:
+                        result
+                };
+            }
+        );
+
+    integrationApi
+        .registerValidationRule(
+            'engine_compatibility',
+            () => {
+                const result =
+                    getRegisteredEngineValidation();
+
+                return {
+                    valid:
+                        result.valid,
+
+                    status:
+                        result.valid
+                            ? 'passed'
+                            : 'failed',
+
+                    details:
+                        result
+                };
+            }
+        );
+
+    integrationApi
+        .registerValidationRule(
+            'persistence_api',
+            () => {
+                const requiredMethods = [
+                    'getPersistenceStorage',
+                    'persistIntegrationSnapshot',
+                    'readPersistencePayload',
+                    'restoreIntegrationSnapshot',
+                    'clearPersistedSnapshot'
+                ];
+
+                const missing =
+                    requiredMethods.filter(
+                        methodName =>
+                            typeof integrationApi[
+                                methodName
+                            ] !==
+                            'function'
+                    );
+
+                const status =
+                    typeof integrationApi
+                        .getPersistenceStatus ===
+                        'function'
+                        ? integrationApi
+                            .getPersistenceStatus()
+                        : null;
+
+                return {
+                    valid:
+                        missing.length ===
+                        0,
+
+                    details: {
+                        requiredMethods,
+                        missing,
+                        status
+                    }
+                };
+            }
+        );
+
+    integrationApi
+        .registerValidationRule(
+            'dashboard_api',
+            () => {
+                const availableMethods = [
+                    'synchronizeDashboard',
+                    'renderDashboard',
+                    'getDashboardStatus'
+                ].filter(
+                    methodName =>
+                        typeof integrationApi[
+                            methodName
+                        ] ===
+                        'function'
+                );
+
+                return {
+                    valid:
+                        availableMethods.length >
+                        0,
+
+                    required:
+                        false,
+
+                    status:
+                        availableMethods.length >
+                        0
+                            ? 'passed'
+                            : 'unavailable',
+
+                    details: {
+                        availableMethods
+                    }
+                };
+            }
+        );
+
+    integrationApi
+        .registerValidationRule(
+            'diagnostics_api',
+            () => {
+                const requiredMethods = [
+                    'runDiagnostics',
+                    'getDiagnosticsStatus',
+                    'startHealthMonitor',
+                    'stopHealthMonitor',
+                    'executeHealthRecovery'
+                ];
+
+                const missing =
+                    requiredMethods.filter(
+                        methodName =>
+                            typeof integrationApi[
+                                methodName
+                            ] !==
+                            'function'
+                    );
+
+                return {
+                    valid:
+                        missing.length ===
+                        0,
+
+                    details: {
+                        requiredMethods,
+                        missing
+                    }
+                };
+            }
+        );
+
+    integrationApi
+        .validatePredictionRecord =
+        validatePredictionRecord;
+
+    integrationApi
+        .validatePredictionCollection =
+        validatePredictionCollection;
+
+    integrationApi
+        .getRegisteredEngineValidation =
+        getRegisteredEngineValidation;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.5A-2',
+
+        nextPart:
+            '2.5B-1',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            validatePredictionRecord,
+            validatePredictionCollection,
+            getRegisteredEngineValidation
+        }
+    );
+
+    try {
+        const predictions =
+            typeof integrationApi
+                .getLatestPredictions ===
+                'function'
+                ? integrationApi
+                    .getLatestPredictions()
+                : (
+                    Array.isArray(
+                        runtimeState
+                            .latestPredictions
+                    )
+                        ? runtimeState
+                            .latestPredictions
+                        : []
+                );
+
+        const startupValidation =
+            validatePredictionCollection(
+                predictions
+            );
+
+        runtimeState.validation
+            .startupPredictionValidation =
+            startupValidation;
+    } catch (error) {
+        log(
+            'debug',
+            'Startup prediction validation failed.',
+            {
+                part:
+                    '2.5A-2',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            }
+        );
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.5A-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.5B-1
+ *
+ * Responsibilities:
+ * - Create self-test state
+ * - Register executable self-tests
+ * - Run isolated test cases safely
+ * - Build self-test report
+ */
+
+(function rainArrivalIntegrationV32SelfTestBase(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.5A-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    function ensureSelfTestState() {
+        if (
+            !runtimeState.selfTest ||
+            typeof runtimeState.selfTest !==
+                'object'
+        ) {
+            runtimeState.selfTest = {
+                tests:
+                    new Map(),
+
+                runs:
+                    0,
+
+                failures:
+                    0,
+
+                lastRunAt:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastReport:
+                    null
+            };
+        }
+
+        return runtimeState.selfTest;
+    }
+
+    function registerSelfTest(
+        name,
+        test,
+        options = {}
+    ) {
+        const state =
+            ensureSelfTestState();
+
+        if (
+            !name ||
+            typeof test !==
+                'function'
+        ) {
+            return false;
+        }
+
+        state.tests.set(
+            String(name),
+            {
+                test,
+
+                required:
+                    options.required !==
+                    false,
+
+                category:
+                    options.category ||
+                    'general'
+            }
+        );
+
+        return true;
+    }
+
+    async function executeSelfTest(
+        name,
+        definition
+    ) {
+        const startedAt =
+            Date.now();
+
+        try {
+            const output =
+                await definition.test();
+
+            const normalized =
+                output &&
+                typeof output ===
+                    'object'
+                    ? output
+                    : {
+                        passed:
+                            Boolean(output)
+                    };
+
+            return {
+                name,
+
+                category:
+                    definition.category,
+
+                required:
+                    definition.required,
+
+                passed:
+                    normalized.passed !==
+                    false,
+
+                status:
+                    normalized.status ||
+                    (
+                        normalized.passed ===
+                        false
+                            ? 'failed'
+                            : 'passed'
+                    ),
+
+                details:
+                    normalized.details ||
+                    null,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        } catch (error) {
+            return {
+                name,
+
+                category:
+                    definition.category,
+
+                required:
+                    definition.required,
+
+                passed:
+                    false,
+
+                status:
+                    'error',
+
+                details: {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                },
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+    }
+
+    async function runSelfTests(
+        options = {}
+    ) {
+        const state =
+            ensureSelfTestState();
+
+        const startedAt =
+            Date.now();
+
+        const categories =
+            Array.isArray(
+                options.categories
+            )
+                ? new Set(
+                    options.categories
+                        .map(String)
+                )
+                : null;
+
+        const selectedTests =
+            Array.from(
+                state.tests.entries()
+            ).filter(
+                ([
+                    ,
+                    definition
+                ]) =>
+                    !categories ||
+                    categories.has(
+                        definition.category
+                    )
+            );
+
+        const results =
+            [];
+
+        for (
+            const [
+                name,
+                definition
+            ]
+            of selectedTests
+        ) {
+            results.push(
+                await executeSelfTest(
+                    name,
+                    definition
+                )
+            );
+        }
+
+        const requiredFailures =
+            results.filter(
+                result =>
+                    result.required &&
+                    !result.passed
+            );
+
+        const optionalFailures =
+            results.filter(
+                result =>
+                    !result.required &&
+                    !result.passed
+            );
+
+        const report = {
+            passed:
+                requiredFailures.length ===
+                0,
+
+            status:
+                requiredFailures.length >
+                0
+                    ? 'failed'
+                    : (
+                        optionalFailures.length >
+                        0
+                            ? 'warning'
+                            : 'passed'
+                    ),
+
+            totalTests:
+                results.length,
+
+            passedTests:
+                results.filter(
+                    result =>
+                        result.passed
+                ).length,
+
+            requiredFailures:
+                requiredFailures.length,
+
+            optionalFailures:
+                optionalFailures.length,
+
+            results,
+
+            generatedAt:
+                Date.now(),
+
+            generatedAtIso:
+                new Date()
+                    .toISOString()
+        };
+
+        state.runs +=
+            1;
+
+        state.failures +=
+            requiredFailures.length;
+
+        state.lastRunAt =
+            report.generatedAt;
+
+        state.lastDurationMs =
+            Date.now() -
+            startedAt;
+
+        state.lastReport =
+            report;
+
+        return {
+            ...report,
+
+            durationMs:
+                state.lastDurationMs
+        };
+    }
+
+    function getSelfTestStatus() {
+        const state =
+            ensureSelfTestState();
+
+        return {
+            registeredTests:
+                Array.from(
+                    state.tests.entries()
+                ).map(
+                    ([
+                        name,
+                        definition
+                    ]) => ({
+                        name,
+
+                        category:
+                            definition.category,
+
+                        required:
+                            definition.required
+                    })
+                ),
+
+            runs:
+                state.runs,
+
+            failures:
+                state.failures,
+
+            lastRunAt:
+                state.lastRunAt,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastReport:
+                state.lastReport
+                    ? {
+                        ...state.lastReport
+                    }
+                    : null
+        };
+    }
+
+    registerSelfTest(
+        'api_surface',
+        () => {
+            const requiredMethods = [
+                'runIntegrationPipeline',
+                'runDiagnostics',
+                'runValidationSuite',
+                'persistIntegrationSnapshot',
+                'restoreIntegrationSnapshot'
+            ];
+
+            const missing =
+                requiredMethods.filter(
+                    methodName =>
+                        typeof integrationApi[
+                            methodName
+                        ] !==
+                            'function'
+                );
+
+            return {
+                passed:
+                    missing.length ===
+                    0,
+
+                details: {
+                    requiredMethods,
+                    missing
+                }
+            };
+        },
+        {
+            category:
+                'core'
+        }
+    );
+
+    registerSelfTest(
+        'prediction_validator',
+        () => {
+            const validSample = {
+                cityId:
+                    'test-city',
+
+                arrivalMinutes:
+                    30,
+
+                confidence:
+                    85,
+
+                probability:
+                    90,
+
+                latitude:
+                    21.5,
+
+                longitude:
+                    39.2,
+
+                willRain:
+                    true,
+
+                accepted:
+                    true
+            };
+
+            const invalidSample = {
+                cityId:
+                    null,
+
+                confidence:
+                    150,
+
+                latitude:
+                    120
+            };
+
+            const validResult =
+                integrationApi
+                    .validatePredictionRecord(
+                        validSample,
+                        0
+                    );
+
+            const invalidResult =
+                integrationApi
+                    .validatePredictionRecord(
+                        invalidSample,
+                        1
+                    );
+
+            return {
+                passed:
+                    validResult.valid ===
+                        true &&
+                    invalidResult.valid ===
+                        false,
+
+                details: {
+                    validResult,
+                    invalidResult
+                }
+            };
+        },
+        {
+            category:
+                'validation'
+        }
+    );
+
+    registerSelfTest(
+        'persistence_payload_builder',
+        () => {
+            const payload =
+                integrationApi
+                    .buildPersistencePayload();
+
+            return {
+                passed:
+                    Boolean(
+                        payload &&
+                        Number.isFinite(
+                            payload.savedAt
+                        ) &&
+                        Array.isArray(
+                            payload.predictions
+                        )
+                    ),
+
+                details: {
+                    schemaVersion:
+                        payload
+                            ? payload.schemaVersion
+                            : null,
+
+                    predictionCount:
+                        payload &&
+                        Array.isArray(
+                            payload.predictions
+                        )
+                            ? payload.predictions
+                                .length
+                            : 0
+                }
+            };
+        },
+        {
+            category:
+                'persistence'
+        }
+    );
+
+    registerSelfTest(
+        'diagnostics_registration',
+        () => {
+            const status =
+                integrationApi
+                    .getDiagnosticsStatus();
+
+            return {
+                passed:
+                    Boolean(
+                        status &&
+                        Array.isArray(
+                            status.registeredChecks
+                        ) &&
+                        status.registeredChecks
+                            .length >
+                            0
+                    ),
+
+                details:
+                    status
+            };
+        },
+        {
+            category:
+                'diagnostics'
+        }
+    );
+
+    registerSelfTest(
+        'validation_registration',
+        () => {
+            const status =
+                integrationApi
+                    .getValidationStatus();
+
+            return {
+                passed:
+                    Boolean(
+                        status &&
+                        Array.isArray(
+                            status.registeredRules
+                        ) &&
+                        status.registeredRules
+                            .length >
+                            0
+                    ),
+
+                details:
+                    status
+            };
+        },
+        {
+            category:
+                'validation'
+        }
+    );
+
+    integrationApi
+        .registerSelfTest =
+        registerSelfTest;
+
+    integrationApi
+        .runSelfTests =
+        runSelfTests;
+
+    integrationApi
+        .getSelfTestStatus =
+        getSelfTestStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.5B-1',
+
+        nextPart:
+            '2.5B-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ensureSelfTestState,
+            executeSelfTest
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.5B-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.5B-2
+ *
+ * Responsibilities:
+ * - Add integration and lifecycle self-tests
+ * - Add end-to-end readiness test
+ * - Run startup self-test safely
+ * - Complete validation and self-test section
+ */
+
+(function rainArrivalIntegrationV32SelfTestCompletion(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.5B-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensureSelfTestState,
+        normalizeError,
+        log
+    } = internal;
+
+    function buildReadinessSnapshot() {
+        const validation =
+            typeof integrationApi
+                .getValidationStatus ===
+                'function'
+                ? integrationApi
+                    .getValidationStatus()
+                : null;
+
+        const diagnostics =
+            typeof integrationApi
+                .getDiagnosticsStatus ===
+                'function'
+                ? integrationApi
+                    .getDiagnosticsStatus()
+                : null;
+
+        const persistence =
+            typeof integrationApi
+                .getPersistenceStatus ===
+                'function'
+                ? integrationApi
+                    .getPersistenceStatus()
+                : null;
+
+        const pipeline =
+            typeof integrationApi
+                .getIntegrationPipelineStatus ===
+                'function'
+                ? integrationApi
+                    .getIntegrationPipelineStatus()
+                : null;
+
+        const health =
+            typeof integrationApi
+                .getHealthMonitorStatus ===
+                'function'
+                ? integrationApi
+                    .getHealthMonitorStatus()
+                : null;
+
+        return {
+            validation,
+            diagnostics,
+            persistence,
+            pipeline,
+            health
+        };
+    }
+
+    integrationApi
+        .registerSelfTest(
+            'pipeline_status',
+            () => {
+                const status =
+                    integrationApi
+                        .getIntegrationPipelineStatus();
+
+                return {
+                    passed:
+                        Boolean(
+                            status &&
+                            typeof status ===
+                                'object'
+                        ),
+
+                    details:
+                        status
+                };
+            },
+            {
+                category:
+                    'pipeline'
+            }
+        );
+
+    integrationApi
+        .registerSelfTest(
+            'persistence_lifecycle',
+            () => {
+                const status =
+                    integrationApi
+                        .getPersistenceLifecycleStatus();
+
+                return {
+                    passed:
+                        Boolean(
+                            status &&
+                            typeof status.installed ===
+                                'boolean'
+                        ),
+
+                    details:
+                        status
+                };
+            },
+            {
+                category:
+                    'persistence'
+            }
+        );
+
+    integrationApi
+        .registerSelfTest(
+            'health_monitor',
+            () => {
+                const status =
+                    integrationApi
+                        .getHealthMonitorStatus();
+
+                return {
+                    passed:
+                        Boolean(
+                            status &&
+                            typeof status.running ===
+                                'boolean'
+                        ),
+
+                    details:
+                        status
+                };
+            },
+            {
+                category:
+                    'diagnostics'
+            }
+        );
+
+    integrationApi
+        .registerSelfTest(
+            'health_recovery',
+            () => {
+                const status =
+                    integrationApi
+                        .getHealthRecoveryStatus();
+
+                return {
+                    passed:
+                        Boolean(
+                            status &&
+                            typeof status.active ===
+                                'boolean' &&
+                            Array.isArray(
+                                status.history
+                            )
+                        ),
+
+                    details:
+                        status
+                };
+            },
+            {
+                category:
+                    'diagnostics'
+            }
+        );
+
+    integrationApi
+        .registerSelfTest(
+            'readiness_snapshot',
+            () => {
+                const snapshot =
+                    buildReadinessSnapshot();
+
+                const requiredSections = [
+                    'validation',
+                    'diagnostics',
+                    'persistence',
+                    'pipeline',
+                    'health'
+                ];
+
+                const missing =
+                    requiredSections.filter(
+                        sectionName =>
+                            !snapshot[
+                                sectionName
+                            ]
+                    );
+
+                return {
+                    passed:
+                        missing.length ===
+                        0,
+
+                    details: {
+                        missing,
+                        snapshot
+                    }
+                };
+            },
+            {
+                category:
+                    'core'
+            }
+        );
+
+    integrationApi
+        .registerSelfTest(
+            'event_dispatch',
+            () => {
+                const documentTarget =
+                    globalObject.document;
+
+                if (
+                    !documentTarget ||
+                    typeof documentTarget
+                        .dispatchEvent !==
+                        'function' ||
+                    typeof globalObject
+                        .CustomEvent !==
+                        'function'
+                ) {
+                    return {
+                        passed:
+                            false,
+
+                        status:
+                            'unavailable',
+
+                        details: {
+                            hasDocument:
+                                Boolean(
+                                    documentTarget
+                                ),
+
+                            hasCustomEvent:
+                                typeof globalObject
+                                    .CustomEvent ===
+                                    'function'
+                        }
+                    };
+                }
+
+                const eventName =
+                    'rainguard:rain-arrival:self-test';
+
+                let received =
+                    false;
+
+                const handler =
+                    event => {
+                        received =
+                            Boolean(
+                                event &&
+                                event.detail &&
+                                event.detail
+                                    .selfTest ===
+                                    true
+                            );
+                    };
+
+                documentTarget
+                    .addEventListener(
+                        eventName,
+                        handler,
+                        {
+                            once:
+                                true
+                        }
+                    );
+
+                documentTarget
+                    .dispatchEvent(
+                        new globalObject
+                            .CustomEvent(
+                                eventName,
+                                {
+                                    detail: {
+                                        selfTest:
+                                            true
+                                    }
+                                }
+                            )
+                    );
+
+                documentTarget
+                    .removeEventListener(
+                        eventName,
+                        handler
+                    );
+
+                return {
+                    passed:
+                        received,
+
+                    details: {
+                        received
+                    }
+                };
+            },
+            {
+                required:
+                    false,
+
+                category:
+                    'events'
+            }
+        );
+
+    async function runProductionReadinessTest() {
+        const validation =
+            await integrationApi
+                .runValidationSuite();
+
+        const selfTests =
+            await integrationApi
+                .runSelfTests();
+
+        const diagnostics =
+            await integrationApi
+                .runDiagnostics();
+
+        const ready =
+            Boolean(
+                validation.valid &&
+                selfTests.passed &&
+                diagnostics.healthy
+            );
+
+        const report = {
+            ready,
+
+            status:
+                ready
+                    ? 'ready'
+                    : (
+                        !validation.valid ||
+                        !selfTests.passed
+                            ? 'blocked'
+                            : 'degraded'
+                    ),
+
+            validation,
+
+            selfTests,
+
+            diagnostics,
+
+            snapshot:
+                buildReadinessSnapshot(),
+
+            generatedAt:
+                Date.now(),
+
+            generatedAtIso:
+                new Date()
+                    .toISOString()
+        };
+
+        const state =
+            ensureSelfTestState();
+
+        state.productionReadiness =
+            report;
+
+        return report;
+    }
+
+    function getProductionReadinessStatus() {
+        const state =
+            ensureSelfTestState();
+
+        return state.productionReadiness
+            ? {
+                ...state.productionReadiness
+            }
+            : null;
+    }
+
+    integrationApi
+        .buildReadinessSnapshot =
+        buildReadinessSnapshot;
+
+    integrationApi
+        .runProductionReadinessTest =
+        runProductionReadinessTest;
+
+    integrationApi
+        .getProductionReadinessStatus =
+        getProductionReadinessStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.5B-2',
+
+        nextPart:
+            '2.6A-1',
+
+        status:
+            'section_complete',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            buildReadinessSnapshot
+        }
+    );
+
+    try {
+        Promise.resolve()
+            .then(
+                () =>
+                    integrationApi
+                        .runSelfTests({
+                            categories: [
+                                'core',
+                                'validation',
+                                'persistence',
+                                'diagnostics',
+                                'pipeline'
+                            ]
+                        })
+            )
+            .then(
+                report => {
+                    runtimeState
+                        .selfTest
+                        .startupReport =
+                        report;
+                }
+            )
+            .catch(
+                error => {
+                    runtimeState
+                        .selfTest
+                        .startupError =
+                        normalizeError(
+                            error
+                        );
+                }
+            );
+    } catch (error) {
+        log(
+            'debug',
+            'Startup self-test initialization failed.',
+            {
+                part:
+                    '2.5B-2',
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            }
+        );
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.5B-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.6A-1
+ *
+ * Responsibilities:
+ * - Create production bootstrap state
+ * - Normalize startup options
+ * - Execute safe initialization sequence
+ * - Build bootstrap result
+ */
+
+(function rainArrivalIntegrationV32ProductionBootstrap(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32
+            .rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.5B-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    const DEFAULT_BOOTSTRAP_OPTIONS =
+        Object.freeze({
+            restoreSnapshot:
+                true,
+
+            installPersistence:
+                true,
+
+            startHealthMonitor:
+                true,
+
+            runValidation:
+                true,
+
+            runSelfTests:
+                true,
+
+            runDiagnostics:
+                true,
+
+            runInitialPipeline:
+                true,
+
+            persistAfterBootstrap:
+                true,
+
+            synchronizeDashboard:
+                true,
+
+            failFast:
+                false
+        });
+
+    function ensureBootstrapState() {
+        if (
+            !runtimeState.bootstrap ||
+            typeof runtimeState.bootstrap !==
+                'object'
+        ) {
+            runtimeState.bootstrap = {
+                options: {
+                    ...DEFAULT_BOOTSTRAP_OPTIONS
+                },
+
+                running:
+                    false,
+
+                initialized:
+                    false,
+
+                runs:
+                    0,
+
+                failures:
+                    0,
+
+                lastStartedAt:
+                    null,
+
+                lastCompletedAt:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastError:
+                    null,
+
+                lastResult:
+                    null
+            };
+        }
+
+        return runtimeState.bootstrap;
+    }
+
+    function normalizeBootstrapOptions(
+        options = {}
+    ) {
+        const state =
+            ensureBootstrapState();
+
+        const normalized = {
+            ...DEFAULT_BOOTSTRAP_OPTIONS,
+            ...state.options,
+            ...options
+        };
+
+        for (
+            const key
+            of Object.keys(
+                DEFAULT_BOOTSTRAP_OPTIONS
+            )
+        ) {
+            normalized[key] =
+                normalized[key] !==
+                false;
+        }
+
+        normalized.failFast =
+            options.failFast ===
+            true;
+
+        state.options =
+            normalized;
+
+        return {
+            ...normalized
+        };
+    }
+
+    async function executeBootstrapStep(
+        name,
+        executor,
+        required,
+        failFast
+    ) {
+        const startedAt =
+            Date.now();
+
+        try {
+            const result =
+                await executor();
+
+            const succeeded =
+                !result ||
+                result.success !==
+                    false;
+
+            return {
+                name,
+
+                required:
+                    required !==
+                    false,
+
+                succeeded,
+
+                status:
+                    succeeded
+                        ? 'completed'
+                        : 'failed',
+
+                result:
+                    result ||
+                    null,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        } catch (error) {
+            const normalizedError =
+                normalizeError(
+                    error
+                );
+
+            if (
+                failFast &&
+                required !==
+                    false
+            ) {
+                throw error;
+            }
+
+            return {
+                name,
+
+                required:
+                    required !==
+                    false,
+
+                succeeded:
+                    false,
+
+                status:
+                    'error',
+
+                error:
+                    normalizedError,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+    }
+
+    async function bootstrapRainArrivalIntegration(
+        options = {}
+    ) {
+        const state =
+            ensureBootstrapState();
+
+        const normalized =
+            normalizeBootstrapOptions(
+                options
+            );
+
+        if (
+            state.running
+        ) {
+            return {
+                initialized:
+                    false,
+
+                reused:
+                    true,
+
+                reason:
+                    'bootstrap_already_running'
+            };
+        }
+
+        if (
+            state.initialized &&
+            options.force !==
+                true
+        ) {
+            return {
+                initialized:
+                    true,
+
+                reused:
+                    true,
+
+                result:
+                    state.lastResult
+            };
+        }
+
+        state.running =
+            true;
+
+        state.runs +=
+            1;
+
+        state.lastStartedAt =
+            Date.now();
+
+        state.lastError =
+            null;
+
+        const steps =
+            [];
+
+        try {
+            if (
+                normalized.restoreSnapshot &&
+                typeof integrationApi
+                    .restoreIntegrationSnapshot ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'restore_snapshot',
+                        () =>
+                            integrationApi
+                                .restoreIntegrationSnapshot({
+                                    synchronizeDashboard:
+                                        false
+                                }),
+                        false,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.installPersistence &&
+                typeof integrationApi
+                    .installPersistenceLifecycle ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'install_persistence',
+                        () =>
+                            integrationApi
+                                .installPersistenceLifecycle(),
+                        false,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.runValidation &&
+                typeof integrationApi
+                    .runValidationSuite ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'validation',
+                        () =>
+                            integrationApi
+                                .runValidationSuite(),
+                        true,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.runSelfTests &&
+                typeof integrationApi
+                    .runSelfTests ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'self_tests',
+                        () =>
+                            integrationApi
+                                .runSelfTests(),
+                        true,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.runInitialPipeline &&
+                typeof integrationApi
+                    .runIntegrationPipeline ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'initial_pipeline',
+                        () =>
+                            integrationApi
+                                .runIntegrationPipeline({
+                                    force:
+                                        true,
+
+                                    reason:
+                                        'production_bootstrap'
+                                }),
+                        true,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.synchronizeDashboard &&
+                typeof integrationApi
+                    .synchronizeDashboard ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'dashboard_sync',
+                        () => {
+                            const predictions =
+                                typeof integrationApi
+                                    .getLatestPredictions ===
+                                    'function'
+                                    ? integrationApi
+                                        .getLatestPredictions()
+                                    : (
+                                        Array.isArray(
+                                            runtimeState
+                                                .latestPredictions
+                                        )
+                                            ? runtimeState
+                                                .latestPredictions
+                                            : []
+                                    );
+
+                            return integrationApi
+                                .synchronizeDashboard(
+                                    predictions,
+                                    {
+                                        force:
+                                            true,
+
+                                        reason:
+                                            'production_bootstrap'
+                                    }
+                                );
+                        },
+                        false,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.runDiagnostics &&
+                typeof integrationApi
+                    .runDiagnostics ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'diagnostics',
+                        () =>
+                            integrationApi
+                                .runDiagnostics(),
+                        true,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.startHealthMonitor &&
+                typeof integrationApi
+                    .startHealthMonitor ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'health_monitor',
+                        () =>
+                            integrationApi
+                                .startHealthMonitor({
+                                    runImmediately:
+                                        false
+                                }),
+                        false,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            if (
+                normalized.persistAfterBootstrap &&
+                typeof integrationApi
+                    .persistIntegrationSnapshot ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeBootstrapStep(
+                        'final_persistence',
+                        () =>
+                            integrationApi
+                                .persistIntegrationSnapshot(),
+                        false,
+                        normalized.failFast
+                    )
+                );
+            }
+
+            const requiredFailures =
+                steps.filter(
+                    step =>
+                        step.required &&
+                        !step.succeeded
+                );
+
+            const optionalFailures =
+                steps.filter(
+                    step =>
+                        !step.required &&
+                        !step.succeeded
+                );
+
+            const initialized =
+                requiredFailures.length ===
+                0;
+
+            const completedAt =
+                Date.now();
+
+            const result = {
+                initialized,
+
+                status:
+                    initialized
+                        ? (
+                            optionalFailures.length >
+                            0
+                                ? 'ready_with_warnings'
+                                : 'ready'
+                        )
+                        : 'blocked',
+
+                totalSteps:
+                    steps.length,
+
+                completedSteps:
+                    steps.filter(
+                        step =>
+                            step.succeeded
+                    ).length,
+
+                requiredFailures:
+                    requiredFailures.length,
+
+                optionalFailures:
+                    optionalFailures.length,
+
+                steps,
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt,
+
+                durationMs:
+                    completedAt -
+                    state.lastStartedAt
+            };
+
+            state.initialized =
+                initialized;
+
+            state.lastCompletedAt =
+                completedAt;
+
+            state.lastDurationMs =
+                result.durationMs;
+
+            state.lastResult =
+                result;
+
+            if (
+                !initialized
+            ) {
+                state.failures +=
+                    1;
+            }
+
+            return result;
+        } catch (error) {
+            state.failures +=
+                1;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            state.lastCompletedAt =
+                Date.now();
+
+            state.lastDurationMs =
+                state.lastCompletedAt -
+                state.lastStartedAt;
+
+            state.lastResult = {
+                initialized:
+                    false,
+
+                status:
+                    'error',
+
+                steps,
+
+                error:
+                    state.lastError,
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt:
+                    state.lastCompletedAt,
+
+                durationMs:
+                    state.lastDurationMs
+            };
+
+            log(
+                'error',
+                'Rain arrival production bootstrap failed.',
+                {
+                    error:
+                        state.lastError
+                }
+            );
+
+            return {
+                ...state.lastResult
+            };
+        } finally {
+            state.running =
+                false;
+        }
+    }
+
+    function getBootstrapStatus() {
+        const state =
+            ensureBootstrapState();
+
+        return {
+            running:
+                state.running,
+
+            initialized:
+                state.initialized,
+
+            runs:
+                state.runs,
+
+            failures:
+                state.failures,
+
+            lastStartedAt:
+                state.lastStartedAt,
+
+            lastCompletedAt:
+                state.lastCompletedAt,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastError:
+                state.lastError,
+
+            lastResult:
+                state.lastResult,
+
+            options: {
+                ...state.options
+            }
+        };
+    }
+
+    integrationApi
+        .normalizeBootstrapOptions =
+        normalizeBootstrapOptions;
+
+    integrationApi
+        .bootstrapRainArrivalIntegration =
+        bootstrapRainArrivalIntegration;
+
+    integrationApi
+        .getBootstrapStatus =
+        getBootstrapStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.6A-1',
+
+        nextPart:
+            '2.6A-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_BOOTSTRAP_OPTIONS,
+            ensureBootstrapState,
+            normalizeBootstrapOptions,
+            executeBootstrapStep
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.6A-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.6A-2
+ *
+ * Responsibilities:
+ * - Create graceful shutdown sequence
+ * - Stop active services safely
+ * - Persist final runtime snapshot
+ * - Complete production lifecycle layer
+ */
+
+(function rainArrivalIntegrationV32ProductionShutdown(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.6A-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensureBootstrapState,
+        normalizeError,
+        log
+    } = internal;
+
+    function ensureShutdownState() {
+        if (
+            !runtimeState.shutdown ||
+            typeof runtimeState.shutdown !==
+                'object'
+        ) {
+            runtimeState.shutdown = {
+                running:
+                    false,
+
+                completed:
+                    false,
+
+                runs:
+                    0,
+
+                failures:
+                    0,
+
+                lastStartedAt:
+                    null,
+
+                lastCompletedAt:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastError:
+                    null,
+
+                lastResult:
+                    null
+            };
+        }
+
+        return runtimeState.shutdown;
+    }
+
+    async function executeShutdownStep(
+        name,
+        executor
+    ) {
+        const startedAt =
+            Date.now();
+
+        try {
+            const result =
+                await executor();
+
+            return {
+                name,
+
+                succeeded:
+                    result !==
+                    false,
+
+                status:
+                    result ===
+                    false
+                        ? 'failed'
+                        : 'completed',
+
+                result:
+                    result ===
+                    undefined
+                        ? null
+                        : result,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        } catch (error) {
+            return {
+                name,
+
+                succeeded:
+                    false,
+
+                status:
+                    'error',
+
+                error:
+                    normalizeError(
+                        error
+                    ),
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+    }
+
+    async function shutdownRainArrivalIntegration(
+        options = {}
+    ) {
+        const state =
+            ensureShutdownState();
+
+        if (
+            state.running
+        ) {
+            return {
+                shutdown:
+                    false,
+
+                reused:
+                    true,
+
+                reason:
+                    'shutdown_already_running'
+            };
+        }
+
+        if (
+            state.completed &&
+            options.force !==
+                true
+        ) {
+            return {
+                shutdown:
+                    true,
+
+                reused:
+                    true,
+
+                result:
+                    state.lastResult
+            };
+        }
+
+        state.running =
+            true;
+
+        state.runs +=
+            1;
+
+        state.lastStartedAt =
+            Date.now();
+
+        state.lastError =
+            null;
+
+        const steps =
+            [];
+
+        try {
+            if (
+                options.persist !==
+                    false &&
+                typeof integrationApi
+                    .persistIntegrationSnapshot ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeShutdownStep(
+                        'persist_snapshot',
+                        () =>
+                            integrationApi
+                                .persistIntegrationSnapshot()
+                    )
+                );
+            }
+
+            if (
+                typeof integrationApi
+                    .stopHealthMonitor ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeShutdownStep(
+                        'stop_health_monitor',
+                        () =>
+                            integrationApi
+                                .stopHealthMonitor()
+                    )
+                );
+            }
+
+            if (
+                typeof integrationApi
+                    .removePersistenceLifecycle ===
+                    'function'
+            ) {
+                steps.push(
+                    await executeShutdownStep(
+                        'remove_persistence_lifecycle',
+                        () =>
+                            integrationApi
+                                .removePersistenceLifecycle()
+                    )
+                );
+            }
+
+            if (
+                runtimeState.pipeline &&
+                runtimeState.pipeline.timer
+            ) {
+                steps.push(
+                    await executeShutdownStep(
+                        'clear_pipeline_timer',
+                        () => {
+                            globalObject.clearTimeout(
+                                runtimeState.pipeline
+                                    .timer
+                            );
+
+                            runtimeState.pipeline
+                                .timer =
+                                null;
+
+                            return {
+                                cleared:
+                                    true
+                            };
+                        }
+                    )
+                );
+            }
+
+            if (
+                runtimeState.persistence &&
+                runtimeState.persistence
+                    .lifecycle &&
+                runtimeState.persistence
+                    .lifecycle.timer
+            ) {
+                steps.push(
+                    await executeShutdownStep(
+                        'clear_persistence_timer',
+                        () => {
+                            globalObject.clearTimeout(
+                                runtimeState
+                                    .persistence
+                                    .lifecycle
+                                    .timer
+                            );
+
+                            runtimeState
+                                .persistence
+                                .lifecycle
+                                .timer =
+                                null;
+
+                            return {
+                                cleared:
+                                    true
+                            };
+                        }
+                    )
+                );
+            }
+
+            const failures =
+                steps.filter(
+                    step =>
+                        !step.succeeded
+                );
+
+            const completedAt =
+                Date.now();
+
+            const result = {
+                shutdown:
+                    failures.length ===
+                    0,
+
+                status:
+                    failures.length ===
+                    0
+                        ? 'shutdown_complete'
+                        : 'shutdown_with_errors',
+
+                totalSteps:
+                    steps.length,
+
+                completedSteps:
+                    steps.length -
+                    failures.length,
+
+                failures:
+                    failures.length,
+
+                steps,
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt,
+
+                durationMs:
+                    completedAt -
+                    state.lastStartedAt
+            };
+
+            state.completed =
+                result.shutdown;
+
+            state.lastCompletedAt =
+                completedAt;
+
+            state.lastDurationMs =
+                result.durationMs;
+
+            state.lastResult =
+                result;
+
+            if (
+                failures.length >
+                0
+            ) {
+                state.failures +=
+                    failures.length;
+            }
+
+            const bootstrapState =
+                ensureBootstrapState();
+
+            bootstrapState.initialized =
+                false;
+
+            return result;
+        } catch (error) {
+            state.failures +=
+                1;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            state.lastCompletedAt =
+                Date.now();
+
+            state.lastDurationMs =
+                state.lastCompletedAt -
+                state.lastStartedAt;
+
+            state.lastResult = {
+                shutdown:
+                    false,
+
+                status:
+                    'shutdown_error',
+
+                steps,
+
+                error:
+                    state.lastError,
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt:
+                    state.lastCompletedAt,
+
+                durationMs:
+                    state.lastDurationMs
+            };
+
+            log(
+                'error',
+                'Rain arrival integration shutdown failed.',
+                {
+                    error:
+                        state.lastError
+                }
+            );
+
+            return {
+                ...state.lastResult
+            };
+        } finally {
+            state.running =
+                false;
+        }
+    }
+
+    function getShutdownStatus() {
+        const state =
+            ensureShutdownState();
+
+        return {
+            running:
+                state.running,
+
+            completed:
+                state.completed,
+
+            runs:
+                state.runs,
+
+            failures:
+                state.failures,
+
+            lastStartedAt:
+                state.lastStartedAt,
+
+            lastCompletedAt:
+                state.lastCompletedAt,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastError:
+                state.lastError,
+
+            lastResult:
+                state.lastResult
+        };
+    }
+
+    function restartRainArrivalIntegration(
+        options = {}
+    ) {
+        return shutdownRainArrivalIntegration({
+            force:
+                true,
+
+            persist:
+                options.persistBeforeRestart !==
+                false
+        }).then(
+            shutdownResult =>
+                integrationApi
+                    .bootstrapRainArrivalIntegration({
+                        ...options,
+
+                        force:
+                            true
+                    })
+                    .then(
+                        bootstrapResult => ({
+                            restarted:
+                                Boolean(
+                                    bootstrapResult &&
+                                    bootstrapResult
+                                        .initialized
+                                ),
+
+                            shutdownResult,
+
+                            bootstrapResult
+                        })
+                    )
+        );
+    }
+
+    integrationApi
+        .shutdownRainArrivalIntegration =
+        shutdownRainArrivalIntegration;
+
+    integrationApi
+        .restartRainArrivalIntegration =
+        restartRainArrivalIntegration;
+
+    integrationApi
+        .getShutdownStatus =
+        getShutdownStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.6A-2',
+
+        nextPart:
+            '2.6B-1',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            ensureShutdownState,
+            executeShutdownStep
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.6A-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.6B-1
+ *
+ * Responsibilities:
+ * - Build final public API surface
+ * - Expose consolidated runtime status
+ * - Protect internal references
+ * - Prepare final production seal
+ */
+
+(function rainArrivalIntegrationV32FinalApi(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.6A-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    const PUBLIC_API_METHODS =
+        Object.freeze([
+            'bootstrapRainArrivalIntegration',
+            'shutdownRainArrivalIntegration',
+            'restartRainArrivalIntegration',
+            'runIntegrationPipeline',
+            'synchronizeAllEngines',
+            'getIntegrationPipelineStatus',
+            'getLatestPredictions',
+            'setLatestPredictions',
+            'synchronizeDashboard',
+            'persistIntegrationSnapshot',
+            'restoreIntegrationSnapshot',
+            'clearPersistedSnapshot',
+            'runDiagnostics',
+            'getDiagnosticsStatus',
+            'startHealthMonitor',
+            'stopHealthMonitor',
+            'runValidationSuite',
+            'getValidationStatus',
+            'runSelfTests',
+            'getSelfTestStatus',
+            'runProductionReadinessTest',
+            'getProductionReadinessStatus',
+            'getBootstrapStatus',
+            'getShutdownStatus'
+        ]);
+
+    function safeCloneValue(
+        value,
+        depth = 0
+    ) {
+        if (
+            depth >
+            6
+        ) {
+            return null;
+        }
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return value;
+        }
+
+        if (
+            typeof value ===
+                'string' ||
+            typeof value ===
+                'number' ||
+            typeof value ===
+                'boolean'
+        ) {
+            return value;
+        }
+
+        if (
+            value instanceof Date
+        ) {
+            return value
+                .toISOString();
+        }
+
+        if (
+            Array.isArray(
+                value
+            )
+        ) {
+            return value.map(
+                item =>
+                    safeCloneValue(
+                        item,
+                        depth + 1
+                    )
+            );
+        }
+
+        if (
+            value instanceof Map
+        ) {
+            return Array.from(
+                value.entries()
+            ).map(
+                ([
+                    key,
+                    item
+                ]) => [
+                    safeCloneValue(
+                        key,
+                        depth + 1
+                    ),
+                    safeCloneValue(
+                        item,
+                        depth + 1
+                    )
+                ]
+            );
+        }
+
+        if (
+            typeof value ===
+                'object'
+        ) {
+            const output =
+                {};
+
+            for (
+                const [
+                    key,
+                    item
+                ]
+                of Object.entries(
+                    value
+                )
+            ) {
+                if (
+                    typeof item ===
+                        'function' ||
+                    key ===
+                        'storage' ||
+                    key ===
+                        'timer' ||
+                    key ===
+                        'listeners' ||
+                    key ===
+                        'rootElement' ||
+                    key ===
+                        'container'
+                ) {
+                    continue;
+                }
+
+                output[key] =
+                    safeCloneValue(
+                        item,
+                        depth + 1
+                    );
+            }
+
+            return output;
+        }
+
+        return null;
+    }
+
+    function getConsolidatedRuntimeStatus() {
+        const readers = {
+            bootstrap:
+                'getBootstrapStatus',
+
+            shutdown:
+                'getShutdownStatus',
+
+            pipeline:
+                'getIntegrationPipelineStatus',
+
+            persistence:
+                'getPersistenceStatus',
+
+            persistenceLifecycle:
+                'getPersistenceLifecycleStatus',
+
+            diagnostics:
+                'getDiagnosticsStatus',
+
+            healthMonitor:
+                'getHealthMonitorStatus',
+
+            healthRecovery:
+                'getHealthRecoveryStatus',
+
+            validation:
+                'getValidationStatus',
+
+            selfTest:
+                'getSelfTestStatus',
+
+            readiness:
+                'getProductionReadinessStatus'
+        };
+
+        const sections =
+            {};
+
+        for (
+            const [
+                sectionName,
+                methodName
+            ]
+            of Object.entries(
+                readers
+            )
+        ) {
+            try {
+                sections[
+                    sectionName
+                ] =
+                    typeof integrationApi[
+                        methodName
+                    ] ===
+                        'function'
+                        ? safeCloneValue(
+                            integrationApi[
+                                methodName
+                            ]()
+                        )
+                        : null;
+            } catch (error) {
+                sections[
+                    sectionName
+                ] = {
+                    error:
+                        normalizeError(
+                            error
+                        )
+                };
+            }
+        }
+
+        const predictions =
+            typeof integrationApi
+                .getLatestPredictions ===
+                'function'
+                ? integrationApi
+                    .getLatestPredictions()
+                : (
+                    Array.isArray(
+                        runtimeState
+                            .latestPredictions
+                    )
+                        ? runtimeState
+                            .latestPredictions
+                        : []
+                );
+
+        return {
+            version:
+                '32.0.0',
+
+            module:
+                'rain_arrival_integration',
+
+            productionReady:
+                integrationApi
+                    .metadata
+                    .productionReady ===
+                    true,
+
+            status:
+                integrationApi
+                    .metadata
+                    .status ||
+                'unknown',
+
+            predictionCount:
+                Array.isArray(
+                    predictions
+                )
+                    ? predictions.length
+                    : 0,
+
+            latestPredictionsAt:
+                runtimeState
+                    .latestPredictionsAt ||
+                null,
+
+            metadata:
+                safeCloneValue(
+                    integrationApi
+                        .metadata
+                ),
+
+            sections,
+
+            generatedAt:
+                Date.now(),
+
+            generatedAtIso:
+                new Date()
+                    .toISOString()
+        };
+    }
+
+    function createPublicApiSnapshot() {
+        const publicApi =
+            {};
+
+        for (
+            const methodName
+            of PUBLIC_API_METHODS
+        ) {
+            if (
+                typeof integrationApi[
+                    methodName
+                ] ===
+                'function'
+            ) {
+                publicApi[
+                    methodName
+                ] =
+                    integrationApi[
+                        methodName
+                    ].bind(
+                        integrationApi
+                    );
+            }
+        }
+
+        publicApi.getRuntimeStatus =
+            getConsolidatedRuntimeStatus;
+
+        publicApi.getMetadata =
+            function getMetadata() {
+                return {
+                    ...integrationApi
+                        .metadata
+                };
+            };
+
+        publicApi.version =
+            '32.0.0';
+
+        publicApi.moduleName =
+            'rain_arrival_integration';
+
+        return publicApi;
+    }
+
+    function exposePublicApi() {
+        const publicApi =
+            createPublicApiSnapshot();
+
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrival =
+            publicApi;
+
+        integrationApi.publicApi =
+            publicApi;
+
+        return publicApi;
+    }
+
+    function validatePublicApiSurface() {
+        const missing =
+            PUBLIC_API_METHODS.filter(
+                methodName =>
+                    typeof integrationApi[
+                        methodName
+                    ] !==
+                    'function'
+            );
+
+        return {
+            valid:
+                missing.length ===
+                0,
+
+            expected:
+                PUBLIC_API_METHODS
+                    .length,
+
+            available:
+                PUBLIC_API_METHODS
+                    .length -
+                missing.length,
+
+            missing
+        };
+    }
+
+    integrationApi
+        .getConsolidatedRuntimeStatus =
+        getConsolidatedRuntimeStatus;
+
+    integrationApi
+        .createPublicApiSnapshot =
+        createPublicApiSnapshot;
+
+    integrationApi
+        .exposePublicApi =
+        exposePublicApi;
+
+    integrationApi
+        .validatePublicApiSurface =
+        validatePublicApiSurface;
+
+    const publicApiValidation =
+        validatePublicApiSurface();
+
+    runtimeState.finalApi = {
+        exposed:
+            false,
+
+        validation:
+            publicApiValidation,
+
+        exposedAt:
+            null,
+
+        lastError:
+            null
+    };
+
+    try {
+        exposePublicApi();
+
+        runtimeState
+            .finalApi
+            .exposed =
+            true;
+
+        runtimeState
+            .finalApi
+            .exposedAt =
+            Date.now();
+    } catch (error) {
+        runtimeState
+            .finalApi
+            .lastError =
+            normalizeError(
+                error
+            );
+
+        log(
+            'error',
+            'Final public API exposure failed.',
+            {
+                error:
+                    runtimeState
+                        .finalApi
+                        .lastError
+            }
+        );
+    }
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.6B-1',
+
+        nextPart:
+            '2.6B-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            false,
+
+        publicApiExposed:
+            runtimeState
+                .finalApi
+                .exposed,
+
+        publicApiValid:
+            publicApiValidation
+                .valid,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            PUBLIC_API_METHODS,
+            safeCloneValue,
+            getConsolidatedRuntimeStatus,
+            createPublicApiSnapshot,
+            validatePublicApiSurface
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.6B-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.6B-2
+ *
+ * Responsibilities:
+ * - Execute final production validation
+ * - Seal the integration module
+ * - Install automatic browser lifecycle handlers
+ * - Expose final readiness and integrity status
+ */
+
+(function rainArrivalIntegrationV32ProductionSeal(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.6B-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    const FINAL_REQUIRED_METHODS =
+        Object.freeze([
+            'bootstrapRainArrivalIntegration',
+            'shutdownRainArrivalIntegration',
+            'restartRainArrivalIntegration',
+            'runIntegrationPipeline',
+            'getIntegrationPipelineStatus',
+            'getLatestPredictions',
+            'persistIntegrationSnapshot',
+            'restoreIntegrationSnapshot',
+            'runDiagnostics',
+            'runValidationSuite',
+            'runSelfTests',
+            'runProductionReadinessTest',
+            'getConsolidatedRuntimeStatus',
+            'validatePublicApiSurface'
+        ]);
+
+    function ensureProductionSealState() {
+        if (
+            !runtimeState.productionSeal ||
+            typeof runtimeState.productionSeal !==
+                'object'
+        ) {
+            runtimeState.productionSeal = {
+                sealed:
+                    false,
+
+                sealing:
+                    false,
+
+                integrityValid:
+                    false,
+
+                lifecycleInstalled:
+                    false,
+
+                automaticBootstrapStarted:
+                    false,
+
+                automaticBootstrapCompleted:
+                    false,
+
+                automaticBootstrapResult:
+                    null,
+
+                sealedAt:
+                    null,
+
+                lastCheckedAt:
+                    null,
+
+                lastError:
+                    null,
+
+                lastReport:
+                    null,
+
+                listeners:
+                    []
+            };
+        }
+
+        return runtimeState.productionSeal;
+    }
+
+    function verifyFinalMethodSurface() {
+        const missing =
+            FINAL_REQUIRED_METHODS.filter(
+                methodName =>
+                    typeof integrationApi[
+                        methodName
+                    ] !==
+                    'function'
+            );
+
+        return {
+            valid:
+                missing.length ===
+                0,
+
+            required:
+                FINAL_REQUIRED_METHODS
+                    .length,
+
+            available:
+                FINAL_REQUIRED_METHODS
+                    .length -
+                missing.length,
+
+            missing
+        };
+    }
+
+    function verifyRuntimeReferences() {
+        const issues =
+            [];
+
+        if (
+            !runtimeState ||
+            typeof runtimeState !==
+                'object'
+        ) {
+            issues.push(
+                'runtime_state_unavailable'
+            );
+        }
+
+        if (
+            !internal ||
+            typeof internal !==
+                'object'
+        ) {
+            issues.push(
+                'internal_api_unavailable'
+            );
+        }
+
+        if (
+            !integrationApi.metadata ||
+            typeof integrationApi.metadata !==
+                'object'
+        ) {
+            issues.push(
+                'metadata_unavailable'
+            );
+        }
+
+        if (
+            !globalObject
+                .RainGuardAI
+                .V32
+                .rainArrival
+        ) {
+            issues.push(
+                'public_api_unavailable'
+            );
+        }
+
+        return {
+            valid:
+                issues.length ===
+                0,
+
+            issues
+        };
+    }
+
+    function verifyMetadataIntegrity() {
+        const metadata =
+            integrationApi.metadata ||
+            {};
+
+        const issues =
+            [];
+
+        if (
+            metadata.currentPart !==
+            '2.6B-1' &&
+            metadata.currentPart !==
+            '2.6B-2'
+        ) {
+            issues.push(
+                'unexpected_current_part'
+            );
+        }
+
+        if (
+            metadata.moduleClosed !==
+            true
+        ) {
+            issues.push(
+                'module_not_closed'
+            );
+        }
+
+        if (
+            metadata.publicApiExposed !==
+            true
+        ) {
+            issues.push(
+                'public_api_not_exposed'
+            );
+        }
+
+        if (
+            metadata.publicApiValid !==
+            true
+        ) {
+            issues.push(
+                'public_api_not_valid'
+            );
+        }
+
+        return {
+            valid:
+                issues.length ===
+                0,
+
+            issues,
+
+            metadata: {
+                ...metadata
+            }
+        };
+    }
+
+    function runFinalIntegrityCheck() {
+        const methodSurface =
+            verifyFinalMethodSurface();
+
+        const runtimeReferences =
+            verifyRuntimeReferences();
+
+        const metadataIntegrity =
+            verifyMetadataIntegrity();
+
+        const publicApi =
+            typeof integrationApi
+                .validatePublicApiSurface ===
+                'function'
+                ? integrationApi
+                    .validatePublicApiSurface()
+                : {
+                    valid:
+                        false,
+
+                    missing: [
+                        'validatePublicApiSurface'
+                    ]
+                };
+
+        const valid =
+            methodSurface.valid &&
+            runtimeReferences.valid &&
+            metadataIntegrity.valid &&
+            publicApi.valid;
+
+        const report = {
+            valid,
+
+            status:
+                valid
+                    ? 'integrity_verified'
+                    : 'integrity_failed',
+
+            methodSurface,
+            runtimeReferences,
+            metadataIntegrity,
+            publicApi,
+
+            checkedAt:
+                Date.now(),
+
+            checkedAtIso:
+                new Date()
+                    .toISOString()
+        };
+
+        const state =
+            ensureProductionSealState();
+
+        state.integrityValid =
+            valid;
+
+        state.lastCheckedAt =
+            report.checkedAt;
+
+        state.lastReport =
+            report;
+
+        return report;
+    }
+
+    function dispatchLifecycleEvent(
+        eventName,
+        detail
+    ) {
+        const documentTarget =
+            globalObject.document;
+
+        if (
+            !documentTarget ||
+            typeof documentTarget
+                .dispatchEvent !==
+                'function' ||
+            typeof globalObject
+                .CustomEvent !==
+                'function'
+        ) {
+            return false;
+        }
+
+        try {
+            documentTarget.dispatchEvent(
+                new globalObject.CustomEvent(
+                    eventName,
+                    {
+                        detail
+                    }
+                )
+            );
+
+            return true;
+        } catch (error) {
+            log(
+                'debug',
+                'Rain arrival lifecycle event dispatch failed.',
+                {
+                    eventName,
+
+                    error:
+                        normalizeError(
+                            error
+                        )
+                }
+            );
+
+            return false;
+        }
+    }
+
+    async function executeAutomaticBootstrap() {
+        const state =
+            ensureProductionSealState();
+
+        if (
+            state.automaticBootstrapStarted
+        ) {
+            return state
+                .automaticBootstrapResult;
+        }
+
+        state.automaticBootstrapStarted =
+            true;
+
+        dispatchLifecycleEvent(
+            'rainguard:rain-arrival:bootstrap-start',
+            {
+                timestamp:
+                    Date.now(),
+
+                version:
+                    '32.0.0'
+            }
+        );
+
+        try {
+            const result =
+                await integrationApi
+                    .bootstrapRainArrivalIntegration();
+
+            state.automaticBootstrapCompleted =
+                true;
+
+            state.automaticBootstrapResult =
+                result;
+
+            dispatchLifecycleEvent(
+                'rainguard:rain-arrival:bootstrap-complete',
+                {
+                    timestamp:
+                        Date.now(),
+
+                    result
+                }
+            );
+
+            return result;
+        } catch (error) {
+            const normalizedError =
+                normalizeError(
+                    error
+                );
+
+            state.lastError =
+                normalizedError;
+
+            state.automaticBootstrapResult = {
+                initialized:
+                    false,
+
+                status:
+                    'automatic_bootstrap_error',
+
+                error:
+                    normalizedError
+            };
+
+            dispatchLifecycleEvent(
+                'rainguard:rain-arrival:bootstrap-error',
+                {
+                    timestamp:
+                        Date.now(),
+
+                    error:
+                        normalizedError
+                }
+            );
+
+            return state
+                .automaticBootstrapResult;
+        }
+    }
+
+    function installBrowserLifecycleHandlers(
+        options = {}
+    ) {
+        const state =
+            ensureProductionSealState();
+
+        if (
+            state.lifecycleInstalled
+        ) {
+            return {
+                installed:
+                    true,
+
+                reused:
+                    true,
+
+                listeners:
+                    state.listeners
+                        .map(
+                            listener =>
+                                listener.eventName
+                        )
+            };
+        }
+
+        const documentTarget =
+            globalObject.document;
+
+        const windowTarget =
+            globalObject.window ||
+            globalObject;
+
+        if (
+            !documentTarget ||
+            typeof documentTarget
+                .addEventListener !==
+                'function'
+        ) {
+            return {
+                installed:
+                    false,
+
+                reason:
+                    'document_unavailable'
+            };
+        }
+
+        const bootstrapHandler =
+            () => {
+                Promise.resolve()
+                    .then(
+                        executeAutomaticBootstrap
+                    )
+                    .catch(
+                        error => {
+                            state.lastError =
+                                normalizeError(
+                                    error
+                                );
+                        }
+                    );
+            };
+
+        const visibilityHandler =
+            () => {
+                if (
+                    documentTarget
+                        .visibilityState ===
+                        'hidden' &&
+                    typeof integrationApi
+                        .persistIntegrationSnapshot ===
+                        'function'
+                ) {
+                    try {
+                        integrationApi
+                            .persistIntegrationSnapshot();
+                    } catch (error) {
+                        state.lastError =
+                            normalizeError(
+                                error
+                            );
+                    }
+                }
+            };
+
+        const pageHideHandler =
+            () => {
+                if (
+                    typeof integrationApi
+                        .persistIntegrationSnapshot ===
+                        'function'
+                ) {
+                    try {
+                        integrationApi
+                            .persistIntegrationSnapshot();
+                    } catch (error) {
+                        state.lastError =
+                            normalizeError(
+                                error
+                            );
+                    }
+                }
+            };
+
+        if (
+            documentTarget.readyState ===
+            'loading'
+        ) {
+            documentTarget
+                .addEventListener(
+                    'DOMContentLoaded',
+                    bootstrapHandler,
+                    {
+                        once:
+                            true
+                    }
+                );
+
+            state.listeners.push({
+                target:
+                    documentTarget,
+
+                eventName:
+                    'DOMContentLoaded',
+
+                handler:
+                    bootstrapHandler
+            });
+        } else if (
+            options.autoBootstrap !==
+            false
+        ) {
+            Promise.resolve()
+                .then(
+                    bootstrapHandler
+                );
+        }
+
+        documentTarget
+            .addEventListener(
+                'visibilitychange',
+                visibilityHandler
+            );
+
+        state.listeners.push({
+            target:
+                documentTarget,
+
+            eventName:
+                'visibilitychange',
+
+            handler:
+                visibilityHandler
+        });
+
+        if (
+            windowTarget &&
+            typeof windowTarget
+                .addEventListener ===
+                'function'
+        ) {
+            windowTarget
+                .addEventListener(
+                    'pagehide',
+                    pageHideHandler
+                );
+
+            state.listeners.push({
+                target:
+                    windowTarget,
+
+                eventName:
+                    'pagehide',
+
+                handler:
+                    pageHideHandler
+            });
+        }
+
+        state.lifecycleInstalled =
+            true;
+
+        return {
+            installed:
+                true,
+
+            reused:
+                false,
+
+            listeners:
+                state.listeners
+                    .map(
+                        listener =>
+                            listener.eventName
+                    )
+        };
+    }
+
+    function removeBrowserLifecycleHandlers() {
+        const state =
+            ensureProductionSealState();
+
+        for (
+            const listener
+            of state.listeners
+        ) {
+            try {
+                if (
+                    listener.target &&
+                    typeof listener.target
+                        .removeEventListener ===
+                        'function'
+                ) {
+                    listener.target
+                        .removeEventListener(
+                            listener.eventName,
+                            listener.handler
+                        );
+                }
+            } catch (error) {
+                state.lastError =
+                    normalizeError(
+                        error
+                    );
+            }
+        }
+
+        const removed =
+            state.listeners.length;
+
+        state.listeners =
+            [];
+
+        state.lifecycleInstalled =
+            false;
+
+        return {
+            removed,
+
+            installed:
+                false
+        };
+    }
+
+    function sealProductionModule() {
+        const state =
+            ensureProductionSealState();
+
+        if (
+            state.sealed
+        ) {
+            return {
+                sealed:
+                    true,
+
+                reused:
+                    true,
+
+                report:
+                    state.lastReport
+            };
+        }
+
+        if (
+            state.sealing
+        ) {
+            return {
+                sealed:
+                    false,
+
+                reused:
+                    true,
+
+                reason:
+                    'seal_in_progress'
+            };
+        }
+
+        state.sealing =
+            true;
+
+        try {
+            const integrity =
+                runFinalIntegrityCheck();
+
+            state.sealed =
+                integrity.valid;
+
+            state.sealedAt =
+                integrity.valid
+                    ? Date.now()
+                    : null;
+
+            integrationApi.metadata = {
+                ...integrationApi.metadata,
+
+                currentPart:
+                    '2.6B-2',
+
+                nextPart:
+                    null,
+
+                status:
+                    integrity.valid
+                        ? 'production_complete'
+                        : 'production_blocked',
+
+                productionReady:
+                    integrity.valid,
+
+                integrityVerified:
+                    integrity.valid,
+
+                sealed:
+                    integrity.valid,
+
+                sealedAt:
+                    state.sealedAt,
+
+                moduleClosed:
+                    true,
+
+                version:
+                    '32.0.0'
+            };
+
+            if (
+                typeof integrationApi
+                    .exposePublicApi ===
+                    'function'
+            ) {
+                integrationApi
+                    .exposePublicApi();
+            }
+
+            dispatchLifecycleEvent(
+                'rainguard:rain-arrival:module-sealed',
+                {
+                    timestamp:
+                        Date.now(),
+
+                    integrity,
+
+                    metadata: {
+                        ...integrationApi
+                            .metadata
+                    }
+                }
+            );
+
+            return {
+                sealed:
+                    state.sealed,
+
+                reused:
+                    false,
+
+                integrity,
+
+                metadata: {
+                    ...integrationApi
+                        .metadata
+                }
+            };
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            state.sealed =
+                false;
+
+            integrationApi.metadata = {
+                ...integrationApi.metadata,
+
+                currentPart:
+                    '2.6B-2',
+
+                nextPart:
+                    null,
+
+                status:
+                    'production_seal_error',
+
+                productionReady:
+                    false,
+
+                integrityVerified:
+                    false,
+
+                sealed:
+                    false,
+
+                moduleClosed:
+                    true
+            };
+
+            return {
+                sealed:
+                    false,
+
+                error:
+                    state.lastError
+            };
+        } finally {
+            state.sealing =
+                false;
+        }
+    }
+
+    function getProductionSealStatus() {
+        const state =
+            ensureProductionSealState();
+
+        return {
+            sealed:
+                state.sealed,
+
+            sealing:
+                state.sealing,
+
+            integrityValid:
+                state.integrityValid,
+
+            lifecycleInstalled:
+                state.lifecycleInstalled,
+
+            automaticBootstrapStarted:
+                state.automaticBootstrapStarted,
+
+            automaticBootstrapCompleted:
+                state.automaticBootstrapCompleted,
+
+            automaticBootstrapResult:
+                state.automaticBootstrapResult,
+
+            sealedAt:
+                state.sealedAt,
+
+            lastCheckedAt:
+                state.lastCheckedAt,
+
+            lastError:
+                state.lastError,
+
+            lastReport:
+                state.lastReport,
+
+            listenerCount:
+                state.listeners
+                    .length
+        };
+    }
+
+    integrationApi
+        .runFinalIntegrityCheck =
+        runFinalIntegrityCheck;
+
+    integrationApi
+        .installBrowserLifecycleHandlers =
+        installBrowserLifecycleHandlers;
+
+    integrationApi
+        .removeBrowserLifecycleHandlers =
+        removeBrowserLifecycleHandlers;
+
+    integrationApi
+        .executeAutomaticBootstrap =
+        executeAutomaticBootstrap;
+
+    integrationApi
+        .sealProductionModule =
+        sealProductionModule;
+
+    integrationApi
+        .getProductionSealStatus =
+        getProductionSealStatus;
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            FINAL_REQUIRED_METHODS,
+            ensureProductionSealState,
+            verifyFinalMethodSurface,
+            verifyRuntimeReferences,
+            verifyMetadataIntegrity,
+            dispatchLifecycleEvent
+        }
+    );
+
+    const lifecycleInstallation =
+        installBrowserLifecycleHandlers();
+
+    const sealResult =
+        sealProductionModule();
+
+    runtimeState.productionSeal
+        .lifecycleInstallation =
+        lifecycleInstallation;
+
+    runtimeState.productionSeal
+        .sealResult =
+        sealResult;
+
+    log(
+        sealResult.sealed
+            ? 'info'
+            : 'warn',
+        sealResult.sealed
+            ? 'Rain arrival integration V32 production module completed and sealed.'
+            : 'Rain arrival integration V32 production seal completed with validation issues.',
+        {
+            part:
+                '2.6B-2',
+
+            sealed:
+                sealResult.sealed,
+
+            lifecycleInstalled:
+                lifecycleInstallation
+                    .installed ===
+                    true
+        }
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.7A-1
+ *
+ * Responsibilities:
+ * - Create production observability state
+ * - Collect runtime metrics
+ * - Record structured operational events
+ * - Expose metrics and telemetry snapshots
+ */
+
+(function rainArrivalIntegrationV32ObservabilityBase(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.6B-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    const DEFAULT_OBSERVABILITY_OPTIONS =
+        Object.freeze({
+            enabled:
+                true,
+
+            maxEvents:
+                500,
+
+            maxErrors:
+                100,
+
+            includePayloads:
+                false,
+
+            autoCollectIntervalMs:
+                60000
+        });
+
+    function ensureObservabilityState() {
+        if (
+            !runtimeState.observability ||
+            typeof runtimeState.observability !==
+                'object'
+        ) {
+            runtimeState.observability = {
+                options: {
+                    ...DEFAULT_OBSERVABILITY_OPTIONS
+                },
+
+                counters: {
+                    pipelineRuns:
+                        0,
+
+                    pipelineFailures:
+                        0,
+
+                    dashboardSyncs:
+                        0,
+
+                    persistenceWrites:
+                        0,
+
+                    persistenceReads:
+                        0,
+
+                    validations:
+                        0,
+
+                    diagnostics:
+                        0,
+
+                    bootstrapRuns:
+                        0,
+
+                    shutdownRuns:
+                        0,
+
+                    predictionUpdates:
+                        0,
+
+                    emittedEvents:
+                        0,
+
+                    recordedErrors:
+                        0
+                },
+
+                gauges: {
+                    predictionCount:
+                        0,
+
+                    lastPipelineDurationMs:
+                        null,
+
+                    lastDashboardSyncDurationMs:
+                        null,
+
+                    lastPersistenceDurationMs:
+                        null,
+
+                    healthScore:
+                        null,
+
+                    readinessScore:
+                        null
+                },
+
+                events:
+                    [],
+
+                errors:
+                    [],
+
+                timer:
+                    null,
+
+                startedAt:
+                    Date.now(),
+
+                lastCollectedAt:
+                    null,
+
+                lastSnapshot:
+                    null
+            };
+        }
+
+        return runtimeState.observability;
+    }
+
+    function configureObservability(
+        options = {}
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        state.options = {
+            ...state.options,
+            ...options
+        };
+
+        state.options.enabled =
+            state.options.enabled !==
+            false;
+
+        state.options.maxEvents =
+            Number.isFinite(
+                Number(
+                    state.options.maxEvents
+                )
+            )
+                ? Math.max(
+                    10,
+                    Number(
+                        state.options.maxEvents
+                    )
+                )
+                : DEFAULT_OBSERVABILITY_OPTIONS
+                    .maxEvents;
+
+        state.options.maxErrors =
+            Number.isFinite(
+                Number(
+                    state.options.maxErrors
+                )
+            )
+                ? Math.max(
+                    10,
+                    Number(
+                        state.options.maxErrors
+                    )
+                )
+                : DEFAULT_OBSERVABILITY_OPTIONS
+                    .maxErrors;
+
+        state.options.autoCollectIntervalMs =
+            Number.isFinite(
+                Number(
+                    state.options
+                        .autoCollectIntervalMs
+                )
+            )
+                ? Math.max(
+                    5000,
+                    Number(
+                        state.options
+                            .autoCollectIntervalMs
+                    )
+                )
+                : DEFAULT_OBSERVABILITY_OPTIONS
+                    .autoCollectIntervalMs;
+
+        return {
+            ...state.options
+        };
+    }
+
+    function incrementMetric(
+        metricName,
+        amount = 1
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        if (
+            !Object.prototype
+                .hasOwnProperty
+                .call(
+                    state.counters,
+                    metricName
+                )
+        ) {
+            state.counters[
+                metricName
+            ] = 0;
+        }
+
+        const numericAmount =
+            Number(amount);
+
+        state.counters[
+            metricName
+        ] += Number.isFinite(
+            numericAmount
+        )
+            ? numericAmount
+            : 1;
+
+        return state.counters[
+            metricName
+        ];
+    }
+
+    function setGauge(
+        gaugeName,
+        value
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        state.gauges[
+            gaugeName
+        ] = value;
+
+        return value;
+    }
+
+    function trimCollection(
+        collection,
+        maximum
+    ) {
+        if (
+            collection.length >
+            maximum
+        ) {
+            collection.splice(
+                0,
+                collection.length -
+                maximum
+            );
+        }
+
+        return collection;
+    }
+
+    function recordOperationalEvent(
+        eventName,
+        detail = {},
+        level = 'info'
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        if (
+            !state.options.enabled
+        ) {
+            return null;
+        }
+
+        const event = {
+            id:
+                `obs_${Date.now()}_${Math.random()
+                    .toString(36)
+                    .slice(2, 10)}`,
+
+            eventName:
+                String(
+                    eventName ||
+                    'unknown_event'
+                ),
+
+            level:
+                String(
+                    level ||
+                    'info'
+                ),
+
+            detail:
+                state.options
+                    .includePayloads
+                    ? detail
+                    : {
+                        keys:
+                            detail &&
+                            typeof detail ===
+                                'object'
+                                ? Object.keys(
+                                    detail
+                                )
+                                : []
+                    },
+
+            timestamp:
+                Date.now(),
+
+            timestampIso:
+                new Date()
+                    .toISOString()
+        };
+
+        state.events.push(
+            event
+        );
+
+        trimCollection(
+            state.events,
+            state.options.maxEvents
+        );
+
+        incrementMetric(
+            'emittedEvents'
+        );
+
+        return {
+            ...event
+        };
+    }
+
+    function recordOperationalError(
+        source,
+        error,
+        context = {}
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        const normalizedError =
+            normalizeError(
+                error
+            );
+
+        const record = {
+            id:
+                `err_${Date.now()}_${Math.random()
+                    .toString(36)
+                    .slice(2, 10)}`,
+
+            source:
+                String(
+                    source ||
+                    'unknown'
+                ),
+
+            error:
+                normalizedError,
+
+            context:
+                state.options
+                    .includePayloads
+                    ? context
+                    : {
+                        keys:
+                            context &&
+                            typeof context ===
+                                'object'
+                                ? Object.keys(
+                                    context
+                                )
+                                : []
+                    },
+
+            timestamp:
+                Date.now(),
+
+            timestampIso:
+                new Date()
+                    .toISOString()
+        };
+
+        state.errors.push(
+            record
+        );
+
+        trimCollection(
+            state.errors,
+            state.options.maxErrors
+        );
+
+        incrementMetric(
+            'recordedErrors'
+        );
+
+        recordOperationalEvent(
+            'operational_error',
+            {
+                source:
+                    record.source,
+
+                error:
+                    normalizedError
+            },
+            'error'
+        );
+
+        return {
+            ...record
+        };
+    }
+
+    function collectRuntimeMetrics() {
+        const state =
+            ensureObservabilityState();
+
+        try {
+            const predictions =
+                typeof integrationApi
+                    .getLatestPredictions ===
+                    'function'
+                    ? integrationApi
+                        .getLatestPredictions()
+                    : (
+                        Array.isArray(
+                            runtimeState
+                                .latestPredictions
+                        )
+                            ? runtimeState
+                                .latestPredictions
+                            : []
+                    );
+
+            setGauge(
+                'predictionCount',
+                Array.isArray(
+                    predictions
+                )
+                    ? predictions.length
+                    : 0
+            );
+
+            const pipelineStatus =
+                typeof integrationApi
+                    .getIntegrationPipelineStatus ===
+                    'function'
+                    ? integrationApi
+                        .getIntegrationPipelineStatus()
+                    : null;
+
+            if (
+                pipelineStatus &&
+                Number.isFinite(
+                    pipelineStatus
+                        .lastDurationMs
+                )
+            ) {
+                setGauge(
+                    'lastPipelineDurationMs',
+                    pipelineStatus
+                        .lastDurationMs
+                );
+            }
+
+            const diagnosticsStatus =
+                typeof integrationApi
+                    .getDiagnosticsStatus ===
+                    'function'
+                    ? integrationApi
+                        .getDiagnosticsStatus()
+                    : null;
+
+            if (
+                diagnosticsStatus &&
+                Number.isFinite(
+                    diagnosticsStatus
+                        .lastHealthScore
+                )
+            ) {
+                setGauge(
+                    'healthScore',
+                    diagnosticsStatus
+                        .lastHealthScore
+                );
+            }
+
+            const readinessStatus =
+                typeof integrationApi
+                    .getProductionReadinessStatus ===
+                    'function'
+                    ? integrationApi
+                        .getProductionReadinessStatus()
+                    : null;
+
+            if (
+                readinessStatus
+            ) {
+                const readinessScore =
+                    readinessStatus.ready ===
+                    true
+                        ? 100
+                        : (
+                            readinessStatus.status ===
+                            'degraded'
+                                ? 60
+                                : 0
+                        );
+
+                setGauge(
+                    'readinessScore',
+                    readinessScore
+                );
+            }
+
+            state.lastCollectedAt =
+                Date.now();
+
+            const snapshot = {
+                counters: {
+                    ...state.counters
+                },
+
+                gauges: {
+                    ...state.gauges
+                },
+
+                eventCount:
+                    state.events.length,
+
+                errorCount:
+                    state.errors.length,
+
+                startedAt:
+                    state.startedAt,
+
+                collectedAt:
+                    state.lastCollectedAt,
+
+                collectedAtIso:
+                    new Date(
+                        state.lastCollectedAt
+                    ).toISOString()
+            };
+
+            state.lastSnapshot =
+                snapshot;
+
+            return {
+                ...snapshot
+            };
+        } catch (error) {
+            recordOperationalError(
+                'collect_runtime_metrics',
+                error
+            );
+
+            return {
+                counters: {
+                    ...state.counters
+                },
+
+                gauges: {
+                    ...state.gauges
+                },
+
+                error:
+                    normalizeError(
+                        error
+                    ),
+
+                collectedAt:
+                    Date.now()
+            };
+        }
+    }
+
+    function getObservabilityStatus(
+        options = {}
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        return {
+            enabled:
+                state.options.enabled,
+
+            running:
+                Boolean(
+                    state.timer
+                ),
+
+            options: {
+                ...state.options
+            },
+
+            counters: {
+                ...state.counters
+            },
+
+            gauges: {
+                ...state.gauges
+            },
+
+            events:
+                options.includeEvents ===
+                true
+                    ? state.events.map(
+                        event => ({
+                            ...event
+                        })
+                    )
+                    : undefined,
+
+            errors:
+                options.includeErrors ===
+                true
+                    ? state.errors.map(
+                        error => ({
+                            ...error
+                        })
+                    )
+                    : undefined,
+
+            eventCount:
+                state.events.length,
+
+            errorCount:
+                state.errors.length,
+
+            startedAt:
+                state.startedAt,
+
+            lastCollectedAt:
+                state.lastCollectedAt,
+
+            lastSnapshot:
+                state.lastSnapshot
+                    ? {
+                        ...state.lastSnapshot
+                    }
+                    : null
+        };
+    }
+
+    integrationApi
+        .configureObservability =
+        configureObservability;
+
+    integrationApi
+        .incrementMetric =
+        incrementMetric;
+
+    integrationApi
+        .setGauge =
+        setGauge;
+
+    integrationApi
+        .recordOperationalEvent =
+        recordOperationalEvent;
+
+    integrationApi
+        .recordOperationalError =
+        recordOperationalError;
+
+    integrationApi
+        .collectRuntimeMetrics =
+        collectRuntimeMetrics;
+
+    integrationApi
+        .getObservabilityStatus =
+        getObservabilityStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.7A-1',
+
+        nextPart:
+            '2.7A-2',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            integrationApi
+                .metadata
+                .productionReady ===
+                true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_OBSERVABILITY_OPTIONS,
+            ensureObservabilityState,
+            trimCollection
+        }
+    );
+
+    collectRuntimeMetrics();
+
+    recordOperationalEvent(
+        'observability_initialized',
+        {
+            part:
+                '2.7A-1',
+
+            version:
+                '32.0.0'
+        }
+    );
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.7A-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.7A-2
+ *
+ * Responsibilities:
+ * - Start and stop automatic metric collection
+ * - Instrument critical public API methods
+ * - Track execution duration and failures
+ * - Complete observability lifecycle layer
+ */
+
+(function rainArrivalIntegrationV32ObservabilityLifecycle(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.7A-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        ensureObservabilityState,
+        normalizeError,
+        log
+    } = internal;
+
+    const OBSERVABILITY_INSTRUMENTATION_MAP =
+        Object.freeze({
+            runIntegrationPipeline: {
+                counter:
+                    'pipelineRuns',
+
+                failureCounter:
+                    'pipelineFailures',
+
+                durationGauge:
+                    'lastPipelineDurationMs',
+
+                eventName:
+                    'pipeline_execution'
+            },
+
+            synchronizeDashboard: {
+                counter:
+                    'dashboardSyncs',
+
+                failureCounter:
+                    'dashboardSyncFailures',
+
+                durationGauge:
+                    'lastDashboardSyncDurationMs',
+
+                eventName:
+                    'dashboard_synchronization'
+            },
+
+            persistIntegrationSnapshot: {
+                counter:
+                    'persistenceWrites',
+
+                failureCounter:
+                    'persistenceWriteFailures',
+
+                durationGauge:
+                    'lastPersistenceDurationMs',
+
+                eventName:
+                    'persistence_write'
+            },
+
+            restoreIntegrationSnapshot: {
+                counter:
+                    'persistenceReads',
+
+                failureCounter:
+                    'persistenceReadFailures',
+
+                durationGauge:
+                    'lastPersistenceReadDurationMs',
+
+                eventName:
+                    'persistence_read'
+            },
+
+            runValidationSuite: {
+                counter:
+                    'validations',
+
+                failureCounter:
+                    'validationFailures',
+
+                durationGauge:
+                    'lastValidationDurationMs',
+
+                eventName:
+                    'validation_execution'
+            },
+
+            runDiagnostics: {
+                counter:
+                    'diagnostics',
+
+                failureCounter:
+                    'diagnosticFailures',
+
+                durationGauge:
+                    'lastDiagnosticsDurationMs',
+
+                eventName:
+                    'diagnostics_execution'
+            },
+
+            bootstrapRainArrivalIntegration: {
+                counter:
+                    'bootstrapRuns',
+
+                failureCounter:
+                    'bootstrapFailures',
+
+                durationGauge:
+                    'lastBootstrapDurationMs',
+
+                eventName:
+                    'bootstrap_execution'
+            },
+
+            shutdownRainArrivalIntegration: {
+                counter:
+                    'shutdownRuns',
+
+                failureCounter:
+                    'shutdownFailures',
+
+                durationGauge:
+                    'lastShutdownDurationMs',
+
+                eventName:
+                    'shutdown_execution'
+            },
+
+            setLatestPredictions: {
+                counter:
+                    'predictionUpdates',
+
+                failureCounter:
+                    'predictionUpdateFailures',
+
+                durationGauge:
+                    'lastPredictionUpdateDurationMs',
+
+                eventName:
+                    'prediction_update'
+            }
+        });
+
+    function ensureInstrumentationState() {
+        const state =
+            ensureObservabilityState();
+
+        if (
+            !state.instrumentation ||
+            typeof state.instrumentation !==
+                'object'
+        ) {
+            state.instrumentation = {
+                installed:
+                    false,
+
+                installedAt:
+                    null,
+
+                wrappedMethods:
+                    new Map(),
+
+                failures:
+                    0,
+
+                lastError:
+                    null
+            };
+        }
+
+        return state.instrumentation;
+    }
+
+    function determineOperationSuccess(
+        methodName,
+        result
+    ) {
+        if (
+            result ===
+            false
+        ) {
+            return false;
+        }
+
+        if (
+            !result ||
+            typeof result !==
+                'object'
+        ) {
+            return true;
+        }
+
+        if (
+            result.success ===
+            false ||
+            result.succeeded ===
+            false ||
+            result.valid ===
+            false ||
+            result.healthy ===
+            false
+        ) {
+            return false;
+        }
+
+        if (
+            methodName ===
+                'bootstrapRainArrivalIntegration' &&
+            result.initialized ===
+                false
+        ) {
+            return false;
+        }
+
+        if (
+            methodName ===
+                'shutdownRainArrivalIntegration' &&
+            result.shutdown ===
+                false
+        ) {
+            return false;
+        }
+
+        if (
+            methodName ===
+                'runIntegrationPipeline' &&
+            (
+                result.status ===
+                    'failed' ||
+                result.status ===
+                    'error' ||
+                result.status ===
+                    'blocked'
+            )
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function recordInstrumentedExecution(
+        methodName,
+        definition,
+        startedAt,
+        succeeded,
+        result,
+        error
+    ) {
+        const durationMs =
+            Date.now() -
+            startedAt;
+
+        integrationApi.incrementMetric(
+            definition.counter
+        );
+
+        integrationApi.setGauge(
+            definition.durationGauge,
+            durationMs
+        );
+
+        if (
+            !succeeded
+        ) {
+            integrationApi.incrementMetric(
+                definition.failureCounter
+            );
+        }
+
+        const eventDetail = {
+            methodName,
+
+            succeeded,
+
+            durationMs,
+
+            resultType:
+                result === null
+                    ? 'null'
+                    : typeof result
+        };
+
+        if (
+            error
+        ) {
+            eventDetail.error =
+                normalizeError(
+                    error
+                );
+
+            integrationApi.recordOperationalError(
+                methodName,
+                error,
+                {
+                    durationMs
+                }
+            );
+        }
+
+        integrationApi.recordOperationalEvent(
+            definition.eventName,
+            eventDetail,
+            succeeded
+                ? 'info'
+                : 'error'
+        );
+
+        return durationMs;
+    }
+
+    function createInstrumentedMethod(
+        methodName,
+        originalMethod,
+        definition
+    ) {
+        return function instrumentedRainArrivalMethod(...args) {
+            const startedAt =
+                Date.now();
+
+            let output;
+
+            try {
+                output =
+                    originalMethod.apply(
+                        integrationApi,
+                        args
+                    );
+            } catch (error) {
+                recordInstrumentedExecution(
+                    methodName,
+                    definition,
+                    startedAt,
+                    false,
+                    null,
+                    error
+                );
+
+                throw error;
+            }
+
+            if (
+                output &&
+                typeof output.then ===
+                    'function'
+            ) {
+                return Promise.resolve(
+                    output
+                ).then(
+                    result => {
+                        const succeeded =
+                            determineOperationSuccess(
+                                methodName,
+                                result
+                            );
+
+                        recordInstrumentedExecution(
+                            methodName,
+                            definition,
+                            startedAt,
+                            succeeded,
+                            result,
+                            null
+                        );
+
+                        return result;
+                    },
+                    error => {
+                        recordInstrumentedExecution(
+                            methodName,
+                            definition,
+                            startedAt,
+                            false,
+                            null,
+                            error
+                        );
+
+                        throw error;
+                    }
+                );
+            }
+
+            const succeeded =
+                determineOperationSuccess(
+                    methodName,
+                    output
+                );
+
+            recordInstrumentedExecution(
+                methodName,
+                definition,
+                startedAt,
+                succeeded,
+                output,
+                null
+            );
+
+            return output;
+        };
+    }
+
+    function installObservabilityInstrumentation() {
+        const instrumentation =
+            ensureInstrumentationState();
+
+        if (
+            instrumentation.installed
+        ) {
+            return {
+                installed:
+                    true,
+
+                reused:
+                    true,
+
+                wrappedMethods:
+                    Array.from(
+                        instrumentation
+                            .wrappedMethods
+                            .keys()
+                    )
+            };
+        }
+
+        const installedMethods =
+            [];
+
+        for (
+            const [
+                methodName,
+                definition
+            ]
+            of Object.entries(
+                OBSERVABILITY_INSTRUMENTATION_MAP
+            )
+        ) {
+            const originalMethod =
+                integrationApi[
+                    methodName
+                ];
+
+            if (
+                typeof originalMethod !==
+                'function'
+            ) {
+                continue;
+            }
+
+            if (
+                originalMethod
+                    .__rainGuardObservabilityWrapped ===
+                true
+            ) {
+                continue;
+            }
+
+            try {
+                const wrappedMethod =
+                    createInstrumentedMethod(
+                        methodName,
+                        originalMethod,
+                        definition
+                    );
+
+                Object.defineProperty(
+                    wrappedMethod,
+                    '__rainGuardObservabilityWrapped',
+                    {
+                        value:
+                            true,
+
+                        enumerable:
+                            false,
+
+                        configurable:
+                            false,
+
+                        writable:
+                            false
+                    }
+                );
+
+                instrumentation
+                    .wrappedMethods
+                    .set(
+                        methodName,
+                        originalMethod
+                    );
+
+                integrationApi[
+                    methodName
+                ] =
+                    wrappedMethod;
+
+                installedMethods.push(
+                    methodName
+                );
+            } catch (error) {
+                instrumentation.failures +=
+                    1;
+
+                instrumentation.lastError =
+                    normalizeError(
+                        error
+                    );
+
+                integrationApi
+                    .recordOperationalError(
+                        'install_observability_instrumentation',
+                        error,
+                        {
+                            methodName
+                        }
+                    );
+            }
+        }
+
+        instrumentation.installed =
+            true;
+
+        instrumentation.installedAt =
+            Date.now();
+
+        if (
+            typeof integrationApi
+                .exposePublicApi ===
+                'function'
+        ) {
+            try {
+                integrationApi
+                    .exposePublicApi();
+            } catch (error) {
+                instrumentation.lastError =
+                    normalizeError(
+                        error
+                    );
+            }
+        }
+
+        integrationApi
+            .recordOperationalEvent(
+                'observability_instrumentation_installed',
+                {
+                    installedMethods
+                }
+            );
+
+        return {
+            installed:
+                true,
+
+            reused:
+                false,
+
+            wrappedMethods:
+                installedMethods
+        };
+    }
+
+    function removeObservabilityInstrumentation() {
+        const instrumentation =
+            ensureInstrumentationState();
+
+        let restored =
+            0;
+
+        for (
+            const [
+                methodName,
+                originalMethod
+            ]
+            of instrumentation
+                .wrappedMethods
+                .entries()
+        ) {
+            try {
+                integrationApi[
+                    methodName
+                ] =
+                    originalMethod;
+
+                restored +=
+                    1;
+            } catch (error) {
+                instrumentation.failures +=
+                    1;
+
+                instrumentation.lastError =
+                    normalizeError(
+                        error
+                    );
+            }
+        }
+
+        instrumentation
+            .wrappedMethods
+            .clear();
+
+        instrumentation.installed =
+            false;
+
+        instrumentation.installedAt =
+            null;
+
+        if (
+            typeof integrationApi
+                .exposePublicApi ===
+                'function'
+        ) {
+            try {
+                integrationApi
+                    .exposePublicApi();
+            } catch (error) {
+                instrumentation.lastError =
+                    normalizeError(
+                        error
+                    );
+            }
+        }
+
+        return {
+            restored,
+
+            installed:
+                false
+        };
+    }
+
+    function startObservabilityCollector(
+        options = {}
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        integrationApi
+            .configureObservability(
+                options
+            );
+
+        if (
+            state.timer
+        ) {
+            return {
+                started:
+                    true,
+
+                reused:
+                    true,
+
+                intervalMs:
+                    state.options
+                        .autoCollectIntervalMs
+            };
+        }
+
+        if (
+            state.options.enabled ===
+            false
+        ) {
+            return {
+                started:
+                    false,
+
+                reason:
+                    'observability_disabled'
+            };
+        }
+
+        const collect =
+            () => {
+                try {
+                    integrationApi
+                        .collectRuntimeMetrics();
+                } catch (error) {
+                    integrationApi
+                        .recordOperationalError(
+                            'automatic_metric_collection',
+                            error
+                        );
+                }
+            };
+
+        state.timer =
+            globalObject.setInterval(
+                collect,
+                state.options
+                    .autoCollectIntervalMs
+            );
+
+        collect();
+
+        integrationApi
+            .recordOperationalEvent(
+                'observability_collector_started',
+                {
+                    intervalMs:
+                        state.options
+                            .autoCollectIntervalMs
+                }
+            );
+
+        return {
+            started:
+                true,
+
+            reused:
+                false,
+
+            intervalMs:
+                state.options
+                    .autoCollectIntervalMs
+        };
+    }
+
+    function stopObservabilityCollector() {
+        const state =
+            ensureObservabilityState();
+
+        if (
+            !state.timer
+        ) {
+            return {
+                stopped:
+                    true,
+
+                reused:
+                    true
+            };
+        }
+
+        globalObject.clearInterval(
+            state.timer
+        );
+
+        state.timer =
+            null;
+
+        integrationApi
+            .recordOperationalEvent(
+                'observability_collector_stopped',
+                {
+                    timestamp:
+                        Date.now()
+                }
+            );
+
+        return {
+            stopped:
+                true,
+
+            reused:
+                false
+        };
+    }
+
+    function clearObservabilityHistory(
+        options = {}
+    ) {
+        const state =
+            ensureObservabilityState();
+
+        const previous = {
+            events:
+                state.events.length,
+
+            errors:
+                state.errors.length
+        };
+
+        state.events =
+            [];
+
+        state.errors =
+            [];
+
+        if (
+            options.resetCounters ===
+            true
+        ) {
+            for (
+                const key
+                of Object.keys(
+                    state.counters
+                )
+            ) {
+                state.counters[
+                    key
+                ] = 0;
+            }
+        }
+
+        if (
+            options.resetGauges ===
+            true
+        ) {
+            for (
+                const key
+                of Object.keys(
+                    state.gauges
+                )
+            ) {
+                state.gauges[
+                    key
+                ] = null;
+            }
+
+            state.gauges
+                .predictionCount =
+                0;
+        }
+
+        state.lastSnapshot =
+            null;
+
+        state.lastCollectedAt =
+            null;
+
+        return {
+            cleared:
+                true,
+
+            previous,
+
+            countersReset:
+                options.resetCounters ===
+                true,
+
+            gaugesReset:
+                options.resetGauges ===
+                true
+        };
+    }
+
+    function getObservabilityInstrumentationStatus() {
+        const instrumentation =
+            ensureInstrumentationState();
+
+        return {
+            installed:
+                instrumentation.installed,
+
+            installedAt:
+                instrumentation.installedAt,
+
+            wrappedMethods:
+                Array.from(
+                    instrumentation
+                        .wrappedMethods
+                        .keys()
+                ),
+
+            failures:
+                instrumentation.failures,
+
+            lastError:
+                instrumentation.lastError
+        };
+    }
+
+    integrationApi
+        .installObservabilityInstrumentation =
+        installObservabilityInstrumentation;
+
+    integrationApi
+        .removeObservabilityInstrumentation =
+        removeObservabilityInstrumentation;
+
+    integrationApi
+        .startObservabilityCollector =
+        startObservabilityCollector;
+
+    integrationApi
+        .stopObservabilityCollector =
+        stopObservabilityCollector;
+
+    integrationApi
+        .clearObservabilityHistory =
+        clearObservabilityHistory;
+
+    integrationApi
+        .getObservabilityInstrumentationStatus =
+        getObservabilityInstrumentationStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.7A-2',
+
+        nextPart:
+            '2.7B-1',
+
+        status:
+            'in_progress',
+
+        productionReady:
+            integrationApi
+                .metadata
+                .productionReady ===
+                true,
+
+        observabilityReady:
+            true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            OBSERVABILITY_INSTRUMENTATION_MAP,
+            ensureInstrumentationState,
+            determineOperationSuccess,
+            recordInstrumentedExecution,
+            createInstrumentedMethod
+        }
+    );
+
+    const instrumentationResult =
+        installObservabilityInstrumentation();
+
+    const collectorResult =
+        startObservabilityCollector();
+
+    runtimeState
+        .observability
+        .instrumentationResult =
+        instrumentationResult;
+
+    runtimeState
+        .observability
+        .collectorResult =
+        collectorResult;
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.7A-2 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.7B-1
+ *
+ * Responsibilities:
+ * - Provide developer inspection tools
+ * - Export runtime diagnostics safely
+ * - Create downloadable debug reports
+ * - Expose controlled debug configuration
+ */
+
+(function rainArrivalIntegrationV32DeveloperTools(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.7A-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        safeCloneValue,
+        log
+    } = internal;
+
+    const DEFAULT_DEVELOPER_OPTIONS =
+        Object.freeze({
+            enabled:
+                false,
+
+            includePredictions:
+                true,
+
+            includeObservabilityEvents:
+                true,
+
+            includeObservabilityErrors:
+                true,
+
+            includeInternalState:
+                false,
+
+            maxPredictionRecords:
+                500,
+
+            maxEventRecords:
+                250,
+
+            maxErrorRecords:
+                100
+        });
+
+    function ensureDeveloperToolsState() {
+        if (
+            !runtimeState.developerTools ||
+            typeof runtimeState.developerTools !==
+                'object'
+        ) {
+            runtimeState.developerTools = {
+                options: {
+                    ...DEFAULT_DEVELOPER_OPTIONS
+                },
+
+                enabled:
+                    false,
+
+                exports:
+                    0,
+
+                downloads:
+                    0,
+
+                lastExportAt:
+                    null,
+
+                lastDownloadAt:
+                    null,
+
+                lastError:
+                    null,
+
+                lastReport:
+                    null
+            };
+        }
+
+        return runtimeState.developerTools;
+    }
+
+    function configureDeveloperTools(
+        options = {}
+    ) {
+        const state =
+            ensureDeveloperToolsState();
+
+        state.options = {
+            ...state.options,
+            ...options
+        };
+
+        state.options.enabled =
+            state.options.enabled ===
+            true;
+
+        state.options.includePredictions =
+            state.options.includePredictions !==
+            false;
+
+        state.options.includeObservabilityEvents =
+            state.options.includeObservabilityEvents !==
+            false;
+
+        state.options.includeObservabilityErrors =
+            state.options.includeObservabilityErrors !==
+            false;
+
+        state.options.includeInternalState =
+            state.options.includeInternalState ===
+            true;
+
+        state.options.maxPredictionRecords =
+            Number.isFinite(
+                Number(
+                    state.options
+                        .maxPredictionRecords
+                )
+            )
+                ? Math.max(
+                    1,
+                    Math.floor(
+                        Number(
+                            state.options
+                                .maxPredictionRecords
+                        )
+                    )
+                )
+                : DEFAULT_DEVELOPER_OPTIONS
+                    .maxPredictionRecords;
+
+        state.options.maxEventRecords =
+            Number.isFinite(
+                Number(
+                    state.options
+                        .maxEventRecords
+                )
+            )
+                ? Math.max(
+                    1,
+                    Math.floor(
+                        Number(
+                            state.options
+                                .maxEventRecords
+                        )
+                    )
+                )
+                : DEFAULT_DEVELOPER_OPTIONS
+                    .maxEventRecords;
+
+        state.options.maxErrorRecords =
+            Number.isFinite(
+                Number(
+                    state.options
+                        .maxErrorRecords
+                )
+            )
+                ? Math.max(
+                    1,
+                    Math.floor(
+                        Number(
+                            state.options
+                                .maxErrorRecords
+                        )
+                    )
+                )
+                : DEFAULT_DEVELOPER_OPTIONS
+                    .maxErrorRecords;
+
+        state.enabled =
+            state.options.enabled;
+
+        return {
+            ...state.options
+        };
+    }
+
+    function enableDeveloperTools(
+        options = {}
+    ) {
+        return configureDeveloperTools({
+            ...options,
+
+            enabled:
+                true
+        });
+    }
+
+    function disableDeveloperTools() {
+        return configureDeveloperTools({
+            enabled:
+                false
+        });
+    }
+
+    function getPredictionDebugSnapshot(
+        maximumRecords
+    ) {
+        const predictions =
+            typeof integrationApi
+                .getLatestPredictions ===
+                'function'
+                ? integrationApi
+                    .getLatestPredictions()
+                : (
+                    Array.isArray(
+                        runtimeState
+                            .latestPredictions
+                    )
+                        ? runtimeState
+                            .latestPredictions
+                        : []
+                );
+
+        if (
+            !Array.isArray(
+                predictions
+            )
+        ) {
+            return [];
+        }
+
+        return predictions
+            .slice(
+                0,
+                maximumRecords
+            )
+            .map(
+                prediction =>
+                    safeCloneValue(
+                        prediction
+                    )
+            );
+    }
+
+    function getObservabilityDebugSnapshot(
+        options
+    ) {
+        if (
+            typeof integrationApi
+                .getObservabilityStatus !==
+                'function'
+        ) {
+            return null;
+        }
+
+        const status =
+            integrationApi
+                .getObservabilityStatus({
+                    includeEvents:
+                        options
+                            .includeObservabilityEvents,
+
+                    includeErrors:
+                        options
+                            .includeObservabilityErrors
+                });
+
+        if (
+            Array.isArray(
+                status.events
+            )
+        ) {
+            status.events =
+                status.events.slice(
+                    -options.maxEventRecords
+                );
+        }
+
+        if (
+            Array.isArray(
+                status.errors
+            )
+        ) {
+            status.errors =
+                status.errors.slice(
+                    -options.maxErrorRecords
+                );
+        }
+
+        return safeCloneValue(
+            status
+        );
+    }
+
+    function collectApiSurfaceSnapshot() {
+        const methods =
+            Object.keys(
+                integrationApi
+            )
+                .filter(
+                    key =>
+                        typeof integrationApi[
+                            key
+                        ] ===
+                        'function'
+                )
+                .sort();
+
+        const properties =
+            Object.keys(
+                integrationApi
+            )
+                .filter(
+                    key =>
+                        typeof integrationApi[
+                            key
+                        ] !==
+                        'function' &&
+                        key !==
+                        '_state' &&
+                        key !==
+                        '_internals'
+                )
+                .sort();
+
+        return {
+            methodCount:
+                methods.length,
+
+            propertyCount:
+                properties.length,
+
+            methods,
+
+            properties
+        };
+    }
+
+    function collectBrowserEnvironmentSnapshot() {
+        const navigatorObject =
+            globalObject.navigator ||
+            null;
+
+        const documentObject =
+            globalObject.document ||
+            null;
+
+        return {
+            online:
+                navigatorObject &&
+                typeof navigatorObject.onLine ===
+                    'boolean'
+                    ? navigatorObject.onLine
+                    : null,
+
+            language:
+                navigatorObject &&
+                navigatorObject.language
+                    ? navigatorObject.language
+                    : null,
+
+            userAgent:
+                navigatorObject &&
+                navigatorObject.userAgent
+                    ? navigatorObject.userAgent
+                    : null,
+
+            visibilityState:
+                documentObject &&
+                documentObject.visibilityState
+                    ? documentObject.visibilityState
+                    : null,
+
+            readyState:
+                documentObject &&
+                documentObject.readyState
+                    ? documentObject.readyState
+                    : null,
+
+            timezone:
+                typeof Intl !==
+                    'undefined' &&
+                Intl.DateTimeFormat
+                    ? Intl.DateTimeFormat()
+                        .resolvedOptions()
+                        .timeZone ||
+                    null
+                    : null,
+
+            generatedAt:
+                Date.now()
+        };
+    }
+
+    function buildDeveloperDebugReport(
+        options = {}
+    ) {
+        const state =
+            ensureDeveloperToolsState();
+
+        const normalizedOptions = {
+            ...state.options,
+            ...options
+        };
+
+        if (
+            state.enabled !==
+                true &&
+            options.force !==
+                true
+        ) {
+            return {
+                generated:
+                    false,
+
+                reason:
+                    'developer_tools_disabled'
+            };
+        }
+
+        try {
+            const report = {
+                schema:
+                    'rainguard-rain-arrival-debug-report',
+
+                schemaVersion:
+                    1,
+
+                module:
+                    'rain_arrival_integration',
+
+                version:
+                    integrationApi
+                        .metadata
+                        .version ||
+                    '32.0.0',
+
+                metadata:
+                    safeCloneValue(
+                        integrationApi.metadata
+                    ),
+
+                runtimeStatus:
+                    typeof integrationApi
+                        .getConsolidatedRuntimeStatus ===
+                        'function'
+                        ? safeCloneValue(
+                            integrationApi
+                                .getConsolidatedRuntimeStatus()
+                        )
+                        : null,
+
+                apiSurface:
+                    collectApiSurfaceSnapshot(),
+
+                environment:
+                    collectBrowserEnvironmentSnapshot(),
+
+                predictions:
+                    normalizedOptions
+                        .includePredictions
+                        ? getPredictionDebugSnapshot(
+                            normalizedOptions
+                                .maxPredictionRecords
+                        )
+                        : undefined,
+
+                observability:
+                    getObservabilityDebugSnapshot(
+                        normalizedOptions
+                    ),
+
+                internalState:
+                    normalizedOptions
+                        .includeInternalState
+                        ? safeCloneValue(
+                            runtimeState
+                        )
+                        : undefined,
+
+                generatedAt:
+                    Date.now(),
+
+                generatedAtIso:
+                    new Date()
+                        .toISOString()
+            };
+
+            state.exports +=
+                1;
+
+            state.lastExportAt =
+                report.generatedAt;
+
+            state.lastReport =
+                report;
+
+            if (
+                typeof integrationApi
+                    .recordOperationalEvent ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalEvent(
+                        'developer_debug_report_generated',
+                        {
+                            exportNumber:
+                                state.exports,
+
+                            predictionCount:
+                                Array.isArray(
+                                    report.predictions
+                                )
+                                    ? report
+                                        .predictions
+                                        .length
+                                    : 0
+                        }
+                    );
+            }
+
+            return {
+                generated:
+                    true,
+
+                report
+            };
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            if (
+                typeof integrationApi
+                    .recordOperationalError ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalError(
+                        'build_developer_debug_report',
+                        error
+                    );
+            }
+
+            return {
+                generated:
+                    false,
+
+                error:
+                    state.lastError
+            };
+        }
+    }
+
+    function serializeDeveloperDebugReport(
+        report,
+        spacing = 2
+    ) {
+        try {
+            return JSON.stringify(
+                report,
+                null,
+                Number.isFinite(
+                    Number(spacing)
+                )
+                    ? Math.max(
+                        0,
+                        Math.min(
+                            10,
+                            Number(spacing)
+                        )
+                    )
+                    : 2
+            );
+        } catch (error) {
+            return JSON.stringify(
+                {
+                    serializationError:
+                        normalizeError(
+                            error
+                        ),
+
+                    generatedAt:
+                        Date.now()
+                }
+            );
+        }
+    }
+
+    function downloadDeveloperDebugReport(
+        options = {}
+    ) {
+        const state =
+            ensureDeveloperToolsState();
+
+        const generated =
+            buildDeveloperDebugReport(
+                options
+            );
+
+        if (
+            !generated.generated
+        ) {
+            return generated;
+        }
+
+        const documentObject =
+            globalObject.document;
+
+        const URLObject =
+            globalObject.URL ||
+            globalObject.webkitURL;
+
+        if (
+            !documentObject ||
+            typeof documentObject
+                .createElement !==
+                'function' ||
+            !URLObject ||
+            typeof URLObject
+                .createObjectURL !==
+                'function' ||
+            typeof globalObject.Blob !==
+                'function'
+        ) {
+            return {
+                downloaded:
+                    false,
+
+                reason:
+                    'browser_download_api_unavailable',
+
+                report:
+                    generated.report
+            };
+        }
+
+        try {
+            const content =
+                serializeDeveloperDebugReport(
+                    generated.report,
+                    options.spacing
+                );
+
+            const blob =
+                new globalObject.Blob(
+                    [
+                        content
+                    ],
+                    {
+                        type:
+                            'application/json;charset=utf-8'
+                    }
+                );
+
+            const objectUrl =
+                URLObject
+                    .createObjectURL(
+                        blob
+                    );
+
+            const link =
+                documentObject
+                    .createElement(
+                        'a'
+                    );
+
+            const timestamp =
+                new Date()
+                    .toISOString()
+                    .replace(
+                        /[:.]/g,
+                        '-'
+                    );
+
+            const filename =
+                options.filename ||
+                `rainguard-v32-debug-${timestamp}.json`;
+
+            link.href =
+                objectUrl;
+
+            link.download =
+                filename;
+
+            link.style.display =
+                'none';
+
+            documentObject
+                .body
+                .appendChild(
+                    link
+                );
+
+            link.click();
+
+            documentObject
+                .body
+                .removeChild(
+                    link
+                );
+
+            globalObject.setTimeout(
+                () => {
+                    try {
+                        URLObject
+                            .revokeObjectURL(
+                                objectUrl
+                            );
+                    } catch (error) {
+                        state.lastError =
+                            normalizeError(
+                                error
+                            );
+                    }
+                },
+                1000
+            );
+
+            state.downloads +=
+                1;
+
+            state.lastDownloadAt =
+                Date.now();
+
+            return {
+                downloaded:
+                    true,
+
+                filename,
+
+                sizeBytes:
+                    blob.size,
+
+                report:
+                    generated.report
+            };
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            return {
+                downloaded:
+                    false,
+
+                error:
+                    state.lastError,
+
+                report:
+                    generated.report
+            };
+        }
+    }
+
+    function copyDeveloperDebugReport(
+        options = {}
+    ) {
+        const generated =
+            buildDeveloperDebugReport(
+                options
+            );
+
+        if (
+            !generated.generated
+        ) {
+            return Promise.resolve(
+                generated
+            );
+        }
+
+        const content =
+            serializeDeveloperDebugReport(
+                generated.report,
+                options.spacing
+            );
+
+        const clipboard =
+            globalObject.navigator &&
+            globalObject.navigator
+                .clipboard;
+
+        if (
+            !clipboard ||
+            typeof clipboard
+                .writeText !==
+                'function'
+        ) {
+            return Promise.resolve({
+                copied:
+                    false,
+
+                reason:
+                    'clipboard_api_unavailable',
+
+                content,
+
+                report:
+                    generated.report
+            });
+        }
+
+        return clipboard
+            .writeText(
+                content
+            )
+            .then(
+                () => ({
+                    copied:
+                        true,
+
+                    characters:
+                        content.length,
+
+                    report:
+                        generated.report
+                })
+            )
+            .catch(
+                error => ({
+                    copied:
+                        false,
+
+                    error:
+                        normalizeError(
+                            error
+                        ),
+
+                    content,
+
+                    report:
+                        generated.report
+                })
+            );
+    }
+
+    function getDeveloperToolsStatus() {
+        const state =
+            ensureDeveloperToolsState();
+
+        return {
+            enabled:
+                state.enabled,
+
+            options: {
+                ...state.options
+            },
+
+            exports:
+                state.exports,
+
+            downloads:
+                state.downloads,
+
+            lastExportAt:
+                state.lastExportAt,
+
+            lastDownloadAt:
+                state.lastDownloadAt,
+
+            lastError:
+                state.lastError,
+
+            hasLastReport:
+                Boolean(
+                    state.lastReport
+                )
+        };
+    }
+
+    integrationApi
+        .configureDeveloperTools =
+        configureDeveloperTools;
+
+    integrationApi
+        .enableDeveloperTools =
+        enableDeveloperTools;
+
+    integrationApi
+        .disableDeveloperTools =
+        disableDeveloperTools;
+
+    integrationApi
+        .buildDeveloperDebugReport =
+        buildDeveloperDebugReport;
+
+    integrationApi
+        .serializeDeveloperDebugReport =
+        serializeDeveloperDebugReport;
+
+    integrationApi
+        .downloadDeveloperDebugReport =
+        downloadDeveloperDebugReport;
+
+    integrationApi
+        .copyDeveloperDebugReport =
+        copyDeveloperDebugReport;
+
+    integrationApi
+        .getDeveloperToolsStatus =
+        getDeveloperToolsStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.7B-1',
+
+        nextPart:
+            '2.7B-2',
+
+        status:
+            'in_progress',
+
+        developerToolsReady:
+            true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_DEVELOPER_OPTIONS,
+            ensureDeveloperToolsState,
+            getPredictionDebugSnapshot,
+            getObservabilityDebugSnapshot,
+            collectApiSurfaceSnapshot,
+            collectBrowserEnvironmentSnapshot
+        }
+    );
+
+    configureDeveloperTools();
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.7B-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.7B-2
+ *
+ * Responsibilities:
+ * - Verify browser feature compatibility
+ * - Install compatibility fallbacks
+ * - Validate global integration exposure
+ * - Complete browser integration layer
+ */
+
+(function rainArrivalIntegrationV32BrowserCompatibility(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.7B-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        log
+    } = internal;
+
+    const REQUIRED_BROWSER_FEATURES =
+        Object.freeze({
+            Promise:
+                () =>
+                    typeof globalObject.Promise ===
+                    'function',
+
+            Map:
+                () =>
+                    typeof globalObject.Map ===
+                    'function',
+
+            Set:
+                () =>
+                    typeof globalObject.Set ===
+                    'function',
+
+            JSON:
+                () =>
+                    Boolean(
+                        globalObject.JSON &&
+                        typeof globalObject.JSON.stringify ===
+                            'function' &&
+                        typeof globalObject.JSON.parse ===
+                            'function'
+                    ),
+
+            Date:
+                () =>
+                    typeof globalObject.Date ===
+                    'function',
+
+            setTimeout:
+                () =>
+                    typeof globalObject.setTimeout ===
+                    'function',
+
+            clearTimeout:
+                () =>
+                    typeof globalObject.clearTimeout ===
+                    'function',
+
+            setInterval:
+                () =>
+                    typeof globalObject.setInterval ===
+                    'function',
+
+            clearInterval:
+                () =>
+                    typeof globalObject.clearInterval ===
+                    'function'
+        });
+
+    const OPTIONAL_BROWSER_FEATURES =
+        Object.freeze({
+            CustomEvent:
+                () =>
+                    typeof globalObject.CustomEvent ===
+                    'function',
+
+            localStorage:
+                () => {
+                    try {
+                        return Boolean(
+                            globalObject.localStorage
+                        );
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+            navigator:
+                () =>
+                    Boolean(
+                        globalObject.navigator
+                    ),
+
+            document:
+                () =>
+                    Boolean(
+                        globalObject.document
+                    ),
+
+            Blob:
+                () =>
+                    typeof globalObject.Blob ===
+                    'function',
+
+            URL:
+                () =>
+                    Boolean(
+                        globalObject.URL &&
+                        typeof globalObject.URL.createObjectURL ===
+                            'function'
+                    ),
+
+            Clipboard:
+                () =>
+                    Boolean(
+                        globalObject.navigator &&
+                        globalObject.navigator.clipboard &&
+                        typeof globalObject.navigator.clipboard.writeText ===
+                            'function'
+                    ),
+
+            AbortController:
+                () =>
+                    typeof globalObject.AbortController ===
+                    'function',
+
+            requestAnimationFrame:
+                () =>
+                    typeof globalObject.requestAnimationFrame ===
+                    'function'
+        });
+
+    function ensureCompatibilityState() {
+        if (
+            !runtimeState.compatibility ||
+            typeof runtimeState.compatibility !==
+                'object'
+        ) {
+            runtimeState.compatibility = {
+                checked:
+                    false,
+
+                compatible:
+                    false,
+
+                required:
+                    {},
+
+                optional:
+                    {},
+
+                fallbacks:
+                    [],
+
+                checks:
+                    0,
+
+                lastCheckedAt:
+                    null,
+
+                lastError:
+                    null,
+
+                lastReport:
+                    null
+            };
+        }
+
+        return runtimeState.compatibility;
+    }
+
+    function evaluateFeatureMap(
+        featureMap
+    ) {
+        const results =
+            {};
+
+        for (
+            const [
+                featureName,
+                checker
+            ]
+            of Object.entries(
+                featureMap
+            )
+        ) {
+            try {
+                results[
+                    featureName
+                ] =
+                    Boolean(
+                        checker()
+                    );
+            } catch (error) {
+                results[
+                    featureName
+                ] =
+                    false;
+            }
+        }
+
+        return results;
+    }
+
+    function installCustomEventFallback() {
+        if (
+            typeof globalObject.CustomEvent ===
+            'function'
+        ) {
+            return {
+                installed:
+                    false,
+
+                reused:
+                    true,
+
+                feature:
+                    'CustomEvent'
+            };
+        }
+
+        const documentObject =
+            globalObject.document;
+
+        if (
+            !documentObject ||
+            typeof documentObject.createEvent !==
+                'function'
+        ) {
+            return {
+                installed:
+                    false,
+
+                reason:
+                    'document_create_event_unavailable',
+
+                feature:
+                    'CustomEvent'
+            };
+        }
+
+        function CustomEventFallback(
+            eventName,
+            parameters
+        ) {
+            const params =
+                parameters ||
+                {
+                    bubbles:
+                        false,
+
+                    cancelable:
+                        false,
+
+                    detail:
+                        null
+                };
+
+            const event =
+                documentObject
+                    .createEvent(
+                        'CustomEvent'
+                    );
+
+            event.initCustomEvent(
+                eventName,
+                Boolean(
+                    params.bubbles
+                ),
+                Boolean(
+                    params.cancelable
+                ),
+                params.detail ===
+                    undefined
+                    ? null
+                    : params.detail
+            );
+
+            return event;
+        }
+
+        CustomEventFallback.prototype =
+            globalObject.Event &&
+            globalObject.Event.prototype
+                ? globalObject.Event.prototype
+                : {};
+
+        globalObject.CustomEvent =
+            CustomEventFallback;
+
+        return {
+            installed:
+                true,
+
+            feature:
+                'CustomEvent'
+        };
+    }
+
+    function installAnimationFrameFallback() {
+        if (
+            typeof globalObject.requestAnimationFrame ===
+            'function' &&
+            typeof globalObject.cancelAnimationFrame ===
+            'function'
+        ) {
+            return {
+                installed:
+                    false,
+
+                reused:
+                    true,
+
+                feature:
+                    'requestAnimationFrame'
+            };
+        }
+
+        if (
+            typeof globalObject.requestAnimationFrame !==
+            'function'
+        ) {
+            globalObject.requestAnimationFrame =
+                function requestAnimationFrameFallback(
+                    callback
+                ) {
+                    return globalObject.setTimeout(
+                        () =>
+                            callback(
+                                Date.now()
+                            ),
+                        16
+                    );
+                };
+        }
+
+        if (
+            typeof globalObject.cancelAnimationFrame !==
+            'function'
+        ) {
+            globalObject.cancelAnimationFrame =
+                function cancelAnimationFrameFallback(
+                    handle
+                ) {
+                    globalObject.clearTimeout(
+                        handle
+                    );
+                };
+        }
+
+        return {
+            installed:
+                true,
+
+            feature:
+                'requestAnimationFrame'
+        };
+    }
+
+    function installQueueMicrotaskFallback() {
+        if (
+            typeof globalObject.queueMicrotask ===
+            'function'
+        ) {
+            return {
+                installed:
+                    false,
+
+                reused:
+                    true,
+
+                feature:
+                    'queueMicrotask'
+            };
+        }
+
+        if (
+            typeof globalObject.Promise !==
+            'function'
+        ) {
+            return {
+                installed:
+                    false,
+
+                reason:
+                    'promise_unavailable',
+
+                feature:
+                    'queueMicrotask'
+            };
+        }
+
+        globalObject.queueMicrotask =
+            function queueMicrotaskFallback(
+                callback
+            ) {
+                globalObject.Promise
+                    .resolve()
+                    .then(
+                        callback
+                    )
+                    .catch(
+                        error => {
+                            globalObject.setTimeout(
+                                () => {
+                                    throw error;
+                                },
+                                0
+                            );
+                        }
+                    );
+            };
+
+        return {
+            installed:
+                true,
+
+            feature:
+                'queueMicrotask'
+        };
+    }
+
+    function installStructuredCloneFallback() {
+        if (
+            typeof globalObject.structuredClone ===
+            'function'
+        ) {
+            return {
+                installed:
+                    false,
+
+                reused:
+                    true,
+
+                feature:
+                    'structuredClone'
+            };
+        }
+
+        globalObject.structuredClone =
+            function structuredCloneFallback(
+                value
+            ) {
+                if (
+                    value ===
+                    undefined
+                ) {
+                    return undefined;
+                }
+
+                return globalObject.JSON.parse(
+                    globalObject.JSON.stringify(
+                        value
+                    )
+                );
+            };
+
+        return {
+            installed:
+                true,
+
+            feature:
+                'structuredClone'
+        };
+    }
+
+    function installCompatibilityFallbacks() {
+        const state =
+            ensureCompatibilityState();
+
+        const installers = [
+            installCustomEventFallback,
+            installAnimationFrameFallback,
+            installQueueMicrotaskFallback,
+            installStructuredCloneFallback
+        ];
+
+        const results =
+            [];
+
+        for (
+            const installer
+            of installers
+        ) {
+            try {
+                const result =
+                    installer();
+
+                results.push(
+                    result
+                );
+
+                if (
+                    result &&
+                    result.installed ===
+                    true
+                ) {
+                    state.fallbacks.push(
+                        result.feature
+                    );
+                }
+            } catch (error) {
+                results.push({
+                    installed:
+                        false,
+
+                    error:
+                        normalizeError(
+                            error
+                        )
+                });
+            }
+        }
+
+        state.fallbacks =
+            Array.from(
+                new Set(
+                    state.fallbacks
+                )
+            );
+
+        return {
+            installed:
+                results.filter(
+                    result =>
+                        result &&
+                        result.installed ===
+                        true
+                ).map(
+                    result =>
+                        result.feature
+                ),
+
+            results
+        };
+    }
+
+    function validateGlobalExposure() {
+        const issues =
+            [];
+
+        const root =
+            globalObject
+                .RainGuardAI;
+
+        if (
+            !root
+        ) {
+            issues.push(
+                'rainguard_root_missing'
+            );
+        }
+
+        if (
+            !root ||
+            !root.V32
+        ) {
+            issues.push(
+                'v32_namespace_missing'
+            );
+        }
+
+        if (
+            !root ||
+            !root.V32 ||
+            !root.V32
+                .rainArrivalIntegration
+        ) {
+            issues.push(
+                'integration_api_missing'
+            );
+        }
+
+        if (
+            !root ||
+            !root.V32 ||
+            !root.V32
+                .rainArrival
+        ) {
+            issues.push(
+                'public_api_missing'
+            );
+        }
+
+        if (
+            root &&
+            root.V32 &&
+            root.V32.rainArrival &&
+            typeof root
+                .V32
+                .rainArrival
+                .bootstrapRainArrivalIntegration !==
+                'function'
+        ) {
+            issues.push(
+                'public_bootstrap_missing'
+            );
+        }
+
+        return {
+            valid:
+                issues.length ===
+                0,
+
+            issues
+        };
+    }
+
+    function runBrowserCompatibilityCheck(
+        options = {}
+    ) {
+        const state =
+            ensureCompatibilityState();
+
+        state.checks +=
+            1;
+
+        try {
+            const fallbackResult =
+                options.installFallbacks ===
+                false
+                    ? {
+                        installed:
+                            [],
+
+                        results:
+                            []
+                    }
+                    : installCompatibilityFallbacks();
+
+            const required =
+                evaluateFeatureMap(
+                    REQUIRED_BROWSER_FEATURES
+                );
+
+            const optional =
+                evaluateFeatureMap(
+                    OPTIONAL_BROWSER_FEATURES
+                );
+
+            const missingRequired =
+                Object.keys(
+                    required
+                ).filter(
+                    featureName =>
+                        required[
+                            featureName
+                        ] !==
+                        true
+                );
+
+            const missingOptional =
+                Object.keys(
+                    optional
+                ).filter(
+                    featureName =>
+                        optional[
+                            featureName
+                        ] !==
+                        true
+                );
+
+            const globalExposure =
+                validateGlobalExposure();
+
+            const compatible =
+                missingRequired.length ===
+                    0 &&
+                globalExposure.valid;
+
+            const report = {
+                compatible,
+
+                status:
+                    compatible
+                        ? (
+                            missingOptional.length >
+                            0
+                                ? 'compatible_with_limitations'
+                                : 'fully_compatible'
+                        )
+                        : 'incompatible',
+
+                required,
+
+                optional,
+
+                missingRequired,
+
+                missingOptional,
+
+                globalExposure,
+
+                fallbacks:
+                    fallbackResult,
+
+                checkedAt:
+                    Date.now(),
+
+                checkedAtIso:
+                    new Date()
+                        .toISOString()
+            };
+
+            state.checked =
+                true;
+
+            state.compatible =
+                compatible;
+
+            state.required =
+                required;
+
+            state.optional =
+                optional;
+
+            state.lastCheckedAt =
+                report.checkedAt;
+
+            state.lastReport =
+                report;
+
+            state.lastError =
+                null;
+
+            if (
+                typeof integrationApi
+                    .recordOperationalEvent ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalEvent(
+                        'browser_compatibility_checked',
+                        {
+                            compatible,
+
+                            missingRequired,
+
+                            missingOptional
+                        },
+                        compatible
+                            ? 'info'
+                            : 'error'
+                    );
+            }
+
+            return report;
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            state.checked =
+                true;
+
+            state.compatible =
+                false;
+
+            state.lastCheckedAt =
+                Date.now();
+
+            const report = {
+                compatible:
+                    false,
+
+                status:
+                    'compatibility_check_error',
+
+                error:
+                    state.lastError,
+
+                checkedAt:
+                    state.lastCheckedAt
+            };
+
+            state.lastReport =
+                report;
+
+            return report;
+        }
+    }
+
+    function getBrowserCompatibilityStatus() {
+        const state =
+            ensureCompatibilityState();
+
+        return {
+            checked:
+                state.checked,
+
+            compatible:
+                state.compatible,
+
+            checks:
+                state.checks,
+
+            required: {
+                ...state.required
+            },
+
+            optional: {
+                ...state.optional
+            },
+
+            fallbacks:
+                [
+                    ...state.fallbacks
+                ],
+
+            lastCheckedAt:
+                state.lastCheckedAt,
+
+            lastError:
+                state.lastError,
+
+            lastReport:
+                state.lastReport
+                    ? {
+                        ...state.lastReport
+                    }
+                    : null
+        };
+    }
+
+    function refreshPublicApiExposure() {
+        try {
+            if (
+                typeof integrationApi
+                    .exposePublicApi ===
+                    'function'
+            ) {
+                const publicApi =
+                    integrationApi
+                        .exposePublicApi();
+
+                return {
+                    refreshed:
+                        true,
+
+                    methodCount:
+                        publicApi
+                            ? Object.keys(
+                                publicApi
+                            ).filter(
+                                key =>
+                                    typeof publicApi[
+                                        key
+                                    ] ===
+                                    'function'
+                            ).length
+                            : 0
+                };
+            }
+
+            return {
+                refreshed:
+                    false,
+
+                reason:
+                    'expose_public_api_unavailable'
+            };
+        } catch (error) {
+            return {
+                refreshed:
+                    false,
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            };
+        }
+    }
+
+    integrationApi
+        .installCompatibilityFallbacks =
+        installCompatibilityFallbacks;
+
+    integrationApi
+        .runBrowserCompatibilityCheck =
+        runBrowserCompatibilityCheck;
+
+    integrationApi
+        .getBrowserCompatibilityStatus =
+        getBrowserCompatibilityStatus;
+
+    integrationApi
+        .validateGlobalExposure =
+        validateGlobalExposure;
+
+    integrationApi
+        .refreshPublicApiExposure =
+        refreshPublicApiExposure;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.7B-2',
+
+        nextPart:
+            '2.8A-1',
+
+        status:
+            'in_progress',
+
+        browserCompatibilityReady:
+            true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            REQUIRED_BROWSER_FEATURES,
+            OPTIONAL_BROWSER_FEATURES,
+            ensureCompatibilityState,
+            evaluateFeatureMap,
+            installCustomEventFallback,
+            installAnimationFrameFallback,
+            installQueueMicrotaskFallback,
+            installStructuredCloneFallback
+        }
+    );
+
+    const compatibilityReport =
+        runBrowserCompatibilityCheck();
+
+    const exposureRefresh =
+        refreshPublicApiExposure();
+
+    runtimeState
+        .compatibility
+        .exposureRefresh =
+        exposureRefresh;
+
+    log(
+        compatibilityReport.compatible
+            ? 'info'
+            : 'warn',
+        compatibilityReport.compatible
+            ? 'Rain arrival integration Part 2.7B-2 loaded with browser compatibility verified.'
+            : 'Rain arrival integration Part 2.7B-2 loaded with browser compatibility limitations.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.8A-1
+ *
+ * Responsibilities:
+ * - Create production stress-test framework
+ * - Generate deterministic prediction workloads
+ * - Measure throughput, latency, and failure rates
+ * - Validate pipeline stability under repeated execution
+ */
+
+(function rainArrivalIntegrationV32StressTesting(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.7B-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        safeCloneValue,
+        log
+    } = internal;
+
+    const DEFAULT_STRESS_TEST_OPTIONS =
+        Object.freeze({
+            iterations:
+                25,
+
+            predictionCount:
+                100,
+
+            concurrency:
+                1,
+
+            runPipeline:
+                true,
+
+            validatePredictions:
+                true,
+
+            synchronizeDashboard:
+                false,
+
+            persistSnapshots:
+                false,
+
+            delayBetweenIterationsMs:
+                0,
+
+            timeoutMs:
+                120000,
+
+            maximumFailureRate:
+                0.05,
+
+            maximumAverageLatencyMs:
+                3000,
+
+            maximumP95LatencyMs:
+                6000,
+
+            seed:
+                3201
+        });
+
+    function ensureStressTestState() {
+        if (
+            !runtimeState.stressTest ||
+            typeof runtimeState.stressTest !==
+                'object'
+        ) {
+            runtimeState.stressTest = {
+                running:
+                    false,
+
+                cancelled:
+                    false,
+
+                runs:
+                    0,
+
+                passedRuns:
+                    0,
+
+                failedRuns:
+                    0,
+
+                lastStartedAt:
+                    null,
+
+                lastCompletedAt:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastError:
+                    null,
+
+                lastReport:
+                    null,
+
+                activeAbortController:
+                    null
+            };
+        }
+
+        return runtimeState.stressTest;
+    }
+
+    function normalizeStressTestOptions(
+        options = {}
+    ) {
+        const normalized = {
+            ...DEFAULT_STRESS_TEST_OPTIONS,
+            ...options
+        };
+
+        normalized.iterations =
+            Number.isFinite(
+                Number(
+                    normalized.iterations
+                )
+            )
+                ? Math.max(
+                    1,
+                    Math.min(
+                        1000,
+                        Math.floor(
+                            Number(
+                                normalized.iterations
+                            )
+                        )
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .iterations;
+
+        normalized.predictionCount =
+            Number.isFinite(
+                Number(
+                    normalized.predictionCount
+                )
+            )
+                ? Math.max(
+                    1,
+                    Math.min(
+                        10000,
+                        Math.floor(
+                            Number(
+                                normalized.predictionCount
+                            )
+                        )
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .predictionCount;
+
+        normalized.concurrency =
+            Number.isFinite(
+                Number(
+                    normalized.concurrency
+                )
+            )
+                ? Math.max(
+                    1,
+                    Math.min(
+                        20,
+                        Math.floor(
+                            Number(
+                                normalized.concurrency
+                            )
+                        )
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .concurrency;
+
+        normalized.delayBetweenIterationsMs =
+            Number.isFinite(
+                Number(
+                    normalized.delayBetweenIterationsMs
+                )
+            )
+                ? Math.max(
+                    0,
+                    Math.min(
+                        10000,
+                        Number(
+                            normalized.delayBetweenIterationsMs
+                        )
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .delayBetweenIterationsMs;
+
+        normalized.timeoutMs =
+            Number.isFinite(
+                Number(
+                    normalized.timeoutMs
+                )
+            )
+                ? Math.max(
+                    1000,
+                    Math.min(
+                        600000,
+                        Number(
+                            normalized.timeoutMs
+                        )
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .timeoutMs;
+
+        normalized.maximumFailureRate =
+            Number.isFinite(
+                Number(
+                    normalized.maximumFailureRate
+                )
+            )
+                ? Math.max(
+                    0,
+                    Math.min(
+                        1,
+                        Number(
+                            normalized.maximumFailureRate
+                        )
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .maximumFailureRate;
+
+        normalized.maximumAverageLatencyMs =
+            Number.isFinite(
+                Number(
+                    normalized.maximumAverageLatencyMs
+                )
+            )
+                ? Math.max(
+                    1,
+                    Number(
+                        normalized.maximumAverageLatencyMs
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .maximumAverageLatencyMs;
+
+        normalized.maximumP95LatencyMs =
+            Number.isFinite(
+                Number(
+                    normalized.maximumP95LatencyMs
+                )
+            )
+                ? Math.max(
+                    1,
+                    Number(
+                        normalized.maximumP95LatencyMs
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .maximumP95LatencyMs;
+
+        normalized.seed =
+            Number.isFinite(
+                Number(
+                    normalized.seed
+                )
+            )
+                ? Math.floor(
+                    Number(
+                        normalized.seed
+                    )
+                )
+                : DEFAULT_STRESS_TEST_OPTIONS
+                    .seed;
+
+        normalized.runPipeline =
+            normalized.runPipeline !==
+            false;
+
+        normalized.validatePredictions =
+            normalized.validatePredictions !==
+            false;
+
+        normalized.synchronizeDashboard =
+            normalized.synchronizeDashboard ===
+            true;
+
+        normalized.persistSnapshots =
+            normalized.persistSnapshots ===
+            true;
+
+        return normalized;
+    }
+
+    function createSeededRandom(
+        initialSeed
+    ) {
+        let seed =
+            initialSeed >>> 0;
+
+        return function seededRandom() {
+            seed +=
+                0x6D2B79F5;
+
+            let value =
+                seed;
+
+            value =
+                Math.imul(
+                    value ^
+                    (
+                        value >>>
+                        15
+                    ),
+                    value |
+                    1
+                );
+
+            value ^=
+                value +
+                Math.imul(
+                    value ^
+                    (
+                        value >>>
+                        7
+                    ),
+                    value |
+                    61
+                );
+
+            return (
+                (
+                    value ^
+                    (
+                        value >>>
+                        14
+                    )
+                ) >>>
+                0
+            ) /
+            4294967296;
+        };
+    }
+
+    function generateStressPrediction(
+        index,
+        random
+    ) {
+        const arrivalMinutes =
+            Math.round(
+                random() *
+                240
+            );
+
+        const confidence =
+            Math.round(
+                45 +
+                random() *
+                55
+            );
+
+        const probability =
+            Math.round(
+                30 +
+                random() *
+                70
+            );
+
+        const latitude =
+            16 +
+            random() *
+            16;
+
+        const longitude =
+            34 +
+            random() *
+            22;
+
+        const intensity =
+            Number(
+                (
+                    random() *
+                    100
+                ).toFixed(
+                    2
+                )
+            );
+
+        return {
+            id:
+                `stress_prediction_${index}`,
+
+            cityId:
+                `stress-city-${index}`,
+
+            cityNameAr:
+                `مدينة اختبار ${index}`,
+
+            cityNameEn:
+                `Stress City ${index}`,
+
+            arrivalMinutes,
+
+            arrivalTimestamp:
+                Date.now() +
+                arrivalMinutes *
+                60000,
+
+            confidence,
+
+            probability,
+
+            latitude:
+                Number(
+                    latitude.toFixed(
+                        6
+                    )
+                ),
+
+            longitude:
+                Number(
+                    longitude.toFixed(
+                        6
+                    )
+                ),
+
+            intensity,
+
+            willRain:
+                probability >=
+                50,
+
+            accepted:
+                confidence >=
+                55,
+
+            riskLevel:
+                intensity >=
+                80
+                    ? 'extreme'
+                    : (
+                        intensity >=
+                        60
+                            ? 'high'
+                            : (
+                                intensity >=
+                                30
+                                    ? 'moderate'
+                                    : 'low'
+                            )
+                    ),
+
+            source:
+                'stress_test',
+
+            generatedAt:
+                Date.now()
+        };
+    }
+
+    function generateStressPredictionCollection(
+        count,
+        seed
+    ) {
+        const random =
+            createSeededRandom(
+                seed
+            );
+
+        const predictions =
+            [];
+
+        for (
+            let index = 0;
+            index < count;
+            index += 1
+        ) {
+            predictions.push(
+                generateStressPrediction(
+                    index,
+                    random
+                )
+            );
+        }
+
+        return predictions;
+    }
+
+    function delay(
+        milliseconds,
+        signal
+    ) {
+        if (
+            milliseconds <=
+            0
+        ) {
+            return Promise.resolve();
+        }
+
+        return new Promise(
+            (
+                resolve,
+                reject
+            ) => {
+                const timer =
+                    globalObject.setTimeout(
+                        resolve,
+                        milliseconds
+                    );
+
+                if (
+                    signal &&
+                    typeof signal
+                        .addEventListener ===
+                        'function'
+                ) {
+                    signal.addEventListener(
+                        'abort',
+                        () => {
+                            globalObject
+                                .clearTimeout(
+                                    timer
+                                );
+
+                            reject(
+                                new Error(
+                                    'stress_test_cancelled'
+                                )
+                            );
+                        },
+                        {
+                            once:
+                                true
+                        }
+                    );
+                }
+            }
+        );
+    }
+
+    function calculatePercentile(
+        values,
+        percentile
+    ) {
+        if (
+            !Array.isArray(
+                values
+            ) ||
+            values.length ===
+            0
+        ) {
+            return null;
+        }
+
+        const sorted =
+            [
+                ...values
+            ].sort(
+                (
+                    first,
+                    second
+                ) =>
+                    first -
+                    second
+            );
+
+        const rank =
+            Math.ceil(
+                percentile *
+                sorted.length
+            ) -
+            1;
+
+        return sorted[
+            Math.max(
+                0,
+                Math.min(
+                    sorted.length -
+                    1,
+                    rank
+                )
+            )
+        ];
+    }
+
+    async function executeStressIteration(
+        iteration,
+        options,
+        signal
+    ) {
+        const startedAt =
+            Date.now();
+
+        if (
+            signal &&
+            signal.aborted
+        ) {
+            throw new Error(
+                'stress_test_cancelled'
+            );
+        }
+
+        const predictions =
+            generateStressPredictionCollection(
+                options.predictionCount,
+                options.seed +
+                iteration
+            );
+
+        const steps =
+            [];
+
+        try {
+            if (
+                typeof integrationApi
+                    .setLatestPredictions ===
+                    'function'
+            ) {
+                const result =
+                    await integrationApi
+                        .setLatestPredictions(
+                            predictions,
+                            {
+                                source:
+                                    'stress_test',
+
+                                synchronize:
+                                    false,
+
+                                persist:
+                                    false
+                            }
+                        );
+
+                steps.push({
+                    name:
+                        'set_predictions',
+
+                    succeeded:
+                        result !==
+                        false
+                });
+            }
+
+            if (
+                options.validatePredictions &&
+                typeof integrationApi
+                    .validatePredictionCollection ===
+                    'function'
+            ) {
+                const validation =
+                    await integrationApi
+                        .validatePredictionCollection(
+                            predictions
+                        );
+
+                steps.push({
+                    name:
+                        'validate_predictions',
+
+                    succeeded:
+                        Boolean(
+                            validation &&
+                            validation.valid !==
+                                false
+                        ),
+
+                    result:
+                        validation
+                });
+            }
+
+            if (
+                options.runPipeline &&
+                typeof integrationApi
+                    .runIntegrationPipeline ===
+                    'function'
+            ) {
+                const pipelineResult =
+                    await integrationApi
+                        .runIntegrationPipeline({
+                            force:
+                                true,
+
+                            reason:
+                                'production_stress_test',
+
+                            synchronizeDashboard:
+                                options
+                                    .synchronizeDashboard,
+
+                            persist:
+                                options
+                                    .persistSnapshots
+                        });
+
+                steps.push({
+                    name:
+                        'pipeline',
+
+                    succeeded:
+                        Boolean(
+                            pipelineResult &&
+                            pipelineResult.status !==
+                                'failed' &&
+                            pipelineResult.status !==
+                                'error' &&
+                            pipelineResult.success !==
+                                false
+                        ),
+
+                    result:
+                        pipelineResult
+                });
+            }
+
+            if (
+                options.synchronizeDashboard &&
+                typeof integrationApi
+                    .synchronizeDashboard ===
+                    'function'
+            ) {
+                const dashboardResult =
+                    await integrationApi
+                        .synchronizeDashboard(
+                            predictions,
+                            {
+                                force:
+                                    true,
+
+                                reason:
+                                    'production_stress_test'
+                            }
+                        );
+
+                steps.push({
+                    name:
+                        'dashboard_sync',
+
+                    succeeded:
+                        dashboardResult !==
+                        false,
+
+                    result:
+                        dashboardResult
+                });
+            }
+
+            if (
+                options.persistSnapshots &&
+                typeof integrationApi
+                    .persistIntegrationSnapshot ===
+                    'function'
+            ) {
+                const persistenceResult =
+                    await integrationApi
+                        .persistIntegrationSnapshot();
+
+                steps.push({
+                    name:
+                        'persistence',
+
+                    succeeded:
+                        persistenceResult !==
+                        false,
+
+                    result:
+                        persistenceResult
+                });
+            }
+
+            const failedSteps =
+                steps.filter(
+                    step =>
+                        !step.succeeded
+                );
+
+            return {
+                iteration,
+
+                succeeded:
+                    failedSteps.length ===
+                    0,
+
+                predictionCount:
+                    predictions.length,
+
+                steps,
+
+                failedSteps:
+                    failedSteps.length,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        } catch (error) {
+            return {
+                iteration,
+
+                succeeded:
+                    false,
+
+                predictionCount:
+                    predictions.length,
+
+                steps,
+
+                failedSteps:
+                    1,
+
+                error:
+                    normalizeError(
+                        error
+                    ),
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+    }
+
+    async function runStressWorker(
+        workerId,
+        iterations,
+        options,
+        signal,
+        resultCollection
+    ) {
+        for (
+            const iteration
+            of iterations
+        ) {
+            if (
+                signal &&
+                signal.aborted
+            ) {
+                break;
+            }
+
+            const result =
+                await executeStressIteration(
+                    iteration,
+                    options,
+                    signal
+                );
+
+            result.workerId =
+                workerId;
+
+            resultCollection.push(
+                result
+            );
+
+            if (
+                options.delayBetweenIterationsMs >
+                0
+            ) {
+                await delay(
+                    options
+                        .delayBetweenIterationsMs,
+                    signal
+                );
+            }
+        }
+    }
+
+    function partitionIterations(
+        iterationCount,
+        concurrency
+    ) {
+        const groups =
+            Array.from(
+                {
+                    length:
+                        concurrency
+                },
+                () => []
+            );
+
+        for (
+            let index = 0;
+            index < iterationCount;
+            index += 1
+        ) {
+            groups[
+                index %
+                concurrency
+            ].push(
+                index + 1
+            );
+        }
+
+        return groups;
+    }
+
+    async function runProductionStressTest(
+        options = {}
+    ) {
+        const state =
+            ensureStressTestState();
+
+        const normalized =
+            normalizeStressTestOptions(
+                options
+            );
+
+        if (
+            state.running
+        ) {
+            return {
+                completed:
+                    false,
+
+                reused:
+                    true,
+
+                reason:
+                    'stress_test_already_running'
+            };
+        }
+
+        state.running =
+            true;
+
+        state.cancelled =
+            false;
+
+        state.runs +=
+            1;
+
+        state.lastStartedAt =
+            Date.now();
+
+        state.lastError =
+            null;
+
+        const controller =
+            typeof globalObject
+                .AbortController ===
+                'function'
+                ? new globalObject
+                    .AbortController()
+                : {
+                    signal: {
+                        aborted:
+                            false
+                    },
+
+                    abort() {
+                        this.signal.aborted =
+                            true;
+                    }
+                };
+
+        state.activeAbortController =
+            controller;
+
+        const timeoutHandle =
+            globalObject.setTimeout(
+                () => {
+                    controller.abort();
+                },
+                normalized.timeoutMs
+            );
+
+        const results =
+            [];
+
+        try {
+            const partitions =
+                partitionIterations(
+                    normalized.iterations,
+                    normalized.concurrency
+                );
+
+            const workers =
+                partitions.map(
+                    (
+                        iterations,
+                        workerIndex
+                    ) =>
+                        runStressWorker(
+                            workerIndex + 1,
+                            iterations,
+                            normalized,
+                            controller.signal,
+                            results
+                        )
+                );
+
+            await Promise.all(
+                workers
+            );
+
+            const completedAt =
+                Date.now();
+
+            const successfulIterations =
+                results.filter(
+                    result =>
+                        result.succeeded
+                );
+
+            const failedIterations =
+                results.filter(
+                    result =>
+                        !result.succeeded
+                );
+
+            const latencies =
+                results.map(
+                    result =>
+                        result.durationMs
+                );
+
+            const totalPredictions =
+                results.reduce(
+                    (
+                        total,
+                        result
+                    ) =>
+                        total +
+                        result.predictionCount,
+                    0
+                );
+
+            const durationMs =
+                completedAt -
+                state.lastStartedAt;
+
+            const failureRate =
+                results.length >
+                0
+                    ? failedIterations.length /
+                    results.length
+                    : 1;
+
+            const averageLatencyMs =
+                latencies.length >
+                0
+                    ? latencies.reduce(
+                        (
+                            total,
+                            latency
+                        ) =>
+                            total +
+                            latency,
+                        0
+                    ) /
+                    latencies.length
+                    : null;
+
+            const p95LatencyMs =
+                calculatePercentile(
+                    latencies,
+                    0.95
+                );
+
+            const throughputPerSecond =
+                durationMs >
+                0
+                    ? totalPredictions /
+                    (
+                        durationMs /
+                        1000
+                    )
+                    : totalPredictions;
+
+            const cancelled =
+                Boolean(
+                    controller.signal &&
+                    controller.signal
+                        .aborted
+                );
+
+            const passed =
+                !cancelled &&
+                results.length ===
+                    normalized.iterations &&
+                failureRate <=
+                    normalized.maximumFailureRate &&
+                (
+                    averageLatencyMs ===
+                    null ||
+                    averageLatencyMs <=
+                        normalized.maximumAverageLatencyMs
+                ) &&
+                (
+                    p95LatencyMs ===
+                    null ||
+                    p95LatencyMs <=
+                        normalized.maximumP95LatencyMs
+                );
+
+            const report = {
+                completed:
+                    !cancelled,
+
+                passed,
+
+                status:
+                    cancelled
+                        ? 'cancelled_or_timed_out'
+                        : (
+                            passed
+                                ? 'stress_test_passed'
+                                : 'stress_test_failed'
+                        ),
+
+                options:
+                    safeCloneValue(
+                        normalized
+                    ),
+
+                requestedIterations:
+                    normalized.iterations,
+
+                completedIterations:
+                    results.length,
+
+                successfulIterations:
+                    successfulIterations.length,
+
+                failedIterations:
+                    failedIterations.length,
+
+                failureRate:
+
+                    Number(
+                        failureRate.toFixed(
+                            6
+                        )
+                    ),
+
+                totalPredictions,
+
+                averageLatencyMs:
+                    averageLatencyMs ===
+                    null
+                        ? null
+                        : Number(
+                            averageLatencyMs
+                                .toFixed(
+                                    3
+                                )
+                        ),
+
+                minimumLatencyMs:
+                    latencies.length >
+                    0
+                        ? Math.min(
+                            ...latencies
+                        )
+                        : null,
+
+                maximumLatencyMs:
+                    latencies.length >
+                    0
+                        ? Math.max(
+                            ...latencies
+                        )
+                        : null,
+
+                p95LatencyMs,
+
+                throughputPerSecond:
+                    Number(
+                        throughputPerSecond
+                            .toFixed(
+                                3
+                            )
+                    ),
+
+                concurrency:
+                    normalized.concurrency,
+
+                durationMs,
+
+                results:
+                    options.includeIterationResults ===
+                    false
+                        ? undefined
+                        : results
+                            .sort(
+                                (
+                                    first,
+                                    second
+                                ) =>
+                                    first.iteration -
+                                    second.iteration
+                            ),
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt,
+
+                completedAtIso:
+                    new Date(
+                        completedAt
+                    ).toISOString()
+            };
+
+            state.cancelled =
+                cancelled;
+
+            state.lastCompletedAt =
+                completedAt;
+
+            state.lastDurationMs =
+                durationMs;
+
+            state.lastReport =
+                report;
+
+            if (
+                passed
+            ) {
+                state.passedRuns +=
+                    1;
+            } else {
+                state.failedRuns +=
+                    1;
+            }
+
+            if (
+                typeof integrationApi
+                    .recordOperationalEvent ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalEvent(
+                        'production_stress_test_completed',
+                        {
+                            passed,
+
+                            completedIterations:
+                                results.length,
+
+                            failureRate:
+                                report.failureRate,
+
+                            averageLatencyMs:
+                                report.averageLatencyMs,
+
+                            p95LatencyMs:
+                                report.p95LatencyMs,
+
+                            throughputPerSecond:
+                                report.throughputPerSecond
+                        },
+                        passed
+                            ? 'info'
+                            : 'warn'
+                    );
+            }
+
+            return report;
+        } catch (error) {
+            state.failedRuns +=
+                1;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            state.lastCompletedAt =
+                Date.now();
+
+            state.lastDurationMs =
+                state.lastCompletedAt -
+                state.lastStartedAt;
+
+            state.lastReport = {
+                completed:
+                    false,
+
+                passed:
+                    false,
+
+                status:
+                    'stress_test_error',
+
+                error:
+                    state.lastError,
+
+                completedIterations:
+                    results.length,
+
+                durationMs:
+                    state.lastDurationMs,
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt:
+                    state.lastCompletedAt
+            };
+
+            if (
+                typeof integrationApi
+                    .recordOperationalError ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalError(
+                        'production_stress_test',
+                        error
+                    );
+            }
+
+            return {
+                ...state.lastReport
+            };
+        } finally {
+            globalObject.clearTimeout(
+                timeoutHandle
+            );
+
+            state.running =
+                false;
+
+            state.activeAbortController =
+                null;
+        }
+    }
+
+    function cancelProductionStressTest() {
+        const state =
+            ensureStressTestState();
+
+        if (
+            !state.running ||
+            !state.activeAbortController
+        ) {
+            return {
+                cancelled:
+                    false,
+
+                reason:
+                    'no_active_stress_test'
+            };
+        }
+
+        try {
+            state.activeAbortController
+                .abort();
+
+            state.cancelled =
+                true;
+
+            return {
+                cancelled:
+                    true
+            };
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            return {
+                cancelled:
+                    false,
+
+                error:
+                    state.lastError
+            };
+        }
+    }
+
+    function getProductionStressTestStatus() {
+        const state =
+            ensureStressTestState();
+
+        return {
+            running:
+                state.running,
+
+            cancelled:
+                state.cancelled,
+
+            runs:
+                state.runs,
+
+            passedRuns:
+                state.passedRuns,
+
+            failedRuns:
+                state.failedRuns,
+
+            lastStartedAt:
+                state.lastStartedAt,
+
+            lastCompletedAt:
+                state.lastCompletedAt,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastError:
+                state.lastError,
+
+            lastReport:
+                state.lastReport
+                    ? safeCloneValue(
+                        state.lastReport
+                    )
+                    : null
+        };
+    }
+
+    integrationApi
+        .normalizeStressTestOptions =
+        normalizeStressTestOptions;
+
+    integrationApi
+        .generateStressPredictionCollection =
+        generateStressPredictionCollection;
+
+    integrationApi
+        .runProductionStressTest =
+        runProductionStressTest;
+
+    integrationApi
+        .cancelProductionStressTest =
+        cancelProductionStressTest;
+
+    integrationApi
+        .getProductionStressTestStatus =
+        getProductionStressTestStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.8A-1',
+
+        nextPart:
+            '2.8A-2',
+
+        status:
+            'in_progress',
+
+        stressTestingReady:
+            true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_STRESS_TEST_OPTIONS,
+            ensureStressTestState,
+            createSeededRandom,
+            generateStressPrediction,
+            delay,
+            calculatePercentile,
+            executeStressIteration,
+            runStressWorker,
+            partitionIterations
+        }
+    );
+
+    if (
+        typeof integrationApi
+            .refreshPublicApiExposure ===
+            'function'
+    ) {
+        integrationApi
+            .refreshPublicApiExposure();
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.8A-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.8A-2
+ *
+ * Responsibilities:
+ * - Optimize prediction processing
+ * - Add memoization and deduplication
+ * - Add adaptive batching
+ * - Reduce unnecessary dashboard and persistence work
+ */
+
+(function rainArrivalIntegrationV32PerformanceOptimization(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.8A-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        safeCloneValue,
+        log
+    } = internal;
+
+    const DEFAULT_PERFORMANCE_OPTIONS =
+        Object.freeze({
+            enabled:
+                true,
+
+            memoizationEnabled:
+                true,
+
+            deduplicationEnabled:
+                true,
+
+            adaptiveBatchingEnabled:
+                true,
+
+            dashboardThrottlingEnabled:
+                true,
+
+            persistenceThrottlingEnabled:
+                true,
+
+            cacheTtlMs:
+                300000,
+
+            maximumCacheEntries:
+                500,
+
+            defaultBatchSize:
+                100,
+
+            minimumBatchSize:
+                25,
+
+            maximumBatchSize:
+                1000,
+
+            targetBatchDurationMs:
+                16,
+
+            dashboardMinimumIntervalMs:
+                1000,
+
+            persistenceMinimumIntervalMs:
+                5000,
+
+            duplicateWindowMs:
+                60000,
+
+            maximumPredictionCount:
+                10000
+        });
+
+    function ensurePerformanceState() {
+        if (
+            !runtimeState.performance ||
+            typeof runtimeState.performance !==
+                'object'
+        ) {
+            runtimeState.performance = {
+                options: {
+                    ...DEFAULT_PERFORMANCE_OPTIONS
+                },
+
+                cache:
+                    new Map(),
+
+                fingerprints:
+                    new Map(),
+
+                adaptiveBatchSize:
+                    DEFAULT_PERFORMANCE_OPTIONS
+                        .defaultBatchSize,
+
+                processedPredictions:
+                    0,
+
+                deduplicatedPredictions:
+                    0,
+
+                cacheHits:
+                    0,
+
+                cacheMisses:
+                    0,
+
+                cacheEvictions:
+                    0,
+
+                batchRuns:
+                    0,
+
+                dashboardSkips:
+                    0,
+
+                persistenceSkips:
+                    0,
+
+                optimizationRuns:
+                    0,
+
+                lastDashboardExecutionAt:
+                    0,
+
+                lastPersistenceExecutionAt:
+                    0,
+
+                lastOptimizationAt:
+                    null,
+
+                lastBatchDurationMs:
+                    null,
+
+                lastError:
+                    null,
+
+                installed:
+                    false,
+
+                originalMethods:
+                    new Map()
+            };
+        }
+
+        if (
+            !(runtimeState.performance.cache instanceof Map)
+        ) {
+            runtimeState.performance.cache =
+                new Map();
+        }
+
+        if (
+            !(runtimeState.performance.fingerprints instanceof Map)
+        ) {
+            runtimeState.performance.fingerprints =
+                new Map();
+        }
+
+        if (
+            !(runtimeState.performance.originalMethods instanceof Map)
+        ) {
+            runtimeState.performance.originalMethods =
+                new Map();
+        }
+
+        return runtimeState.performance;
+    }
+
+    function normalizePerformanceOptions(
+        options = {}
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        const normalized = {
+            ...state.options,
+            ...options
+        };
+
+        normalized.enabled =
+            normalized.enabled !==
+            false;
+
+        normalized.memoizationEnabled =
+            normalized.memoizationEnabled !==
+            false;
+
+        normalized.deduplicationEnabled =
+            normalized.deduplicationEnabled !==
+            false;
+
+        normalized.adaptiveBatchingEnabled =
+            normalized.adaptiveBatchingEnabled !==
+            false;
+
+        normalized.dashboardThrottlingEnabled =
+            normalized.dashboardThrottlingEnabled !==
+            false;
+
+        normalized.persistenceThrottlingEnabled =
+            normalized.persistenceThrottlingEnabled !==
+            false;
+
+        const numericFields = {
+            cacheTtlMs: [
+                1000,
+                3600000
+            ],
+
+            maximumCacheEntries: [
+                10,
+                10000
+            ],
+
+            defaultBatchSize: [
+                1,
+                5000
+            ],
+
+            minimumBatchSize: [
+                1,
+                1000
+            ],
+
+            maximumBatchSize: [
+                1,
+                10000
+            ],
+
+            targetBatchDurationMs: [
+                1,
+                1000
+            ],
+
+            dashboardMinimumIntervalMs: [
+                0,
+                60000
+            ],
+
+            persistenceMinimumIntervalMs: [
+                0,
+                300000
+            ],
+
+            duplicateWindowMs: [
+                0,
+                3600000
+            ],
+
+            maximumPredictionCount: [
+                1,
+                100000
+            ]
+        };
+
+        for (
+            const [
+                fieldName,
+                limits
+            ]
+            of Object.entries(
+                numericFields
+            )
+        ) {
+            const value =
+                Number(
+                    normalized[
+                        fieldName
+                    ]
+                );
+
+            normalized[
+                fieldName
+            ] =
+                Number.isFinite(
+                    value
+                )
+                    ? Math.max(
+                        limits[0],
+                        Math.min(
+                            limits[1],
+                            Math.floor(
+                                value
+                            )
+                        )
+                    )
+                    : DEFAULT_PERFORMANCE_OPTIONS[
+                        fieldName
+                    ];
+        }
+
+        if (
+            normalized.minimumBatchSize >
+            normalized.maximumBatchSize
+        ) {
+            normalized.minimumBatchSize =
+                normalized.maximumBatchSize;
+        }
+
+        normalized.defaultBatchSize =
+            Math.max(
+                normalized.minimumBatchSize,
+                Math.min(
+                    normalized.maximumBatchSize,
+                    normalized.defaultBatchSize
+                )
+            );
+
+        state.options =
+            normalized;
+
+        state.adaptiveBatchSize =
+            Math.max(
+                normalized.minimumBatchSize,
+                Math.min(
+                    normalized.maximumBatchSize,
+                    state.adaptiveBatchSize ||
+                    normalized.defaultBatchSize
+                )
+            );
+
+        return {
+            ...normalized
+        };
+    }
+
+    function stableSerialize(
+        value,
+        seen = new WeakSet()
+    ) {
+        if (
+            value ===
+            null
+        ) {
+            return 'null';
+        }
+
+        const valueType =
+            typeof value;
+
+        if (
+            valueType ===
+            'undefined'
+        ) {
+            return 'undefined';
+        }
+
+        if (
+            valueType ===
+            'number' ||
+            valueType ===
+            'boolean' ||
+            valueType ===
+            'bigint'
+        ) {
+            return String(
+                value
+            );
+        }
+
+        if (
+            valueType ===
+            'string'
+        ) {
+            return JSON.stringify(
+                value
+            );
+        }
+
+        if (
+            valueType ===
+            'function'
+        ) {
+            return '[function]';
+        }
+
+        if (
+            valueType ===
+            'symbol'
+        ) {
+            return String(
+                value
+            );
+        }
+
+        if (
+            value instanceof Date
+        ) {
+            return value
+                .toISOString();
+        }
+
+        if (
+            Array.isArray(
+                value
+            )
+        ) {
+            return `[${value
+                .map(
+                    item =>
+                        stableSerialize(
+                            item,
+                            seen
+                        )
+                )
+                .join(',')}]`;
+        }
+
+        if (
+            valueType ===
+            'object'
+        ) {
+            if (
+                seen.has(
+                    value
+                )
+            ) {
+                return '[circular]';
+            }
+
+            seen.add(
+                value
+            );
+
+            const serialized =
+                `{${Object.keys(
+                    value
+                )
+                    .sort()
+                    .map(
+                        key =>
+                            `${JSON.stringify(
+                                key
+                            )}:${stableSerialize(
+                                value[
+                                    key
+                                ],
+                                seen
+                            )}`
+                    )
+                    .join(',')}}`;
+
+            seen.delete(
+                value
+            );
+
+            return serialized;
+        }
+
+        return String(
+            value
+        );
+    }
+
+    function hashString(
+        input
+    ) {
+        let firstHash =
+            0xdeadbeef ^
+            input.length;
+
+        let secondHash =
+            0x41c6ce57 ^
+            input.length;
+
+        for (
+            let index = 0;
+            index < input.length;
+            index += 1
+        ) {
+            const character =
+                input.charCodeAt(
+                    index
+                );
+
+            firstHash =
+                Math.imul(
+                    firstHash ^
+                    character,
+                    2654435761
+                );
+
+            secondHash =
+                Math.imul(
+                    secondHash ^
+                    character,
+                    1597334677
+                );
+        }
+
+        firstHash =
+            Math.imul(
+                firstHash ^
+                (
+                    firstHash >>>
+                    16
+                ),
+                2246822507
+            ) ^
+            Math.imul(
+                secondHash ^
+                (
+                    secondHash >>>
+                    13
+                ),
+                3266489909
+            );
+
+        secondHash =
+            Math.imul(
+                secondHash ^
+                (
+                    secondHash >>>
+                    16
+                ),
+                2246822507
+            ) ^
+            Math.imul(
+                firstHash ^
+                (
+                    firstHash >>>
+                    13
+                ),
+                3266489909
+            );
+
+        return (
+            4294967296 *
+            (
+                2097151 &
+                secondHash
+            ) +
+            (
+                firstHash >>>
+                0
+            )
+        ).toString(
+            36
+        );
+    }
+
+    function createPredictionFingerprint(
+        prediction
+    ) {
+        if (
+            !prediction ||
+            typeof prediction !==
+                'object'
+        ) {
+            return hashString(
+                stableSerialize(
+                    prediction
+                )
+            );
+        }
+
+        const normalized = {
+            id:
+                prediction.id ||
+                null,
+
+            cityId:
+                prediction.cityId ||
+                prediction.city_id ||
+                null,
+
+            latitude:
+                Number.isFinite(
+                    Number(
+                        prediction.latitude
+                    )
+                )
+                    ? Number(
+                        Number(
+                            prediction.latitude
+                        ).toFixed(
+                            5
+                        )
+                    )
+                    : null,
+
+            longitude:
+                Number.isFinite(
+                    Number(
+                        prediction.longitude
+                    )
+                )
+                    ? Number(
+                        Number(
+                            prediction.longitude
+                        ).toFixed(
+                            5
+                        )
+                    )
+                    : null,
+
+            arrivalMinutes:
+                prediction.arrivalMinutes ??
+                prediction.arrival_minutes ??
+                null,
+
+            probability:
+                prediction.probability ??
+                prediction.rainProbability ??
+                null,
+
+            confidence:
+                prediction.confidence ??
+                null,
+
+            intensity:
+                prediction.intensity ??
+                prediction.expectedIntensity ??
+                null,
+
+            riskLevel:
+                prediction.riskLevel ??
+                prediction.risk_level ??
+                null,
+
+            timestamp:
+                prediction.generatedAt ??
+                prediction.timestamp ??
+                null
+        };
+
+        return hashString(
+            stableSerialize(
+                normalized
+            )
+        );
+    }
+
+    function pruneExpiredCache() {
+        const state =
+            ensurePerformanceState();
+
+        const now =
+            Date.now();
+
+        for (
+            const [
+                key,
+                entry
+            ]
+            of state.cache.entries()
+        ) {
+            if (
+                !entry ||
+                now -
+                entry.createdAt >
+                state.options.cacheTtlMs
+            ) {
+                state.cache.delete(
+                    key
+                );
+
+                state.cacheEvictions +=
+                    1;
+            }
+        }
+
+        while (
+            state.cache.size >
+            state.options.maximumCacheEntries
+        ) {
+            const oldestKey =
+                state.cache.keys()
+                    .next()
+                    .value;
+
+            state.cache.delete(
+                oldestKey
+            );
+
+            state.cacheEvictions +=
+                1;
+        }
+
+        return state.cache.size;
+    }
+
+    function getMemoizedValue(
+        key
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        if (
+            state.options.memoizationEnabled !==
+            true
+        ) {
+            return {
+                found:
+                    false
+            };
+        }
+
+        const entry =
+            state.cache.get(
+                key
+            );
+
+        if (
+            !entry
+        ) {
+            state.cacheMisses +=
+                1;
+
+            return {
+                found:
+                    false
+            };
+        }
+
+        if (
+            Date.now() -
+            entry.createdAt >
+            state.options.cacheTtlMs
+        ) {
+            state.cache.delete(
+                key
+            );
+
+            state.cacheEvictions +=
+                1;
+
+            state.cacheMisses +=
+                1;
+
+            return {
+                found:
+                    false
+            };
+        }
+
+        state.cache.delete(
+            key
+        );
+
+        state.cache.set(
+            key,
+            entry
+        );
+
+        state.cacheHits +=
+            1;
+
+        return {
+            found:
+                true,
+
+            value:
+                safeCloneValue(
+                    entry.value
+                )
+        };
+    }
+
+    function setMemoizedValue(
+        key,
+        value
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        if (
+            state.options.memoizationEnabled !==
+            true
+        ) {
+            return false;
+        }
+
+        if (
+            state.cache.has(
+                key
+            )
+        ) {
+            state.cache.delete(
+                key
+            );
+        }
+
+        state.cache.set(
+            key,
+            {
+                value:
+                    safeCloneValue(
+                        value
+                    ),
+
+                createdAt:
+                    Date.now()
+            }
+        );
+
+        pruneExpiredCache();
+
+        return true;
+    }
+
+    function deduplicatePredictionCollection(
+        predictions,
+        options = {}
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        if (
+            !Array.isArray(
+                predictions
+            )
+        ) {
+            return {
+                predictions:
+                    [],
+
+                removed:
+                    0,
+
+                inputCount:
+                    0
+            };
+        }
+
+        const maximumCount =
+            Math.min(
+                predictions.length,
+                state.options
+                    .maximumPredictionCount
+            );
+
+        if (
+            state.options
+                .deduplicationEnabled !==
+                true
+        ) {
+            return {
+                predictions:
+                    predictions.slice(
+                        0,
+                        maximumCount
+                    ),
+
+                removed:
+                    Math.max(
+                        0,
+                        predictions.length -
+                        maximumCount
+                    ),
+
+                inputCount:
+                    predictions.length
+            };
+        }
+
+        const now =
+            Date.now();
+
+        const seen =
+            new Set();
+
+        const output =
+            [];
+
+        let removed =
+            0;
+
+        for (
+            let index = 0;
+            index < maximumCount;
+            index += 1
+        ) {
+            const prediction =
+                predictions[
+                    index
+                ];
+
+            const fingerprint =
+                createPredictionFingerprint(
+                    prediction
+                );
+
+            const previousTimestamp =
+                state.fingerprints.get(
+                    fingerprint
+                );
+
+            const existsInCurrentBatch =
+                seen.has(
+                    fingerprint
+                );
+
+            const existsInRecentWindow =
+                options.ignoreHistory !==
+                    true &&
+                Number.isFinite(
+                    previousTimestamp
+                ) &&
+                now -
+                previousTimestamp <=
+                    state.options
+                        .duplicateWindowMs;
+
+            if (
+                existsInCurrentBatch ||
+                existsInRecentWindow
+            ) {
+                removed +=
+                    1;
+
+                continue;
+            }
+
+            seen.add(
+                fingerprint
+            );
+
+            state.fingerprints.set(
+                fingerprint,
+                now
+            );
+
+            output.push(
+                prediction
+            );
+        }
+
+        for (
+            const [
+                fingerprint,
+                timestamp
+            ]
+            of state.fingerprints.entries()
+        ) {
+            if (
+                now -
+                timestamp >
+                state.options
+                    .duplicateWindowMs
+            ) {
+                state.fingerprints.delete(
+                    fingerprint
+                );
+            }
+        }
+
+        removed +=
+            Math.max(
+                0,
+                predictions.length -
+                maximumCount
+            );
+
+        state.deduplicatedPredictions +=
+            removed;
+
+        return {
+            predictions:
+                output,
+
+            removed,
+
+            inputCount:
+                predictions.length,
+
+            outputCount:
+                output.length
+        };
+    }
+
+    function updateAdaptiveBatchSize(
+        processedCount,
+        durationMs
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        if (
+            state.options
+                .adaptiveBatchingEnabled !==
+                true ||
+            processedCount <=
+                0 ||
+            durationMs <=
+                0
+        ) {
+            return state.adaptiveBatchSize;
+        }
+
+        const targetDuration =
+            state.options
+                .targetBatchDurationMs;
+
+        const ratio =
+            targetDuration /
+            durationMs;
+
+        const proposed =
+            Math.round(
+                state.adaptiveBatchSize *
+                Math.max(
+                    0.5,
+                    Math.min(
+                        2,
+                        ratio
+                    )
+                )
+            );
+
+        state.adaptiveBatchSize =
+            Math.max(
+                state.options
+                    .minimumBatchSize,
+                Math.min(
+                    state.options
+                        .maximumBatchSize,
+                    proposed
+                )
+            );
+
+        return state.adaptiveBatchSize;
+    }
+
+    async function processPredictionBatches(
+        predictions,
+        processor,
+        options = {}
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        if (
+            !Array.isArray(
+                predictions
+            )
+        ) {
+            throw new TypeError(
+                'predictions_must_be_an_array'
+            );
+        }
+
+        if (
+            typeof processor !==
+            'function'
+        ) {
+            throw new TypeError(
+                'processor_must_be_a_function'
+            );
+        }
+
+        const results =
+            [];
+
+        let offset =
+            0;
+
+        while (
+            offset <
+            predictions.length
+        ) {
+            const batchSize =
+                Number.isFinite(
+                    Number(
+                        options.batchSize
+                    )
+                )
+                    ? Math.max(
+                        1,
+                        Math.floor(
+                            Number(
+                                options.batchSize
+                            )
+                        )
+                    )
+                    : state.adaptiveBatchSize;
+
+            const batch =
+                predictions.slice(
+                    offset,
+                    offset +
+                    batchSize
+                );
+
+            const startedAt =
+                Date.now();
+
+            const batchResult =
+                await processor(
+                    batch,
+                    {
+                        offset,
+
+                        batchSize:
+                            batch.length,
+
+                        total:
+                            predictions.length
+                    }
+                );
+
+            const durationMs =
+                Date.now() -
+                startedAt;
+
+            state.batchRuns +=
+                1;
+
+            state.lastBatchDurationMs =
+                durationMs;
+
+            state.processedPredictions +=
+                batch.length;
+
+            updateAdaptiveBatchSize(
+                batch.length,
+                durationMs
+            );
+
+            results.push(
+                batchResult
+            );
+
+            offset +=
+                batch.length;
+
+            if (
+                offset <
+                    predictions.length &&
+                options.yieldToBrowser !==
+                    false
+            ) {
+                await new Promise(
+                    resolve => {
+                        if (
+                            typeof globalObject
+                                .requestAnimationFrame ===
+                                'function'
+                        ) {
+                            globalObject
+                                .requestAnimationFrame(
+                                    () =>
+                                        resolve()
+                                );
+                        } else {
+                            globalObject
+                                .setTimeout(
+                                    resolve,
+                                    0
+                                );
+                        }
+                    }
+                );
+            }
+        }
+
+        return results;
+    }
+
+    function shouldExecuteDashboardSync(
+        options = {}
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        if (
+            options.force ===
+            true ||
+            state.options
+                .dashboardThrottlingEnabled !==
+                true
+        ) {
+            return true;
+        }
+
+        return (
+            Date.now() -
+            state.lastDashboardExecutionAt
+        ) >=
+        state.options
+            .dashboardMinimumIntervalMs;
+    }
+
+    function shouldExecutePersistence(
+        options = {}
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        if (
+            options.force ===
+            true ||
+            state.options
+                .persistenceThrottlingEnabled !==
+                true
+        ) {
+            return true;
+        }
+
+        return (
+            Date.now() -
+            state.lastPersistenceExecutionAt
+        ) >=
+        state.options
+            .persistenceMinimumIntervalMs;
+    }
+
+    function wrapDashboardSynchronization() {
+        const state =
+            ensurePerformanceState();
+
+        const methodName =
+            'synchronizeDashboard';
+
+        const currentMethod =
+            integrationApi[
+                methodName
+            ];
+
+        if (
+            typeof currentMethod !==
+                'function' ||
+            currentMethod
+                .__rainGuardPerformanceWrapped ===
+                true
+        ) {
+            return false;
+        }
+
+        state.originalMethods.set(
+            methodName,
+            currentMethod
+        );
+
+        const wrappedMethod =
+            async function optimizedDashboardSynchronization(
+                ...args
+            ) {
+                const options =
+                    args[1] &&
+                    typeof args[1] ===
+                        'object'
+                        ? args[1]
+                        : {};
+
+                if (
+                    !shouldExecuteDashboardSync(
+                        options
+                    )
+                ) {
+                    state.dashboardSkips +=
+                        1;
+
+                    return {
+                        synchronized:
+                            false,
+
+                        skipped:
+                            true,
+
+                        reason:
+                            'performance_throttle'
+                    };
+                }
+
+                const result =
+                    await currentMethod.apply(
+                        integrationApi,
+                        args
+                    );
+
+                state.lastDashboardExecutionAt =
+                    Date.now();
+
+                return result;
+            };
+
+        Object.defineProperty(
+            wrappedMethod,
+            '__rainGuardPerformanceWrapped',
+            {
+                value:
+                    true,
+
+                enumerable:
+                    false
+            }
+        );
+
+        integrationApi[
+            methodName
+        ] =
+            wrappedMethod;
+
+        return true;
+    }
+
+    function wrapPersistenceMethod() {
+        const state =
+            ensurePerformanceState();
+
+        const methodName =
+            'persistIntegrationSnapshot';
+
+        const currentMethod =
+            integrationApi[
+                methodName
+            ];
+
+        if (
+            typeof currentMethod !==
+                'function' ||
+            currentMethod
+                .__rainGuardPerformanceWrapped ===
+                true
+        ) {
+            return false;
+        }
+
+        state.originalMethods.set(
+            methodName,
+            currentMethod
+        );
+
+        const wrappedMethod =
+            async function optimizedPersistence(
+                ...args
+            ) {
+                const options =
+                    args[0] &&
+                    typeof args[0] ===
+                        'object'
+                        ? args[0]
+                        : {};
+
+                if (
+                    !shouldExecutePersistence(
+                        options
+                    )
+                ) {
+                    state.persistenceSkips +=
+                        1;
+
+                    return {
+                        persisted:
+                            false,
+
+                        skipped:
+                            true,
+
+                        reason:
+                            'performance_throttle'
+                    };
+                }
+
+                const result =
+                    await currentMethod.apply(
+                        integrationApi,
+                        args
+                    );
+
+                state.lastPersistenceExecutionAt =
+                    Date.now();
+
+                return result;
+            };
+
+        Object.defineProperty(
+            wrappedMethod,
+            '__rainGuardPerformanceWrapped',
+            {
+                value:
+                    true,
+
+                enumerable:
+                    false
+            }
+        );
+
+        integrationApi[
+            methodName
+        ] =
+            wrappedMethod;
+
+        return true;
+    }
+
+    function installPerformanceOptimizations(
+        options = {}
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        normalizePerformanceOptions(
+            options
+        );
+
+        if (
+            state.installed
+        ) {
+            return {
+                installed:
+                    true,
+
+                reused:
+                    true,
+
+                options: {
+                    ...state.options
+                }
+            };
+        }
+
+        const wrappedMethods =
+            [];
+
+        try {
+            if (
+                wrapDashboardSynchronization()
+            ) {
+                wrappedMethods.push(
+                    'synchronizeDashboard'
+                );
+            }
+
+            if (
+                wrapPersistenceMethod()
+            ) {
+                wrappedMethods.push(
+                    'persistIntegrationSnapshot'
+                );
+            }
+
+            state.installed =
+                true;
+
+            state.lastOptimizationAt =
+                Date.now();
+
+            state.optimizationRuns +=
+                1;
+
+            if (
+                typeof integrationApi
+                    .recordOperationalEvent ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalEvent(
+                        'performance_optimizations_installed',
+                        {
+                            wrappedMethods,
+
+                            options:
+                                safeCloneValue(
+                                    state.options
+                                )
+                        }
+                    );
+            }
+
+            return {
+                installed:
+                    true,
+
+                reused:
+                    false,
+
+                wrappedMethods,
+
+                options: {
+                    ...state.options
+                }
+            };
+        } catch (error) {
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            if (
+                typeof integrationApi
+                    .recordOperationalError ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalError(
+                        'install_performance_optimizations',
+                        error
+                    );
+            }
+
+            return {
+                installed:
+                    false,
+
+                error:
+                    state.lastError
+            };
+        }
+    }
+
+    function removePerformanceOptimizations() {
+        const state =
+            ensurePerformanceState();
+
+        let restored =
+            0;
+
+        for (
+            const [
+                methodName,
+                originalMethod
+            ]
+            of state.originalMethods.entries()
+        ) {
+            if (
+                typeof originalMethod ===
+                'function'
+            ) {
+                integrationApi[
+                    methodName
+                ] =
+                    originalMethod;
+
+                restored +=
+                    1;
+            }
+        }
+
+        state.originalMethods.clear();
+
+        state.installed =
+            false;
+
+        return {
+            removed:
+                true,
+
+            restoredMethods:
+                restored
+        };
+    }
+
+    function clearPerformanceCaches() {
+        const state =
+            ensurePerformanceState();
+
+        const previous = {
+            cacheEntries:
+                state.cache.size,
+
+            fingerprints:
+                state.fingerprints.size
+        };
+
+        state.cache.clear();
+
+        state.fingerprints.clear();
+
+        return {
+            cleared:
+                true,
+
+            previous
+        };
+    }
+
+    function optimizePredictionCollection(
+        predictions,
+        options = {}
+    ) {
+        const state =
+            ensurePerformanceState();
+
+        const startedAt =
+            Date.now();
+
+        const deduplication =
+            deduplicatePredictionCollection(
+                predictions,
+                options
+            );
+
+        const cacheKey =
+            `predictions:${hashString(
+                stableSerialize(
+                    deduplication.predictions
+                )
+            )}`;
+
+        const cached =
+            getMemoizedValue(
+                cacheKey
+            );
+
+        if (
+            cached.found
+        ) {
+            return {
+                optimized:
+                    true,
+
+                cached:
+                    true,
+
+                predictions:
+                    cached.value,
+
+                removed:
+                    deduplication.removed,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+
+        const optimized =
+            deduplication.predictions
+                .slice()
+                .sort(
+                    (
+                        first,
+                        second
+                    ) => {
+                        const firstArrival =
+                            Number(
+                                first &&
+                                (
+                                    first.arrivalMinutes ??
+                                    first.arrival_minutes
+                                )
+                            );
+
+                        const secondArrival =
+                            Number(
+                                second &&
+                                (
+                                    second.arrivalMinutes ??
+                                    second.arrival_minutes
+                                )
+                            );
+
+                        const safeFirst =
+                            Number.isFinite(
+                                firstArrival
+                            )
+                                ? firstArrival
+                                : Number.MAX_SAFE_INTEGER;
+
+                        const safeSecond =
+                            Number.isFinite(
+                                secondArrival
+                            )
+                                ? secondArrival
+                                : Number.MAX_SAFE_INTEGER;
+
+                        return safeFirst -
+                            safeSecond;
+                    }
+                );
+
+        setMemoizedValue(
+            cacheKey,
+            optimized
+        );
+
+        state.optimizationRuns +=
+            1;
+
+        state.lastOptimizationAt =
+            Date.now();
+
+        return {
+            optimized:
+                true,
+
+            cached:
+                false,
+
+            predictions:
+                optimized,
+
+            removed:
+                deduplication.removed,
+
+            durationMs:
+                Date.now() -
+                startedAt
+        };
+    }
+
+    function getPerformanceOptimizationStatus() {
+        const state =
+            ensurePerformanceState();
+
+        const cacheRequests =
+            state.cacheHits +
+            state.cacheMisses;
+
+        return {
+            installed:
+                state.installed,
+
+            options: {
+                ...state.options
+            },
+
+            cacheEntries:
+                state.cache.size,
+
+            fingerprintEntries:
+                state.fingerprints.size,
+
+            cacheHits:
+                state.cacheHits,
+
+            cacheMisses:
+                state.cacheMisses,
+
+            cacheHitRate:
+                cacheRequests >
+                0
+                    ? Number(
+                        (
+                            state.cacheHits /
+                            cacheRequests
+                        ).toFixed(
+                            6
+                        )
+                    )
+                    : 0,
+
+            cacheEvictions:
+                state.cacheEvictions,
+
+            processedPredictions:
+                state.processedPredictions,
+
+            deduplicatedPredictions:
+                state.deduplicatedPredictions,
+
+            adaptiveBatchSize:
+                state.adaptiveBatchSize,
+
+            batchRuns:
+                state.batchRuns,
+
+            lastBatchDurationMs:
+                state.lastBatchDurationMs,
+
+            dashboardSkips:
+                state.dashboardSkips,
+
+            persistenceSkips:
+                state.persistenceSkips,
+
+            optimizationRuns:
+                state.optimizationRuns,
+
+            lastOptimizationAt:
+                state.lastOptimizationAt,
+
+            lastError:
+                state.lastError
+        };
+    }
+
+    integrationApi
+        .configurePerformanceOptimizations =
+        normalizePerformanceOptions;
+
+    integrationApi
+        .createPredictionFingerprint =
+        createPredictionFingerprint;
+
+    integrationApi
+        .deduplicatePredictionCollection =
+        deduplicatePredictionCollection;
+
+    integrationApi
+        .processPredictionBatches =
+        processPredictionBatches;
+
+    integrationApi
+        .optimizePredictionCollection =
+        optimizePredictionCollection;
+
+    integrationApi
+        .installPerformanceOptimizations =
+        installPerformanceOptimizations;
+
+    integrationApi
+        .removePerformanceOptimizations =
+        removePerformanceOptimizations;
+
+    integrationApi
+        .clearPerformanceCaches =
+        clearPerformanceCaches;
+
+    integrationApi
+        .getPerformanceOptimizationStatus =
+        getPerformanceOptimizationStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.8A-2',
+
+        nextPart:
+            '2.8B-1',
+
+        status:
+            'in_progress',
+
+        performanceOptimizationReady:
+            true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_PERFORMANCE_OPTIONS,
+            ensurePerformanceState,
+            stableSerialize,
+            hashString,
+            pruneExpiredCache,
+            getMemoizedValue,
+            setMemoizedValue,
+            updateAdaptiveBatchSize,
+            shouldExecuteDashboardSync,
+            shouldExecutePersistence,
+            wrapDashboardSynchronization,
+            wrapPersistenceMethod
+        }
+    );
+
+    const installationResult =
+        installPerformanceOptimizations();
+
+    runtimeState
+        .performance
+        .installationResult =
+        installationResult;
+
+    if (
+        typeof integrationApi
+            .refreshPublicApiExposure ===
+            'function'
+    ) {
+        integrationApi
+            .refreshPublicApiExposure();
+    }
+
+    log(
+        installationResult.installed
+            ? 'info'
+            : 'warn',
+        installationResult.installed
+            ? 'Rain arrival integration Part 2.8A-2 loaded with performance optimizations enabled.'
+            : 'Rain arrival integration Part 2.8A-2 loaded with performance optimization limitations.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.8B-1
+ *
+ * Responsibilities:
+ * - Run final release-candidate verification
+ * - Validate all production subsystems
+ * - Produce readiness score and blocking issues
+ * - Approve or reject release candidate
+ */
+
+(function rainArrivalIntegrationV32ReleaseCandidateVerification(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.8A-2 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        safeCloneValue,
+        log
+    } = internal;
+
+    const DEFAULT_RELEASE_CANDIDATE_OPTIONS =
+        Object.freeze({
+            minimumReadinessScore:
+                90,
+
+            requireProductionSeal:
+                true,
+
+            requireBrowserCompatibility:
+                true,
+
+            requirePublicApiValidation:
+                true,
+
+            requireObservability:
+                true,
+
+            requirePerformanceOptimization:
+                true,
+
+            requireStressTest:
+                false,
+
+            runValidationSuite:
+                true,
+
+            runSelfTests:
+                true,
+
+            runCompatibilityCheck:
+                true,
+
+            runStressTest:
+                false,
+
+            stressTestOptions: {
+                iterations:
+                    5,
+
+                predictionCount:
+                    25,
+
+                concurrency:
+                    1,
+
+                synchronizeDashboard:
+                    false,
+
+                persistSnapshots:
+                    false,
+
+                includeIterationResults:
+                    false
+            }
+        });
+
+    function ensureReleaseCandidateState() {
+        if (
+            !runtimeState.releaseCandidate ||
+            typeof runtimeState.releaseCandidate !==
+                'object'
+        ) {
+            runtimeState.releaseCandidate = {
+                verificationRuns:
+                    0,
+
+                approvedRuns:
+                    0,
+
+                rejectedRuns:
+                    0,
+
+                verifying:
+                    false,
+
+                lastStartedAt:
+                    null,
+
+                lastCompletedAt:
+                    null,
+
+                lastDurationMs:
+                    null,
+
+                lastApproved:
+                    false,
+
+                lastScore:
+                    null,
+
+                lastError:
+                    null,
+
+                lastReport:
+                    null
+            };
+        }
+
+        return runtimeState.releaseCandidate;
+    }
+
+    function normalizeReleaseCandidateOptions(
+        options = {}
+    ) {
+        const normalized = {
+            ...DEFAULT_RELEASE_CANDIDATE_OPTIONS,
+            ...options,
+
+            stressTestOptions: {
+                ...DEFAULT_RELEASE_CANDIDATE_OPTIONS
+                    .stressTestOptions,
+
+                ...(
+                    options.stressTestOptions &&
+                    typeof options.stressTestOptions ===
+                        'object'
+                        ? options.stressTestOptions
+                        : {}
+                )
+            }
+        };
+
+        normalized.minimumReadinessScore =
+            Number.isFinite(
+                Number(
+                    normalized.minimumReadinessScore
+                )
+            )
+                ? Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(
+                            normalized.minimumReadinessScore
+                        )
+                    )
+                )
+                : DEFAULT_RELEASE_CANDIDATE_OPTIONS
+                    .minimumReadinessScore;
+
+        const booleanFields = [
+            'requireProductionSeal',
+            'requireBrowserCompatibility',
+            'requirePublicApiValidation',
+            'requireObservability',
+            'requirePerformanceOptimization',
+            'requireStressTest',
+            'runValidationSuite',
+            'runSelfTests',
+            'runCompatibilityCheck',
+            'runStressTest'
+        ];
+
+        for (
+            const fieldName
+            of booleanFields
+        ) {
+            normalized[
+                fieldName
+            ] =
+                normalized[
+                    fieldName
+                ] ===
+                true;
+        }
+
+        if (
+            normalized.requireStressTest
+        ) {
+            normalized.runStressTest =
+                true;
+        }
+
+        return normalized;
+    }
+
+    function createVerificationCheck(
+        name,
+        passed,
+        weight,
+        details = null,
+        required = true
+    ) {
+        return {
+            name,
+
+            passed:
+                passed ===
+                true,
+
+            required:
+                required ===
+                true,
+
+            weight:
+                Math.max(
+                    0,
+                    Number(
+                        weight
+                    ) ||
+                    0
+                ),
+
+            details:
+                details ===
+                undefined
+                    ? null
+                    : details
+        };
+    }
+
+    async function safelyExecuteVerification(
+        name,
+        executor
+    ) {
+        const startedAt =
+            Date.now();
+
+        try {
+            const result =
+                await executor();
+
+            return {
+                name,
+
+                succeeded:
+                    true,
+
+                result,
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        } catch (error) {
+            return {
+                name,
+
+                succeeded:
+                    false,
+
+                error:
+                    normalizeError(
+                        error
+                    ),
+
+                durationMs:
+                    Date.now() -
+                    startedAt
+            };
+        }
+    }
+
+    function evaluateValidationResult(
+        result
+    ) {
+        if (
+            !result
+        ) {
+            return false;
+        }
+
+        if (
+            result.valid ===
+            false ||
+            result.success ===
+            false ||
+            result.passed ===
+            false ||
+            result.healthy ===
+            false
+        ) {
+            return false;
+        }
+
+        if (
+            Array.isArray(
+                result.failures
+            ) &&
+            result.failures.length >
+            0
+        ) {
+            return false;
+        }
+
+        if (
+            Array.isArray(
+                result.errors
+            ) &&
+            result.errors.length >
+            0
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function calculateReadinessScore(
+        checks
+    ) {
+        const totalWeight =
+            checks.reduce(
+                (
+                    total,
+                    check
+                ) =>
+                    total +
+                    check.weight,
+                0
+            );
+
+        if (
+            totalWeight <=
+            0
+        ) {
+            return 0;
+        }
+
+        const passedWeight =
+            checks.reduce(
+                (
+                    total,
+                    check
+                ) =>
+                    total +
+                    (
+                        check.passed
+                            ? check.weight
+                            : 0
+                    ),
+                0
+            );
+
+        return Number(
+            (
+                passedWeight /
+                totalWeight *
+                100
+            ).toFixed(
+                2
+            )
+        );
+    }
+
+    function collectStaticReleaseChecks(
+        options
+    ) {
+        const checks =
+            [];
+
+        const metadata =
+            integrationApi.metadata ||
+            {};
+
+        const productionSeal =
+            typeof integrationApi
+                .getProductionSealStatus ===
+                'function'
+                ? integrationApi
+                    .getProductionSealStatus()
+                : null;
+
+        checks.push(
+            createVerificationCheck(
+                'production_seal',
+                Boolean(
+                    productionSeal &&
+                    (
+                        productionSeal.sealed ===
+                            true ||
+                        productionSeal.productionReady ===
+                            true
+                    )
+                ),
+                15,
+                productionSeal,
+                options.requireProductionSeal
+            )
+        );
+
+        const publicApiValidation =
+            typeof integrationApi
+                .validatePublicApiSurface ===
+                'function'
+                ? integrationApi
+                    .validatePublicApiSurface()
+                : null;
+
+        checks.push(
+            createVerificationCheck(
+                'public_api_surface',
+                evaluateValidationResult(
+                    publicApiValidation
+                ),
+                15,
+                publicApiValidation,
+                options.requirePublicApiValidation
+            )
+        );
+
+        const observabilityStatus =
+            typeof integrationApi
+                .getObservabilityStatus ===
+                'function'
+                ? integrationApi
+                    .getObservabilityStatus()
+                : null;
+
+        checks.push(
+            createVerificationCheck(
+                'observability',
+                Boolean(
+                    observabilityStatus &&
+                    observabilityStatus.enabled !==
+                        false
+                ),
+                10,
+                observabilityStatus,
+                options.requireObservability
+            )
+        );
+
+        const performanceStatus =
+            typeof integrationApi
+                .getPerformanceOptimizationStatus ===
+                'function'
+                ? integrationApi
+                    .getPerformanceOptimizationStatus()
+                : null;
+
+        checks.push(
+            createVerificationCheck(
+                'performance_optimization',
+                Boolean(
+                    performanceStatus &&
+                    performanceStatus.installed ===
+                        true
+                ),
+                10,
+                performanceStatus,
+                options.requirePerformanceOptimization
+            )
+        );
+
+        checks.push(
+            createVerificationCheck(
+                'module_metadata',
+                Boolean(
+                    metadata &&
+                    metadata.currentPart ===
+                        '2.8B-1' &&
+                    metadata.moduleClosed ===
+                        true
+                ),
+                5,
+                safeCloneValue(
+                    metadata
+                ),
+                true
+            )
+        );
+
+        checks.push(
+            createVerificationCheck(
+                'critical_methods',
+                [
+                    'bootstrapRainArrivalIntegration',
+                    'shutdownRainArrivalIntegration',
+                    'runIntegrationPipeline',
+                    'getConsolidatedRuntimeStatus',
+                    'runBrowserCompatibilityCheck',
+                    'runProductionStressTest'
+                ].every(
+                    methodName =>
+                        typeof integrationApi[
+                            methodName
+                        ] ===
+                        'function'
+                ),
+                10,
+                null,
+                true
+            )
+        );
+
+        return checks;
+    }
+
+    async function runReleaseCandidateVerification(
+        options = {}
+    ) {
+        const state =
+            ensureReleaseCandidateState();
+
+        const normalized =
+            normalizeReleaseCandidateOptions(
+                options
+            );
+
+        if (
+            state.verifying
+        ) {
+            return {
+                completed:
+                    false,
+
+                approved:
+                    false,
+
+                reused:
+                    true,
+
+                reason:
+                    'release_candidate_verification_already_running'
+            };
+        }
+
+        state.verifying =
+            true;
+
+        state.verificationRuns +=
+            1;
+
+        state.lastStartedAt =
+            Date.now();
+
+        state.lastError =
+            null;
+
+        const executions =
+            {};
+
+        try {
+            if (
+                normalized.runValidationSuite &&
+                typeof integrationApi
+                    .runValidationSuite ===
+                    'function'
+            ) {
+                executions.validation =
+                    await safelyExecuteVerification(
+                        'validation_suite',
+                        () =>
+                            integrationApi
+                                .runValidationSuite({
+                                    force:
+                                        true,
+
+                                    releaseCandidate:
+                                        true
+                                })
+                    );
+            }
+
+            if (
+                normalized.runSelfTests &&
+                typeof integrationApi
+                    .runSelfTests ===
+                    'function'
+            ) {
+                executions.selfTests =
+                    await safelyExecuteVerification(
+                        'self_tests',
+                        () =>
+                            integrationApi
+                                .runSelfTests({
+                                    force:
+                                        true,
+
+                                    releaseCandidate:
+                                        true
+                                })
+                    );
+            }
+
+            if (
+                normalized.runCompatibilityCheck &&
+                typeof integrationApi
+                    .runBrowserCompatibilityCheck ===
+                    'function'
+            ) {
+                executions.compatibility =
+                    await safelyExecuteVerification(
+                        'browser_compatibility',
+                        () =>
+                            integrationApi
+                                .runBrowserCompatibilityCheck({
+                                    installFallbacks:
+                                        true
+                                })
+                    );
+            }
+
+            if (
+                normalized.runStressTest &&
+                typeof integrationApi
+                    .runProductionStressTest ===
+                    'function'
+            ) {
+                executions.stressTest =
+                    await safelyExecuteVerification(
+                        'production_stress_test',
+                        () =>
+                            integrationApi
+                                .runProductionStressTest(
+                                    normalized
+                                        .stressTestOptions
+                                )
+                    );
+            }
+
+            const checks =
+                collectStaticReleaseChecks(
+                    normalized
+                );
+
+            if (
+                normalized.runValidationSuite
+            ) {
+                const execution =
+                    executions.validation;
+
+                checks.push(
+                    createVerificationCheck(
+                        'validation_suite',
+                        Boolean(
+                            execution &&
+                            execution.succeeded &&
+                            evaluateValidationResult(
+                                execution.result
+                            )
+                        ),
+                        10,
+                        execution,
+                        true
+                    )
+                );
+            }
+
+            if (
+                normalized.runSelfTests
+            ) {
+                const execution =
+                    executions.selfTests;
+
+                checks.push(
+                    createVerificationCheck(
+                        'self_tests',
+                        Boolean(
+                            execution &&
+                            execution.succeeded &&
+                            evaluateValidationResult(
+                                execution.result
+                            )
+                        ),
+                        10,
+                        execution,
+                        true
+                    )
+                );
+            }
+
+            if (
+                normalized.runCompatibilityCheck
+            ) {
+                const execution =
+                    executions.compatibility;
+
+                checks.push(
+                    createVerificationCheck(
+                        'browser_compatibility',
+                        Boolean(
+                            execution &&
+                            execution.succeeded &&
+                            execution.result &&
+                            execution.result.compatible ===
+                                true
+                        ),
+                        10,
+                        execution,
+                        normalized
+                            .requireBrowserCompatibility
+                    )
+                );
+            }
+
+            if (
+                normalized.runStressTest
+            ) {
+                const execution =
+                    executions.stressTest;
+
+                checks.push(
+                    createVerificationCheck(
+                        'production_stress_test',
+                        Boolean(
+                            execution &&
+                            execution.succeeded &&
+                            execution.result &&
+                            execution.result.passed ===
+                                true
+                        ),
+                        10,
+                        execution,
+                        normalized
+                            .requireStressTest
+                    )
+                );
+            }
+
+            const readinessScore =
+                calculateReadinessScore(
+                    checks
+                );
+
+            const blockingIssues =
+                checks
+                    .filter(
+                        check =>
+                            check.required &&
+                            !check.passed
+                    )
+                    .map(
+                        check =>
+                            check.name
+                    );
+
+            const warnings =
+                checks
+                    .filter(
+                        check =>
+                            !check.required &&
+                            !check.passed
+                    )
+                    .map(
+                        check =>
+                            check.name
+                    );
+
+            const approved =
+                blockingIssues.length ===
+                    0 &&
+                readinessScore >=
+                    normalized
+                        .minimumReadinessScore;
+
+            const completedAt =
+                Date.now();
+
+            const report = {
+                completed:
+                    true,
+
+                approved,
+
+                releaseCandidate:
+                    approved
+                        ? 'approved'
+                        : 'rejected',
+
+                readinessScore,
+
+                minimumReadinessScore:
+                    normalized
+                        .minimumReadinessScore,
+
+                blockingIssues,
+
+                warnings,
+
+                checks,
+
+                executions,
+
+                options:
+                    safeCloneValue(
+                        normalized
+                    ),
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt,
+
+                durationMs:
+                    completedAt -
+                    state.lastStartedAt,
+
+                completedAtIso:
+                    new Date(
+                        completedAt
+                    ).toISOString()
+            };
+
+            state.lastCompletedAt =
+                completedAt;
+
+            state.lastDurationMs =
+                report.durationMs;
+
+            state.lastApproved =
+                approved;
+
+            state.lastScore =
+                readinessScore;
+
+            state.lastReport =
+                report;
+
+            if (
+                approved
+            ) {
+                state.approvedRuns +=
+                    1;
+            } else {
+                state.rejectedRuns +=
+                    1;
+            }
+
+            integrationApi.metadata = {
+                ...integrationApi.metadata,
+
+                releaseCandidateApproved:
+                    approved,
+
+                releaseCandidateScore:
+                    readinessScore,
+
+                releaseCandidateVerifiedAt:
+                    completedAt
+            };
+
+            if (
+                typeof integrationApi
+                    .recordOperationalEvent ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalEvent(
+                        'release_candidate_verification_completed',
+                        {
+                            approved,
+
+                            readinessScore,
+
+                            blockingIssues,
+
+                            warnings
+                        },
+                        approved
+                            ? 'info'
+                            : 'error'
+                    );
+            }
+
+            return report;
+        } catch (error) {
+            state.rejectedRuns +=
+                1;
+
+            state.lastCompletedAt =
+                Date.now();
+
+            state.lastDurationMs =
+                state.lastCompletedAt -
+                state.lastStartedAt;
+
+            state.lastApproved =
+                false;
+
+            state.lastScore =
+                0;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            state.lastReport = {
+                completed:
+                    false,
+
+                approved:
+                    false,
+
+                releaseCandidate:
+                    'verification_error',
+
+                readinessScore:
+                    0,
+
+                error:
+                    state.lastError,
+
+                startedAt:
+                    state.lastStartedAt,
+
+                completedAt:
+                    state.lastCompletedAt,
+
+                durationMs:
+                    state.lastDurationMs
+            };
+
+            if (
+                typeof integrationApi
+                    .recordOperationalError ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalError(
+                        'release_candidate_verification',
+                        error
+                    );
+            }
+
+            return {
+                ...state.lastReport
+            };
+        } finally {
+            state.verifying =
+                false;
+        }
+    }
+
+    function getReleaseCandidateStatus() {
+        const state =
+            ensureReleaseCandidateState();
+
+        return {
+            verifying:
+                state.verifying,
+
+            verificationRuns:
+                state.verificationRuns,
+
+            approvedRuns:
+                state.approvedRuns,
+
+            rejectedRuns:
+                state.rejectedRuns,
+
+            lastStartedAt:
+                state.lastStartedAt,
+
+            lastCompletedAt:
+                state.lastCompletedAt,
+
+            lastDurationMs:
+                state.lastDurationMs,
+
+            lastApproved:
+                state.lastApproved,
+
+            lastScore:
+                state.lastScore,
+
+            lastError:
+                state.lastError,
+
+            lastReport:
+                state.lastReport
+                    ? safeCloneValue(
+                        state.lastReport
+                    )
+                    : null
+        };
+    }
+
+    integrationApi
+        .normalizeReleaseCandidateOptions =
+        normalizeReleaseCandidateOptions;
+
+    integrationApi
+        .runReleaseCandidateVerification =
+        runReleaseCandidateVerification;
+
+    integrationApi
+        .getReleaseCandidateStatus =
+        getReleaseCandidateStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        currentPart:
+            '2.8B-1',
+
+        nextPart:
+            '2.8B-2',
+
+        status:
+            'in_progress',
+
+        releaseCandidateVerificationReady:
+            true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            DEFAULT_RELEASE_CANDIDATE_OPTIONS,
+            ensureReleaseCandidateState,
+            createVerificationCheck,
+            safelyExecuteVerification,
+            evaluateValidationResult,
+            calculateReadinessScore,
+            collectStaticReleaseChecks
+        }
+    );
+
+    if (
+        typeof integrationApi
+            .refreshPublicApiExposure ===
+            'function'
+    ) {
+        integrationApi
+            .refreshPublicApiExposure();
+    }
+
+    log(
+        'info',
+        'Rain arrival integration Part 2.8B-1 loaded.'
+    );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Part:
+ * 2.8B-2
+ *
+ * Responsibilities:
+ * - Finalize release build
+ * - Lock production version
+ * - Generate immutable release manifest
+ * - Complete module closure
+ */
+
+(function rainArrivalIntegrationV32FinalRelease(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.RainGuardAI ||
+        !globalObject.RainGuardAI.V32 ||
+        !globalObject.RainGuardAI.V32.rainArrivalIntegration
+    ) {
+        throw new Error(
+            'Rain Arrival Integration Part 2.8B-1 must be loaded first.'
+        );
+    }
+
+    const integrationApi =
+        globalObject
+            .RainGuardAI
+            .V32
+            .rainArrivalIntegration;
+
+    const runtimeState =
+        integrationApi._state;
+
+    const internal =
+        integrationApi._internals;
+
+    const {
+        normalizeError,
+        safeCloneValue,
+        stableSerialize,
+        hashString,
+        log
+    } = internal;
+
+    const FINAL_RELEASE_VERSION =
+        '32.0.0';
+
+    const FINAL_RELEASE_BUILD =
+        'V32-PRODUCTION';
+
+    const FINAL_RELEASE_PART =
+        '2.8B-2';
+
+    const REQUIRED_FINAL_METHODS =
+        Object.freeze([
+            'bootstrapRainArrivalIntegration',
+            'shutdownRainArrivalIntegration',
+            'restartRainArrivalIntegration',
+            'runIntegrationPipeline',
+            'getConsolidatedRuntimeStatus',
+            'validatePublicApiSurface',
+            'getProductionSealStatus',
+            'getObservabilityStatus',
+            'getPerformanceOptimizationStatus',
+            'runBrowserCompatibilityCheck',
+            'runProductionStressTest',
+            'runReleaseCandidateVerification',
+            'getReleaseCandidateStatus'
+        ]);
+
+    function ensureFinalReleaseState() {
+        if (
+            !runtimeState.finalRelease ||
+            typeof runtimeState.finalRelease !==
+                'object'
+        ) {
+            runtimeState.finalRelease = {
+                finalized:
+                    false,
+
+                locked:
+                    false,
+
+                releaseVersion:
+                    null,
+
+                build:
+                    null,
+
+                releaseId:
+                    null,
+
+                finalizedAt:
+                    null,
+
+                verification:
+                    null,
+
+                manifest:
+                    null,
+
+                checksum:
+                    null,
+
+                lastError:
+                    null
+            };
+        }
+
+        return runtimeState.finalRelease;
+    }
+
+    function collectFinalMethodStatus() {
+        const methods =
+            {};
+
+        for (
+            const methodName
+            of REQUIRED_FINAL_METHODS
+        ) {
+            methods[
+                methodName
+            ] =
+                typeof integrationApi[
+                    methodName
+                ] ===
+                'function';
+        }
+
+        return methods;
+    }
+
+    function validateFinalReleaseSurface() {
+        const methodStatus =
+            collectFinalMethodStatus();
+
+        const missingMethods =
+            Object.keys(
+                methodStatus
+            ).filter(
+                methodName =>
+                    methodStatus[
+                        methodName
+                    ] !==
+                    true
+            );
+
+        const metadata =
+            integrationApi.metadata ||
+            {};
+
+        const issues =
+            [];
+
+        if (
+            missingMethods.length >
+            0
+        ) {
+            issues.push(
+                'missing_required_methods'
+            );
+        }
+
+        if (
+            metadata.currentPart !==
+            FINAL_RELEASE_PART
+        ) {
+            issues.push(
+                'invalid_final_part'
+            );
+        }
+
+        if (
+            metadata.moduleClosed !==
+            true
+        ) {
+            issues.push(
+                'module_not_closed'
+            );
+        }
+
+        const publicApiValidation =
+            typeof integrationApi
+                .validatePublicApiSurface ===
+                'function'
+                ? integrationApi
+                    .validatePublicApiSurface()
+                : null;
+
+        if (
+            publicApiValidation &&
+            (
+                publicApiValidation.valid ===
+                    false ||
+                publicApiValidation.success ===
+                    false
+            )
+        ) {
+            issues.push(
+                'public_api_validation_failed'
+            );
+        }
+
+        const productionSeal =
+            typeof integrationApi
+                .getProductionSealStatus ===
+                'function'
+                ? integrationApi
+                    .getProductionSealStatus()
+                : null;
+
+        if (
+            !productionSeal ||
+            (
+                productionSeal.sealed !==
+                    true &&
+                productionSeal.productionReady !==
+                    true
+            )
+        ) {
+            issues.push(
+                'production_seal_missing'
+            );
+        }
+
+        return {
+            valid:
+                issues.length ===
+                0,
+
+            issues,
+
+            missingMethods,
+
+            methodStatus,
+
+            publicApiValidation,
+
+            productionSeal
+        };
+    }
+
+    function createReleaseManifest(
+        verification
+    ) {
+        const releaseTimestamp =
+            Date.now();
+
+        const releaseId =
+            `rainguard-v32-${releaseTimestamp}`;
+
+        const metadata = {
+            ...integrationApi.metadata,
+
+            version:
+                FINAL_RELEASE_VERSION,
+
+            build:
+                FINAL_RELEASE_BUILD,
+
+            currentPart:
+                FINAL_RELEASE_PART,
+
+            nextPart:
+                null,
+
+            status:
+                'completed',
+
+            productionReady:
+                true,
+
+            releaseLocked:
+                true,
+
+            moduleClosed:
+                true
+        };
+
+        const subsystemStatus = {
+            bootstrap:
+                typeof integrationApi
+                    .getBootstrapStatus ===
+                    'function'
+                    ? integrationApi
+                        .getBootstrapStatus()
+                    : null,
+
+            shutdown:
+                typeof integrationApi
+                    .getShutdownStatus ===
+                    'function'
+                    ? integrationApi
+                        .getShutdownStatus()
+                    : null,
+
+            observability:
+                typeof integrationApi
+                    .getObservabilityStatus ===
+                    'function'
+                    ? integrationApi
+                        .getObservabilityStatus()
+                    : null,
+
+            compatibility:
+                typeof integrationApi
+                    .getBrowserCompatibilityStatus ===
+                    'function'
+                    ? integrationApi
+                        .getBrowserCompatibilityStatus()
+                    : null,
+
+            performance:
+                typeof integrationApi
+                    .getPerformanceOptimizationStatus ===
+                    'function'
+                    ? integrationApi
+                        .getPerformanceOptimizationStatus()
+                    : null,
+
+            releaseCandidate:
+                typeof integrationApi
+                    .getReleaseCandidateStatus ===
+                    'function'
+                    ? integrationApi
+                        .getReleaseCandidateStatus()
+                    : null,
+
+            productionSeal:
+                typeof integrationApi
+                    .getProductionSealStatus ===
+                    'function'
+                    ? integrationApi
+                        .getProductionSealStatus()
+                    : null
+        };
+
+        return {
+            schema:
+                'rainguard-rain-arrival-release-manifest',
+
+            schemaVersion:
+                1,
+
+            product:
+                'RainGuard AI',
+
+            module:
+                'rain_arrival_integration',
+
+            version:
+                FINAL_RELEASE_VERSION,
+
+            build:
+                FINAL_RELEASE_BUILD,
+
+            releaseId,
+
+            releaseChannel:
+                'production',
+
+            releaseStatus:
+                'final',
+
+            metadata:
+                safeCloneValue(
+                    metadata
+                ),
+
+            verification:
+                safeCloneValue(
+                    verification
+                ),
+
+            subsystemStatus:
+                safeCloneValue(
+                    subsystemStatus
+                ),
+
+            apiSurface: {
+                requiredMethods:
+                    [
+                        ...REQUIRED_FINAL_METHODS
+                    ],
+
+                availableMethods:
+                    Object.keys(
+                        integrationApi
+                    ).filter(
+                        key =>
+                            typeof integrationApi[
+                                key
+                            ] ===
+                            'function'
+                    ).sort()
+            },
+
+            finalizedAt:
+                releaseTimestamp,
+
+            finalizedAtIso:
+                new Date(
+                    releaseTimestamp
+                ).toISOString()
+        };
+    }
+
+    function calculateReleaseChecksum(
+        manifest
+    ) {
+        const serializableManifest = {
+            ...manifest,
+
+            checksum:
+                undefined
+        };
+
+        const serialized =
+            typeof stableSerialize ===
+                'function'
+                ? stableSerialize(
+                    serializableManifest
+                )
+                : JSON.stringify(
+                    serializableManifest
+                );
+
+        if (
+            typeof hashString ===
+            'function'
+        ) {
+            return hashString(
+                serialized
+            );
+        }
+
+        let checksum =
+            2166136261;
+
+        for (
+            let index = 0;
+            index < serialized.length;
+            index += 1
+        ) {
+            checksum ^=
+                serialized.charCodeAt(
+                    index
+                );
+
+            checksum =
+                Math.imul(
+                    checksum,
+                    16777619
+                );
+        }
+
+        return (
+            checksum >>>
+            0
+        ).toString(
+            16
+        );
+    }
+
+    function lockReleaseMetadata(
+        metadata
+    ) {
+        const lockedMetadata = {
+            ...metadata,
+
+            version:
+                FINAL_RELEASE_VERSION,
+
+            build:
+                FINAL_RELEASE_BUILD,
+
+            currentPart:
+                FINAL_RELEASE_PART,
+
+            nextPart:
+                null,
+
+            status:
+                'completed',
+
+            productionReady:
+                true,
+
+            releaseLocked:
+                true,
+
+            moduleClosed:
+                true
+        };
+
+        integrationApi.metadata =
+            Object.freeze(
+                lockedMetadata
+            );
+
+        return integrationApi.metadata;
+    }
+
+    function protectReleaseManifest(
+        manifest
+    ) {
+        const protectedManifest = {
+            ...manifest,
+
+            apiSurface:
+                Object.freeze({
+                    ...manifest.apiSurface,
+
+                    requiredMethods:
+                        Object.freeze([
+                            ...manifest
+                                .apiSurface
+                                .requiredMethods
+                        ]),
+
+                    availableMethods:
+                        Object.freeze([
+                            ...manifest
+                                .apiSurface
+                                .availableMethods
+                        ])
+                })
+        };
+
+        return Object.freeze(
+            protectedManifest
+        );
+    }
+
+    async function finalizeProductionRelease(
+        options = {}
+    ) {
+        const state =
+            ensureFinalReleaseState();
+
+        if (
+            state.finalized &&
+            state.locked
+        ) {
+            return {
+                finalized:
+                    true,
+
+                reused:
+                    true,
+
+                version:
+                    state.releaseVersion,
+
+                build:
+                    state.build,
+
+                releaseId:
+                    state.releaseId,
+
+                checksum:
+                    state.checksum,
+
+                manifest:
+                    state.manifest
+            };
+        }
+
+        try {
+            let releaseCandidateReport =
+                null;
+
+            if (
+                options.skipReleaseCandidateVerification !==
+                    true &&
+                typeof integrationApi
+                    .runReleaseCandidateVerification ===
+                    'function'
+            ) {
+                releaseCandidateReport =
+                    await integrationApi
+                        .runReleaseCandidateVerification({
+                            minimumReadinessScore:
+                                Number.isFinite(
+                                    Number(
+                                        options
+                                            .minimumReadinessScore
+                                    )
+                                )
+                                    ? Number(
+                                        options
+                                            .minimumReadinessScore
+                                    )
+                                    : 90,
+
+                            requireProductionSeal:
+                                true,
+
+                            requireBrowserCompatibility:
+                                options
+                                    .requireBrowserCompatibility !==
+                                false,
+
+                            requirePublicApiValidation:
+                                true,
+
+                            requireObservability:
+                                true,
+
+                            requirePerformanceOptimization:
+                                true,
+
+                            requireStressTest:
+                                options
+                                    .requireStressTest ===
+                                true,
+
+                            runValidationSuite:
+                                options
+                                    .runValidationSuite !==
+                                false,
+
+                            runSelfTests:
+                                options
+                                    .runSelfTests !==
+                                false,
+
+                            runCompatibilityCheck:
+                                options
+                                    .runCompatibilityCheck !==
+                                false,
+
+                            runStressTest:
+                                options
+                                    .runStressTest ===
+                                true,
+
+                            stressTestOptions:
+                                options
+                                    .stressTestOptions ||
+                                undefined
+                        });
+
+                if (
+                    releaseCandidateReport &&
+                    releaseCandidateReport.approved ===
+                        false &&
+                    options.force !==
+                        true
+                ) {
+                    state.verification =
+                        releaseCandidateReport;
+
+                    state.lastError = {
+                        name:
+                            'ReleaseCandidateRejected',
+
+                        message:
+                            'release_candidate_verification_failed',
+
+                        blockingIssues:
+                            releaseCandidateReport
+                                .blockingIssues ||
+                            []
+                    };
+
+                    return {
+                        finalized:
+                            false,
+
+                        locked:
+                            false,
+
+                        reason:
+                            'release_candidate_rejected',
+
+                        verification:
+                            releaseCandidateReport,
+
+                        error:
+                            state.lastError
+                    };
+                }
+            }
+
+            integrationApi.metadata = {
+                ...integrationApi.metadata,
+
+                currentPart:
+                    FINAL_RELEASE_PART,
+
+                nextPart:
+                    null,
+
+                status:
+                    'completed',
+
+                version:
+                    FINAL_RELEASE_VERSION,
+
+                build:
+                    FINAL_RELEASE_BUILD,
+
+                productionReady:
+                    true,
+
+                releaseLocked:
+                    false,
+
+                moduleClosed:
+                    true
+            };
+
+            const surfaceVerification =
+                validateFinalReleaseSurface();
+
+            if (
+                !surfaceVerification.valid &&
+                options.force !==
+                    true
+            ) {
+                state.verification =
+                    surfaceVerification;
+
+                state.lastError = {
+                    name:
+                        'FinalReleaseValidationError',
+
+                    message:
+                        'final_release_surface_validation_failed',
+
+                    issues:
+                        surfaceVerification
+                            .issues,
+
+                    missingMethods:
+                        surfaceVerification
+                            .missingMethods
+                };
+
+                return {
+                    finalized:
+                        false,
+
+                    locked:
+                        false,
+
+                    reason:
+                        'final_release_validation_failed',
+
+                    verification:
+                        surfaceVerification,
+
+                    error:
+                        state.lastError
+                };
+            }
+
+            const manifest =
+                createReleaseManifest({
+                    releaseCandidate:
+                        releaseCandidateReport,
+
+                    surface:
+                        surfaceVerification,
+
+                    forced:
+                        options.force ===
+                        true
+                });
+
+            const checksum =
+                calculateReleaseChecksum(
+                    manifest
+                );
+
+            manifest.checksum =
+                checksum;
+
+            const protectedManifest =
+                protectReleaseManifest(
+                    manifest
+                );
+
+            const lockedMetadata =
+                lockReleaseMetadata(
+                    integrationApi.metadata
+                );
+
+            state.finalized =
+                true;
+
+            state.locked =
+                true;
+
+            state.releaseVersion =
+                FINAL_RELEASE_VERSION;
+
+            state.build =
+                FINAL_RELEASE_BUILD;
+
+            state.releaseId =
+                protectedManifest
+                    .releaseId;
+
+            state.finalizedAt =
+                protectedManifest
+                    .finalizedAt;
+
+            state.verification =
+                safeCloneValue({
+                    releaseCandidate:
+                        releaseCandidateReport,
+
+                    surface:
+                        surfaceVerification
+                });
+
+            state.manifest =
+                protectedManifest;
+
+            state.checksum =
+                checksum;
+
+            state.lastError =
+                null;
+
+            integrationApi.releaseManifest =
+                protectedManifest;
+
+            integrationApi.releaseChecksum =
+                checksum;
+
+            integrationApi.releaseVersion =
+                FINAL_RELEASE_VERSION;
+
+            integrationApi.releaseBuild =
+                FINAL_RELEASE_BUILD;
+
+            integrationApi.isProductionReady =
+                function isProductionReady() {
+                    return (
+                        state.finalized ===
+                            true &&
+                        state.locked ===
+                            true &&
+                        integrationApi
+                            .metadata
+                            .productionReady ===
+                            true
+                    );
+                };
+
+            integrationApi.getFinalReleaseStatus =
+                getFinalReleaseStatus;
+
+            integrationApi.getReleaseManifest =
+                getReleaseManifest;
+
+            integrationApi.verifyReleaseIntegrity =
+                verifyReleaseIntegrity;
+
+            if (
+                typeof integrationApi
+                    .refreshPublicApiExposure ===
+                    'function'
+            ) {
+                integrationApi
+                    .refreshPublicApiExposure();
+            }
+
+            if (
+                typeof integrationApi
+                    .recordOperationalEvent ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalEvent(
+                        'production_release_finalized',
+                        {
+                            version:
+                                FINAL_RELEASE_VERSION,
+
+                            build:
+                                FINAL_RELEASE_BUILD,
+
+                            releaseId:
+                                state.releaseId,
+
+                            checksum,
+
+                            forced:
+                                options.force ===
+                                true
+                        },
+                        'info'
+                    );
+            }
+
+            return {
+                finalized:
+                    true,
+
+                locked:
+                    true,
+
+                reused:
+                    false,
+
+                version:
+                    FINAL_RELEASE_VERSION,
+
+                build:
+                    FINAL_RELEASE_BUILD,
+
+                releaseId:
+                    state.releaseId,
+
+                checksum,
+
+                metadata:
+                    lockedMetadata,
+
+                manifest:
+                    protectedManifest
+            };
+        } catch (error) {
+            state.finalized =
+                false;
+
+            state.locked =
+                false;
+
+            state.lastError =
+                normalizeError(
+                    error
+                );
+
+            if (
+                typeof integrationApi
+                    .recordOperationalError ===
+                    'function'
+            ) {
+                integrationApi
+                    .recordOperationalError(
+                        'finalize_production_release',
+                        error
+                    );
+            }
+
+            return {
+                finalized:
+                    false,
+
+                locked:
+                    false,
+
+                reason:
+                    'final_release_error',
+
+                error:
+                    state.lastError
+            };
+        }
+    }
+
+    function verifyReleaseIntegrity() {
+        const state =
+            ensureFinalReleaseState();
+
+        if (
+            !state.manifest ||
+            !state.checksum
+        ) {
+            return {
+                valid:
+                    false,
+
+                reason:
+                    'release_manifest_missing'
+            };
+        }
+
+        const manifestCopy = {
+            ...state.manifest,
+
+            checksum:
+                undefined
+        };
+
+        const calculatedChecksum =
+            calculateReleaseChecksum(
+                manifestCopy
+            );
+
+        const checksumValid =
+            calculatedChecksum ===
+            state.checksum;
+
+        const metadataValid =
+            Boolean(
+                integrationApi.metadata &&
+                integrationApi.metadata
+                    .version ===
+                    FINAL_RELEASE_VERSION &&
+                integrationApi.metadata
+                    .build ===
+                    FINAL_RELEASE_BUILD &&
+                integrationApi.metadata
+                    .currentPart ===
+                    FINAL_RELEASE_PART &&
+                integrationApi.metadata
+                    .status ===
+                    'completed' &&
+                integrationApi.metadata
+                    .productionReady ===
+                    true &&
+                integrationApi.metadata
+                    .releaseLocked ===
+                    true &&
+                integrationApi.metadata
+                    .moduleClosed ===
+                    true
+            );
+
+        const methodVerification =
+            collectFinalMethodStatus();
+
+        const methodsValid =
+            Object.values(
+                methodVerification
+            ).every(
+                Boolean
+            );
+
+        return {
+            valid:
+                checksumValid &&
+                metadataValid &&
+                methodsValid,
+
+            checksumValid,
+
+            metadataValid,
+
+            methodsValid,
+
+            expectedChecksum:
+                state.checksum,
+
+            calculatedChecksum,
+
+            methodVerification,
+
+            verifiedAt:
+                Date.now()
+        };
+    }
+
+    function getReleaseManifest() {
+        const state =
+            ensureFinalReleaseState();
+
+        return state.manifest ||
+            null;
+    }
+
+    function getFinalReleaseStatus() {
+        const state =
+            ensureFinalReleaseState();
+
+        return {
+            finalized:
+                state.finalized,
+
+            locked:
+                state.locked,
+
+            productionReady:
+                Boolean(
+                    state.finalized &&
+                    state.locked &&
+                    integrationApi
+                        .metadata
+                        .productionReady ===
+                        true
+                ),
+
+            releaseVersion:
+                state.releaseVersion,
+
+            build:
+                state.build,
+
+            releaseId:
+                state.releaseId,
+
+            checksum:
+                state.checksum,
+
+            finalizedAt:
+                state.finalizedAt,
+
+            verification:
+                state.verification
+                    ? safeCloneValue(
+                        state.verification
+                    )
+                    : null,
+
+            integrity:
+                state.finalized
+                    ? verifyReleaseIntegrity()
+                    : null,
+
+            lastError:
+                state.lastError
+        };
+    }
+
+    integrationApi
+        .finalizeProductionRelease =
+        finalizeProductionRelease;
+
+    integrationApi
+        .validateFinalReleaseSurface =
+        validateFinalReleaseSurface;
+
+    integrationApi
+        .verifyReleaseIntegrity =
+        verifyReleaseIntegrity;
+
+    integrationApi
+        .getReleaseManifest =
+        getReleaseManifest;
+
+    integrationApi
+        .getFinalReleaseStatus =
+        getFinalReleaseStatus;
+
+    integrationApi.metadata = {
+        ...integrationApi.metadata,
+
+        version:
+            FINAL_RELEASE_VERSION,
+
+        build:
+            FINAL_RELEASE_BUILD,
+
+        currentPart:
+            FINAL_RELEASE_PART,
+
+        nextPart:
+            null,
+
+        status:
+            'completed',
+
+        productionReady:
+            true,
+
+        releaseLocked:
+            false,
+
+        finalReleaseReady:
+            true,
+
+        moduleClosed:
+            true
+    };
+
+    Object.assign(
+        integrationApi._internals,
+        {
+            FINAL_RELEASE_VERSION,
+            FINAL_RELEASE_BUILD,
+            FINAL_RELEASE_PART,
+            REQUIRED_FINAL_METHODS,
+            ensureFinalReleaseState,
+            collectFinalMethodStatus,
+            createReleaseManifest,
+            calculateReleaseChecksum,
+            lockReleaseMetadata,
+            protectReleaseManifest
+        }
+    );
+
+    if (
+        typeof integrationApi
+            .refreshPublicApiExposure ===
+            'function'
+    ) {
+        integrationApi
+            .refreshPublicApiExposure();
+    }
+
+    globalObject
+        .setTimeout(
+            async () => {
+                try {
+                    const result =
+                        await finalizeProductionRelease({
+                            runStressTest:
+                                false,
+
+                            requireStressTest:
+                                false,
+
+                            force:
+                                false
+                        });
+
+                    log(
+                        result.finalized
+                            ? 'info'
+                            : 'warn',
+                        result.finalized
+                            ? 'Rain arrival integration V32 finalized and locked for production.'
+                            : 'Rain arrival integration V32 finalization completed with release restrictions.'
+                    );
+                } catch (error) {
+                    log(
+                        'error',
+                        'Rain arrival integration V32 automatic finalization failed.',
+                        normalizeError(
+                            error
+                        )
+                    );
+                }
+            },
+            0
+        );
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
+                ? window
+                : this
+        )
+);
+
+
+
