@@ -2286,7 +2286,10 @@
     'start',
     'stop',
     'pause',
-    'resume'
+    'resume',
+    'restart',
+    'destroy',
+    'clear'
 ];
 
 for (const methodName of runtimeMethodsToBind) {
@@ -2295,14 +2298,6 @@ for (const methodName of runtimeMethodsToBind) {
             this[methodName].bind(this);
     }
 }
-            this.restart =
-                this.restart.bind(this);
-
-            this.destroy =
-                this.destroy.bind(this);
-
-            this.clear =
-                this.clear.bind(this);
 
             /* ==============================================================
              * Constructor Completion
