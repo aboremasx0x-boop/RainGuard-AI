@@ -66326,4 +66326,20 @@ if (
    STATUS:
    Rain Arrival Prediction Engine V32 is complete.
    ========================================================================== */
+})(
+    typeof globalThis !==
+        "undefined"
+        ? globalThis
+        : (
+            typeof window !==
+                "undefined"
+                ? window
+                : (
+                    typeof self !==
+                        "undefined"
+                        ? self
+                        : this
+                )
+        )
+);
     
