@@ -6132,13 +6132,13 @@ if (
                 );
             }
 
-            if (
-                if (
-    execution.status ===
-    STAGE_EXECUTION_STATUS.RUNNING
-) {
-    return this.getExecutionStatus();
-}
+            
+             if (
+                 execution.status ===
+                 STAGE_EXECUTION_STATUS.RUNNING
+            ) {
+                return this.getExecutionStatus();
+         }
 
             const safeOptions =
                 safeObject(options);
