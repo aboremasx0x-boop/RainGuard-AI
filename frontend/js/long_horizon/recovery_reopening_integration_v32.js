@@ -3351,6 +3351,27 @@
 
                 this.core =
                     core;
+               if (core) {
+
+    core.forecastEngine =
+        forecastEngine;
+
+    core.longHorizonForecastEngine =
+        forecastEngine;
+
+    core.longHorizonForecastEngineV32 =
+        forecastEngine;
+
+    core.arrivalEngine =
+        arrivalEngine;
+
+    core.sourceEngine =
+        sourceEngine;
+
+    core.storage =
+        storage;
+
+}
 
                 this.closure =
                     closure;
@@ -3363,6 +3384,23 @@
 
                 this.monitoring =
                     monitoring;
+               this.forecastEngine =
+    forecastEngine;
+
+this.longHorizonForecastEngine =
+    forecastEngine;
+
+this.longHorizonForecastEngineV32 =
+    forecastEngine;
+
+this.arrivalEngine =
+    arrivalEngine;
+
+this.sourceEngine =
+    sourceEngine;
+
+this.storage =
+    storage;
 
                 return {
                     core,
