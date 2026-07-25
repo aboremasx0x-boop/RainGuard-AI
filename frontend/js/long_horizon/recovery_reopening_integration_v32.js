@@ -824,33 +824,56 @@
     }
 
     function resolveGlobalByNames(
-        names
+    names
+) {
+
+    const candidateNames =
+        safeArray(
+            names
+        );
+
+    /*
+     * المرحلة الأولى:
+     * البحث عن نسخة تشغيل فعلية Object.
+     * لا نقبل Class أو Constructor من نوع function.
+     */
+    for (
+        const name of
+        candidateNames
     ) {
-        for (
-            const name of
-            safeArray(names)
+
+        const candidate =
+            global[name];
+
+        if (
+            candidate !==
+                null &&
+            typeof candidate ===
+                "object"
         ) {
-            if (
-                isObjectLike(
-                    global[name]
-                )
-            ) {
-                return {
-                    name,
-                    value:
-                        global[name]
-                };
-            }
+            return {
+                name,
+
+                value:
+                    candidate
+            };
         }
-
-        return {
-            name:
-                null,
-
-            value:
-                null
-        };
     }
+
+    /*
+     * لم يتم العثور على Instance فعلي.
+     * نتجاهل أي function حتى لا يتم تسجيل
+     * Class أو Constructor على أنه محرك جاهز.
+     */
+    return {
+        name:
+            null,
+
+        value:
+            null
+    };
+
+}
 
     function normalizeDependencyRecord(
         key,
