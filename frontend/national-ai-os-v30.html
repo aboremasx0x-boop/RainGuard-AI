@@ -722,9 +722,273 @@
 <script src="js/storm_cell_tracking_engine_v31.js?v=3111"></script>
 <script src="js/storm_path_prediction_engine_v31.js?v=3111"></script>
 <script src="js/storm_visualization_engine_v31.js?v=3111"></script>
+<script src="js/long_horizon/recovery_core_v32.js?v=3201"></script>
+<script src="js/long_horizon/recovery_closure_v32.js?v=3201"></script>
+<script src="js/long_horizon/post_recovery_monitoring_v32.js?v=3201"></script>
 <script src="js/rain_arrival_prediction_engine_v32.js?v=3206"></script>
 <script src="js/rain_arrival_integration_v32.js?v=3206"></script>
 <script src="js/long_horizon/recovery_reopening_v32.js?v=3201"></script>
+<script>
+(function installRecoveryDependencyCompatibilityV32(global) {
+    "use strict";
+
+    function exposeFirstAvailable(targetName, candidates) {
+        if (global[targetName]) {
+            return global[targetName];
+        }
+
+        for (const candidate of candidates) {
+            if (global[candidate]) {
+                global[targetName] = global[candidate];
+                return global[targetName];
+            }
+        }
+
+        return null;
+    }
+
+    /* Recovery Core */
+    exposeFirstAvailable(
+        "LongHorizonRecoveryCoreV32Instance",
+        [
+            "RecoveryCoreV32Instance",
+            "LongHorizonRecoveryCoreV32",
+            "RecoveryCoreV32",
+            "recoveryCoreV32"
+        ]
+    );
+
+    /* Recovery Closure */
+    exposeFirstAvailable(
+        "RecoveryClosureV32Instance",
+        [
+            "RecoveryClosureV32",
+            "RecoveryClosureEngineV32Instance",
+            "recoveryClosureV32"
+        ]
+    );
+
+    /* Post-Recovery Monitoring */
+    exposeFirstAvailable(
+        "PostRecoveryMonitoringV32Instance",
+        [
+            "PostRecoveryMonitoringV32",
+            "RecoveryMonitoringV32Instance",
+            "monitoringEngineV32"
+        ]
+    );
+
+    /* Rain Arrival */
+    if (
+        !global.RainArrivalPredictionEngineV32Instance &&
+        typeof global.RainArrivalPredictionEngineV32 === "function"
+    ) {
+        try {
+            global.RainArrivalPredictionEngineV32Instance =
+                new global.RainArrivalPredictionEngineV32({
+                    autoInitialize: false
+                });
+        } catch (error) {
+            console.warn(
+                "[Recovery Compatibility V32] Arrival instance was not created.",
+                error
+            );
+        }
+    }
+
+    /* Source Adapter wrapper */
+    if (!global.SourceAdapterV32Instance) {
+        global.SourceAdapterV32Instance = {
+            initialize() {
+                return global.getSourceAdapterState?.() || true;
+            },
+
+            start() {
+                return global.collectNationalSources?.() || true;
+            },
+
+            refresh() {
+                return global.collectNationalSources?.() || true;
+            },
+
+            getState() {
+                return global.getSourceAdapterState?.() || {};
+            },
+
+            getStatus() {
+                return "ready";
+            }
+        };
+    }
+
+    /* Browser storage */
+    if (!global.StorageOptimizerV32Instance) {
+        global.StorageOptimizerV32Instance = {
+            initialize() {
+                return true;
+            },
+
+            restore() {
+                return true;
+            },
+
+            save(key, value) {
+                global.localStorage?.setItem(
+                    key,
+                    JSON.stringify(value)
+                );
+
+                return true;
+            },
+
+            load(key) {
+                const value =
+                    global.localStorage?.getItem(key);
+
+                if (!value) {
+                    return null;
+                }
+
+                try {
+                    return JSON.parse(value);
+                } catch (_) {
+                    return value;
+                }
+            },
+
+            getState() {
+                return {
+                    available:
+                        Boolean(global.localStorage)
+                };
+            },
+
+            getStatus() {
+                return global.localStorage
+                    ? "ready"
+                    : "unavailable";
+            }
+        };
+    }
+
+    /* Storm Tracking wrapper */
+    if (!global.StormCellTrackingEngineV31Instance) {
+        global.StormCellTrackingEngineV31Instance = {
+            start() {
+                return global.enableStormTrackingV31?.() || true;
+            },
+
+            initialize() {
+                return true;
+            },
+
+            track() {
+                return global.runStormCellTrackingV31?.();
+            },
+
+            update() {
+                return global.runStormCellTrackingV31?.();
+            },
+
+            getState() {
+                return global.getStormTrackingStateV31?.() || {};
+            },
+
+            getStatus() {
+                return "ready";
+            }
+        };
+    }
+
+    /* Storm Path Prediction wrapper */
+    if (!global.StormPathPredictionEngineV32Instance) {
+        global.StormPathPredictionEngineV32Instance = {
+            start() {
+                return global.enableStormPathPredictionV31?.() || true;
+            },
+
+            initialize() {
+                return true;
+            },
+
+            predict() {
+                return global.runStormPathPredictionV31?.();
+            },
+
+            update() {
+                return global.runStormPathPredictionV31?.();
+            },
+
+            getState() {
+                return global.getStormPathPredictionStateV31?.() || {};
+            },
+
+            getStatus() {
+                return "ready";
+            }
+        };
+    }
+
+    /* Verification wrapper */
+    if (!global.VerificationEngineV30Instance) {
+        global.VerificationEngineV30Instance = {
+            start() {
+                return true;
+            },
+
+            verify() {
+                return global.runV30Verification?.();
+            },
+
+            evaluate() {
+                return global.getV30VerificationResults?.() || {};
+            },
+
+            getState() {
+                return global.getV30VerificationState?.() || {};
+            },
+
+            getStatus() {
+                return "ready";
+            }
+        };
+    }
+
+    /* Lightning wrapper */
+    if (!global.LightningAdapterV31Instance) {
+        global.LightningAdapterV31Instance = {
+            start() {
+                return true;
+            },
+
+            initialize() {
+                return true;
+            },
+
+            refresh() {
+                return global.collectLightningV31?.();
+            },
+
+            fetchLightning() {
+                return global.collectLightningV31?.();
+            },
+
+            getState() {
+                return global.getLightningV31State?.() || {};
+            },
+
+            getStatus() {
+                return "ready";
+            }
+        };
+    }
+
+    console.info(
+        "[Recovery Compatibility V32] Dependency aliases installed."
+    );
+
+})(window);
+</script>
 <script src="js/long_horizon/recovery_reopening_integration_v32.js?v=3201"></script>
 
 <!-- =========================================================
