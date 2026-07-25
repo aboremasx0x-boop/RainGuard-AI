@@ -7578,194 +7578,263 @@
        RUN ALL HEALTH CHECKS
        ====================================================================== */
 
-    IntegrationClass.prototype.runAllResourceHealthChecks =
-        async function runAllResourceHealthChecks(
-            options = {}
+   IntegrationClass.prototype.runAllResourceHealthChecks =
+    async function runAllResourceHealthChecks(
+        options = {}
+    ) {
+
+        const registration =
+            this.ensureRegistrationState();
+
+        const safeOptions =
+            safeObject(options);
+
+        const keys =
+            Object.keys(
+                registration.healthChecks
+            );
+
+        const results = [];
+
+        const runCheck =
+            async (
+                dependencyKey
+            ) => {
+
+                const checkResult =
+                    await this
+                        .runResourceHealthCheck(
+                            dependencyKey
+                        );
+
+                results.push(
+                    checkResult
+                );
+            };
+
+        if (
+            safeOptions.parallel !==
+            false
         ) {
-
-            const registration =
-                this.ensureRegistrationState();
-
-            const safeOptions =
-                safeObject(options);
-
-            const keys =
-                Object.keys(
-                    registration.healthChecks
-                );
-
-            const results = [];
-
-            const runCheck =
-                async (
-                    dependencyKey
-                ) => {
-
-                    const checkResult =
-                        await this
-                            .runResourceHealthCheck(
-                                dependencyKey
-                            );
-
-                    results.push(
-                        checkResult
-                    );
-                };
-
-            if (
-                safeOptions.parallel !==
-                false
+            await Promise.all(
+                keys.map(
+                    runCheck
+                )
+            );
+        } else {
+            for (
+                const key of
+                keys
             ) {
-                await Promise.all(
-                    keys.map(
-                        runCheck
-                    )
+                await runCheck(
+                    key
                 );
-            } else {
-                for (
-                    const key of
-                    keys
-                ) {
-                    await runCheck(
-                        key
+            }
+        }
+
+        const requiredResults =
+            results.filter(
+                (result) => {
+                    const check =
+                        registration
+                            .healthChecks[
+                                result.dependencyKey
+                            ];
+
+                    return (
+                        check?.required ===
+                        true
                     );
                 }
-            }
+            );
 
-            const healthy =
-                results.filter(
-                    (result) => {
+        const optionalResults =
+            results.filter(
+                (result) => {
+                    const check =
+                        registration
+                            .healthChecks[
+                                result.dependencyKey
+                            ];
+
+                    return (
+                        check?.required !==
+                        true
+                    );
+                }
+            );
+
+        const healthy =
+            results.filter(
+                (result) => {
+                    return (
+                        result.status ===
+                        HEALTH_STATUS.HEALTHY
+                    );
+                }
+            ).length;
+
+        const degraded =
+            results.filter(
+                (result) => {
+                    return (
+                        result.status ===
+                        HEALTH_STATUS.DEGRADED
+                    );
+                }
+            ).length;
+
+        const unhealthy =
+            results.filter(
+                (result) => {
+                    return [
+                        HEALTH_STATUS.UNHEALTHY,
+                        HEALTH_STATUS.UNAVAILABLE,
+                        HEALTH_STATUS.TIMEOUT,
+                        HEALTH_STATUS.ERROR
+                    ].includes(
+                        result.status
+                    );
+                }
+            ).length;
+
+        const requiredHealthy =
+            requiredResults.filter(
+                (result) => {
+                    return (
+                        result.status ===
+                        HEALTH_STATUS.HEALTHY
+                    );
+                }
+            ).length;
+
+        const requiredDegraded =
+            requiredResults.filter(
+                (result) => {
+                    return (
+                        result.status ===
+                        HEALTH_STATUS.DEGRADED
+                    );
+                }
+            ).length;
+
+        const requiredFailures =
+            requiredResults.filter(
+                (result) => {
+                    return [
+                        HEALTH_STATUS.UNHEALTHY,
+                        HEALTH_STATUS.UNAVAILABLE,
+                        HEALTH_STATUS.TIMEOUT,
+                        HEALTH_STATUS.ERROR,
+                        HEALTH_STATUS.UNKNOWN
+                    ].includes(
+                        result.status
+                    );
+                }
+            );
+
+        const requiredScore =
+            requiredResults.length >
+            0
+                ? requiredResults.reduce(
+                    (
+                        total,
+                        result
+                    ) => {
                         return (
-                            result.status ===
-                            HEALTH_STATUS.HEALTHY
+                            total +
+                            toFiniteNumber(
+                                result.score,
+                                0
+                            )
                         );
-                    }
-                ).length;
-
-            const degraded =
-                results.filter(
-                    (result) => {
-                        return (
-                            result.status ===
-                            HEALTH_STATUS.DEGRADED
-                        );
-                    }
-                ).length;
-
-            const unhealthy =
-                results.filter(
-                    (result) => {
-                        return [
-                            HEALTH_STATUS.UNHEALTHY,
-                            HEALTH_STATUS.UNAVAILABLE,
-                            HEALTH_STATUS.TIMEOUT,
-                            HEALTH_STATUS.ERROR
-                        ].includes(
-                            result.status
-                        );
-                    }
-                ).length;
-
-            const score =
-                results.length >
-                0
-                    ? results.reduce(
-                        (
-                            total,
-                            result
-                        ) => {
-                            return (
-                                total +
-                                toFiniteNumber(
-                                    result.score,
-                                    0
-                                )
-                            );
-                        },
-                        0
-                    ) /
-                    results.length
-                    : 0;
-
-            const requiredFailures =
-                results.filter(
-                    (result) => {
-
-                        const check =
-                            registration
-                                .healthChecks[
-                                    result.dependencyKey
-                                ];
-
-                        return (
-                            check?.required ===
-                            true &&
-                            result.status !==
-                            HEALTH_STATUS.HEALTHY
-                        );
-                    }
-                );
-
-            return {
-
-                status:
-                    requiredFailures.length >
+                    },
                     0
-                        ? HEALTH_STATUS.UNHEALTHY
-                        : unhealthy >
-                            0 ||
-                            degraded >
-                            0
-                            ? HEALTH_STATUS.DEGRADED
-                            : HEALTH_STATUS.HEALTHY,
+                ) /
+                requiredResults.length
+                : 1;
 
-                healthy:
-                    requiredFailures.length ===
-                    0,
+        let overallStatus =
+            HEALTH_STATUS.HEALTHY;
 
-                score:
+        if (
+            requiredFailures.length >
+            0
+        ) {
+            overallStatus =
+                HEALTH_STATUS.UNHEALTHY;
+        } else if (
+            requiredDegraded >
+            0
+        ) {
+            overallStatus =
+                HEALTH_STATUS.DEGRADED;
+        }
+
+        return {
+
+            status:
+                overallStatus,
+
+            healthy:
+                requiredFailures.length ===
+                0,
+
+            score:
+                clamp(
+                    requiredScore
+                ),
+
+            scorePercentage:
+                Math.round(
                     clamp(
-                        score
-                    ),
+                        requiredScore
+                    ) *
+                    10000
+                ) /
+                100,
 
-                scorePercentage:
-                    Math.round(
-                        clamp(
-                            score
-                        ) *
-                        10000
-                    ) /
-                    100,
+            total:
+                results.length,
 
-                total:
-                    results.length,
+            healthyCount:
+                healthy,
 
-                healthyCount:
-                    healthy,
+            degradedCount:
+                degraded,
 
-                degradedCount:
-                    degraded,
+            unhealthyCount:
+                unhealthy,
 
-                unhealthyCount:
-                    unhealthy,
+            requiredTotal:
+                requiredResults.length,
 
-                requiredFailureCount:
-                    requiredFailures.length,
+            requiredHealthyCount:
+                requiredHealthy,
 
-                requiredFailures:
-                    deepClone(
-                        requiredFailures
-                    ),
+            requiredDegradedCount:
+                requiredDegraded,
 
-                results:
-                    deepClone(
-                        results
-                    ),
+            optionalTotal:
+                optionalResults.length,
 
-                completedAt:
-                    now()
-            };
+            requiredFailureCount:
+                requiredFailures.length,
+
+            requiredFailures:
+                deepClone(
+                    requiredFailures
+                ),
+
+            results:
+                deepClone(
+                    results
+                ),
+
+            completedAt:
+                now()
         };
+    };
 
     /* ======================================================================
        SECTION 56
