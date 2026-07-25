@@ -3518,6 +3518,71 @@ this.storage =
 
             core.recoveryReopeningIntegration =
                 this;
+           const forecastEngine =
+    this.getDependency(
+        "forecastEngine"
+    ) ||
+    this.reopening?.forecastEngine ||
+    global.LongHorizonForecastEngineV32Instance ||
+    null;
+
+const arrivalEngine =
+    this.getDependency(
+        "arrivalEngine"
+    ) ||
+    this.reopening?.arrivalEngine ||
+    global.RainArrivalPredictionEngineV32Instance ||
+    null;
+
+if (
+    forecastEngine
+) {
+
+    core.forecastEngine =
+        forecastEngine;
+
+    core.longHorizonForecastEngine =
+        forecastEngine;
+
+    core.longHorizonForecastEngineV32 =
+        forecastEngine;
+
+    this.reopening.forecastEngine =
+        forecastEngine;
+
+    this.reopening.longHorizonForecastEngine =
+        forecastEngine;
+
+    this.reopening.longHorizonForecastEngineV32 =
+        forecastEngine;
+
+    if (
+        typeof forecastEngine.attachToCore ===
+        "function"
+    ) {
+
+        forecastEngine.attachToCore(
+            core
+        );
+
+    }
+
+}
+
+if (
+    arrivalEngine
+) {
+
+    core.arrivalEngine =
+        arrivalEngine;
+
+    core.rainArrivalPredictionEngine =
+        arrivalEngine;
+
+    this.reopening.arrivalEngine =
+        arrivalEngine;
+
+}
 
             if (
                 typeof core.getRecoveryReopening !==
