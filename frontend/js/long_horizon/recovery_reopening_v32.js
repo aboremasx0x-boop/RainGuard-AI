@@ -3088,6 +3088,24 @@ RecoveryReopeningClass.prototype.resolveReopeningDependencies =
                 validation.durationMs =
                     validation.completedAt -
                     validation.startedAt;
+               if (
+    this.state.status ===
+    REOPENING_STATUS.VALIDATING
+) {
+
+    this.state.status =
+        validation.passed
+            ? REOPENING_STATUS.WAITING
+            : REOPENING_STATUS.FAILED;
+
+}
+
+if (
+    validation.passed
+) {
+    this.state.stage =
+        REOPENING_STAGE.NONE;
+}
 
                 this.state.stageHistory
                     .push({
@@ -6115,10 +6133,12 @@ RecoveryReopeningClass.prototype.resolveReopeningDependencies =
             }
 
             if (
-                this.isRunning()
-            ) {
-                return this.getExecutionStatus();
-            }
+                if (
+    execution.status ===
+    STAGE_EXECUTION_STATUS.RUNNING
+) {
+    return this.getExecutionStatus();
+}
 
             const safeOptions =
                 safeObject(options);
