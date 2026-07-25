@@ -14267,7 +14267,9 @@
        FINAL GLOBAL EXPORTS
        ====================================================================== */
 
-    global.RecoveryReopeningIntegrationV32Part5 = {
+   global.RecoveryReopeningIntegrationV32 =
+    IntegrationClass;
+   global.RecoveryReopeningIntegrationV32Part5 = {
 
         INTEGRATION_DIAGNOSTIC_LEVEL,
 
