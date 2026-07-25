@@ -725,9 +725,12 @@
 <script src="js/long_horizon/recovery_core_v32.js?v=3201"></script>
 <script src="js/long_horizon/recovery_closure_v32.js?v=3201"></script>
 <script src="js/long_horizon/post_recovery_monitoring_v32.js?v=3201"></script>
+
 <script src="js/rain_arrival_prediction_engine_v32.js?v=3206"></script>
 <script src="js/rain_arrival_integration_v32.js?v=3206"></script>
+
 <script src="js/long_horizon/recovery_reopening_v32.js?v=3201"></script>
+
 <script>
 (function installRecoveryDependencyCompatibilityV32(global) {
     "use strict";
@@ -747,7 +750,10 @@
         return null;
     }
 
-    /* Recovery Core */
+    /* ==========================================================
+       RECOVERY CORE
+    ========================================================== */
+
     exposeFirstAvailable(
         "LongHorizonRecoveryCoreV32Instance",
         [
@@ -758,7 +764,35 @@
         ]
     );
 
-    /* Recovery Closure */
+    if (
+        !global.RainArrivalRecoveryCoreV32Instance &&
+        typeof global.RainArrivalRecoveryCoreV32 === "function"
+    ) {
+        try {
+            global.RainArrivalRecoveryCoreV32Instance =
+                new global.RainArrivalRecoveryCoreV32({
+                    autoStart: false
+                });
+        } catch (error) {
+            console.error(
+                "[Recovery Compatibility] Recovery Core instance failed.",
+                error
+            );
+        }
+    }
+
+    if (
+        !global.LongHorizonRecoveryCoreV32Instance &&
+        global.RainArrivalRecoveryCoreV32Instance
+    ) {
+        global.LongHorizonRecoveryCoreV32Instance =
+            global.RainArrivalRecoveryCoreV32Instance;
+    }
+
+    /* ==========================================================
+       RECOVERY CLOSURE
+    ========================================================== */
+
     exposeFirstAvailable(
         "RecoveryClosureV32Instance",
         [
@@ -768,7 +802,10 @@
         ]
     );
 
-    /* Post-Recovery Monitoring */
+    /* ==========================================================
+       POST RECOVERY
+    ========================================================== */
+
     exposeFirstAvailable(
         "PostRecoveryMonitoringV32Instance",
         [
@@ -778,7 +815,10 @@
         ]
     );
 
-    /* Rain Arrival */
+    /* ==========================================================
+       ARRIVAL ENGINE
+    ========================================================== */
+
     if (
         !global.RainArrivalPredictionEngineV32Instance &&
         typeof global.RainArrivalPredictionEngineV32 === "function"
@@ -790,25 +830,38 @@
                 });
         } catch (error) {
             console.warn(
-                "[Recovery Compatibility V32] Arrival instance was not created.",
+                "[Recovery Compatibility] Arrival instance failed.",
                 error
             );
         }
     }
 
-    /* Source Adapter wrapper */
+    if (
+        !global.LongHorizonForecastEngineV32Instance &&
+        global.RainArrivalPredictionEngineV32Instance
+    ) {
+        global.LongHorizonForecastEngineV32Instance =
+            global.RainArrivalPredictionEngineV32Instance;
+    }
+
+    /* ==========================================================
+       SOURCE ADAPTER
+    ========================================================== */
+
     if (!global.SourceAdapterV32Instance) {
+
         global.SourceAdapterV32Instance = {
+
             initialize() {
-                return global.getSourceAdapterState?.() || true;
+                return true;
             },
 
             start() {
-                return global.collectNationalSources?.() || true;
+                return global.collectNationalSources?.();
             },
 
             refresh() {
-                return global.collectNationalSources?.() || true;
+                return global.collectNationalSources?.();
             },
 
             getState() {
@@ -818,12 +871,19 @@
             getStatus() {
                 return "ready";
             }
+
         };
+
     }
 
-    /* Browser storage */
+    /* ==========================================================
+       STORAGE
+    ========================================================== */
+
     if (!global.StorageOptimizerV32Instance) {
+
         global.StorageOptimizerV32Instance = {
+
             initialize() {
                 return true;
             },
@@ -833,7 +893,8 @@
             },
 
             save(key, value) {
-                global.localStorage?.setItem(
+
+                localStorage.setItem(
                     key,
                     JSON.stringify(value)
                 );
@@ -842,44 +903,45 @@
             },
 
             load(key) {
+
                 const value =
-                    global.localStorage?.getItem(key);
+                    localStorage.getItem(key);
 
                 if (!value) {
                     return null;
                 }
 
-                try {
-                    return JSON.parse(value);
-                } catch (_) {
-                    return value;
-                }
+                return JSON.parse(value);
             },
 
             getState() {
                 return {
-                    available:
-                        Boolean(global.localStorage)
+                    available: true
                 };
             },
 
             getStatus() {
-                return global.localStorage
-                    ? "ready"
-                    : "unavailable";
+                return "ready";
             }
+
         };
+
     }
 
-    /* Storm Tracking wrapper */
+    /* ==========================================================
+       STORM TRACKING
+    ========================================================== */
+
     if (!global.StormCellTrackingEngineV31Instance) {
+
         global.StormCellTrackingEngineV31Instance = {
-            start() {
-                return global.enableStormTrackingV31?.() || true;
-            },
 
             initialize() {
                 return true;
+            },
+
+            start() {
+                return global.enableStormTrackingV31?.();
             },
 
             track() {
@@ -897,18 +959,25 @@
             getStatus() {
                 return "ready";
             }
+
         };
+
     }
 
-    /* Storm Path Prediction wrapper */
+    /* ==========================================================
+       STORM PATH
+    ========================================================== */
+
     if (!global.StormPathPredictionEngineV32Instance) {
+
         global.StormPathPredictionEngineV32Instance = {
-            start() {
-                return global.enableStormPathPredictionV31?.() || true;
-            },
 
             initialize() {
                 return true;
+            },
+
+            start() {
+                return global.enableStormPathPredictionV31?.();
             },
 
             predict() {
@@ -926,12 +995,23 @@
             getStatus() {
                 return "ready";
             }
+
         };
+
     }
 
-    /* Verification wrapper */
+    /* ==========================================================
+       VERIFICATION
+    ========================================================== */
+
     if (!global.VerificationEngineV30Instance) {
+
         global.VerificationEngineV30Instance = {
+
+            initialize() {
+                return true;
+            },
+
             start() {
                 return true;
             },
@@ -941,7 +1021,7 @@
             },
 
             evaluate() {
-                return global.getV30VerificationResults?.() || {};
+                return global.getV30VerificationResults?.();
             },
 
             getState() {
@@ -951,17 +1031,24 @@
             getStatus() {
                 return "ready";
             }
+
         };
+
     }
 
-    /* Lightning wrapper */
+    /* ==========================================================
+       LIGHTNING
+    ========================================================== */
+
     if (!global.LightningAdapterV31Instance) {
+
         global.LightningAdapterV31Instance = {
-            start() {
+
+            initialize() {
                 return true;
             },
 
-            initialize() {
+            start() {
                 return true;
             },
 
@@ -980,17 +1067,19 @@
             getStatus() {
                 return "ready";
             }
+
         };
+
     }
 
     console.info(
-        "[Recovery Compatibility V32] Dependency aliases installed."
+        "[Recovery Compatibility V32] All compatibility aliases installed."
     );
 
 })(window);
 </script>
-<script src="js/long_horizon/recovery_reopening_integration_v32.js?v=3201"></script>
 
+<script src="js/long_horizon/recovery_reopening_integration_v32.js?v=3201"></script>
 <!-- =========================================================
      V30 ORCHESTRATOR
      يجب أن يكون آخر ملف JavaScript محلي رئيسي
