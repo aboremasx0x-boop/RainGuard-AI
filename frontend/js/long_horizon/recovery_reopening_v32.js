@@ -4491,19 +4491,46 @@ RecoveryReopeningClass.prototype.resolveReopeningDependencies =
                 required:
                     true,
 
-                executor:
-                    async () => {
-                        return startTarget(
-                            dependencies.forecastEngine,
-                            [
-                                "start",
-                                "resume",
-                                "initialize",
-                                "run"
-                            ]
-                        );
-                    },
+               executor: async () => {
 
+    const engine = dependencies.forecastEngine;
+
+    if (!engine) {
+        return {
+            success: false,
+            message: "Forecast engine unavailable."
+        };
+    }
+
+    if (typeof engine.runForecast === "function") {
+
+        const result =
+            await engine.runForecast({});
+
+        if (this.core) {
+            this.core.latestForecast =
+                result;
+
+            this.core.forecastData =
+                result;
+
+            this.core.longHorizonForecast =
+                result;
+        }
+
+        return normalizeComponentResult(result);
+    }
+
+    return startTarget(
+        engine,
+        [
+            "start",
+            "resume",
+            "initialize",
+            "run"
+        ]
+    );
+}
                 verifier:
                     async () => {
                         return verifyTarget(
