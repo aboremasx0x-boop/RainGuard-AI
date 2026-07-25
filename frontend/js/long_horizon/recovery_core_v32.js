@@ -3038,65 +3038,13 @@
                 enabled: true
             });
         };
-
-   getActiveSourceAdapters() {
-    const candidates = [
-        this.sourceAdapters,
-        this.sources,
-        this.adapters,
-        this.dataSources,
-        this.activeSources
-    ];
-
-    for (
-        const candidate of
-        candidates
-    ) {
-        if (
-            Array.isArray(
-                candidate
-            )
-        ) {
-            return candidate.filter(
-                source => {
-                    return (
-                        source &&
-                        source.enabled !==
-                        false &&
-                        source.active !==
-                        false &&
-                        source.status !==
-                        "disabled"
-                    );
-                }
-            );
-        }
-
-        if (
-            candidate &&
-            typeof candidate ===
-            "object"
-        ) {
-            return Object.values(
-                candidate
-            ).filter(
-                source => {
-                    return (
-                        source &&
-                        source.enabled !==
-                        false &&
-                        source.active !==
-                        false &&
-                        source.status !==
-                        "disabled"
-                    );
-                }
-            );
-        }
-    }
-
-    return [];
-}
+    CoreClass.prototype.getActiveSourceAdapters =
+       function getActiveSourceAdapters() {
+           return this.getSourceAdapters({
+               enabled: true
+        });
+    };
+   
 
     /* ======================================================================
        SECTION 22
