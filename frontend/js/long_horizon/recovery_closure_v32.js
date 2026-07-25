@@ -3840,14 +3840,19 @@
        ====================================================================== */
 
     global.RainArrivalRecoveryClosureV32Part2 = {
-        CLEANUP_REASON,
-        ARCHIVE_TYPE,
-        DEFAULT_PREDICTION_REMOVAL_DELAY_MS,
-        DEFAULT_CELL_REMOVAL_DELAY_MS,
-        DEFAULT_ARCHIVE_RETENTION_MS,
-        DEFAULT_MAX_OBSERVATION_ARCHIVE,
-        DEFAULT_MAX_FORECAST_ARCHIVE,
-        createArchiveRecord/* ==========================================================================
+    CLEANUP_REASON,
+    ARCHIVE_TYPE,
+    DEFAULT_PREDICTION_REMOVAL_DELAY_MS,
+    DEFAULT_CELL_REMOVAL_DELAY_MS,
+    DEFAULT_ARCHIVE_RETENTION_MS,
+    DEFAULT_MAX_OBSERVATION_ARCHIVE,
+    DEFAULT_MAX_FORECAST_ARCHIVE,
+    createArchiveRecord
+};
+
+})(window);
+
+    ==========================================================================
    RainGuard AI
    Long Horizon Forecast Engine V32
 
