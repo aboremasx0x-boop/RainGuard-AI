@@ -1320,85 +1320,99 @@ refreshRecoveryClosure() {
 
         };
 
-    /* ======================================================================
-       SECTION 21
-       RESOLVE DEPENDENCIES
-       ====================================================================== */
+  /* ======================================================================
+   SECTION 21
+   RESOLVE DEPENDENCIES
+   ====================================================================== */
 
-    RecoveryReopeningClass.prototype.resolveReopeningDependencies =
-        function resolveReopeningDependencies() {
+RecoveryReopeningClass.prototype.resolveReopeningDependencies =
+    function resolveReopeningDependencies() {
 
-            const core =
-                this.core ||
-                global.LongHorizonRecoveryCoreV32Instance ||
-                global.RainArrivalRecoveryCoreV32Instance ||
-                global.recoveryCoreV32 ||
-                null;
+        const core =
+            this.core ||
+            global.LongHorizonRecoveryCoreV32Instance ||
+            global.RainArrivalRecoveryCoreV32Instance ||
+            global.recoveryCoreV32 ||
+            null;
 
-            const closure =
-                this.closure ||
-                core
-                    ?.getRecoveryClosure?.() ||
-                core
-                    ?.recoveryClosure ||
-                global.RecoveryClosureV32Instance ||
-                null;
+        const closure =
+            this.recoveryClosure ||
+            this.recoveryClosureV32 ||
+            this.closure ||
+            core
+                ?.getRecoveryClosure?.() ||
+            core
+                ?.recoveryClosure ||
+            core
+                ?.recoveryClosureV32 ||
+            global.RecoveryClosureV32Instance ||
+            global.RainArrivalRecoveryClosureV32Instance ||
+            null;
 
-            const monitoring =
-                this.monitoring ||
-                core
-                    ?.getPostRecoveryMonitoring?.() ||
-                core
-                    ?.postRecoveryMonitoring ||
-                global.PostRecoveryMonitoringV32Instance ||
-                null;
+        const monitoring =
+            this.monitoring ||
+            core
+                ?.getPostRecoveryMonitoring?.() ||
+            core
+                ?.postRecoveryMonitoring ||
+            global.PostRecoveryMonitoringV32Instance ||
+            null;
 
-            const forecastEngine =
-                core
-                    ?.getForecastEngine?.() ||
-                core
-                    ?.forecastEngine ||
-                global.LongHorizonForecastEngineV32Instance ||
-                global.LongHorizonForecastEngineV32 ||
-                null;
+        const forecastEngine =
+            core
+                ?.getForecastEngine?.() ||
+            core
+                ?.forecastEngine ||
+            global.LongHorizonForecastEngineV32Instance ||
+            global.LongHorizonForecastEngineV32 ||
+            null;
 
-            const arrivalEngine =
-                core
-                    ?.getArrivalEngine?.() ||
-                core
-                    ?.arrivalEngine ||
-                global.RainArrivalPredictionEngineV32Instance ||
-                global.RainArrivalPredictionEngineV32 ||
-                null;
+        const arrivalEngine =
+            core
+                ?.getArrivalEngine?.() ||
+            core
+                ?.arrivalEngine ||
+            global.RainArrivalPredictionEngineV32Instance ||
+            global.RainArrivalPredictionEngineV32 ||
+            null;
 
-            const sourceEngine =
-                core
-                    ?.getSourceEngine?.() ||
-                core
-                    ?.sourceEngine ||
-                global.SourceAdapterV32Instance ||
-                null;
+        const sourceEngine =
+            core
+                ?.getSourceEngine?.() ||
+            core
+                ?.sourceEngine ||
+            global.SourceAdapterV32Instance ||
+            null;
 
-            const storage =
-                core
-                    ?.getStorage?.() ||
-                core
-                    ?.storage ||
-                global.StorageOptimizerV32Instance ||
-                global.localStorage ||
-                null;
+        const storage =
+            core
+                ?.getStorage?.() ||
+            core
+                ?.storage ||
+            global.StorageOptimizerV32Instance ||
+            global.localStorage ||
+            null;
 
-            return {
-                core,
-                closure,
-                monitoring,
-                forecastEngine,
-                arrivalEngine,
-                sourceEngine,
-                storage
-            };
+        this.core =
+            core;
 
+        this.recoveryClosure =
+            closure;
+
+        this.recoveryClosureV32 =
+            closure;
+
+        return {
+            core,
+            closure,
+            monitoring,
+            forecastEngine,
+            arrivalEngine,
+            sourceEngine,
+            storage
         };
+
+    };
 
     /* ======================================================================
        SECTION 22
