@@ -6869,7 +6869,7 @@
                             )
                         ),
 
-                    execute:
+                   executor:
                         this.createResourceStartHandler(
                             dependencyKey,
                             definition
