@@ -4472,83 +4472,214 @@ RecoveryReopeningClass.prototype.resolveReopeningDependencies =
                     }
             });
 
-            this.registerComponent({
-                id:
-                    "forecast_engine",
+           this.registerComponent({
 
-                name:
-                    "Long Horizon Forecast Engine",
+    id:
+        "forecast_engine",
 
-                type:
-                    COMPONENT_TYPE.ENGINE,
+    name:
+        "Long Horizon Forecast Engine",
 
-                stage:
-                    REOPENING_STAGE.FORECAST,
+    type:
+        COMPONENT_TYPE.ENGINE,
 
-                priority:
-                    REOPENING_PRIORITY.CRITICAL,
+    stage:
+        REOPENING_STAGE.FORECAST,
 
-                required:
+    priority:
+        REOPENING_PRIORITY.CRITICAL,
+
+    required:
+        true,
+
+    executor:
+        async () => {
+
+            const engine =
+                dependencies.forecastEngine;
+
+            if (
+                !engine
+            ) {
+                return {
+
+                    success:
+                        false,
+
+                    message:
+                        "Forecast engine is unavailable."
+
+                };
+            }
+
+            if (
+                typeof engine.runForecast ===
+                "function"
+            ) {
+
+                const result =
+                    await engine.runForecast({});
+
+                const success =
+                    result?.success ===
+                    true;
+
+                if (
+                    success &&
+                    this.core
+                ) {
+
+                    this.core.latestForecast =
+                        result.summary ||
+                        result;
+
+                    this.core.forecastData =
+                        result.forecasts ||
+                        result.horizonForecasts ||
+                        result;
+
+                    this.core.longHorizonForecast =
+                        result;
+
+                }
+
+                return {
+
+                    success,
+
+                    warning:
+                        result?.partial ===
+                        true,
+
+                    message:
+                        success
+                            ? "Long horizon forecast completed successfully."
+                            : (
+                                result?.error?.message ||
+                                "Long horizon forecast failed."
+                            ),
+
+                    details:
+                        result
+
+                };
+            }
+
+            return startTarget(
+                engine,
+                [
+                    "run",
+                    "start",
+                    "resume",
+                    "initialize"
+                ]
+            );
+
+        },
+
+    verifier:
+        async () => {
+
+            const engine =
+                dependencies.forecastEngine;
+
+            if (
+                !engine
+            ) {
+                return {
+
+                    success:
+                        false,
+
+                    message:
+                        "Forecast engine is unavailable."
+
+                };
+            }
+
+            const latestForecast =
+                engine.getLatestForecast?.() ||
+                engine.state?.latestForecast ||
+                this.core?.latestForecast ||
+                null;
+
+            const status =
+                String(
+                    engine.state?.status ||
+                    engine.getStatus?.()?.status ||
+                    ""
+                ).toLowerCase();
+
+            const validStatus =
+                [
+                    "available",
+                    "completed",
+                    "ready",
+                    "partial"
+                ].includes(
+                    status
+                );
+
+            return {
+
+                success:
+                    Boolean(
+                        latestForecast
+                    ) ||
+                    validStatus,
+
+                details: {
+                    status,
+                    latestForecastAvailable:
+                        Boolean(
+                            latestForecast
+                        )
+                }
+
+            };
+
+        },
+
+    rollback:
+        async () => {
+
+            const engine =
+                dependencies.forecastEngine;
+
+            if (
+                typeof engine?.pause ===
+                "function"
+            ) {
+                return normalizeComponentResult(
+                    await engine.pause()
+                );
+            }
+
+            if (
+                typeof engine?.stop ===
+                "function"
+            ) {
+                return normalizeComponentResult(
+                    await engine.stop()
+                );
+            }
+
+            return {
+
+                success:
                     true,
 
-               executor: async () => {
+                skipped:
+                    true,
 
-    const engine = dependencies.forecastEngine;
+                message:
+                    "Forecast engine does not require rollback."
 
-    if (!engine) {
-        return {
-            success: false,
-            message: "Forecast engine unavailable."
-        };
-    }
+            };
 
-    if (typeof engine.runForecast === "function") {
-
-        const result =
-            await engine.runForecast({});
-
-        if (this.core) {
-            this.core.latestForecast =
-                result;
-
-            this.core.forecastData =
-                result;
-
-            this.core.longHorizonForecast =
-                result;
         }
 
-        return normalizeComponentResult(result);
-    }
-
-    return startTarget(
-        engine,
-        [
-            "start",
-            "resume",
-            "initialize",
-            "run"
-        ]
-    );
-}
-                verifier:
-                    async () => {
-                        return verifyTarget(
-                            dependencies.forecastEngine
-                        );
-                    },
-
-                rollback:
-                    async () => {
-                        return startTarget(
-                            dependencies.forecastEngine,
-                            [
-                                "pause",
-                                "stop"
-                            ]
-                        );
-                    }
-            });
+});
 
             this.registerComponent({
                 id:
