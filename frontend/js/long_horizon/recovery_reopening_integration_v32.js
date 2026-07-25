@@ -6147,47 +6147,84 @@
 
                 const service = {
 
-                    id:
-                        createId(
-                            "reopening_service"
-                        ),
+    id:
+        createId(
+            "reopening_service"
+        ),
 
-                    key:
-                        dependencyKey,
+    key:
+        dependencyKey,
 
-                    name:
-                        options.name ||
-                        dependencyKey,
+    name:
+        options.name ||
+        dependencyKey,
 
-                    role:
-                        definition.role,
+    role:
+        definition.role,
 
-                    target,
+    target,
 
-                    required:
-                        definition.required ===
-                        true,
+    required:
+        definition.required ===
+        true,
 
-                    metadata: {
-                        category:
-                            this.state
-                                .dependencies[
-                                    dependencyKey
-                                ]?.category ||
-                            ENGINE_CATEGORY.CUSTOM,
+    stage:
+        definition.stage,
 
-                        globalName:
-                            record.globalName,
+    executor:
+        this.createResourceStartHandler(
+            dependencyKey,
+            definition
+        ),
 
-                        integrationId:
-                            this.id,
+    rollback:
+        this.createResourceRollbackHandler(
+            dependencyKey,
+            definition
+        ),
 
-                        ...safeObject(
-                            options.metadata
-                        )
-                    }
-                };
+    verifier:
+        async () => {
 
+            const result =
+                await this.createResourceHealthCheck(
+                    dependencyKey,
+                    definition
+                )();
+
+            return {
+                success:
+                    result.healthy === true ||
+                    result.degraded === true,
+
+                message:
+                    result.message ||
+                    null,
+
+                details:
+                    result
+            };
+        },
+
+    metadata: {
+        category:
+            this.state
+                .dependencies[
+                    dependencyKey
+                ]?.category ||
+            ENGINE_CATEGORY.CUSTOM,
+
+        globalName:
+            record.globalName,
+
+        integrationId:
+            this.id,
+
+        ...safeObject(
+            options.metadata
+        )
+    }
+};
                 const invocation =
                     invokeFirstAvailable(
                         this.reopening,
@@ -6480,6 +6517,44 @@
                     required:
                         definition.required ===
                         true,
+                       stage:
+        definition.stage,
+
+    executor:
+        this.createResourceStartHandler(
+            dependencyKey,
+            definition
+        ),
+
+    rollback:
+        this.createResourceRollbackHandler(
+            dependencyKey,
+            definition
+        ),
+
+    verifier:
+        async () => {
+
+            const result =
+                await this.createResourceHealthCheck(
+                    dependencyKey,
+                    definition
+                )();
+
+            return {
+                success:
+                    result.healthy === true ||
+                    result.degraded === true,
+
+                message:
+                    result.message ||
+                    null,
+
+                details:
+                    result
+            };
+        },
+
 
                     refresh:
                         async (
