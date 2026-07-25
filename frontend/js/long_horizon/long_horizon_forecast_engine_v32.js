@@ -2081,90 +2081,175 @@ Object.assign(
 
         /* ============================================================= */
 
-        async executeArrivalPrediction(
-            input = {}
-        ) {
+       async executeArrivalPrediction(
+    input = {}
+) {
 
-            const engine =
-                this.getArrivalEngine();
+    let engine =
+        this.getArrivalEngine();
+
+    /*
+       بعض الإصدارات تحفظ الكلاس نفسه بدل Instance.
+       إذا كانت القيمة function نحاول إنشاء نسخة منه.
+    */
+    if (
+        typeof engine ===
+        "function"
+    ) {
+
+        try {
+
+            engine =
+                new engine({
+
+                    core:
+                        this.getCore(),
+
+                    autoInitialize:
+                        true
+
+                });
+
+            this.arrivalEngine =
+                engine;
 
             if (
-                !engine
-            ) {
-                throw new Error(
-                    "Rain arrival prediction engine is unavailable."
-                );
-            }
-
-            const normalizedInput =
-                this.normalizeForecastInput(
-                    input
-                );
-
-            let result =
-                null;
-
-            if (
-                typeof engine
-                    .runCompleteRainArrivalPrediction ===
-                "function"
+                this.dependencies
             ) {
 
-                result =
-                    await engine
-                        .runCompleteRainArrivalPrediction(
-                            normalizedInput.raw ||
-                            normalizedInput
-                        );
-
-            } else if (
-                typeof engine
-                    .predictRainArrival ===
-                "function"
-            ) {
-
-                result =
-                    await engine
-                        .predictRainArrival(
-                            normalizedInput.raw ||
-                            normalizedInput
-                        );
-
-            } else if (
-                typeof engine.run ===
-                "function"
-            ) {
-
-                result =
-                    await engine.run(
-                        normalizedInput.raw ||
-                        normalizedInput
-                    );
-
-            } else {
-
-                throw new Error(
-                    "Rain arrival prediction engine has no supported execution method."
-                );
+                this.dependencies.arrivalEngine =
+                    engine;
 
             }
 
-            return {
+        } catch (error) {
 
-                normalizedInput,
+            console.error(
+                "[LongHorizonForecastV32] Failed to create arrival engine instance.",
+                error
+            );
 
-                rawResult:
-                    result,
+            throw new Error(
+                "Failed to create RainArrivalPredictionEngineV32 instance."
+            );
 
-                arrival:
-                    this.extractArrivalPrediction(
-                        result
+        }
+
+    }
+
+    if (
+        !engine
+    ) {
+        throw new Error(
+            "Rain arrival prediction engine is unavailable."
+        );
+    }
+
+    const normalizedInput =
+        this.normalizeForecastInput(
+            input
+        );
+
+    let result =
+        null;
+
+    if (
+        typeof engine
+            .runCompleteRainArrivalPrediction ===
+        "function"
+    ) {
+
+        result =
+            await engine
+                .runCompleteRainArrivalPrediction(
+                    normalizedInput.raw ||
+                    normalizedInput
+                );
+
+    } else if (
+        typeof engine
+            .predictRainArrival ===
+        "function"
+    ) {
+
+        result =
+            await engine
+                .predictRainArrival(
+                    normalizedInput.raw ||
+                    normalizedInput
+                );
+
+    } else if (
+        typeof engine.run ===
+        "function"
+    ) {
+
+        result =
+            await engine.run(
+                normalizedInput.raw ||
+                normalizedInput
+            );
+
+    } else if (
+        typeof engine.execute ===
+        "function"
+    ) {
+
+        result =
+            await engine.execute(
+                normalizedInput.raw ||
+                normalizedInput
+            );
+
+    } else if (
+        typeof engine.predict ===
+        "function"
+    ) {
+
+        result =
+            await engine.predict(
+                normalizedInput.raw ||
+                normalizedInput
+            );
+
+    } else {
+
+        console.error(
+            "[LongHorizonForecastV32] Unsupported arrival engine.",
+            {
+                engine,
+                className:
+                    engine?.constructor?.name,
+                methods:
+                    Object.getOwnPropertyNames(
+                        Object.getPrototypeOf(
+                            engine
+                        ) || {}
                     )
+            }
+        );
 
-            };
+        throw new Error(
+            "Rain arrival prediction engine has no supported execution method."
+        );
 
-        },
+    }
 
+    return {
+
+        normalizedInput,
+
+        rawResult:
+            result,
+
+        arrival:
+            this.extractArrivalPrediction(
+                result
+            )
+
+    };
+
+},
         /* ============================================================= */
 
         normalizeArrivalPredictionRecord(
@@ -2964,11 +3049,14 @@ const defaultLongHorizonForecastEngineInstance =
 
         arrivalEngine:
 
-            global.RainArrivalPredictionEngineV32Instance ||
+    global.RainArrivalPredictionEngineV32Instance ||
 
-            global.RainArrivalPredictionEngineV32 ||
-
-            null
+    (
+        typeof global.RainArrivalPredictionEngineV32 ===
+        "function"
+            ? new global.RainArrivalPredictionEngineV32()
+            : null
+    )
 
     });
 
