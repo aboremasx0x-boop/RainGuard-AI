@@ -5218,42 +5218,128 @@
     }
 
     if (
-        !isObjectLike(
-            result
-        )
+        result === null ||
+        typeof result !==
+        "object"
     ) {
         return HEALTH_STATUS.UNKNOWN;
     }
-        const score =
-            normalizeHealthScore(
-                result.healthScore ??
-                result.score ??
-                result.readinessScore
-            );
 
+    const rawStatus =
+        String(
+            result.status ||
+            result.health ||
+            result.state ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+    if (
+        [
+            "healthy",
+            "ready",
+            "running",
+            "active",
+            "connected",
+            "available",
+            "online",
+            "ok",
+            "success",
+            "initialized",
+            "started"
+        ].includes(
+            rawStatus
+        )
+    ) {
+        return HEALTH_STATUS.HEALTHY;
+    }
+
+    if (
+        [
+            "degraded",
+            "partial",
+            "warning",
+            "limited"
+        ].includes(
+            rawStatus
+        )
+    ) {
+        return HEALTH_STATUS.DEGRADED;
+    }
+
+    if (
+        [
+            "failed",
+            "error",
+            "unhealthy",
+            "offline",
+            "stopped",
+            "unavailable",
+            "destroyed"
+        ].includes(
+            rawStatus
+        )
+    ) {
+        return HEALTH_STATUS.UNHEALTHY;
+    }
+
+    if (
+        result.healthy ===
+        true ||
+        result.ready ===
+        true ||
+        result.available ===
+        true ||
+        result.online ===
+        true
+    ) {
+        return HEALTH_STATUS.HEALTHY;
+    }
+
+    if (
+        result.healthy ===
+        false ||
+        result.ready ===
+        false ||
+        result.available ===
+        false ||
+        result.online ===
+        false
+    ) {
+        return HEALTH_STATUS.UNHEALTHY;
+    }
+
+    const score =
+        normalizeHealthScore(
+            result.healthScore ??
+            result.score ??
+            result.readinessScore
+        );
+
+    if (
+        score !==
+        null
+    ) {
         if (
-            score !==
-            null
+            score >=
+            0.75
         ) {
-            if (
-                score >=
-                0.75
-            ) {
-                return HEALTH_STATUS.HEALTHY;
-            }
-
-            if (
-                score >=
-                0.4
-            ) {
-                return HEALTH_STATUS.DEGRADED;
-            }
-
-            return HEALTH_STATUS.UNHEALTHY;
+            return HEALTH_STATUS.HEALTHY;
         }
 
-        return HEALTH_STATUS.UNKNOWN;
+        if (
+            score >=
+            0.4
+        ) {
+            return HEALTH_STATUS.DEGRADED;
+        }
+
+        return HEALTH_STATUS.UNHEALTHY;
     }
+
+    return HEALTH_STATUS.UNKNOWN;
+}
 
     function resolveHealthScore(
         result,
