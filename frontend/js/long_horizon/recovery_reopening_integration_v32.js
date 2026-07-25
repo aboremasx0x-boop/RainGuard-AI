@@ -3233,109 +3233,193 @@
        ====================================================================== */
 
     IntegrationClass.prototype.installDependencyResolver =
-        function installDependencyResolver() {
+    function installDependencyResolver() {
 
-            if (
-                !isValidReopeningInstance(
-                    this.reopening
-                )
-            ) {
-                return false;
-            }
+        if (
+            !isValidReopeningInstance(
+                this.reopening
+            )
+        ) {
+            return false;
+        }
 
-            const integration =
-                this;
+        const integration =
+            this;
 
-            this.reopening
-                .resolveReopeningDependencies =
-                function resolveReopeningDependencies() {
+        this.reopening.resolveReopeningDependencies =
+            function resolveReopeningDependencies() {
 
-                    return {
+                const core =
+                    integration.getDependency(
+                        "recoveryCore"
+                    ) ||
+                    this.core ||
+                    global.LongHorizonRecoveryCoreV32Instance ||
+                    global.RainArrivalRecoveryCoreV32Instance ||
+                    global.recoveryCoreV32 ||
+                    null;
 
-                        core:
-                            integration.getDependency(
-                                "recoveryCore"
-                            ),
+                const closure =
+                    integration.getDependency(
+                        "closureEngine"
+                    ) ||
+                    this.recoveryClosure ||
+                    this.recoveryClosureV32 ||
+                    this.closure ||
+                    core?.getRecoveryClosure?.() ||
+                    core?.recoveryClosure ||
+                    core?.recoveryClosureV32 ||
+                    global.RecoveryClosureV32Instance ||
+                    global.RainArrivalRecoveryClosureV32Instance ||
+                    null;
 
-                        closure:
-                            integration.getDependency(
-                                "closureEngine"
-                            ),
+                const monitoring =
+                    integration.getDependency(
+                        "monitoringEngine"
+                    ) ||
+                    this.monitoring ||
+                    core?.getPostRecoveryMonitoring?.() ||
+                    core?.postRecoveryMonitoring ||
+                    global.PostRecoveryMonitoringV32Instance ||
+                    null;
 
-                        monitoring:
-                            integration.getDependency(
-                                "monitoringEngine"
-                            ),
+                const forecastEngine =
+                    integration.getDependency(
+                        "forecastEngine"
+                    ) ||
+                    this.forecastEngine ||
+                    core?.getForecastEngine?.() ||
+                    core?.forecastEngine ||
+                    global.LongHorizonForecastEngineV32Instance ||
+                    global.LongHorizonForecastEngineV32 ||
+                    null;
 
-                        forecastEngine:
-                            integration.getDependency(
-                                "forecastEngine"
-                            ),
+                const arrivalEngine =
+                    integration.getDependency(
+                        "arrivalEngine"
+                    ) ||
+                    this.arrivalEngine ||
+                    core?.getArrivalEngine?.() ||
+                    core?.arrivalEngine ||
+                    global.RainArrivalPredictionEngineV32Instance ||
+                    global.RainArrivalPredictionEngineV32 ||
+                    null;
 
-                        arrivalEngine:
-                            integration.getDependency(
-                                "arrivalEngine"
-                            ),
+                const sourceEngine =
+                    integration.getDependency(
+                        "sourceEngine"
+                    ) ||
+                    this.sourceEngine ||
+                    core?.getSourceEngine?.() ||
+                    core?.sourceEngine ||
+                    global.SourceAdapterV32Instance ||
+                    null;
 
-                        sourceEngine:
-                            integration.getDependency(
-                                "sourceEngine"
-                            ),
+                const storage =
+                    integration.getDependency(
+                        "storageEngine"
+                    ) ||
+                    this.storage ||
+                    core?.getStorage?.() ||
+                    core?.storage ||
+                    global.StorageOptimizerV32Instance ||
+                    global.localStorage ||
+                    null;
 
-                        storage:
-                            integration.getDependency(
-                                "storageEngine"
-                            ),
+                this.core =
+                    core;
 
-                        aiEngine:
-                            integration.getDependency(
-                                "aiEngine"
-                            ),
+                this.closure =
+                    closure;
 
-                        dashboard:
-                            integration.getDependency(
-                                "dashboardEngine"
-                            ),
+                this.recoveryClosure =
+                    closure;
 
-                        radarEngine:
-                            integration.getDependency(
-                                "radarEngine"
-                            ),
+                this.recoveryClosureV32 =
+                    closure;
 
-                        lightningEngine:
-                            integration.getDependency(
-                                "lightningEngine"
-                            ),
+                this.monitoring =
+                    monitoring;
 
-                        stormTrackingEngine:
-                            integration.getDependency(
-                                "stormTrackingEngine"
-                            ),
+                return {
+                    core,
+                    closure,
+                    monitoring,
+                    forecastEngine,
+                    arrivalEngine,
+                    sourceEngine,
+                    storage,
 
-                        pathPredictionEngine:
-                            integration.getDependency(
-                                "pathPredictionEngine"
-                            ),
+                    aiEngine:
+                        integration.getDependency(
+                            "aiEngine"
+                        ) ||
+                        this.aiEngine ||
+                        null,
 
-                        verificationEngine:
-                            integration.getDependency(
-                                "verificationEngine"
-                            ),
+                    dashboard:
+                        integration.getDependency(
+                            "dashboardEngine"
+                        ) ||
+                        this.dashboard ||
+                        core?.dashboard ||
+                        null,
 
-                        notificationEngine:
-                            integration.getDependency(
-                                "notificationEngine"
-                            ),
+                    radarEngine:
+                        integration.getDependency(
+                            "radarEngine"
+                        ) ||
+                        this.radarEngine ||
+                        null,
 
-                        networkEngine:
-                            integration.getDependency(
-                                "networkEngine"
-                            )
-                    };
+                    lightningEngine:
+                        integration.getDependency(
+                            "lightningEngine"
+                        ) ||
+                        this.lightningEngine ||
+                        null,
+
+                    stormTrackingEngine:
+                        integration.getDependency(
+                            "stormTrackingEngine"
+                        ) ||
+                        this.stormTrackingEngine ||
+                        null,
+
+                    pathPredictionEngine:
+                        integration.getDependency(
+                            "pathPredictionEngine"
+                        ) ||
+                        this.pathPredictionEngine ||
+                        null,
+
+                    verificationEngine:
+                        integration.getDependency(
+                            "verificationEngine"
+                        ) ||
+                        this.verificationEngine ||
+                        null,
+
+                    notificationEngine:
+                        integration.getDependency(
+                            "notificationEngine"
+                        ) ||
+                        this.notificationEngine ||
+                        null,
+
+                    networkEngine:
+                        integration.getDependency(
+                            "networkEngine"
+                        ) ||
+                        this.networkEngine ||
+                        null
                 };
 
-            return true;
-        };
+            };
+
+        return true;
+
+    };
 
     /* ======================================================================
        SECTION 30
