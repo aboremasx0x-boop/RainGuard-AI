@@ -11463,14 +11463,7 @@
     };
 
 })(window);
-        isArchiveRecordExpired,
-        getPredictionArchiveReason,
-        getCellArchiveReason,
-        buildPredictionIdentity,
-        buildCellIdentity
-    };
-
-})(window);
+       
 
 /* ==========================================================================
    RainGuard AI
