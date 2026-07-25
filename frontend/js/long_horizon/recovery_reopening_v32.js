@@ -394,31 +394,49 @@
     class RecoveryReopeningV32 {
 
         constructor(
-            options = {}
-        ) {
+    options = {}
+) {
 
-            this.id =
-                createId(
-                    "reopening"
-                );
+    this.id =
+        createId(
+            "reopening"
+        );
 
-            this.configuration = {
+    this.configuration = {
 
-                ...DEFAULT_CONFIGURATION,
+        ...DEFAULT_CONFIGURATION,
 
-                ...safeObject(options)
+        ...safeObject(options)
 
-            };
+    };
 
-            this.events =
-                new RecoveryReopeningEmitter();
+    this.events =
+        new RecoveryReopeningEmitter();
 
-            this.destroyed =
-                false;
+    this.destroyed =
+        false;
 
-            this.initializeState();
+    /* =============================================================
+       CORE REFERENCES
+       ============================================================= */
 
-        }
+    this.core =
+        options.core ||
+        null;
+
+    this.recoveryClosure =
+        this.core?.recoveryClosure ||
+        this.core?.recoveryClosureV32 ||
+        null;
+
+    this.recoveryClosureV32 =
+        this.recoveryClosure;
+
+    /* ============================================================= */
+
+    this.initializeState();
+
+}
 
         /* ============================================================= */
 
@@ -507,17 +525,75 @@
         /* ============================================================= */
 
         configure(
-            options = {}
-        ) {
+    options = {}
+) {
 
-            Object.assign(
-                this.configuration,
-                safeObject(options)
-            );
+    const safeOptions =
+        safeObject(options);
 
-            return this;
+    Object.assign(
+        this.configuration,
+        safeOptions
+    );
 
-        }
+    if (
+        safeOptions.core
+    ) {
+        this.core =
+            safeOptions.core;
+    }
+
+    if (
+        this.core
+    ) {
+        this.recoveryClosure =
+            this.core.recoveryClosure ||
+            this.core.recoveryClosureV32 ||
+            null;
+
+        this.recoveryClosureV32 =
+            this.recoveryClosure;
+    }
+
+    return this;
+
+}
+
+      attachCore(
+    core
+) {
+
+    this.core =
+        core ||
+        null;
+
+    this.recoveryClosure =
+        this.core?.recoveryClosure ||
+        this.core?.recoveryClosureV32 ||
+        null;
+
+    this.recoveryClosureV32 =
+        this.recoveryClosure;
+
+    return this;
+
+}
+
+/* ============================================================= */
+
+refreshRecoveryClosure() {
+
+    this.recoveryClosure =
+        this.core?.recoveryClosure ||
+        this.core?.recoveryClosureV32 ||
+        null;
+
+    this.recoveryClosureV32 =
+        this.recoveryClosure;
+
+    return this.recoveryClosure;
+
+}
 
         /* ============================================================= */
 
@@ -2723,6 +2799,7 @@
                     "Recovery reopening engine is destroyed."
                 );
             }
+             this.refreshRecoveryClosure();
 
             if (
                 validation.status ===
