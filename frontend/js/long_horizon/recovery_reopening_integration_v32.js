@@ -5140,37 +5140,30 @@
     }
 
     function resolveHealthStatus(
-        result
+    result
+) {
+    if (
+        result ===
+        true
     ) {
-        if (
-            result ===
-            true
-        ) {
-            return HEALTH_STATUS.HEALTHY;
-        }
+        return HEALTH_STATUS.HEALTHY;
+    }
 
-        if (
-            result ===
-            false
-        ) {
-            return HEALTH_STATUS.UNHEALTHY;
-        }
+    if (
+        result ===
+        false
+    ) {
+        return HEALTH_STATUS.UNHEALTHY;
+    }
 
-        if (
-            !isObjectLike(
-                result
-            )
-        ) {
-            return HEALTH_STATUS.UNKNOWN;
-        }
-
+    if (
+        typeof result ===
+        "string"
+    ) {
         const rawStatus =
-            String(
-                result.status ||
-                result.health ||
-                result.state ||
-                ""
-            ).toLowerCase();
+            result
+                .trim()
+                .toLowerCase();
 
         if (
             [
@@ -5182,7 +5175,9 @@
                 "available",
                 "online",
                 "ok",
-                "success"
+                "success",
+                "initialized",
+                "started"
             ].includes(
                 rawStatus
             )
@@ -5210,7 +5205,8 @@
                 "unhealthy",
                 "offline",
                 "stopped",
-                "unavailable"
+                "unavailable",
+                "destroyed"
             ].includes(
                 rawStatus
             )
@@ -5218,32 +5214,16 @@
             return HEALTH_STATUS.UNHEALTHY;
         }
 
-        if (
-            result.healthy ===
-            true ||
-            result.ready ===
-            true ||
-            result.available ===
-            true ||
-            result.online ===
-            true
-        ) {
-            return HEALTH_STATUS.HEALTHY;
-        }
+        return HEALTH_STATUS.UNKNOWN;
+    }
 
-        if (
-            result.healthy ===
-            false ||
-            result.ready ===
-            false ||
-            result.available ===
-            false ||
-            result.online ===
-            false
-        ) {
-            return HEALTH_STATUS.UNHEALTHY;
-        }
-
+    if (
+        !isObjectLike(
+            result
+        )
+    ) {
+        return HEALTH_STATUS.UNKNOWN;
+    }
         const score =
             normalizeHealthScore(
                 result.healthScore ??
