@@ -7523,91 +7523,240 @@ RecoveryReopeningClass.prototype.canStartReopening =
         };
 
     /* ======================================================================
-       SECTION 68
-       CREATE SNAPSHOT
-       ====================================================================== */
+   SECTION 68
+   CREATE SNAPSHOT
+   ====================================================================== */
 
-    RecoveryReopeningClass.prototype.createReopeningSnapshot =
-        function createReopeningSnapshot(
-            type =
-                SNAPSHOT_TYPE.MANUAL,
-            metadata = {}
+RecoveryReopeningClass.prototype.createReopeningSnapshot =
+    function createReopeningSnapshot(
+        type =
+            SNAPSHOT_TYPE.MANUAL,
+        metadata = {}
+    ) {
+
+        const integration =
+            this.ensureIntegrationState();
+
+        /*
+         * مهم:
+         * لا ننسخ state.snapshots داخل Snapshot جديد،
+         * لأن ذلك يؤدي إلى تضخم تكراري هائل.
+         */
+        const stateWithoutSnapshots = {
+
+            ...this.state,
+
+            snapshots: []
+        };
+
+        /*
+         * نحفظ ملخصًا خفيفًا للتنفيذ بدل النتائج الثقيلة.
+         */
+        if (
+            stateWithoutSnapshots.execution
         ) {
 
-            const integration =
-                this.ensureIntegrationState();
+            const execution =
+                stateWithoutSnapshots.execution;
 
-            const snapshot = {
+            stateWithoutSnapshots.execution = {
 
                 id:
-                    createId(
-                        "reopening_snapshot"
-                    ),
-
-                type,
-
-                timestamp:
-                    now(),
-
-                reopeningId:
-                    this.id,
+                    execution.id,
 
                 status:
-                    this.state.status,
+                    execution.status,
 
-                stage:
-                    this.state.stage,
+                startedAt:
+                    execution.startedAt,
 
-                result:
-                    this.state.result,
+                completedAt:
+                    execution.completedAt,
 
-                state:
-                    deepClone(
-                        this.state
+                durationMs:
+                    execution.durationMs,
+
+                currentStageIndex:
+                    execution.currentStageIndex,
+
+                currentStage:
+                    execution.currentStage,
+
+                progress:
+                    execution.progress,
+
+                completedComponentCount:
+                    execution.completedComponentCount,
+
+                failedComponentCount:
+                    execution.failedComponentCount,
+
+                skippedComponentCount:
+                    execution.skippedComponentCount,
+
+                retryCount:
+                    execution.retryCount,
+
+                rollbackCount:
+                    execution.rollbackCount,
+
+                stages:
+                    safeArray(
+                        execution.stages
+                    ).map(
+                        stage => ({
+                            id:
+                                stage.id,
+
+                            stage:
+                                stage.stage,
+
+                            status:
+                                stage.status,
+
+                            required:
+                                stage.required,
+
+                            startedAt:
+                                stage.startedAt,
+
+                            completedAt:
+                                stage.completedAt,
+
+                            durationMs:
+                                stage.durationMs
+                        })
                     ),
 
-                configuration:
-                    deepClone(
-                        this.configuration
-                    ),
+                components:
+                    safeArray(
+                        execution.components
+                    ).map(
+                        component => ({
+                            id:
+                                component.id,
 
-                integrationConfiguration:
-                    deepClone(
-                        integration.configuration
-                    ),
+                            name:
+                                component.name,
 
-                metadata:
-                    deepClone(
-                        safeObject(metadata)
+                            type:
+                                component.type,
+
+                            stage:
+                                component.stage,
+
+                            required:
+                                component.required,
+
+                            status:
+                                component.status,
+
+                            attemptCount:
+                                component.attemptCount,
+
+                            startedAt:
+                                component.startedAt,
+
+                            completedAt:
+                                component.completedAt,
+
+                            durationMs:
+                                component.durationMs,
+
+                            error:
+                                component.error
+                                    ? {
+                                        name:
+                                            component.error.name,
+
+                                        message:
+                                            component.error.message
+                                    }
+                                    : null
+                        })
                     )
             };
+        }
 
-            this.state.snapshots
-                .push(
-                    snapshot
-                );
+        const snapshot = {
 
-            const limit =
+            id:
+                createId(
+                    "reopening_snapshot"
+                ),
+
+            type,
+
+            timestamp:
+                now(),
+
+            reopeningId:
+                this.id,
+
+            status:
+                this.state.status,
+
+            stage:
+                this.state.stage,
+
+            result:
+                this.state.result,
+
+            state:
+                deepClone(
+                    stateWithoutSnapshots
+                ),
+
+            configuration:
+                deepClone(
+                    this.configuration
+                ),
+
+            integrationConfiguration:
+                deepClone(
+                    integration.configuration
+                ),
+
+            metadata:
+                deepClone(
+                    safeObject(metadata)
+                )
+        };
+
+        this.state.snapshots =
+            safeArray(
+                this.state.snapshots
+            );
+
+        this.state.snapshots.push(
+            snapshot
+        );
+
+        const limit =
+            Math.max(
+                1,
                 integration
                     .configuration
-                    .snapshotLimit;
-
-            if (
-                this.state.snapshots
-                    .length >
-                limit
-            ) {
-                this.state.snapshots =
-                    this.state.snapshots
-                        .slice(
-                            -limit
-                        );
-            }
-
-            return deepClone(
-                snapshot
+                    .snapshotLimit ||
+                20
             );
-        };
+
+        if (
+            this.state.snapshots.length >
+            limit
+        ) {
+            this.state.snapshots =
+                this.state.snapshots.slice(
+                    -limit
+                );
+        }
+
+        /*
+         * لا نعيد deepClone(snapshot) مرة أخرى،
+         * لأن snapshot جاهز وآمن.
+         */
+        return snapshot;
+    };
 
     /* ======================================================================
        SECTION 69
