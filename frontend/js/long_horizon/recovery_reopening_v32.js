@@ -3146,6 +3146,59 @@ if (
 
         };
 
+      /* ======================================================================
+   SECTION 29
+   CAN START REOPENING
+   ====================================================================== */
+
+RecoveryReopeningClass.prototype.canStartReopening =
+    async function canStartReopening(
+        options = {}
+    ) {
+
+        const validation =
+            await this.runValidation(
+                options
+            );
+
+        return {
+
+            allowed:
+                validation.passed ===
+                true,
+
+            passed:
+                validation.passed ===
+                true,
+
+            status:
+                validation.status,
+
+            readinessScore:
+                validation.readinessScore,
+
+            criticalPassRate:
+                validation.criticalPassRate,
+
+            blockingReasons:
+                deepClone(
+                    validation.blockingReasons ||
+                    []
+                ),
+
+            warnings:
+                deepClone(
+                    validation.warnings ||
+                    []
+                ),
+
+            validation:
+                deepClone(
+                    validation
+                )
+        };
+    };
+
   
     /* ======================================================================
        SECTION 30
