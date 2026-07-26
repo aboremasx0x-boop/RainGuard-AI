@@ -9234,106 +9234,165 @@ if (
                 false
             ) {
                 this.createReopeningSnapshot(
-                    SNAPSHOT_TYPE.PRE_REOPENING,
-                    {
-                        options:
-                            safeObject(options)
-                    }
+    SNAPSHOT_TYPE.PRE_REOPENING,
+    {
+        options: {
+            skipValidation:
+                options?.skipValidation ===
+                true,
+
+            rebuildPlan:
+                options?.rebuildPlan ===
+                true,
+
+            integrationAttempt:
+                options?.integrationAttempt ===
+                true,
+
+            hasValidationOptions:
+                Boolean(
+                    options?.validation
+                ),
+
+            hasPlanOptions:
+                Boolean(
+                    options?.plan
+                )
+        }
+    }
+);
+
+   /* ======================================================================
+   SECTION 90
+   WRAP STAGE EXECUTION
+   ====================================================================== */
+
+const originalExecuteReopeningStage =
+    RecoveryReopeningClass
+        .prototype
+        .executeReopeningStage;
+
+RecoveryReopeningClass.prototype.executeReopeningStage =
+    async function integratedExecuteReopeningStage(
+        stage
+    ) {
+
+        const result =
+            await originalExecuteReopeningStage
+                .call(
+                    this,
+                    stage
                 );
-            }
 
-            const result =
-                await originalStartReopening
-                    .call(
-                        this,
-                        options
-                    );
-
-            if (
-                result.status ===
-                REOPENING_STATUS.COMPLETED ||
-                result.result ===
-                REOPENING_RESULT.SUCCESS
-            ) {
-                integration.lifecyclePhase =
-                    LIFECYCLE_PHASE
-                        .POST_REOPENING_MONITORING;
-
-                if (
-                    this.configuration
-                        .createSnapshots !==
-                    false
-                ) {
-                    this.createReopeningSnapshot(
-                        SNAPSHOT_TYPE.REOPENING_COMPLETED
-                    );
-                }
-            } else if (
-                result.status ===
-                REOPENING_STATUS.FAILED
-            ) {
-                integration.lifecyclePhase =
-                    LIFECYCLE_PHASE.FAILED;
-
-                if (
-                    this.configuration
-                        .createSnapshots !==
-                    false
-                ) {
-                    this.createReopeningSnapshot(
-                        SNAPSHOT_TYPE.REOPENING_FAILED
-                    );
-                }
-            }
-
-            return result;
-        };
-
-    /* ======================================================================
-       SECTION 90
-       WRAP STAGE EXECUTION
-       ====================================================================== */
-
-    const originalExecuteReopeningStage =
-        RecoveryReopeningClass
-            .prototype
-            .executeReopeningStage;
-
-    RecoveryReopeningClass.prototype.executeReopeningStage =
-        async function integratedExecuteReopeningStage(
-            stage
+        if (
+            this.configuration
+                .createSnapshots !==
+            false
         ) {
 
-            const result =
-                await originalExecuteReopeningStage
-                    .call(
-                        this,
-                        stage
-                    );
+            /*
+               لا نحفظ stage.result كاملًا لأنه قد يحتوي
+               على مراجع دائرية مثل:
+               forecastEngine -> core -> forecastEngine
+            */
+            const safeStageResult = {
 
-            if (
-                this.configuration
-                    .createSnapshots !==
-                false
-            ) {
-                this.createReopeningSnapshot(
-                    SNAPSHOT_TYPE.STAGE_COMPLETED,
-                    {
-                        stage:
-                            stage.stage,
+                success:
+                    result?.success ??
+                    stage?.result?.success ??
+                    null,
 
-                        status:
-                            stage.status,
+                status:
+                    result?.status ||
+                    stage?.status ||
+                    null,
 
-                        result:
-                            stage.result
-                    }
-                );
-            }
+                stage:
+                    stage?.stage ||
+                    null,
 
-            return result;
-        };
+                progress:
+                    stage?.progress ??
+                    null,
 
+                componentCount:
+                    Array.isArray(
+                        stage?.components
+                    )
+                        ? stage.components.length
+                        : 0,
+
+                completedComponentCount:
+                    Array.isArray(
+                        stage?.components
+                    )
+                        ? stage.components.filter(
+                            component =>
+                                component?.status ===
+                                "completed"
+                        ).length
+                        : 0,
+
+                failedComponentCount:
+                    Array.isArray(
+                        stage?.components
+                    )
+                        ? stage.components.filter(
+                            component =>
+                                component?.status ===
+                                "failed"
+                        ).length
+                        : 0,
+
+                skippedComponentCount:
+                    Array.isArray(
+                        stage?.components
+                    )
+                        ? stage.components.filter(
+                            component =>
+                                component?.status ===
+                                "skipped"
+                        ).length
+                        : 0,
+
+                error:
+                    stage?.error
+                        ? {
+                            name:
+                                stage.error.name ||
+                                "Error",
+
+                            message:
+                                stage.error.message ||
+                                String(
+                                    stage.error
+                                )
+                        }
+                        : null
+
+            };
+
+            this.createReopeningSnapshot(
+                SNAPSHOT_TYPE.STAGE_COMPLETED,
+                {
+
+                    stage:
+                        stage?.stage ||
+                        null,
+
+                    status:
+                        stage?.status ||
+                        null,
+
+                    result:
+                        safeStageResult
+
+                }
+            );
+        }
+
+        return result;
+    };
     /* ======================================================================
        SECTION 91
        WRAP VALIDATION
