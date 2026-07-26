@@ -6042,134 +6042,194 @@ if (
                 }
             };
         };
+   function removeCircularReferences(
+    value
+) {
+
+    const visited =
+        new WeakSet();
+
+    function sanitize(
+        item
+    ) {
+
+        if (
+            item == null ||
+            typeof item !==
+            "object"
+        ) {
+            return item;
+        }
+
+        if (
+            visited.has(
+                item
+            )
+        ) {
+            return "[Circular]";
+        }
+
+        visited.add(
+            item
+        );
+
+        if (
+            Array.isArray(
+                item
+            )
+        ) {
+            return item.map(
+                sanitize
+            );
+        }
+
+        const output = {};
+
+        Object.keys(
+            item
+        ).forEach(
+            key => {
+
+                const property =
+                    item[key];
+
+                if (
+                    typeof property ===
+                    "function"
+                ) {
+                    return;
+                }
+
+                output[key] =
+                    sanitize(
+                        property
+                    );
+            }
+        );
+
+        return output;
+    }
+
+    return sanitize(
+        value
+    );
+}
 
     /* ======================================================================
-       SECTION 47
-       CREATE COMPONENT HANDLERS
-       ====================================================================== */
+   SECTION 47
+   CREATE COMPONENT HANDLERS
+   ====================================================================== */
 
-    IntegrationClass.prototype.createResourceStartHandler =
-        function createResourceStartHandler(
-            dependencyKey,
-            definition = {}
+IntegrationClass.prototype.createResourceStartHandler =
+    function createResourceStartHandler(
+        dependencyKey,
+        definition = {}
+    ) {
+
+        const integration =
+            this;
+
+        const resolvedDefinition =
+            this.resolveResourceDefinition(
+                dependencyKey,
+                definition
+            );
+
+        return async function startResource(
+            context = {}
         ) {
 
-            const integration =
-                this;
-
-            const resolvedDefinition =
-                this.resolveResourceDefinition(
-                    dependencyKey,
-                    definition
+            const target =
+                integration.getDependency(
+                    dependencyKey
                 );
 
-            return async function startResource(
-                context = {}
-            ) {
-
-                const target =
-                    integration.getDependency(
-                        dependencyKey
-                    );
-
-                if (!target) {
-
-                    if (
-                        resolvedDefinition.required
-                    ) {
-                        throw new Error(
-                            "Required reopening resource is unavailable: " +
-                            dependencyKey
-                        );
-                    }
-
-                    return {
-                        status:
-                            COMPONENT_STATUS.SKIPPED,
-
-                        success:
-                            true,
-
-                        skipped:
-                            true,
-
-                        reason:
-                            "Optional resource is unavailable.",
-
-                        dependencyKey
-                    };
-                }
-
-                const invocation =
-                    await invokeFirstAvailableAsync(
-                        target,
-                        resolvedDefinition
-                            .startMethods,
-                        [
-                            {
-                                reopening:
-                                    true,
-
-                                recoveryReopening:
-                                    true,
-
-                                integrationId:
-                                    integration.id,
-
-                                dependencyKey,
-
-                                context:
-                                    safeObject(
-                                        context
-                                    )
-                            }
-                        ],
-                        integration
-                            .configuration
-                            .startupTimeoutMs
-                    );
+            if (!target) {
 
                 if (
-                    invocation.invoked !==
-                    true
-                ) {
-                    return {
-                        status:
-                            COMPONENT_STATUS.COMPLETED,
-
-                        success:
-                            true,
-
-                        dependencyKey,
-
-                        method:
-                            "availability_only",
-
-                        message:
-                            "Resource is available and does not expose a start method."
-                    };
-                }
-
-                const result =
-                    await Promise.resolve(
-                        invocation.value
-                    );
-
-                if (
-                    result ===
-                    false ||
-                    result?.success ===
-                    false ||
-                    result?.status ===
-                    "failed"
+                    resolvedDefinition.required
                 ) {
                     throw new Error(
-                        result?.message ||
-                        "Resource reopening failed: " +
+                        "Required reopening resource is unavailable: " +
                         dependencyKey
                     );
                 }
 
+                return {
+                    status:
+                        COMPONENT_STATUS.SKIPPED,
+
+                    success:
+                        true,
+
+                    skipped:
+                        true,
+
+                    reason:
+                        "Optional resource is unavailable.",
+
+                    dependencyKey
+                };
+            }
+
+            const safeContext = {
+
+                attempt:
+                    context?.attempt ??
+                    null,
+
+                componentId:
+                    context?.component?.id ||
+                    null,
+
+                componentName:
+                    context?.component?.name ||
+                    null,
+
+                componentType:
+                    context?.component?.type ||
+                    null,
+
+                componentStage:
+                    context?.component?.stage ||
+                    null,
+
+                reopeningId:
+                    context?.reopening?.id ||
+                    null
+            };
+
+            const invocation =
+                await invokeFirstAvailableAsync(
+                    target,
+                    resolvedDefinition
+                        .startMethods,
+                    [
+                        {
+                            reopening:
+                                true,
+
+                            recoveryReopening:
+                                true,
+
+                            integrationId:
+                                integration.id,
+
+                            dependencyKey,
+
+                            context:
+                                safeContext
+                        }
+                    ],
+                    integration
+                        .configuration
+                        .startupTimeoutMs
+                );
+
+            if (
+                invocation.invoked !==
+                true
+            ) {
                 return {
                     status:
                         COMPONENT_STATUS.COMPLETED,
@@ -6180,96 +6240,158 @@ if (
                     dependencyKey,
 
                     method:
-                        invocation.method,
+                        "availability_only",
 
-                    result:
-                        deepClone(
-                            result
-                        )
+                    message:
+                        "Resource is available and does not expose a start method."
                 };
-            };
-        };
+            }
 
-    IntegrationClass.prototype.createResourceRollbackHandler =
-        function createResourceRollbackHandler(
-            dependencyKey,
-            definition = {}
-        ) {
-
-            const integration =
-                this;
-
-            const resolvedDefinition =
-                this.resolveResourceDefinition(
-                    dependencyKey,
-                    definition
+            const result =
+                await Promise.resolve(
+                    invocation.value
                 );
 
-            return async function rollbackResource(
-                context = {}
+            if (
+                result ===
+                false ||
+                result?.success ===
+                false ||
+                result?.status ===
+                "failed"
             ) {
+                throw new Error(
+                    result?.message ||
+                    "Resource reopening failed: " +
+                    dependencyKey
+                );
+            }
 
-                const target =
-                    integration.getDependency(
-                        dependencyKey
-                    );
+            return {
+                status:
+                    COMPONENT_STATUS.COMPLETED,
 
-                if (!target) {
-                    return {
-                        success:
-                            true,
+                success:
+                    true,
 
-                        skipped:
-                            true,
+                dependencyKey,
 
-                        dependencyKey
-                    };
-                }
+                method:
+                    invocation.method,
 
-                const invocation =
-                    await invokeFirstAvailableAsync(
-                        target,
-                        resolvedDefinition
-                            .stopMethods,
-                        [
-                            {
-                                rollback:
-                                    true,
+                result:
+                    removeCircularReferences(
+                        result
+                    )
+            };
+        };
+    };
 
-                                integrationId:
-                                    integration.id,
+IntegrationClass.prototype.createResourceRollbackHandler =
+    function createResourceRollbackHandler(
+        dependencyKey,
+        definition = {}
+    ) {
 
-                                dependencyKey,
+        const integration =
+            this;
 
-                                context:
-                                    safeObject(
-                                        context
-                                    )
-                            }
-                        ],
-                        integration
-                            .configuration
-                            .connectionTimeoutMs
-                    );
+        const resolvedDefinition =
+            this.resolveResourceDefinition(
+                dependencyKey,
+                definition
+            );
 
+        return async function rollbackResource(
+            context = {}
+        ) {
+
+            const target =
+                integration.getDependency(
+                    dependencyKey
+                );
+
+            if (!target) {
                 return {
-
                     success:
                         true,
 
-                    dependencyKey,
+                    skipped:
+                        true,
 
-                    method:
-                        invocation.method ||
-                        "none",
-
-                    result:
-                        deepClone(
-                            invocation.value
-                        )
+                    dependencyKey
                 };
+            }
+
+            const safeContext = {
+
+                attempt:
+                    context?.attempt ??
+                    null,
+
+                componentId:
+                    context?.component?.id ||
+                    null,
+
+                componentName:
+                    context?.component?.name ||
+                    null,
+
+                componentType:
+                    context?.component?.type ||
+                    null,
+
+                componentStage:
+                    context?.component?.stage ||
+                    null,
+
+                reopeningId:
+                    context?.reopening?.id ||
+                    null
+            };
+
+            const invocation =
+                await invokeFirstAvailableAsync(
+                    target,
+                    resolvedDefinition
+                        .stopMethods,
+                    [
+                        {
+                            rollback:
+                                true,
+
+                            integrationId:
+                                integration.id,
+
+                            dependencyKey,
+
+                            context:
+                                safeContext
+                        }
+                    ],
+                    integration
+                        .configuration
+                        .connectionTimeoutMs
+                );
+
+            return {
+
+                success:
+                    true,
+
+                dependencyKey,
+
+                method:
+                    invocation.method ||
+                    "none",
+
+                result:
+                    removeCircularReferences(
+                        invocation.value
+                    )
             };
         };
+    };
 
     /* ======================================================================
        SECTION 48
