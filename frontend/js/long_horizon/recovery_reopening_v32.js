@@ -9203,30 +9203,97 @@ if (
             return this.getIntegrationStatus();
         };
 
-    /* ======================================================================
-       SECTION 89
-       WRAP START REOPENING
-       ====================================================================== */
+   /* ======================================================================
+   SECTION 89
+   WRAP START REOPENING
+   ====================================================================== */
 
-    const originalStartReopening =
-        RecoveryReopeningClass
-            .prototype
-            .startReopening;
+const originalStartReopening =
+    RecoveryReopeningClass
+        .prototype
+        .startReopening;
 
-    RecoveryReopeningClass.prototype.startReopening =
-        async function integratedStartReopening(
-            options = {}
+RecoveryReopeningClass.prototype.startReopening =
+    async function integratedStartReopening(
+        options = {}
+    ) {
+
+        const integration =
+            this.ensureIntegrationState();
+
+        integration.reopeningAttemptCount +=
+            options.integrationAttempt === true
+                ? 0
+                : 1;
+
+        if (
+            this.configuration
+                .createSnapshots !==
+            false
         ) {
+            this.createReopeningSnapshot(
+                SNAPSHOT_TYPE.PRE_REOPENING,
+                {
+                    options: {
+                        skipValidation:
+                            options?.skipValidation ===
+                            true,
 
-            const integration =
-                this.ensureIntegrationState();
+                        rebuildPlan:
+                            options?.rebuildPlan ===
+                            true,
 
-            integration
-                .reopeningAttemptCount +=
-                options.integrationAttempt ===
-                true
-                    ? 0
-                    : 1;
+                        integrationAttempt:
+                            options?.integrationAttempt ===
+                            true,
+
+                        hasValidationOptions:
+                            Boolean(
+                                options?.validation
+                            ),
+
+                        hasPlanOptions:
+                            Boolean(
+                                options?.plan
+                            )
+                    }
+                }
+            );
+        }
+
+        integration.lifecyclePhase =
+            LIFECYCLE_PHASE.REOPENING;
+
+        let result;
+
+        try {
+
+            result =
+                await originalStartReopening
+                    .call(
+                        this,
+                        options
+                    );
+
+            const succeeded =
+                result?.success === true ||
+                result?.completed === true ||
+                this.state?.status ===
+                    REOPENING_STATUS.COMPLETED;
+
+            if (succeeded) {
+                integration.successfulReopeningCount +=
+                    1;
+
+                integration.lifecyclePhase =
+                    LIFECYCLE_PHASE.STABILIZING;
+            } else {
+                integration.failedReopeningCount +=
+                    1;
+
+                integration.lifecyclePhase =
+                    LIFECYCLE_PHASE.DEGRADED;
+            }
 
             if (
                 this.configuration
@@ -9234,33 +9301,53 @@ if (
                 false
             ) {
                 this.createReopeningSnapshot(
-    SNAPSHOT_TYPE.PRE_REOPENING,
-    {
-        options: {
-            skipValidation:
-                options?.skipValidation ===
-                true,
+                    SNAPSHOT_TYPE.POST_REOPENING,
+                    {
+                        success:
+                            succeeded,
 
-            rebuildPlan:
-                options?.rebuildPlan ===
-                true,
+                        status:
+                            this.state?.status ||
+                            null,
 
-            integrationAttempt:
-                options?.integrationAttempt ===
-                true,
+                        result:
+                            this.state?.result ||
+                            null
+                    }
+                );
+            }
 
-            hasValidationOptions:
-                Boolean(
-                    options?.validation
-                ),
+            return result;
 
-            hasPlanOptions:
-                Boolean(
-                    options?.plan
-                )
+        } catch (error) {
+
+            integration.failedReopeningCount +=
+                1;
+
+            integration.lifecyclePhase =
+                LIFECYCLE_PHASE.DEGRADED;
+
+            integration.errors =
+                safeArray(
+                    integration.errors
+                );
+
+            integration.errors.push({
+                timestamp:
+                    now(),
+
+                source:
+                    "startReopening",
+
+                error:
+                    normalizeError(
+                        error
+                    )
+            });
+
+            throw error;
         }
-    }
-);
+    };
 
    /* ======================================================================
    SECTION 90
