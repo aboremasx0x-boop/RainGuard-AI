@@ -14474,126 +14474,167 @@ IntegrationClass.prototype.createResourceRollbackHandler =
         return instance;
     }
 
-    /* ======================================================================
-       SECTION 108
-       AUTOMATIC BOOTSTRAP
-       ====================================================================== */
+   /* ======================================================================
+   SECTION 108
+   AUTOMATIC BOOTSTRAP
+   ====================================================================== */
 
-    function scheduleAutomaticIntegrationBootstrap(
-        instance,
-        options = {}
+function scheduleAutomaticIntegrationBootstrap(
+    instance,
+    options = {}
+) {
+    if (
+        !(instance instanceof IntegrationClass)
     ) {
-        if (
-            !(instance instanceof IntegrationClass)
-        ) {
-            return {
-                scheduled:
-                    false,
+        return {
+            scheduled:
+                false,
 
-                reason:
-                    "Invalid integration instance."
-            };
-        }
+            reason:
+                "Invalid integration instance."
+        };
+    }
 
-        const finalState =
-            instance.ensureFinalState();
+    const finalState =
+        instance.ensureFinalState();
 
-        instance.configureFinalLifecycle(
-            options
-        );
+    instance.configureFinalLifecycle(
+        options
+    );
 
-        instance.installGlobalShortcuts();
+    instance.installGlobalShortcuts();
 
-        instance.extendRecoveryCoreFinalAPI();
+    instance.extendRecoveryCoreFinalAPI();
 
-        if (
-            finalState.configuration
-                .autoBootstrap !==
-            true
-        ) {
-            return {
-                scheduled:
-                    false,
+    if (
+        finalState.configuration
+            .autoBootstrap !==
+        true
+    ) {
+        return {
+            scheduled:
+                false,
 
-                reason:
-                    "Automatic bootstrap is disabled."
-            };
-        }
+            reason:
+                "Automatic bootstrap is disabled."
+        };
+    }
 
-        const execute =
-            () => {
+    const execute =
+        () => {
 
-                const delay =
-                    finalState
-                        .configuration
-                        .bootstrapDelayMs;
+            const delay =
+                finalState
+                    .configuration
+                    .bootstrapDelayMs;
 
-                global.setTimeout(
-                    () => {
-                        instance
-                            .bootstrapIntegration()
-                            .catch(
-                                (error) => {
-                                    instance
-                                        .addIntegrationDiagnostic(
-                                            INTEGRATION_DIAGNOSTIC_LEVEL
-                                                .CRITICAL,
+            global.setTimeout(
+                () => {
 
-                                            "AUTO_BOOTSTRAP_ERROR",
+                    instance
+                        .bootstrapIntegration({
+                            startAutomation:
+                                true,
 
-                                            "Automatic integration bootstrap failed.",
+                            triggerImmediately:
+                                true,
 
-                                            {
-                                                error:
-                                                    sanitizeError(
-                                                        error
-                                                    )
-                                            }
-                                        );
+                            automation: {
+                                reopeningOptions: {
+                                    validation: {
+                                        requireClosureCompletion:
+                                            false,
+
+                                        requireMonitoringStability:
+                                            false
+                                    },
+
+                                    rebuildPlan:
+                                        true
                                 }
-                            );
-                    },
-                    delay
-                );
-            };
+                            }
+                        })
+                        .then(
+                            (bootstrapResult) => {
 
-        if (
-            finalState.configuration
-                .bootstrapOnDOMContentLoaded &&
-            global.document &&
-            global.document.readyState ===
+                                instance
+                                    .addIntegrationDiagnostic(
+                                        INTEGRATION_DIAGNOSTIC_LEVEL
+                                            .INFORMATIONAL,
+
+                                        "AUTO_BOOTSTRAP_COMPLETED",
+
+                                        "Automatic integration bootstrap completed.",
+
+                                        {
+                                            result:
+                                                bootstrapResult
+                                        }
+                                    );
+                            }
+                        )
+                        .catch(
+                            (error) => {
+
+                                instance
+                                    .addIntegrationDiagnostic(
+                                        INTEGRATION_DIAGNOSTIC_LEVEL
+                                            .CRITICAL,
+
+                                        "AUTO_BOOTSTRAP_ERROR",
+
+                                        "Automatic integration bootstrap failed.",
+
+                                        {
+                                            error:
+                                                sanitizeError(
+                                                    error
+                                                )
+                                        }
+                                    );
+                            }
+                        );
+                },
+                delay
+            );
+        };
+
+    if (
+        finalState.configuration
+            .bootstrapOnDOMContentLoaded &&
+        global.document &&
+        global.document.readyState ===
             "loading"
-        ) {
-            global.document
-                .addEventListener(
-                    "DOMContentLoaded",
-                    execute,
-                    {
-                        once:
-                            true
-                    }
-                );
-
-            return {
-                scheduled:
-                    true,
-
-                mode:
-                    "DOMContentLoaded"
-            };
-        }
-
-        execute();
+    ) {
+        global.document
+            .addEventListener(
+                "DOMContentLoaded",
+                execute,
+                {
+                    once:
+                        true
+                }
+            );
 
         return {
             scheduled:
                 true,
 
             mode:
-                "immediate"
+                "DOMContentLoaded"
         };
     }
 
+    execute();
+
+    return {
+        scheduled:
+            true,
+
+        mode:
+            "immediate"
+    };
+}
     /* ======================================================================
        SECTION 109
        FINAL GLOBAL EXPORTS
