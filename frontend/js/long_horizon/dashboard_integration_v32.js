@@ -404,4 +404,76 @@
         }
     }
 
+    function connectDashboardWhenCoreIsReady() {
+
+    const dashboard =
+        global.NationalAIDashboardV32Instance;
+
+    const core =
+        global.RainArrivalRecoveryCoreV32Instance ||
+        global.LongHorizonRecoveryCoreV32Instance ||
+        null;
+
+    if (!dashboard) {
+        return false;
+    }
+
+    if (!core) {
+        return false;
+    }
+
+    dashboard.core =
+        core;
+
+    if (
+        typeof core.setDashboard ===
+        "function"
+    ) {
+        core.setDashboard(
+            dashboard
+        );
+
+    } else if (
+        typeof core.attachDashboard ===
+        "function"
+    ) {
+        core.attachDashboard(
+            dashboard
+        );
+
+    } else {
+        core.dashboard =
+            dashboard;
+    }
+
+    dashboard.state.connectedToCore =
+        true;
+
+    return true;
+}
+
+if (!connectDashboardWhenCoreIsReady()) {
+
+    let connectionAttempts = 0;
+
+    const connectionTimer =
+        global.setInterval(
+            () => {
+
+                connectionAttempts += 1;
+
+                if (
+                    connectDashboardWhenCoreIsReady() ||
+                    connectionAttempts >= 60
+                ) {
+                    global.clearInterval(
+                        connectionTimer
+                    );
+                }
+
+            },
+            500
+        );
+}
+
 })(window);
