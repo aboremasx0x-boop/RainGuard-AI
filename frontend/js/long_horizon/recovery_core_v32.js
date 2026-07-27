@@ -894,6 +894,10 @@
 
             this.destroyed = false;
 
+           this.dashboard =
+               safeOptions.dashboard ||
+               null;
+
             if (this.options.autoStart) {
                 Promise.resolve()
                     .then(() => this.start())
@@ -905,6 +909,131 @@
                     });
             }
         }
+
+       /* ==================================================================
+   SECTION 7A
+   DASHBOARD INTEGRATION
+   ================================================================== */
+
+setDashboard(
+    dashboard
+) {
+
+    this.dashboard =
+        dashboard ||
+        null;
+
+    if (
+        this.dashboard &&
+        !this.dashboard.core
+    ) {
+        this.dashboard.core =
+            this;
+    }
+
+    return this.dashboard;
+}
+
+attachDashboard(
+    dashboard
+) {
+
+    return this.setDashboard(
+        dashboard
+    );
+}
+
+getDashboard() {
+
+    return this.dashboard;
+}
+
+hasDashboard() {
+
+    return Boolean(
+        this.dashboard
+    );
+}
+
+async updateDashboard(
+    data = null
+) {
+
+    const dashboard =
+        this.dashboard;
+
+    if (!dashboard) {
+        return {
+            success:
+                false,
+
+            skipped:
+                true,
+
+            reason:
+                "Dashboard is not attached."
+        };
+    }
+
+    const forecastData =
+        data ||
+        this.longHorizonForecast ||
+        this.forecastData ||
+        this.latestForecast ||
+        this.state?.horizonForecasts ||
+        null;
+
+    if (
+        typeof dashboard
+            .updateForecast ===
+        "function"
+    ) {
+        return await dashboard
+            .updateForecast(
+                forecastData
+            );
+    }
+
+    if (
+        typeof dashboard
+            .setForecastData ===
+        "function"
+    ) {
+        return await dashboard
+            .setForecastData(
+                forecastData
+            );
+    }
+
+    if (
+        typeof dashboard
+            .refresh ===
+        "function"
+    ) {
+        return await dashboard
+            .refresh();
+    }
+
+    if (
+        typeof dashboard
+            .render ===
+        "function"
+    ) {
+        return await dashboard
+            .render();
+    }
+
+    return {
+        success:
+            false,
+
+        skipped:
+            true,
+
+        reason:
+            "Dashboard does not expose a supported update method."
+    };
+}
 
         /* ==================================================================
            SECTION 8
