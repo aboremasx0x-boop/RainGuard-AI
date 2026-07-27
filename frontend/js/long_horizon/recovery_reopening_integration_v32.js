@@ -8835,13 +8835,37 @@ IntegrationClass.prototype.createResourceRollbackHandler =
     } = RecoveryReopeningUtils;
 
     const {
-        toFiniteNumber,
-        clamp,
-        normalizeError,
-        withTimeout,
-        sleep
-    } = RecoveryReopeningPart2;
+    toFiniteNumber,
+    clamp,
+    normalizeError,
+    withTimeout
+} = RecoveryReopeningPart2;
 
+/*
+   تأخير آمن مستقل عن RecoveryReopeningPart2.
+   يمنع خطأ: sleep is not a function
+*/
+const sleep =
+    typeof RecoveryReopeningPart2.sleep ===
+    "function"
+        ? RecoveryReopeningPart2.sleep
+        : function sleep(
+            milliseconds = 0
+        ) {
+            return new Promise(
+                resolve => {
+                    global.setTimeout(
+                        resolve,
+                        Math.max(
+                            0,
+                            Number(
+                                milliseconds
+                            ) || 0
+                        )
+                    );
+                }
+            );
+        };
     const {
         MONITORING_DECISION,
         TRIGGER_TYPE,
