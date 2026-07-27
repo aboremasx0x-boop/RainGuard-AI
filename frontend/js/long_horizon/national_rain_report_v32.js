@@ -4,6 +4,7 @@
 
    Generates:
    - National rain status report
+   - Rain forecast for 6 / 12 / 24 / 48 / 72 hours
    - Printable HTML
    - Browser PDF export
    - Automatic connection to "إنشاء التقرير" button
@@ -13,7 +14,7 @@
     "use strict";
 
     const VERSION =
-        "32.1.0";
+        "32.2.0";
 
     const BUILD =
         "V32";
@@ -37,11 +38,14 @@
     }
 
     function safeObject(value) {
-        return value &&
-            typeof value === "object" &&
+        return (
+            value &&
+            typeof value ===
+                "object" &&
             !Array.isArray(value)
-                ? value
-                : {};
+        )
+            ? value
+            : {};
     }
 
     function toFiniteNumber(
@@ -175,6 +179,34 @@
                 value.length >
                     0
         ) || [];
+    }
+
+    function normalizeRainValue(
+        value
+    ) {
+        if (
+            value &&
+            typeof value ===
+                "object"
+        ) {
+            return toFiniteNumber(
+                firstDefined(
+                    value.amount,
+                    value.rain,
+                    value.rainfall,
+                    value.precipitation,
+                    value.total,
+                    value.value,
+                    0
+                ),
+                0
+            );
+        }
+
+        return toFiniteNumber(
+            value,
+            0
+        );
     }
 
     /* ======================================================================
@@ -711,13 +743,19 @@
             const forecasts =
                 firstArray(
                     coreState.cityForecasts,
+                    coreState.regionForecasts,
                     coreState.forecasts,
                     coreState.predictions,
+
                     forecastState.cityForecasts,
+                    forecastState.regionForecasts,
                     forecastState.forecasts,
                     forecastState.predictions,
+
                     arrivalState.cityPredictions,
+                    arrivalState.regionPredictions,
                     arrivalState.predictions,
+
                     dashboardState.forecastData,
                     dashboardState.latestForecast
                 );
@@ -726,9 +764,12 @@
                 firstDefined(
                     coreState.horizonForecasts,
                     coreState.longHorizonForecast,
+
                     forecastState.horizonForecasts,
                     forecastState.longHorizonForecast,
+
                     dashboardState.longHorizonForecast,
+
                     null
                 );
 
@@ -744,6 +785,94 @@
 
         /* ==================================================================
            SECTION 9
+           HORIZON DATA RESOLUTION
+           ================================================================== */
+
+        resolveHorizonValue(
+            source,
+            hours
+        ) {
+            const safeSource =
+                safeObject(
+                    source
+                );
+
+            const horizons =
+                safeObject(
+                    firstDefined(
+                        safeSource.horizons,
+                        safeSource.horizonForecasts,
+                        safeSource.forecastHorizons,
+                        safeSource.longHorizon,
+                        safeSource.longHorizonForecast,
+                        {}
+                    )
+                );
+
+            const hourKey =
+                String(hours);
+
+            const hourKeyWithH =
+                hourKey + "h";
+
+            const directValue =
+                firstDefined(
+                    safeSource[
+                        "rain" +
+                        hourKey
+                    ],
+
+                    safeSource[
+                        "rain" +
+                        hourKeyWithH
+                    ],
+
+                    safeSource[
+                        "precipitation" +
+                        hourKeyWithH
+                    ],
+
+                    safeSource[
+                        "totalRain" +
+                        hourKeyWithH
+                    ],
+
+                    safeSource[
+                        "forecast" +
+                        hourKeyWithH
+                    ],
+
+                    safeSource[
+                        "horizon" +
+                        hourKey
+                    ],
+
+                    horizons[
+                        hourKey
+                    ],
+
+                    horizons[
+                        hourKeyWithH
+                    ],
+
+                    horizons[
+                        "h" +
+                        hourKey
+                    ],
+
+                    horizons[
+                        "hour" +
+                        hourKey
+                    ]
+                );
+
+            return normalizeRainValue(
+                directValue
+            );
+        }
+
+        /* ==================================================================
+           SECTION 10
            NORMALIZE REGION ROW
            ================================================================== */
 
@@ -757,7 +886,7 @@
                 );
 
             const rainNow =
-                toFiniteNumber(
+                normalizeRainValue(
                     firstDefined(
                         safeSource.rainNow,
                         safeSource.currentRain,
@@ -765,20 +894,37 @@
                         safeSource.precipitation,
                         safeSource.rainIntensity,
                         0
-                    ),
-                    0
+                    )
+                );
+
+            const rain6 =
+                this.resolveHorizonValue(
+                    safeSource,
+                    6
+                );
+
+            const rain12 =
+                this.resolveHorizonValue(
+                    safeSource,
+                    12
                 );
 
             const rain24 =
-                toFiniteNumber(
-                    firstDefined(
-                        safeSource.rain24,
-                        safeSource.rain24h,
-                        safeSource.precipitation24h,
-                        safeSource.totalRain24h,
-                        0
-                    ),
-                    0
+                this.resolveHorizonValue(
+                    safeSource,
+                    24
+                );
+
+            const rain48 =
+                this.resolveHorizonValue(
+                    safeSource,
+                    48
+                );
+
+            const rain72 =
+                this.resolveHorizonValue(
+                    safeSource,
+                    72
                 );
 
             const confidence =
@@ -815,6 +961,18 @@
                     -1
                 );
 
+            const hasFutureRain =
+                rain6 >
+                    0 ||
+                rain12 >
+                    0 ||
+                rain24 >
+                    0 ||
+                rain48 >
+                    0 ||
+                rain72 >
+                    0;
+
             const status =
                 firstDefined(
                     safeSource.statusAr,
@@ -823,9 +981,13 @@
                     safeSource.status,
                     safeSource.weatherStatus,
                     safeSource.rainStatus,
+
                     rainNow > 0
                         ? "أمطار حالية"
-                        : etaMinutes >= 0
+                        : (
+                            etaMinutes >= 0 ||
+                            hasFutureRain
+                        )
                             ? "أمطار متوقعة"
                             : "لا توجد أمطار مؤثرة"
                 );
@@ -844,7 +1006,15 @@
 
                 rainNow,
 
+                rain6,
+
+                rain12,
+
                 rain24,
+
+                rain48,
+
+                rain72,
 
                 confidence,
 
@@ -855,7 +1025,8 @@
                 arrivalText:
                     this.formatArrivalTime(
                         etaMinutes,
-                        rainNow
+                        rainNow,
+                        hasFutureRain
                     ),
 
                 riskLevel:
@@ -869,7 +1040,7 @@
         }
 
         /* ==================================================================
-           SECTION 10
+           SECTION 11
            REGION MATCHING
            ================================================================== */
 
@@ -911,7 +1082,9 @@
                             safeForecast.name,
                             safeForecast.nameAr,
                             safeForecast.city,
-                            safeForecast.cityName
+                            safeForecast.cityName,
+                            safeForecast.location,
+                            safeForecast.locationName
                         ]
                             .filter(
                                 Boolean
@@ -942,7 +1115,7 @@
         }
 
         /* ==================================================================
-           SECTION 11
+           SECTION 12
            BUILD REGION ROWS
            ================================================================== */
 
@@ -973,22 +1146,29 @@
                     second
                 ) =>
                     second.risk -
-                    first.risk ||
+                        first.risk ||
                     second.rainNow -
-                    first.rainNow ||
+                        first.rainNow ||
+                    second.rain6 -
+                        first.rain6 ||
+                    second.rain12 -
+                        first.rain12 ||
+                    second.rain24 -
+                        first.rain24 ||
                     second.confidence -
-                    first.confidence
+                        first.confidence
             );
         }
 
         /* ==================================================================
-           SECTION 12
+           SECTION 13
            FORMAT ARRIVAL
            ================================================================== */
 
         formatArrivalTime(
             etaMinutes,
-            rainNow = 0
+            rainNow = 0,
+            hasFutureRain = false
         ) {
             if (
                 rainNow >
@@ -998,58 +1178,64 @@
             }
 
             if (
-                !Number.isFinite(
+                Number.isFinite(
                     etaMinutes
-                ) ||
-                etaMinutes <
-                0
+                ) &&
+                etaMinutes >=
+                    0
             ) {
-                return "غير متوقع حاليًا";
-            }
+                if (
+                    etaMinutes <
+                    60
+                ) {
+                    return (
+                        "خلال " +
+                        Math.round(
+                            etaMinutes
+                        ) +
+                        " دقيقة"
+                    );
+                }
 
-            if (
-                etaMinutes <
-                60
-            ) {
+                const hours =
+                    etaMinutes /
+                    60;
+
+                if (
+                    hours <
+                    24
+                ) {
+                    return (
+                        "خلال " +
+                        hours.toFixed(
+                            hours < 10
+                                ? 1
+                                : 0
+                        ) +
+                        " ساعة"
+                    );
+                }
+
+                const days =
+                    hours /
+                    24;
+
                 return (
                     "خلال " +
-                    Math.round(
-                        etaMinutes
+                    days.toFixed(
+                        1
                     ) +
-                    " دقيقة"
+                    " يوم"
                 );
             }
 
-            const hours =
-                etaMinutes /
-                60;
-
             if (
-                hours <
-                24
+                hasFutureRain
             ) {
-                return (
-                    "خلال " +
-                    hours.toFixed(
-                        hours < 10
-                            ? 1
-                            : 0
-                    ) +
-                    " ساعة"
-                );
+                return "متوقع خلال فترة التقرير";
             }
 
-            const days =
-                hours /
-                24;
-
-            return (
-                "خلال " +
-                days.toFixed(
-                    1
-                ) +
-                " يوم"
-            );
+            return "غير متوقع حاليًا";
         }
 
         getRiskLevel(
@@ -1087,7 +1273,7 @@
         }
 
         /* ==================================================================
-           SECTION 13
+           SECTION 14
            NATIONAL STATISTICS
            ================================================================== */
 
@@ -1107,8 +1293,20 @@
                     row =>
                         row.rainNow <=
                             0 &&
-                        row.etaMinutes >=
-                            0
+                        (
+                            row.etaMinutes >=
+                                0 ||
+                            row.rain6 >
+                                0 ||
+                            row.rain12 >
+                                0 ||
+                            row.rain24 >
+                                0 ||
+                            row.rain48 >
+                                0 ||
+                            row.rain72 >
+                                0
+                        )
                 );
 
             const highRiskRows =
@@ -1139,8 +1337,22 @@
                             first,
                             second
                         ) =>
-                            second.rainNow -
-                            first.rainNow
+                            Math.max(
+                                second.rainNow,
+                                second.rain6,
+                                second.rain12,
+                                second.rain24,
+                                second.rain48,
+                                second.rain72
+                            ) -
+                            Math.max(
+                                first.rainNow,
+                                first.rain6,
+                                first.rain12,
+                                first.rain24,
+                                first.rain48,
+                                first.rain72
+                            )
                     )[0] ||
                 null;
 
@@ -1166,8 +1378,21 @@
 
                 highestRainAmount:
                     highestRainRow
-                        ?.rainNow ||
-                    0,
+                        ? Math.max(
+                            highestRainRow
+                                .rainNow,
+                            highestRainRow
+                                .rain6,
+                            highestRainRow
+                                .rain12,
+                            highestRainRow
+                                .rain24,
+                            highestRainRow
+                                .rain48,
+                            highestRainRow
+                                .rain72
+                        )
+                        : 0,
 
                 highestRiskCity:
                     summary.highestRiskCity,
@@ -1178,7 +1403,7 @@
         }
 
         /* ==================================================================
-           SECTION 14
+           SECTION 15
            EXECUTIVE SUMMARY
            ================================================================== */
 
@@ -1199,8 +1424,20 @@
                     row =>
                         row.rainNow <=
                             0 &&
-                        row.etaMinutes >=
-                            0
+                        (
+                            row.etaMinutes >=
+                                0 ||
+                            row.rain6 >
+                                0 ||
+                            row.rain12 >
+                                0 ||
+                            row.rain24 >
+                                0 ||
+                            row.rain48 >
+                                0 ||
+                            row.rain72 >
+                                0
+                        )
                 );
 
             const highestRisk =
@@ -1242,7 +1479,7 @@
                 );
             } else {
                 sections.push(
-                    "لا تُظهر البيانات الحالية أمطارًا مؤثرة مسجلة على مستوى مناطق المملكة."
+                    "لا تُظهر البيانات الحالية أمطارًا مؤثرة مسجلة لحظة إصدار التقرير."
                 );
             }
 
@@ -1250,31 +1487,45 @@
                 expected.length >
                 0
             ) {
+                const orderedExpected =
+                    [...expected]
+                        .sort(
+                            (
+                                first,
+                                second
+                            ) => {
+
+                                const firstEta =
+                                    first.etaMinutes >=
+                                        0
+                                        ? first.etaMinutes
+                                        : Number
+                                            .MAX_SAFE_INTEGER;
+
+                                const secondEta =
+                                    second.etaMinutes >=
+                                        0
+                                        ? second.etaMinutes
+                                        : Number
+                                            .MAX_SAFE_INTEGER;
+
+                                return (
+                                    firstEta -
+                                    secondEta
+                                );
+                            }
+                        );
+
+                const nearest =
+                    orderedExpected[0];
+
                 sections.push(
-                    "توجد مؤشرات على وصول الأمطار إلى " +
+                    "توجد مؤشرات على أمطار متوقعة في " +
                     expected.length +
-                    " منطقة، وأقرب وصول متوقع هو " +
-                    expected
-                        .sort(
-                            (
-                                first,
-                                second
-                            ) =>
-                                first.etaMinutes -
-                                second.etaMinutes
-                        )[0]
-                        .region +
-                    " " +
-                    expected
-                        .sort(
-                            (
-                                first,
-                                second
-                            ) =>
-                                first.etaMinutes -
-                                second.etaMinutes
-                        )[0]
-                        .arrivalText +
+                    " منطقة، وأبرزها " +
+                    nearest.region +
+                    "، ووقت الوصول المسجل: " +
+                    nearest.arrivalText +
                     "."
                 );
             }
@@ -1298,6 +1549,10 @@
             }
 
             sections.push(
+                "يعرض التقرير التوقعات التراكمية للأمطار خلال 6 و12 و24 و48 و72 ساعة."
+            );
+
+            sections.push(
                 "بلغ متوسط الثقة في بيانات التقرير " +
                 Math.round(
                     statistics
@@ -1317,7 +1572,7 @@
         }
 
         /* ==================================================================
-           SECTION 15
+           SECTION 16
            BUILD REPORT MODEL
            ================================================================== */
 
@@ -1427,7 +1682,7 @@
         }
 
         /* ==================================================================
-           SECTION 16
+           SECTION 17
            REPORT HTML
            ================================================================== */
 
@@ -1442,30 +1697,68 @@
                             index
                         ) => `
                             <tr>
-                                <td>${index + 1}</td>
-                                <td class="region-name">
-                                    ${escapeHTML(row.region)}
-                                </td>
                                 <td>
-                                    ${escapeHTML(row.status)}
+                                    ${index + 1}
                                 </td>
+
+                                <td class="region-name">
+                                    ${escapeHTML(
+                                        row.region
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${escapeHTML(
+                                        row.status
+                                    )}
+                                </td>
+
                                 <td>
                                     ${row.rainNow.toFixed(1)}
                                 </td>
+
+                                <td>
+                                    ${row.rain6.toFixed(1)}
+                                </td>
+
+                                <td>
+                                    ${row.rain12.toFixed(1)}
+                                </td>
+
                                 <td>
                                     ${row.rain24.toFixed(1)}
                                 </td>
+
                                 <td>
-                                    ${escapeHTML(row.arrivalText)}
+                                    ${row.rain48.toFixed(1)}
                                 </td>
+
                                 <td>
-                                    ${Math.round(row.confidence)}%
+                                    ${row.rain72.toFixed(1)}
                                 </td>
+
                                 <td>
-                                    ${Math.round(row.risk)}%
+                                    ${escapeHTML(
+                                        row.arrivalText
+                                    )}
                                 </td>
+
                                 <td>
-                                    ${escapeHTML(row.riskLevel)}
+                                    ${Math.round(
+                                        row.confidence
+                                    )}%
+                                </td>
+
+                                <td>
+                                    ${Math.round(
+                                        row.risk
+                                    )}%
+                                </td>
+
+                                <td>
+                                    ${escapeHTML(
+                                        row.riskLevel
+                                    )}
                                 </td>
                             </tr>
                         `
@@ -1477,6 +1770,7 @@
             return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
 
@@ -1506,10 +1800,10 @@
         }
 
         .report-page {
-            width: 210mm;
-            min-height: 297mm;
+            width: 297mm;
+            min-height: 210mm;
             margin: 20px auto;
-            padding: 15mm;
+            padding: 12mm;
             background: #ffffff;
             box-shadow:
                 0 4px 25px
@@ -1524,12 +1818,12 @@
                 4px solid
                 #1296db;
             padding-bottom: 16px;
-            margin-bottom: 22px;
+            margin-bottom: 18px;
         }
 
         .brand-block h1 {
             margin: 0;
-            font-size: 29px;
+            font-size: 28px;
             color: #0b3558;
         }
 
@@ -1556,8 +1850,8 @@
             background: #f5f9fc;
             border: 1px solid #d8e7f1;
             border-radius: 10px;
-            padding: 13px 16px;
-            margin-bottom: 18px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
             font-size: 13px;
             line-height: 1.8;
         }
@@ -1567,13 +1861,13 @@
             grid-template-columns:
                 repeat(4, 1fr);
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         .summary-card {
             border: 1px solid #d8e7f1;
             border-radius: 10px;
-            padding: 14px 10px;
+            padding: 12px 10px;
             text-align: center;
             background:
                 linear-gradient(
@@ -1596,13 +1890,13 @@
         }
 
         .section-title {
-            margin: 24px 0 12px;
+            margin: 20px 0 10px;
             padding-right: 10px;
             border-right:
                 5px solid
                 #1296db;
             color: #0b3558;
-            font-size: 20px;
+            font-size: 19px;
         }
 
         .executive-summary {
@@ -1611,17 +1905,23 @@
                 5px solid
                 #1296db;
             border-radius: 8px;
-            padding: 16px;
-            font-size: 15px;
-            line-height: 2;
+            padding: 14px;
+            font-size: 14px;
+            line-height: 1.9;
             text-align: justify;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 12px;
-            font-size: 11px;
+            margin-top: 10px;
+            table-layout: fixed;
+            font-size: 8.5px;
         }
 
         thead {
@@ -1631,9 +1931,55 @@
 
         th,
         td {
-            padding: 8px 6px;
+            padding: 7px 3px;
             border: 1px solid #ccdce8;
             text-align: center;
+            vertical-align: middle;
+            overflow-wrap: anywhere;
+        }
+
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 3%;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
+            width: 11%;
+        }
+
+        th:nth-child(3),
+        td:nth-child(3) {
+            width: 10%;
+        }
+
+        th:nth-child(4),
+        td:nth-child(4),
+        th:nth-child(5),
+        td:nth-child(5),
+        th:nth-child(6),
+        td:nth-child(6),
+        th:nth-child(7),
+        td:nth-child(7),
+        th:nth-child(8),
+        td:nth-child(8),
+        th:nth-child(9),
+        td:nth-child(9) {
+            width: 5.5%;
+        }
+
+        th:nth-child(10),
+        td:nth-child(10) {
+            width: 12%;
+        }
+
+        th:nth-child(11),
+        td:nth-child(11),
+        th:nth-child(12),
+        td:nth-child(12),
+        th:nth-child(13),
+        td:nth-child(13) {
+            width: 6.5%;
         }
 
         tbody tr:nth-child(even) {
@@ -1648,17 +1994,17 @@
         .availability-grid {
             display: grid;
             grid-template-columns:
-                repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 12px;
+                repeat(4, 1fr);
+            gap: 7px;
+            margin-top: 10px;
         }
 
         .availability-item {
-            padding: 10px;
+            padding: 8px;
             border-radius: 7px;
             border: 1px solid #d8e7f1;
             background: #f8fbfd;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .available {
@@ -1672,12 +2018,12 @@
         }
 
         .report-footer {
-            margin-top: 25px;
-            padding-top: 12px;
+            margin-top: 20px;
+            padding-top: 10px;
             border-top: 1px solid #d8e7f1;
             text-align: center;
             color: #658097;
-            font-size: 11px;
+            font-size: 10px;
             line-height: 1.7;
         }
 
@@ -1714,7 +2060,7 @@
                 min-height: auto;
                 margin: 0;
                 box-shadow: none;
-                padding: 8mm;
+                padding: 5mm;
             }
 
             .print-controls {
@@ -1737,7 +2083,7 @@
 
         @page {
             size: A4 landscape;
-            margin: 8mm;
+            margin: 6mm;
         }
     </style>
 </head>
@@ -1745,6 +2091,7 @@
 <body>
 
     <div class="print-controls">
+
         <button onclick="window.print()">
             طباعة / حفظ PDF
         </button>
@@ -1755,6 +2102,7 @@
         >
             إغلاق
         </button>
+
     </div>
 
     <main class="report-page">
@@ -1762,15 +2110,21 @@
         <header class="report-header">
 
             <div class="brand-block">
+
                 <h1>
-                    ${escapeHTML(report.title)}
+                    ${escapeHTML(
+                        report.title
+                    )}
                 </h1>
 
                 <p>
-                    ${escapeHTML(report.organizationName)}
+                    ${escapeHTML(
+                        report.organizationName
+                    )}
                     —
                     نظام التنبؤ والتحقق الوطني متعدد المصادر
                 </p>
+
             </div>
 
             <div class="version-badge">
@@ -1780,60 +2134,106 @@
         </header>
 
         <section class="report-meta">
-            <strong>رقم التقرير:</strong>
-            ${escapeHTML(report.id)}
+
+            <strong>
+                رقم التقرير:
+            </strong>
+
+            ${escapeHTML(
+                report.id
+            )}
+
             <br>
 
-            <strong>تاريخ ووقت الإصدار:</strong>
-            ${escapeHTML(report.generatedAtText)}
+            <strong>
+                تاريخ ووقت الإصدار:
+            </strong>
+
+            ${escapeHTML(
+                report.generatedAtText
+            )}
+
             <br>
 
-            <strong>الحالة الوطنية:</strong>
-            ${escapeHTML(report.summary.nationalStatus)}
+            <strong>
+                الحالة الوطنية:
+            </strong>
+
+            ${escapeHTML(
+                report.summary
+                    .nationalStatus
+            )}
+
+            <br>
+
+            <strong>
+                وحدة كميات المطر:
+            </strong>
+
+            ملم
+
         </section>
 
         <section class="summary-grid">
 
             <article class="summary-card">
+
                 <div class="label">
                     الثقة الوطنية
                 </div>
 
                 <div class="value">
                     ${Math.round(
-                        report.summary.nationalConfidence
+                        report.summary
+                            .nationalConfidence
                     )}%
                 </div>
+
             </article>
 
             <article class="summary-card">
+
                 <div class="label">
                     المناطق الممطرة الآن
                 </div>
 
                 <div class="value">
-                    ${report.statistics.rainyRegionCount}
+                    ${
+                        report.statistics
+                            .rainyRegionCount
+                    }
                 </div>
+
             </article>
 
             <article class="summary-card">
+
                 <div class="label">
                     مناطق متوقع وصول المطر إليها
                 </div>
 
                 <div class="value">
-                    ${report.statistics.expectedRegionCount}
+                    ${
+                        report.statistics
+                            .expectedRegionCount
+                    }
                 </div>
+
             </article>
 
             <article class="summary-card">
+
                 <div class="label">
                     المناطق مرتفعة الخطورة
                 </div>
 
                 <div class="value">
-                    ${report.statistics.highRiskRegionCount}
+                    ${
+                        report.statistics
+                            .highRiskRegionCount
+                    }
                 </div>
+
             </article>
 
         </section>
@@ -1849,28 +2249,76 @@
         </section>
 
         <h2 class="section-title">
-            حالة الأمطار في مناطق المملكة
+            حالة وتوقعات الأمطار في مناطق المملكة
         </h2>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>المنطقة</th>
-                    <th>الحالة</th>
-                    <th>المطر الآن</th>
-                    <th>مطر 24 ساعة</th>
-                    <th>وقت الوصول</th>
-                    <th>الثقة</th>
-                    <th>خطر السيول</th>
-                    <th>التصنيف</th>
-                </tr>
-            </thead>
+        <div class="table-wrapper">
 
-            <tbody>
-                ${rowsHTML}
-            </tbody>
-        </table>
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>#</th>
+
+                        <th>
+                            المنطقة
+                        </th>
+
+                        <th>
+                            الحالة
+                        </th>
+
+                        <th>
+                            المطر الآن
+                        </th>
+
+                        <th>
+                            6 ساعات
+                        </th>
+
+                        <th>
+                            12 ساعة
+                        </th>
+
+                        <th>
+                            24 ساعة
+                        </th>
+
+                        <th>
+                            48 ساعة
+                        </th>
+
+                        <th>
+                            72 ساعة
+                        </th>
+
+                        <th>
+                            وقت الوصول
+                        </th>
+
+                        <th>
+                            الثقة
+                        </th>
+
+                        <th>
+                            خطر السيول
+                        </th>
+
+                        <th>
+                            التصنيف
+                        </th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+                    ${rowsHTML}
+                </tbody>
+
+            </table>
+
+        </div>
 
         <h2 class="section-title">
             حالة تكامل محركات التقرير
@@ -1880,52 +2328,70 @@
 
             ${this.buildAvailabilityItem(
                 "Recovery Core",
-                report.rawAvailability.core
+                report.rawAvailability
+                    .core
             )}
 
             ${this.buildAvailabilityItem(
                 "Dashboard",
-                report.rawAvailability.dashboard
+                report.rawAvailability
+                    .dashboard
             )}
 
             ${this.buildAvailabilityItem(
                 "Forecast Engine",
-                report.rawAvailability.forecastEngine
+                report.rawAvailability
+                    .forecastEngine
             )}
 
             ${this.buildAvailabilityItem(
                 "Rain Arrival Engine",
-                report.rawAvailability.arrivalEngine
+                report.rawAvailability
+                    .arrivalEngine
             )}
 
             ${this.buildAvailabilityItem(
                 "Verification Engine",
-                report.rawAvailability.verificationEngine
+                report.rawAvailability
+                    .verificationEngine
             )}
 
             ${this.buildAvailabilityItem(
                 "Storm Tracking Engine",
-                report.rawAvailability.stormTrackingEngine
+                report.rawAvailability
+                    .stormTrackingEngine
             )}
 
             ${this.buildAvailabilityItem(
                 "Path Prediction Engine",
-                report.rawAvailability.pathPredictionEngine
+                report.rawAvailability
+                    .pathPredictionEngine
             )}
 
         </section>
 
         <footer class="report-footer">
-            هذا التقرير مولد آليًا من منصة RainGuard AI V32،
+
+            هذا التقرير مولد آليًا من منصة
+            RainGuard AI V32،
             ويعتمد على البيانات المتاحة وقت الإصدار.
+
             <br>
+
+            قيم 6 و12 و24 و48 و72 ساعة تمثل
+            كميات المطر التراكمية المتاحة لكل أفق زمني.
+
+            <br>
+
             يُنصح بمراجعة الجهات الرسمية المختصة عند اتخاذ
             القرارات التشغيلية أو قرارات السلامة والطوارئ.
+
         </footer>
 
     </main>
 
 </body>
+
 </html>
             `;
         }
@@ -1936,27 +2402,35 @@
         ) {
             return `
                 <div class="availability-item">
+
                     <strong>
-                        ${escapeHTML(name)}
+                        ${escapeHTML(
+                            name
+                        )}
                     </strong>
+
                     :
+
                     <span class="${
                         available
                             ? "available"
                             : "unavailable"
                     }">
+
                         ${
                             available
                                 ? "متصل"
                                 : "غير متصل"
                         }
+
                     </span>
+
                 </div>
             `;
         }
 
         /* ==================================================================
-           SECTION 17
+           SECTION 18
            GENERATE REPORT
            ================================================================== */
 
@@ -1984,13 +2458,16 @@
                     );
                 }
 
-                reportWindow.document.open();
+                reportWindow.document
+                    .open();
 
-                reportWindow.document.write(
-                    html
-                );
+                reportWindow.document
+                    .write(
+                        html
+                    );
 
-                reportWindow.document.close();
+                reportWindow.document
+                    .close();
 
                 this.state.reportCount +=
                     1;
@@ -2014,24 +2491,29 @@
                             .openPrintDialog
                     );
 
-                if (shouldPrint) {
-                    reportWindow.addEventListener(
-                        "load",
-                        () => {
-                            global.setTimeout(
-                                () => {
-                                    reportWindow.focus();
+                if (
+                    shouldPrint
+                ) {
+                    reportWindow
+                        .addEventListener(
+                            "load",
+                            () => {
+                                global.setTimeout(
+                                    () => {
+                                        reportWindow
+                                            .focus();
 
-                                    reportWindow.print();
-                                },
-                                700
-                            );
-                        },
-                        {
-                            once:
-                                true
-                        }
-                    );
+                                        reportWindow
+                                            .print();
+                                    },
+                                    700
+                                );
+                            },
+                            {
+                                once:
+                                    true
+                            }
+                        );
                 }
 
                 global.dispatchEvent(
@@ -2095,7 +2577,7 @@
         }
 
         /* ==================================================================
-           SECTION 18
+           SECTION 19
            BUTTON BINDING
            ================================================================== */
 
@@ -2120,7 +2602,9 @@
                             selector
                         );
 
-                if (element) {
+                if (
+                    element
+                ) {
                     return element;
                 }
             }
@@ -2167,7 +2651,9 @@
             const button =
                 this.findReportButton();
 
-            if (!button) {
+            if (
+                !button
+            ) {
                 this.state.buttonBound =
                     false;
 
@@ -2229,7 +2715,7 @@
         }
 
         /* ==================================================================
-           SECTION 19
+           SECTION 20
            STATUS
            ================================================================== */
 
@@ -2265,7 +2751,7 @@
     }
 
     /* ======================================================================
-       SECTION 20
+       SECTION 21
        GLOBAL EXPORT
        ====================================================================== */
 
@@ -2286,7 +2772,9 @@
             global
                 .NationalRainReportV32Instance;
 
-        if (!instance) {
+        if (
+            !instance
+        ) {
             return;
         }
 
@@ -2329,21 +2817,22 @@
         global.document.readyState ===
             "loading"
     ) {
-        global.document.addEventListener(
-            "DOMContentLoaded",
-            initializeReportWhenReady,
-            {
-                once:
-                    true
-            }
-        );
+        global.document
+            .addEventListener(
+                "DOMContentLoaded",
+                initializeReportWhenReady,
+                {
+                    once:
+                        true
+                }
+            );
 
     } else {
         initializeReportWhenReady();
     }
 
     /* ======================================================================
-       SECTION 21
+       SECTION 22
        GLOBAL SHORTCUT
        ====================================================================== */
 
@@ -2359,7 +2848,7 @@
         };
 
     console.log(
-        "[RainGuard AI V32] National Rain Report Engine ready."
+        "[RainGuard AI V32] National Rain Report Engine ready with 6/12/24/48/72-hour forecasts."
     );
 
 })(window);
