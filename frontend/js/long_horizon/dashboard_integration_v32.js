@@ -21,6 +21,9 @@
                 initialized:
                     false,
 
+                connectedToCore:
+                    false,
+
                 lastUpdatedAt:
                     null,
 
@@ -39,6 +42,8 @@
         }
 
         initialize() {
+            this.connectToCore();
+
             this.state.initialized =
                 true;
 
@@ -46,6 +51,68 @@
                 "ready";
 
             return this.getState();
+        }
+
+        connectToCore() {
+            const core =
+                this.core ||
+                global.RainArrivalRecoveryCoreV32Instance ||
+                global.LongHorizonRecoveryCoreV32Instance ||
+                null;
+
+            this.core =
+                core;
+
+            if (!core) {
+                this.state.connectedToCore =
+                    false;
+
+                return {
+                    success:
+                        false,
+
+                    connected:
+                        false,
+
+                    reason:
+                        "Recovery Core is unavailable."
+                };
+            }
+
+            if (
+                typeof core.setDashboard ===
+                "function"
+            ) {
+                core.setDashboard(
+                    this
+                );
+
+            } else if (
+                typeof core.attachDashboard ===
+                "function"
+            ) {
+                core.attachDashboard(
+                    this
+                );
+
+            } else {
+                core.dashboard =
+                    this;
+            }
+
+            this.state.connectedToCore =
+                core.dashboard === this ||
+                core.getDashboard?.() === this;
+
+            return {
+                success:
+                    this.state.connectedToCore,
+
+                connected:
+                    this.state.connectedToCore,
+
+                core
+            };
         }
 
         start() {
@@ -67,6 +134,9 @@
             this.state.status =
                 "updated";
 
+            this.state.lastError =
+                null;
+
             this.renderForecastData(
                 data
             );
@@ -76,7 +146,12 @@
                     true,
 
                 updatedAt:
-                    this.state.lastUpdatedAt
+                    this.state.lastUpdatedAt,
+
+                forecastAvailable:
+                    Boolean(
+                        data
+                    )
             };
         }
 
@@ -90,8 +165,22 @@
             );
         }
 
+        setLongHorizonForecast(data) {
+            this.state.longHorizonForecast =
+                data ||
+                null;
+
+            return this.updateForecast(
+                data
+            );
+        }
+
         refresh() {
             try {
+                if (!this.core) {
+                    this.connectToCore();
+                }
+
                 const core =
                     this.core ||
                     global.RainArrivalRecoveryCoreV32Instance ||
@@ -103,14 +192,19 @@
 
                 const latestForecast =
                     core?.latestForecast ||
+                    core?.state?.latestForecast ||
                     null;
 
                 const forecastData =
                     core?.forecastData ||
+                    core?.state?.forecastData ||
+                    core?.state?.cityForecasts ||
                     null;
 
                 const longHorizonForecast =
                     core?.longHorizonForecast ||
+                    core?.state?.longHorizonForecast ||
+                    core?.state?.horizonForecasts ||
                     null;
 
                 this.state.latestForecast =
@@ -122,10 +216,14 @@
                 this.state.longHorizonForecast =
                     longHorizonForecast;
 
-                this.renderForecastData(
+                const selectedForecast =
                     longHorizonForecast ||
                     forecastData ||
-                    latestForecast
+                    latestForecast ||
+                    null;
+
+                this.renderForecastData(
+                    selectedForecast
                 );
 
                 this.state.status =
@@ -137,18 +235,24 @@
                 this.state.lastError =
                     null;
 
+                this.state.connectedToCore =
+                    Boolean(
+                        core
+                    );
+
                 return {
                     success:
                         true,
+
+                    connectedToCore:
+                        this.state.connectedToCore,
 
                     updatedAt:
                         this.state.lastUpdatedAt,
 
                     forecastAvailable:
                         Boolean(
-                            longHorizonForecast ||
-                            forecastData ||
-                            latestForecast
+                            selectedForecast
                         )
                 };
 
@@ -158,10 +262,14 @@
 
                 this.state.lastError = {
                     name:
-                        error.name,
+                        error?.name ||
+                        "Error",
 
                     message:
-                        error.message
+                        error?.message ||
+                        String(
+                            error
+                        )
                 };
 
                 return {
@@ -179,31 +287,77 @@
         }
 
         renderForecastData(data) {
-            global.dispatchEvent(
-                new CustomEvent(
-                    "rainguard:dashboard:forecast-updated",
-                    {
-                        detail: {
-                            dashboardId:
-                                this.id,
+            try {
+                global.dispatchEvent(
+                    new CustomEvent(
+                        "rainguard:dashboard:forecast-updated",
+                        {
+                            detail: {
+                                dashboardId:
+                                    this.id,
 
-                            data:
-                                data ||
-                                null,
+                                data:
+                                    data ||
+                                    null,
 
-                            timestamp:
-                                Date.now()
+                                timestamp:
+                                    Date.now()
+                            }
                         }
-                    }
-                )
-            );
+                    )
+                );
 
-            return true;
+                return true;
+
+            } catch (error) {
+                this.state.lastError = {
+                    name:
+                        error?.name ||
+                        "Error",
+
+                    message:
+                        error?.message ||
+                        String(
+                            error
+                        )
+                };
+
+                return false;
+            }
         }
 
         getState() {
             return {
                 ...this.state
+            };
+        }
+
+        getStatus() {
+            return {
+                id:
+                    this.id,
+
+                status:
+                    this.state.status,
+
+                initialized:
+                    this.state.initialized,
+
+                connectedToCore:
+                    this.state.connectedToCore,
+
+                lastUpdatedAt:
+                    this.state.lastUpdatedAt,
+
+                forecastAvailable:
+                    Boolean(
+                        this.state.longHorizonForecast ||
+                        this.state.forecastData ||
+                        this.state.latestForecast
+                    ),
+
+                lastError:
+                    this.state.lastError
             };
         }
     }
@@ -228,8 +382,26 @@
         null;
 
     if (core) {
-        core.dashboard =
-            global.NationalAIDashboardV32Instance;
+        if (
+            typeof core.setDashboard ===
+            "function"
+        ) {
+            core.setDashboard(
+                global.NationalAIDashboardV32Instance
+            );
+
+        } else if (
+            typeof core.attachDashboard ===
+            "function"
+        ) {
+            core.attachDashboard(
+                global.NationalAIDashboardV32Instance
+            );
+
+        } else {
+            core.dashboard =
+                global.NationalAIDashboardV32Instance;
+        }
     }
 
 })(window);
