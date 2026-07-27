@@ -10301,316 +10301,347 @@ const sleep =
         };
 
     /* ======================================================================
-       SECTION 75
-       EXECUTE AUTOMATIC REOPENING
-       ====================================================================== */
+   SECTION 75
+   EXECUTE AUTOMATIC REOPENING
+   ====================================================================== */
 
-    IntegrationClass.prototype.executeAutomaticReopening =
-        async function executeAutomaticReopening(
-            options = {}
+IntegrationClass.prototype.executeAutomaticReopening =
+    async function executeAutomaticReopening(
+        options = {}
+    ) {
+
+        const automation =
+            this.ensureAutomationState();
+
+        if (
+            automation.executing
         ) {
+            return {
+                executed:
+                    false,
 
-            const automation =
-                this.ensureAutomationState();
+                reason:
+                    "A reopening execution is already active."
+            };
+        }
 
-            if (
-                automation.executing
-            ) {
-                return {
-                    executed:
-                        false,
+        if (
+            !isValidReopeningInstance(
+                this.reopening
+            )
+        ) {
+            return {
+                executed:
+                    false,
 
-                    reason:
-                        "A reopening execution is already active."
-                };
+                reason:
+                    "Recovery reopening instance is unavailable."
+            };
+        }
+
+        automation.executing =
+            true;
+
+        automation.running =
+            true;
+
+        automation.status =
+            AUTOMATION_STATUS.REOPENING;
+
+        automation.executionCount +=
+            1;
+
+        automation.lastExecutionAt =
+            now();
+
+        const executionRecord = {
+
+            id:
+                createId(
+                    "automatic_reopening_execution"
+                ),
+
+            trigger:
+                options.trigger ||
+                EXECUTION_TRIGGER.MANUAL,
+
+            startedAt:
+                now(),
+
+            completedAt:
+                null,
+
+            durationMs:
+                0,
+
+            status:
+                AUTOMATION_STATUS.REOPENING,
+
+            attempt:
+                options.attempt ||
+                1,
+
+            success:
+                false,
+
+            result:
+                null,
+
+            error:
+                null
+        };
+
+        automation.executions.push(
+            executionRecord
+        );
+
+        this.emit(
+            AUTOMATION_EVENT.EXECUTION_STARTED,
+            {
+                executionId:
+                    executionRecord.id,
+
+                trigger:
+                    executionRecord.trigger,
+
+                attempt:
+                    executionRecord.attempt
             }
+        );
 
-            if (
-                !isValidReopeningInstance(
+        try {
+
+            /*
+               دمج خيارات إعادة الفتح المحفوظة في إعدادات الأتمتة
+               مع الخيارات المرسلة لهذه المحاولة.
+            */
+            const configuredReopeningOptions =
+                safeObject(
+                    automation
+                        .configuration
+                        .reopeningOptions
+                );
+
+            const runtimeReopeningOptions =
+                safeObject(
+                    options.reopening
+                );
+
+            const reopeningOptions = {
+                ...configuredReopeningOptions,
+                ...runtimeReopeningOptions,
+
+                validation: {
+                    ...safeObject(
+                        configuredReopeningOptions
+                            .validation
+                    ),
+
+                    ...safeObject(
+                        runtimeReopeningOptions
+                            .validation
+                    )
+                },
+
+                trigger:
+                    executionRecord
+                        .trigger,
+
+                automatic:
+                    true,
+
+                integrationId:
+                    this.id,
+
+                payload:
+                    safeObject(
+                        options.payload
+                    )
+            };
+
+            const result =
+                await withTimeout(
                     this.reopening
-                )
-            ) {
-                return {
-                    executed:
-                        false,
+                        .startReopening(
+                            reopeningOptions
+                        ),
+                    automation
+                        .configuration
+                        .executionTimeoutMs,
+                    "Automatic reopening execution timed out."
+                );
 
-                    reason:
-                        "Recovery reopening instance is unavailable."
-                };
+            const success =
+                result?.success ===
+                true ||
+                result?.completed ===
+                true ||
+                result?.status ===
+                REOPENING_STATUS.COMPLETED ||
+                result?.result ===
+                REOPENING_RESULT.SUCCESS ||
+                this.reopening
+                    ?.state
+                    ?.status ===
+                REOPENING_STATUS.COMPLETED;
+
+            if (!success) {
+                throw new Error(
+                    result?.message ||
+                    "Automatic reopening did not complete successfully."
+                );
             }
 
-            automation.executing =
-                true;
-
-            automation.running =
-                true;
-
-            automation.status =
-                AUTOMATION_STATUS.REOPENING;
-
-            automation.executionCount +=
-                1;
-
-            automation.lastExecutionAt =
+            executionRecord.completedAt =
                 now();
 
-            const executionRecord = {
+            executionRecord.durationMs =
+                executionRecord.completedAt -
+                executionRecord.startedAt;
+
+            executionRecord.status =
+                AUTOMATION_STATUS.STABLE;
+
+            executionRecord.success =
+                true;
+
+            executionRecord.result =
+                deepClone(
+                    result
+                );
+
+            automation.executing =
+                false;
+
+            automation.successfulExecutionCount +=
+                1;
+
+            automation.status =
+                AUTOMATION_STATUS.MONITORING;
+
+            this.state.status =
+                ADAPTER_STATUS.RUNNING;
+
+            this.emit(
+                AUTOMATION_EVENT.EXECUTION_COMPLETED,
+                {
+                    execution:
+                        deepClone(
+                            executionRecord
+                        )
+                }
+            );
+
+            if (
+                automation.configuration
+                    .autoStartMonitoring
+            ) {
+                this.startAutomationMonitoring();
+            }
+
+            return {
+                executed:
+                    true,
+
+                success:
+                    true,
+
+                execution:
+                    deepClone(
+                        executionRecord
+                    ),
+
+                result:
+                    deepClone(
+                        result
+                    )
+            };
+
+        } catch (error) {
+
+            const normalized =
+                normalizeError(
+                    error
+                );
+
+            executionRecord.completedAt =
+                now();
+
+            executionRecord.durationMs =
+                executionRecord.completedAt -
+                executionRecord.startedAt;
+
+            executionRecord.status =
+                AUTOMATION_STATUS.FAILED;
+
+            executionRecord.error =
+                normalized;
+
+            automation.executing =
+                false;
+
+            automation.running =
+                false;
+
+            automation.failedExecutionCount +=
+                1;
+
+            automation.status =
+                AUTOMATION_STATUS.FAILED;
+
+            automation.lastError =
+                normalized;
+
+            automation.errors.push({
 
                 id:
                     createId(
-                        "automatic_reopening_execution"
+                        "automation_execution_error"
                     ),
 
-                trigger:
-                    options.trigger ||
-                    EXECUTION_TRIGGER.MANUAL,
+                phase:
+                    "execution",
 
-                startedAt:
+                timestamp:
                     now(),
 
-                completedAt:
-                    null,
+                error:
+                    normalized
+            });
 
-                durationMs:
-                    0,
+            this.state.status =
+                ADAPTER_STATUS.FAILED;
 
-                status:
-                    AUTOMATION_STATUS.REOPENING,
+            this.emit(
+                AUTOMATION_EVENT.EXECUTION_FAILED,
+                {
+                    execution:
+                        deepClone(
+                            executionRecord
+                        ),
 
-                attempt:
-                    options.attempt ||
-                    1,
+                    error:
+                        normalized
+                }
+            );
+
+            return {
+                executed:
+                    true,
 
                 success:
                     false,
 
-                result:
-                    null,
+                execution:
+                    deepClone(
+                        executionRecord
+                    ),
 
                 error:
-                    null
+                    normalized
             };
-
-            automation.executions.push(
-                executionRecord
-            );
-
-            this.emit(
-                AUTOMATION_EVENT.EXECUTION_STARTED,
-                {
-                    executionId:
-                        executionRecord.id,
-
-                    trigger:
-                        executionRecord.trigger,
-
-                    attempt:
-                        executionRecord.attempt
-                }
-            );
-
-            try {
-
-                const result =
-                    await withTimeout(
-                        this.reopening
-                            .startReopening({
-                                trigger:
-                                    executionRecord
-                                        .trigger,
-
-                                automatic:
-                                    true,
-
-                                integrationId:
-                                    this.id,
-
-                                payload:
-                                    safeObject(
-                                        options.payload
-                                    ),
-
-                                ...safeObject(
-                                    options.reopening
-                                )
-                            }),
-                        automation
-                            .configuration
-                            .executionTimeoutMs,
-                        "Automatic reopening execution timed out."
-                    );
-
-                const success =
-                    result?.success ===
-                    true ||
-                    result?.completed ===
-                    true ||
-                    result?.status ===
-                    REOPENING_STATUS.COMPLETED ||
-                    result?.result ===
-                    REOPENING_RESULT.SUCCESS ||
-                    this.reopening
-                        ?.state
-                        ?.status ===
-                    REOPENING_STATUS.COMPLETED;
-
-                if (!success) {
-                    throw new Error(
-                        result?.message ||
-                        "Automatic reopening did not complete successfully."
-                    );
-                }
-
-                executionRecord.completedAt =
-                    now();
-
-                executionRecord.durationMs =
-                    executionRecord.completedAt -
-                    executionRecord.startedAt;
-
-                executionRecord.status =
-                    AUTOMATION_STATUS.STABLE;
-
-                executionRecord.success =
-                    true;
-
-                executionRecord.result =
-                    deepClone(
-                        result
-                    );
-
-                automation.executing =
-                    false;
-
-                automation.successfulExecutionCount +=
-                    1;
-
-                automation.status =
-                    AUTOMATION_STATUS.MONITORING;
-
-                this.state.status =
-                    ADAPTER_STATUS.RUNNING;
-
-                this.emit(
-                    AUTOMATION_EVENT.EXECUTION_COMPLETED,
-                    {
-                        execution:
-                            deepClone(
-                                executionRecord
-                            )
-                    }
-                );
-
-                if (
-                    automation.configuration
-                        .autoStartMonitoring
-                ) {
-                    this.startAutomationMonitoring();
-                }
-
-                return {
-                    executed:
-                        true,
-
-                    success:
-                        true,
-
-                    execution:
-                        deepClone(
-                            executionRecord
-                        ),
-
-                    result:
-                        deepClone(
-                            result
-                        )
-                };
-
-            } catch (error) {
-
-                const normalized =
-                    normalizeError(
-                        error
-                    );
-
-                executionRecord.completedAt =
-                    now();
-
-                executionRecord.durationMs =
-                    executionRecord.completedAt -
-                    executionRecord.startedAt;
-
-                executionRecord.status =
-                    AUTOMATION_STATUS.FAILED;
-
-                executionRecord.error =
-                    normalized;
-
-                automation.executing =
-                    false;
-
-                automation.running =
-                    false;
-
-                automation.failedExecutionCount +=
-                    1;
-
-                automation.status =
-                    AUTOMATION_STATUS.FAILED;
-
-                automation.lastError =
-                    normalized;
-
-                automation.errors.push({
-
-                    id:
-                        createId(
-                            "automation_execution_error"
-                        ),
-
-                    phase:
-                        "execution",
-
-                    timestamp:
-                        now(),
-
-                    error:
-                        normalized
-                });
-
-                this.state.status =
-                    ADAPTER_STATUS.FAILED;
-
-                this.emit(
-                    AUTOMATION_EVENT.EXECUTION_FAILED,
-                    {
-                        execution:
-                            deepClone(
-                                executionRecord
-                            ),
-
-                        error:
-                            normalized
-                    }
-                );
-
-                return {
-                    executed:
-                        true,
-
-                    success:
-                        false,
-
-                    execution:
-                        deepClone(
-                            executionRecord
-                        ),
-
-                    error:
-                        normalized
-                };
-            }
-        };
+        }
+    };
 
     /* ======================================================================
        SECTION 76
