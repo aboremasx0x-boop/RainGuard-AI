@@ -875,6 +875,35 @@
             };
 
             this.sourceAdapters = new Map();
+           Promise.resolve()
+    .then(
+        () =>
+            this.registerSourceAdapters()
+    )
+    .catch(
+        error => {
+            if (
+                this.options?.debug ===
+                true
+            ) {
+                console.error(
+                    "[Recovery Core V32] Automatic source adapter registration failed.",
+                    error
+                );
+            }
+        }
+    );
+global.setTimeout(
+    () => {
+        if (
+            this.destroyed !==
+            true
+        ) {
+            this.registerSourceAdapters();
+        }
+    },
+    2000
+);
 
             this.locations = new Map();
 
@@ -2110,40 +2139,305 @@ async updateDashboard(
         };
 
     CoreClass.prototype.registerSourceAdapters =
-        function registerSourceAdapters(
-            adapters
-        ) {
-            const registeredAdapters = [];
+    function registerSourceAdapters(
+        adapters = null
+    ) {
+        const discoveredAdapters = [];
 
-            safeArray(adapters).forEach(
-                (adapter) => {
+        const addAdapter =
+            (
+                key,
+                adapter
+            ) => {
+                if (
+                    !adapter ||
+                    typeof adapter !==
+                        "object"
+                ) {
+                    return;
+                }
+
+                const alreadyAdded =
+                    discoveredAdapters.some(
+                        item =>
+                            item.adapter ===
+                                adapter ||
+                            item.key ===
+                                key
+                    );
+
+                if (
+                    alreadyAdded
+                ) {
+                    return;
+                }
+
+                discoveredAdapters.push({
+                    key,
+                    adapter
+                });
+            };
+
+        /*
+           أولًا: المحولات المرسلة يدويًا إلى الدالة.
+        */
+        safeArray(
+            adapters
+        ).forEach(
+            item => {
+                if (
+                    item &&
+                    typeof item ===
+                        "object" &&
+                    item.adapter
+                ) {
+                    addAdapter(
+                        item.key ||
+                        item.id ||
+                        item.name ||
+                        item.adapter
+                            ?.id ||
+                        item.adapter
+                            ?.name ||
+                        "source_" +
+                        discoveredAdapters.length,
+
+                        item.adapter
+                    );
+
+                    return;
+                }
+
+                addAdapter(
+                    item?.id ||
+                    item?.name ||
+                    item?.sourceId ||
+                    item?.constructor
+                        ?.name ||
+                    "source_" +
+                    discoveredAdapters.length,
+
+                    item
+                );
+            }
+        );
+
+        /*
+           ثانيًا: اكتشاف المحولات العامة الموجودة على window.
+           تمت إضافة أكثر من اسم محتمل لكل محول
+           لأن أسماء النسخ قد تختلف بين ملفات V30 وV31 وV32.
+        */
+
+        addAdapter(
+            "official",
+            global
+                .OfficialWeatherAdapterInstance ||
+            global
+                .OfficialSourceAdapterInstance ||
+            global
+                .AnwaaAdapterV30Instance ||
+            global
+                .AnwaaAdapterV31Instance ||
+            global
+                .AnwaaAdapterV32Instance ||
+            null
+        );
+
+        addAdapter(
+            "openmeteo",
+            global
+                .OpenMeteoAdapterInstance ||
+            global
+                .OpenMeteoAdapterV30Instance ||
+            global
+                .OpenMeteoAdapterV31Instance ||
+            global
+                .OpenMeteoAdapterV32Instance ||
+            null
+        );
+
+        addAdapter(
+            "rainviewer",
+            global
+                .RainViewerAdapterInstance ||
+            global
+                .RainViewerAdapterV30Instance ||
+            global
+                .RainViewerAdapterV31Instance ||
+            global
+                .RainViewerAdapterV32Instance ||
+            null
+        );
+
+        addAdapter(
+            "satellite",
+            global
+                .SatelliteAdapterInstance ||
+            global
+                .SatelliteAdapterV30Instance ||
+            global
+                .SatelliteAdapterV31Instance ||
+            global
+                .SatelliteAdapterV32Instance ||
+            null
+        );
+
+        addAdapter(
+            "lightning",
+            global
+                .LightningAdapterInstance ||
+            global
+                .LightningAdapterV31Instance ||
+            global
+                .LightningAdapterV32Instance ||
+            null
+        );
+
+        addAdapter(
+            "localai",
+            global
+                .LocalAIAdapterInstance ||
+            global
+                .LocalAIAdapterV31Instance ||
+            global
+                .LocalAIAdapterV32Instance ||
+            null
+        );
+
+        addAdapter(
+            "weather",
+            global
+                .WeatherAdapterInstance ||
+            global
+                .WeatherSourceAdapterInstance ||
+            null
+        );
+
+        addAdapter(
+            "radar",
+            global
+                .RadarAdapterInstance ||
+            global
+                .RadarSourceAdapterInstance ||
+            null
+        );
+
+        const registeredAdapters = [];
+
+        discoveredAdapters.forEach(
+            ({
+                key,
+                adapter
+            }) => {
+                try {
+                    /*
+                       نمرر key داخل metadata عند الإمكان،
+                       حتى يحتفظ المحول بهويته داخل Recovery Core.
+                    */
+                    if (
+                        adapter &&
+                        typeof adapter ===
+                            "object"
+                    ) {
+                        adapter.sourceKey =
+                            adapter.sourceKey ||
+                            key;
+
+                        adapter.id =
+                            adapter.id ||
+                            key;
+
+                        adapter.name =
+                            adapter.name ||
+                            key;
+                    }
+
                     const registered =
                         this.registerSourceAdapter(
                             adapter
                         );
 
-                    if (registered) {
+                    if (
+                        registered
+                    ) {
                         registeredAdapters.push(
                             registered
                         );
                     }
+
+                } catch (error) {
+                    if (
+                        this.options?.debug ===
+                        true
+                    ) {
+                        console.error(
+                            "[Recovery Core V32] Source adapter registration failed:",
+                            {
+                                key,
+                                adapter,
+                                error
+                            }
+                        );
+                    }
+                }
+            }
+        );
+
+        /*
+           توحيد المفاتيح داخل Map في حال أن
+           registerSourceAdapter استخدم معرفًا مختلفًا.
+        */
+        if (
+            this.sourceAdapters instanceof
+            Map
+        ) {
+            discoveredAdapters.forEach(
+                ({
+                    key,
+                    adapter
+                }) => {
+                    const exists =
+                        [
+                            ...this
+                                .sourceAdapters
+                                .values()
+                        ].some(
+                            registered =>
+                                registered ===
+                                adapter
+                        );
+
+                    if (
+                        !exists
+                    ) {
+                        this.sourceAdapters.set(
+                            key,
+                            adapter
+                        );
+                    }
                 }
             );
+        }
 
-            return registeredAdapters;
-        };
-
-    CoreClass.prototype.unregisterSourceAdapter =
-        function unregisterSourceAdapter(
-            sourceName
+        if (
+            this.options?.debug ===
+            true
         ) {
-            const normalizedName =
-                normalizeSourceName(sourceName);
-
-            return this.sourceAdapters.delete(
-                normalizedName
+            console.log(
+                "[Recovery Core V32] Source adapters registered:",
+                this.sourceAdapters instanceof
+                Map
+                    ? [
+                        ...this
+                            .sourceAdapters
+                            .keys()
+                    ]
+                    : registeredAdapters
             );
-        };
+        }
+
+        return registeredAdapters;
+    };
 
     CoreClass.prototype.enableSourceAdapter =
         function enableSourceAdapter(
