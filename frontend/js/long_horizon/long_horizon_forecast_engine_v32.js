@@ -2888,6 +2888,643 @@ Object.assign(
 
         },
 
+       async runNationalForecast(
+    options = {}
+) {
+
+    if (
+        this.destroyed
+    ) {
+        throw new Error(
+            "Long horizon forecast engine is destroyed."
+        );
+    }
+
+    if (
+        !this.state.initialized
+    ) {
+        this.initialize();
+    }
+
+    const core =
+        this.core ||
+        global.RainArrivalRecoveryCoreV32Instance ||
+        global.LongHorizonRecoveryCoreV32Instance ||
+        null;
+
+    if (
+        !core
+    ) {
+        throw new Error(
+            "Recovery Core is unavailable."
+        );
+    }
+
+    const locations =
+        typeof core.getActiveLocations ===
+        "function"
+            ? core.getActiveLocations()
+            : core.locations instanceof Map
+                ? [
+                    ...core.locations.values()
+                ].filter(
+                    location =>
+                        location?.active !==
+                        false
+                )
+                : [];
+
+    if (
+        locations.length ===
+        0
+    ) {
+        return {
+            success:
+                false,
+
+            status:
+                LONG_HORIZON_FORECAST_STATUS.FAILED,
+
+            message:
+                "No active locations are available.",
+
+            generatedAt:
+                now()
+        };
+    }
+
+    const safeOptions =
+        safeObject(
+            options
+        );
+
+    const cityForecasts =
+        [];
+
+    const failedCities =
+        [];
+
+    const arrivalPredictions =
+        [];
+
+    const startedAt =
+        now();
+
+    this.emit(
+        LONG_HORIZON_FORECAST_EVENT.STARTED,
+        {
+            national:
+                true,
+
+            locationCount:
+                locations.length
+        }
+    );
+
+    for (
+        let index = 0;
+        index < locations.length;
+        index += 1
+    ) {
+        const location =
+            locations[index];
+
+        const cityName =
+            location.nameAr ||
+            location.nameEn ||
+            location.name ||
+            location.city ||
+            location.code ||
+            location.id;
+
+        const regionName =
+            location.regionNameAr ||
+            location.regionNameEn ||
+            location.region ||
+            location.regionName ||
+            "غير محدد";
+
+        try {
+
+            const result =
+                await this.runForecast({
+                    id:
+                        location.id,
+
+                    city:
+                        cityName,
+
+                    region:
+                        regionName,
+
+                    latitude:
+                        location.latitude ??
+                        location.lat,
+
+                    longitude:
+                        location.longitude ??
+                        location.lon ??
+                        location.lng,
+
+                    location,
+
+                    national:
+                        true,
+
+                    locationIndex:
+                        index,
+
+                    locationCount:
+                        locations.length,
+
+                    ...safeOptions.forecast
+                });
+
+            if (
+                result?.success !==
+                true
+            ) {
+                throw new Error(
+                    result?.error?.message ||
+                    result?.message ||
+                    "City forecast failed."
+                );
+            }
+
+            const cityForecast = {
+                locationId:
+                    location.id,
+
+                locationCode:
+                    location.code ||
+                    null,
+
+                city:
+                    result.city ||
+                    cityName,
+
+                region:
+                    result.region ||
+                    regionName,
+
+                latitude:
+                    location.latitude ??
+                    location.lat ??
+                    null,
+
+                longitude:
+                    location.longitude ??
+                    location.lon ??
+                    location.lng ??
+                    null,
+
+                success:
+                    true,
+
+                status:
+                    result.status,
+
+                forecasts:
+                    result.forecasts ||
+                    null,
+
+                forecastList:
+                    safeArray(
+                        result.forecastList
+                    ),
+
+                horizonForecasts:
+                    result.horizonForecasts ||
+                    result.forecasts ||
+                    {},
+
+                horizons:
+                    safeArray(
+                        result.horizons
+                    ),
+
+                arrivalPrediction:
+                    result.arrivalPrediction ||
+                    null,
+
+                arrivalPredictions:
+                    safeArray(
+                        result.arrivalPredictions
+                    ),
+
+                summary:
+                    result.summary ||
+                    null,
+
+                generatedAt:
+                    result.generatedAt ||
+                    now(),
+
+                rawResult:
+                    result
+            };
+
+            cityForecasts.push(
+                cityForecast
+            );
+
+            if (
+                cityForecast.arrivalPrediction
+            ) {
+                arrivalPredictions.push({
+                    locationId:
+                        location.id,
+
+                    city:
+                        cityForecast.city,
+
+                    region:
+                        cityForecast.region,
+
+                    ...safeObject(
+                        cityForecast.arrivalPrediction
+                    )
+                });
+            }
+
+            safeArray(
+                cityForecast.arrivalPredictions
+            ).forEach(
+                prediction => {
+                    arrivalPredictions.push({
+                        locationId:
+                            location.id,
+
+                        city:
+                            cityForecast.city,
+
+                        region:
+                            cityForecast.region,
+
+                        ...safeObject(
+                            prediction
+                        )
+                    });
+                }
+            );
+
+            if (
+                safeOptions.logProgress !==
+                false
+            ) {
+                console.log(
+                    "Completed:",
+                    index + 1,
+                    "/",
+                    locations.length,
+                    cityName
+                );
+            }
+
+        } catch (error) {
+
+            const normalizedError =
+                normalizeError(
+                    error
+                );
+
+            failedCities.push({
+                locationId:
+                    location.id,
+
+                city:
+                    cityName,
+
+                region:
+                    regionName,
+
+                error:
+                    normalizedError
+            });
+
+            if (
+                safeOptions.stopOnError ===
+                true
+            ) {
+                break;
+            }
+        }
+    }
+
+    const regionMap =
+        new Map();
+
+    cityForecasts.forEach(
+        cityForecast => {
+
+            const regionName =
+                cityForecast.region ||
+                "غير محدد";
+
+            if (
+                !regionMap.has(
+                    regionName
+                )
+            ) {
+                regionMap.set(
+                    regionName,
+                    []
+                );
+            }
+
+            regionMap
+                .get(
+                    regionName
+                )
+                .push(
+                    cityForecast
+                );
+        }
+    );
+
+    const regionForecasts =
+        [
+            ...regionMap.entries()
+        ].map(
+            (
+                [
+                    region,
+                    cities
+                ]
+            ) => {
+
+                const horizonSummary =
+                    {};
+
+                [
+                    6,
+                    12,
+                    24,
+                    48,
+                    72
+                ].forEach(
+                    horizon => {
+
+                        const forecasts =
+                            cities
+                                .map(
+                                    city =>
+                                        city
+                                            .horizonForecasts
+                                            ?.[horizon] ||
+                                        city
+                                            .horizonForecasts
+                                            ?.[
+                                                String(
+                                                    horizon
+                                                )
+                                            ] ||
+                                        null
+                                )
+                                .filter(
+                                    Boolean
+                                );
+
+                        horizonSummary[horizon] = {
+                            horizonHours:
+                                horizon,
+
+                            cityCount:
+                                forecasts.length,
+
+                            forecasts
+                        };
+                    }
+                );
+
+                return {
+                    region,
+
+                    cityCount:
+                        cities.length,
+
+                    cities,
+
+                    horizonForecasts:
+                        horizonSummary,
+
+                    generatedAt:
+                        now()
+                };
+            }
+        );
+
+    const horizonForecasts =
+        {};
+
+    [
+        6,
+        12,
+        24,
+        48,
+        72
+    ].forEach(
+        horizon => {
+
+            const locationsForHorizon =
+                cityForecasts
+                    .map(
+                        city => {
+
+                            const forecast =
+                                city
+                                    .horizonForecasts
+                                    ?.[horizon] ||
+                                city
+                                    .horizonForecasts
+                                    ?.[
+                                        String(
+                                            horizon
+                                        )
+                                    ] ||
+                                null;
+
+                            if (
+                                !forecast
+                            ) {
+                                return null;
+                            }
+
+                            return {
+                                locationId:
+                                    city.locationId,
+
+                                city:
+                                    city.city,
+
+                                region:
+                                    city.region,
+
+                                latitude:
+                                    city.latitude,
+
+                                longitude:
+                                    city.longitude,
+
+                                forecast
+                            };
+                        }
+                    )
+                    .filter(
+                        Boolean
+                    );
+
+            horizonForecasts[
+                "h" +
+                horizon
+            ] = {
+                horizonHours:
+                    horizon,
+
+                locations:
+                    locationsForHorizon,
+
+                locationCount:
+                    locationsForHorizon.length,
+
+                generatedAt:
+                    now()
+            };
+        }
+    );
+
+    const completedAt =
+        now();
+
+    const nationalResult = {
+        id:
+            createId(
+                "national_long_horizon_forecast"
+            ),
+
+        success:
+            cityForecasts.length >
+            0,
+
+        partial:
+            failedCities.length >
+            0,
+
+        status:
+            failedCities.length ===
+            0
+                ? LONG_HORIZON_FORECAST_STATUS.COMPLETED
+                : LONG_HORIZON_FORECAST_STATUS.PARTIAL,
+
+        generatedAt:
+            completedAt,
+
+        startedAt,
+
+        completedAt,
+
+        durationMs:
+            completedAt -
+            startedAt,
+
+        totalLocations:
+            locations.length,
+
+        completedCities:
+            cityForecasts.length,
+
+        failedCount:
+            failedCities.length,
+
+        regionCount:
+            regionForecasts.length,
+
+        arrivalCount:
+            arrivalPredictions.length,
+
+        horizons: [
+            6,
+            12,
+            24,
+            48,
+            72
+        ],
+
+        cityForecasts,
+
+        regionForecasts,
+
+        arrivalPredictions,
+
+        horizonForecasts,
+
+        failedCities
+    };
+
+    core.cityForecasts =
+        cityForecasts;
+
+    core.regionForecasts =
+        regionForecasts;
+
+    core.arrivalPredictions =
+        arrivalPredictions;
+
+    core.horizonForecasts =
+        horizonForecasts;
+
+    core.longHorizonForecast =
+        nationalResult;
+
+    core.latestForecast =
+        nationalResult;
+
+    core.forecastData =
+        cityForecasts;
+
+    this.state.latestNationalForecast =
+        deepClone(
+            nationalResult
+        );
+
+    this.state.latestForecast =
+        deepClone(
+            nationalResult
+        );
+
+    this.state.lastSuccessfulRunAt =
+        nationalResult.success
+            ? completedAt
+            : this.state.lastSuccessfulRunAt;
+
+    this.emit(
+        LONG_HORIZON_FORECAST_EVENT.COMPLETED,
+        {
+            national:
+                true,
+
+            result:
+                deepClone(
+                    nationalResult
+                )
+        }
+    );
+
+    return nationalResult;
+},
+
+       getLatestNationalForecast() {
+
+    return (
+        this.state
+            .latestNationalForecast ||
+        this.core
+            ?.longHorizonForecast ||
+        null
+    );
+
+},
+
         /* ============================================================= */
 
         async run(
