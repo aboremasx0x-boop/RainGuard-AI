@@ -541,6 +541,18 @@
 
             const pathPredictionEngine =
                 this.resolvePathPredictionEngine();
+           const latestNationalForecast =
+    forecastEngine
+        ?.getLatestNationalForecast?.() ||
+    forecastEngine
+        ?.state
+        ?.latestNationalForecast ||
+    core
+        ?.latestNationalForecast ||
+    core
+        ?.state
+        ?.latestNationalForecast ||
+    null;
 
             return {
                 core,
@@ -548,6 +560,8 @@
                 dashboard,
 
                 forecastEngine,
+
+               latestNationalForecast,
 
                 arrivalEngine,
 
@@ -599,118 +613,196 @@
            EXTRACT NATIONAL SUMMARY
            ================================================================== */
 
-        extractNationalSummary(
-            raw
-        ) {
-            const coreState =
-                safeObject(
-                    raw.coreState
-                );
+       extractNationalSummary(
+    raw
+) {
+    const coreState =
+        safeObject(
+            raw.coreState
+        );
 
-            const verificationState =
-                safeObject(
-                    raw.verificationState
-                );
+    const verificationState =
+        safeObject(
+            raw.verificationState
+        );
 
-            const dashboardState =
-                safeObject(
-                    raw.dashboardState
-                );
+    const dashboardState =
+        safeObject(
+            raw.dashboardState
+        );
 
-            const nationalConfidence =
-                normalizePercentage(
-                    firstDefined(
-                        verificationState
-                            .nationalConfidence,
+    const latestNationalForecast =
+        safeObject(
+            raw.latestNationalForecast
+        );
 
-                        verificationState
-                            .confidence,
+    const forecastNationalSummary =
+        safeObject(
+            latestNationalForecast
+                .nationalSummary
+        );
 
-                        coreState
-                            .nationalConfidence,
+    const nationalConfidence =
+        normalizePercentage(
+            firstDefined(
+                forecastNationalSummary
+                    .nationalConfidencePercent,
 
-                        dashboardState
-                            .confidence,
+                forecastNationalSummary
+                    .nationalConfidence,
 
-                        0
-                    )
-                );
+                verificationState
+                    .nationalConfidence,
 
-            const nationalStatus =
+                verificationState
+                    .confidence,
+
+                coreState
+                    .nationalConfidence,
+
+                dashboardState
+                    .confidence,
+
+                0
+            )
+        );
+
+    const nationalStatus =
+        firstDefined(
+            latestNationalForecast
+                .status,
+
+            verificationState
+                .nationalStatus,
+
+            verificationState
+                .status,
+
+            coreState
+                .nationalStatus,
+
+            coreState
+                .status,
+
+            "غير محدد"
+        );
+
+    const highestRiskCity =
+        firstDefined(
+            forecastNationalSummary
+                .highestRiskCity,
+
+            verificationState
+                .highestRiskCity,
+
+            coreState
+                .highestRiskCity,
+
+            dashboardState
+                .highestRiskCity,
+
+            "غير محدد"
+        );
+
+    const highestRisk =
+        normalizePercentage(
+            firstDefined(
+                forecastNationalSummary
+                    .highestRiskScorePercent,
+
+                forecastNationalSummary
+                    .highestRiskScore,
+
+                verificationState
+                    .highestRisk,
+
+                coreState
+                    .highestRisk,
+
+                dashboardState
+                    .highestRisk,
+
+                0
+            )
+        );
+
+    return {
+        totalCities:
+            toFiniteNumber(
                 firstDefined(
-                    verificationState
-                        .nationalStatus,
+                    forecastNationalSummary
+                        .totalCities,
 
-                    verificationState
-                        .status,
+                    latestNationalForecast
+                        .cityForecasts
+                        ?.length,
 
-                    coreState
-                        .nationalStatus,
+                    0
+                ),
+                0
+            ),
 
-                    coreState
-                        .status,
+        totalRegions:
+            toFiniteNumber(
+                firstDefined(
+                    forecastNationalSummary
+                        .totalRegions,
+
+                    latestNationalForecast
+                        .regionForecasts
+                        ?.length,
+
+                    0
+                ),
+                0
+            ),
+
+        rainyCities:
+            toFiniteNumber(
+                forecastNationalSummary
+                    .rainyCities,
+                0
+            ),
+
+        activeArrivalPredictions:
+            toFiniteNumber(
+                forecastNationalSummary
+                    .activeArrivalPredictions,
+                0
+            ),
+
+        nationalConfidence,
+
+        nationalStatus,
+
+        highestRiskCity:
+            typeof highestRiskCity ===
+                "object"
+                ? firstDefined(
+                    highestRiskCity
+                        .nameAr,
+
+                    highestRiskCity
+                        .name,
+
+                    highestRiskCity
+                        .city,
 
                     "غير محدد"
-                );
+                )
+                : highestRiskCity,
 
-            const highestRiskCity =
-                firstDefined(
-                    verificationState
-                        .highestRiskCity,
+        highestRisk,
 
-                    coreState
-                        .highestRiskCity,
+        generatedAt:
+            firstDefined(
+                latestNationalForecast
+                    .generatedAt,
 
-                    dashboardState
-                        .highestRiskCity,
-
-                    "غير محدد"
-                );
-
-            const highestRisk =
-                normalizePercentage(
-                    firstDefined(
-                        verificationState
-                            .highestRisk,
-
-                        coreState
-                            .highestRisk,
-
-                        dashboardState
-                            .highestRisk,
-
-                        0
-                    )
-                );
-
-            return {
-                nationalConfidence,
-
-                nationalStatus,
-
-                highestRiskCity:
-                    typeof highestRiskCity ===
-                    "object"
-                        ? firstDefined(
-                            highestRiskCity
-                                .nameAr,
-
-                            highestRiskCity
-                                .name,
-
-                            highestRiskCity
-                                .city,
-
-                            "غير محدد"
-                        )
-                        : highestRiskCity,
-
-                highestRisk,
-
-                generatedAt:
-                    now()
-            };
-        }
+                now()
+            )
+    };
+}
 
         /* ==================================================================
            SECTION 8
@@ -718,70 +810,134 @@
            ================================================================== */
 
         extractForecastCollections(
-            raw
-        ) {
-            const coreState =
-                safeObject(
-                    raw.coreState
-                );
+    raw
+) {
+    const coreState =
+        safeObject(
+            raw.coreState
+        );
 
-            const forecastState =
-                safeObject(
-                    raw.forecastState
-                );
+    const forecastState =
+        safeObject(
+            raw.forecastState
+        );
 
-            const arrivalState =
-                safeObject(
-                    raw.arrivalState
-                );
+    const arrivalState =
+        safeObject(
+            raw.arrivalState
+        );
 
-            const dashboardState =
-                safeObject(
-                    raw.dashboardState
-                );
+    const dashboardState =
+        safeObject(
+            raw.dashboardState
+        );
 
-            const forecasts =
-                firstArray(
-                    coreState.cityForecasts,
-                    coreState.regionForecasts,
-                    coreState.forecasts,
-                    coreState.predictions,
+    const latestNationalForecast =
+        safeObject(
+            raw.latestNationalForecast
+        );
 
-                    forecastState.cityForecasts,
-                    forecastState.regionForecasts,
-                    forecastState.forecasts,
-                    forecastState.predictions,
+    const forecasts =
+        firstArray(
+            latestNationalForecast
+                .regionForecasts,
 
-                    arrivalState.cityPredictions,
-                    arrivalState.regionPredictions,
-                    arrivalState.predictions,
+            latestNationalForecast
+                .cityForecasts,
 
-                    dashboardState.forecastData,
-                    dashboardState.latestForecast
-                );
+            forecastState
+                .regionForecasts,
 
-            const horizonForecasts =
-                firstDefined(
-                    coreState.horizonForecasts,
-                    coreState.longHorizonForecast,
+            forecastState
+                .cityForecasts,
 
-                    forecastState.horizonForecasts,
-                    forecastState.longHorizonForecast,
+            coreState
+                .regionForecasts,
 
-                    dashboardState.longHorizonForecast,
+            coreState
+                .cityForecasts,
 
-                    null
-                );
+            coreState
+                .forecasts,
 
-            return {
-                forecasts:
-                    safeArray(
-                        forecasts
-                    ),
+            coreState
+                .predictions,
 
-                horizonForecasts
-            };
-        }
+            forecastState
+                .forecasts,
+
+            forecastState
+                .predictions,
+
+            arrivalState
+                .cityPredictions,
+
+            arrivalState
+                .regionPredictions,
+
+            arrivalState
+                .predictions,
+
+            dashboardState
+                .forecastData,
+
+            dashboardState
+                .latestForecast
+        );
+
+    const horizonForecasts =
+        firstDefined(
+            latestNationalForecast
+                .horizonForecasts,
+
+            latestNationalForecast
+                .longHorizonForecast,
+
+            forecastState
+                .horizonForecasts,
+
+            forecastState
+                .longHorizonForecast,
+
+            coreState
+                .horizonForecasts,
+
+            coreState
+                .longHorizonForecast,
+
+            dashboardState
+                .longHorizonForecast,
+
+            null
+        );
+
+    return {
+        forecasts:
+            safeArray(
+                forecasts
+            ),
+
+        cityForecasts:
+            safeArray(
+                latestNationalForecast
+                    .cityForecasts
+            ),
+
+        regionForecasts:
+            safeArray(
+                latestNationalForecast
+                    .regionForecasts
+            ),
+
+        nationalSummary:
+            safeObject(
+                latestNationalForecast
+                    .nationalSummary
+            ),
+
+        horizonForecasts
+    };
+}
 
         /* ==================================================================
            SECTION 9
