@@ -29668,6 +29668,24 @@ collectPipelineArrivalEstimates(
         }
     );
 
+    console.table(
+    rejected.map((item, index) => ({
+        index,
+        source:
+            item.source,
+        reason:
+            item.reason,
+        arrivalMinutes:
+            item.estimate?.arrivalMinutes ?? null,
+        valid:
+            item.estimate?.valid ?? null,
+        available:
+            item.estimate?.available ?? null,
+        status:
+            item.estimate?.status ?? null
+    }))
+);
+
     return {
         estimates,
 
