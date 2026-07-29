@@ -17,10 +17,10 @@
        ================================================================== */
 
     const LONG_HORIZON_FORECAST_VERSION =
-        "32.3.0";
+        "32.4.0";
 
     const LONG_HORIZON_FORECAST_BUILD =
-        "3231";
+        "3240";
 
     const LONG_HORIZON_FORECAST_ENGINE_NAME =
         "LongHorizonForecastEngineV32";
@@ -671,6 +671,852 @@
 
     }
 
+    /* =================================================================
+       NATIONAL AND REGIONAL INTELLIGENCE HELPERS
+       ================================================================= */
+
+    const SAUDI_REGION_ARABIC_NAMES =
+        Object.freeze({
+
+            "Al Baha Region":
+                "منطقة الباحة",
+
+            "Al Jouf Region":
+                "منطقة الجوف",
+
+            "Al Qassim Region":
+                "منطقة القصيم",
+
+            "Asir Region":
+                "منطقة عسير",
+
+            "Eastern Province":
+                "المنطقة الشرقية",
+
+            "Hail Region":
+                "منطقة حائل",
+
+            "Jazan Region":
+                "منطقة جازان",
+
+            "Madinah Region":
+                "منطقة المدينة المنورة",
+
+            "Makkah Region":
+                "منطقة مكة المكرمة",
+
+            "Najran Region":
+                "منطقة نجران",
+
+            "Northern Borders Region":
+                "منطقة الحدود الشمالية",
+
+            "Riyadh Region":
+                "منطقة الرياض",
+
+            "Tabuk Region":
+                "منطقة تبوك"
+
+        });
+
+    /* ================================================================= */
+
+    function getArabicRegionName(
+        region
+    ) {
+
+        const normalized =
+            String(
+                region ||
+                "غير محدد"
+            ).trim();
+
+        return (
+            SAUDI_REGION_ARABIC_NAMES[
+                normalized
+            ] ||
+            normalized
+        );
+
+    }
+
+    /* ================================================================= */
+
+    function normalizeFraction(
+        value,
+        percentValue = null
+    ) {
+
+        const direct =
+            safeNumber(
+                value,
+                null
+            );
+
+        if (
+            direct !== null
+        ) {
+            return clamp(
+                direct > 1
+                    ? direct / 100
+                    : direct,
+                0,
+                1
+            );
+        }
+
+        const percent =
+            safeNumber(
+                percentValue,
+                null
+            );
+
+        return percent === null
+            ? 0
+            : clamp(
+                percent / 100,
+                0,
+                1
+            );
+
+    }
+
+    /* ================================================================= */
+
+    function getForecastProbability(
+        forecast
+    ) {
+
+        const source =
+            safeObject(
+                forecast
+            );
+
+        return normalizeFraction(
+            source.probability ??
+            source.rainProbability ??
+            source.precipitationProbability,
+            source.probabilityPercent ??
+            source.rainProbabilityPercent ??
+            source.precipitationProbabilityPercent
+        );
+
+    }
+
+    /* ================================================================= */
+
+    function getForecastConfidence(
+        forecast,
+        arrivalPrediction = null
+    ) {
+
+        const source =
+            safeObject(
+                forecast
+            );
+
+        const arrival =
+            safeObject(
+                arrivalPrediction
+            );
+
+        const forecastConfidence =
+            normalizeFraction(
+                source.confidence,
+                source.confidencePercent
+            );
+
+        if (
+            forecastConfidence > 0
+        ) {
+            return forecastConfidence;
+        }
+
+        return normalizeFraction(
+            arrival.confidence,
+            arrival.confidencePercent
+        );
+
+    }
+
+    /* ================================================================= */
+
+    function calculateCityIntelligence(
+        cityForecast,
+        horizons
+    ) {
+
+        const city =
+            safeObject(
+                cityForecast
+            );
+
+        const arrival =
+            safeObject(
+                city.arrivalPrediction
+            );
+
+        const horizonMetrics =
+            {};
+
+        let maximumProbability = 0;
+        let maximumConfidence = 0;
+        let probabilityTotal = 0;
+        let confidenceTotal = 0;
+        let metricCount = 0;
+        let earliestRainHorizon = null;
+
+        normalizeHorizons(
+            horizons
+        ).forEach(
+            (horizon) => {
+
+                const forecast =
+                    city.horizonForecasts?.[
+                        horizon
+                    ] ||
+                    city.horizonForecasts?.[
+                        String(
+                            horizon
+                        )
+                    ] ||
+                    city.forecasts?.[
+                        horizon
+                    ] ||
+                    city.forecasts?.[
+                        String(
+                            horizon
+                        )
+                    ] ||
+                    null;
+
+                if (
+                    !forecast
+                ) {
+                    horizonMetrics[horizon] = {
+                        horizonHours: horizon,
+                        available: false,
+                        rainExpected: false,
+                        probability: 0,
+                        confidence: 0
+                    };
+                    return;
+                }
+
+                const probability =
+                    getForecastProbability(
+                        forecast
+                    );
+
+                const confidence =
+                    getForecastConfidence(
+                        forecast,
+                        arrival
+                    );
+
+                const rainExpected =
+                    forecast.rainExpected === true ||
+                    probability >= 0.5;
+
+                horizonMetrics[horizon] = {
+                    horizonHours: horizon,
+                    available: true,
+                    rainExpected,
+                    probability,
+                    probabilityPercent:
+                        Math.round(
+                            probability *
+                            100
+                        ),
+                    confidence,
+                    confidencePercent:
+                        Math.round(
+                            confidence *
+                            100
+                        ),
+                    classification:
+                        forecast.classification ||
+                        null
+                };
+
+                maximumProbability =
+                    Math.max(
+                        maximumProbability,
+                        probability
+                    );
+
+                maximumConfidence =
+                    Math.max(
+                        maximumConfidence,
+                        confidence
+                    );
+
+                probabilityTotal +=
+                    probability;
+
+                confidenceTotal +=
+                    confidence;
+
+                metricCount += 1;
+
+                if (
+                    rainExpected &&
+                    earliestRainHorizon === null
+                ) {
+                    earliestRainHorizon =
+                        horizon;
+                }
+
+            }
+        );
+
+        const arrivalMinutes =
+            safeNumber(
+                arrival.arrivalMinutes,
+                null
+            );
+
+        const activeArrival =
+            arrival.available === true &&
+            arrivalMinutes !== null &&
+            arrivalMinutes >= 0;
+
+        const urgencyScore =
+            activeArrival
+                ? clamp(
+                    1 -
+                    arrivalMinutes /
+                    (
+                        72 *
+                        60
+                    ),
+                    0,
+                    1
+                )
+                : 0;
+
+        const riskScore =
+            clamp(
+                maximumProbability * 0.65 +
+                maximumConfidence * 0.25 +
+                urgencyScore * 0.10,
+                0,
+                1
+            );
+
+        return {
+            city:
+                city.city ||
+                null,
+            region:
+                city.region ||
+                null,
+            rainExpected:
+                Object.values(
+                    horizonMetrics
+                ).some(
+                    (metric) =>
+                        metric.rainExpected === true
+                ),
+            maximumProbability,
+            maximumProbabilityPercent:
+                Math.round(
+                    maximumProbability *
+                    100
+                ),
+            maximumConfidence,
+            maximumConfidencePercent:
+                Math.round(
+                    maximumConfidence *
+                    100
+                ),
+            averageProbability:
+                metricCount
+                    ? probabilityTotal /
+                        metricCount
+                    : 0,
+            averageConfidence:
+                metricCount
+                    ? confidenceTotal /
+                        metricCount
+                    : 0,
+            earliestRainHorizon,
+            activeArrival,
+            arrivalMinutes,
+            arrivalTimestamp:
+                safeNumber(
+                    arrival.arrivalTimestamp,
+                    null
+                ),
+            riskScore,
+            riskScorePercent:
+                Math.round(
+                    riskScore *
+                    100
+                ),
+            horizonMetrics
+        };
+
+    }
+
+    /* ================================================================= */
+
+    function buildRegionIntelligenceSummary(
+        region,
+        cities,
+        horizons
+    ) {
+
+        const metrics =
+            safeArray(
+                cities
+            ).map(
+                (city) =>
+                    calculateCityIntelligence(
+                        city,
+                        horizons
+                    )
+            );
+
+        const rainyMetrics =
+            metrics.filter(
+                (metric) =>
+                    metric.rainExpected === true
+            );
+
+        const activeArrivals =
+            metrics.filter(
+                (metric) =>
+                    metric.activeArrival === true
+            ).sort(
+                (first, second) =>
+                    first.arrivalMinutes -
+                    second.arrivalMinutes
+            );
+
+        const riskSorted =
+            [...metrics].sort(
+                (first, second) =>
+                    second.riskScore -
+                    first.riskScore
+            );
+
+        const horizonSummary =
+            {};
+
+        normalizeHorizons(
+            horizons
+        ).forEach(
+            (horizon) => {
+
+                const horizonMetrics =
+                    metrics.map(
+                        (metric) =>
+                            metric.horizonMetrics?.[
+                                horizon
+                            ] ||
+                            null
+                    ).filter(
+                        (metric) =>
+                            metric?.available === true
+                    );
+
+                const rainy =
+                    horizonMetrics.filter(
+                        (metric) =>
+                            metric.rainExpected === true
+                    );
+
+                const probabilityTotal =
+                    horizonMetrics.reduce(
+                        (sum, metric) =>
+                            sum +
+                            metric.probability,
+                        0
+                    );
+
+                const confidenceTotal =
+                    horizonMetrics.reduce(
+                        (sum, metric) =>
+                            sum +
+                            metric.confidence,
+                        0
+                    );
+
+                horizonSummary[horizon] = {
+                    horizonHours: horizon,
+                    availableCities:
+                        horizonMetrics.length,
+                    rainyCities:
+                        rainy.length,
+                    rainyCityRatio:
+                        horizonMetrics.length
+                            ? rainy.length /
+                                horizonMetrics.length
+                            : 0,
+                    averageProbability:
+                        horizonMetrics.length
+                            ? probabilityTotal /
+                                horizonMetrics.length
+                            : 0,
+                    averageProbabilityPercent:
+                        horizonMetrics.length
+                            ? Math.round(
+                                probabilityTotal /
+                                horizonMetrics.length *
+                                100
+                            )
+                            : 0,
+                    averageConfidence:
+                        horizonMetrics.length
+                            ? confidenceTotal /
+                                horizonMetrics.length
+                            : 0,
+                    averageConfidencePercent:
+                        horizonMetrics.length
+                            ? Math.round(
+                                confidenceTotal /
+                                horizonMetrics.length *
+                                100
+                            )
+                            : 0
+                };
+
+            }
+        );
+
+        const averageProbability =
+            metrics.length
+                ? metrics.reduce(
+                    (sum, metric) =>
+                        sum +
+                        metric.maximumProbability,
+                    0
+                ) /
+                metrics.length
+                : 0;
+
+        const averageConfidence =
+            metrics.length
+                ? metrics.reduce(
+                    (sum, metric) =>
+                        sum +
+                        metric.maximumConfidence,
+                    0
+                ) /
+                metrics.length
+                : 0;
+
+        const highestRisk =
+            riskSorted[0] ||
+            null;
+
+        const nextArrival =
+            activeArrivals[0] ||
+            null;
+
+        return {
+            region,
+            regionAr:
+                getArabicRegionName(
+                    region
+                ),
+            cityCount:
+                metrics.length,
+            rainyCities:
+                rainyMetrics.length,
+            rainyCityNames:
+                rainyMetrics.map(
+                    (metric) =>
+                        metric.city
+                ).filter(Boolean),
+            averageProbability,
+            averageProbabilityPercent:
+                Math.round(
+                    averageProbability *
+                    100
+                ),
+            averageConfidence,
+            averageConfidencePercent:
+                Math.round(
+                    averageConfidence *
+                    100
+                ),
+            highestRiskCity:
+                highestRisk?.city ||
+                null,
+            highestRiskScore:
+                highestRisk?.riskScore ||
+                0,
+            highestRiskScorePercent:
+                highestRisk?.riskScorePercent ||
+                0,
+            highestRiskProbability:
+                highestRisk?.maximumProbability ||
+                0,
+            highestRiskProbabilityPercent:
+                highestRisk?.maximumProbabilityPercent ||
+                0,
+            nextRainCity:
+                nextArrival?.city ||
+                null,
+            nextArrivalMinutes:
+                nextArrival?.arrivalMinutes ??
+                null,
+            nextArrivalTimestamp:
+                nextArrival?.arrivalTimestamp ??
+                null,
+            activeArrivalPredictions:
+                activeArrivals.length,
+            horizonSummary,
+            generatedAt:
+                now()
+        };
+
+    }
+
+    /* ================================================================= */
+
+    function buildNationalIntelligenceSummary(
+        cityForecasts,
+        regionForecasts,
+        horizons
+    ) {
+
+        const cityMetrics =
+            safeArray(
+                cityForecasts
+            ).map(
+                (city) =>
+                    calculateCityIntelligence(
+                        city,
+                        horizons
+                    )
+            );
+
+        const rainyCities =
+            cityMetrics.filter(
+                (metric) =>
+                    metric.rainExpected === true
+            );
+
+        const activeArrivals =
+            cityMetrics.filter(
+                (metric) =>
+                    metric.activeArrival === true
+            ).sort(
+                (first, second) =>
+                    first.arrivalMinutes -
+                    second.arrivalMinutes
+            );
+
+        const highestRiskCity =
+            [...cityMetrics].sort(
+                (first, second) =>
+                    second.riskScore -
+                    first.riskScore
+            )[0] ||
+            null;
+
+        const regionSummaries =
+            safeArray(
+                regionForecasts
+            ).map(
+                (regionForecast) =>
+                    safeObject(
+                        regionForecast.regionSummary
+                    )
+            );
+
+        const highestRiskRegion =
+            [...regionSummaries].sort(
+                (first, second) =>
+                    safeNumber(
+                        second.highestRiskScore,
+                        0
+                    ) -
+                    safeNumber(
+                        first.highestRiskScore,
+                        0
+                    )
+            )[0] ||
+            null;
+
+        const horizonSummary =
+            {};
+
+        normalizeHorizons(
+            horizons
+        ).forEach(
+            (horizon) => {
+
+                const metrics =
+                    cityMetrics.map(
+                        (cityMetric) =>
+                            cityMetric.horizonMetrics?.[
+                                horizon
+                            ] ||
+                            null
+                    ).filter(
+                        (metric) =>
+                            metric?.available === true
+                    );
+
+                const rainy =
+                    metrics.filter(
+                        (metric) =>
+                            metric.rainExpected === true
+                    );
+
+                const probabilityTotal =
+                    metrics.reduce(
+                        (sum, metric) =>
+                            sum +
+                            metric.probability,
+                        0
+                    );
+
+                const confidenceTotal =
+                    metrics.reduce(
+                        (sum, metric) =>
+                            sum +
+                            metric.confidence,
+                        0
+                    );
+
+                horizonSummary[horizon] = {
+                    horizonHours: horizon,
+                    availableCities:
+                        metrics.length,
+                    rainyCities:
+                        rainy.length,
+                    rainyCityRatio:
+                        metrics.length
+                            ? rainy.length /
+                                metrics.length
+                            : 0,
+                    averageProbability:
+                        metrics.length
+                            ? probabilityTotal /
+                                metrics.length
+                            : 0,
+                    averageProbabilityPercent:
+                        metrics.length
+                            ? Math.round(
+                                probabilityTotal /
+                                metrics.length *
+                                100
+                            )
+                            : 0,
+                    averageConfidence:
+                        metrics.length
+                            ? confidenceTotal /
+                                metrics.length
+                            : 0,
+                    averageConfidencePercent:
+                        metrics.length
+                            ? Math.round(
+                                confidenceTotal /
+                                metrics.length *
+                                100
+                            )
+                            : 0
+                };
+
+            }
+        );
+
+        const nationalProbability =
+            cityMetrics.length
+                ? cityMetrics.reduce(
+                    (sum, metric) =>
+                        sum +
+                        metric.maximumProbability,
+                    0
+                ) /
+                cityMetrics.length
+                : 0;
+
+        const nationalConfidence =
+            cityMetrics.length
+                ? cityMetrics.reduce(
+                    (sum, metric) =>
+                        sum +
+                        metric.maximumConfidence,
+                    0
+                ) /
+                cityMetrics.length
+                : 0;
+
+        const nextArrival =
+            activeArrivals[0] ||
+            null;
+
+        return {
+            totalCities:
+                cityMetrics.length,
+            totalRegions:
+                safeArray(
+                    regionForecasts
+                ).length,
+            rainyCities:
+                rainyCities.length,
+            rainyCityNames:
+                rainyCities.map(
+                    (metric) =>
+                        metric.city
+                ).filter(Boolean),
+            nationalProbability,
+            nationalProbabilityPercent:
+                Math.round(
+                    nationalProbability *
+                    100
+                ),
+            nationalConfidence,
+            nationalConfidencePercent:
+                Math.round(
+                    nationalConfidence *
+                    100
+                ),
+            highestRiskCity:
+                highestRiskCity?.city ||
+                null,
+            highestRiskCityRegion:
+                highestRiskCity?.region ||
+                null,
+            highestRiskScore:
+                highestRiskCity?.riskScore ||
+                0,
+            highestRiskScorePercent:
+                highestRiskCity?.riskScorePercent ||
+                0,
+            highestRiskRegion:
+                highestRiskRegion?.region ||
+                null,
+            highestRiskRegionAr:
+                highestRiskRegion?.regionAr ||
+                null,
+            nextRainCity:
+                nextArrival?.city ||
+                null,
+            nextRainRegion:
+                nextArrival?.region ||
+                null,
+            nextArrivalMinutes:
+                nextArrival?.arrivalMinutes ??
+                null,
+            nextArrivalTimestamp:
+                nextArrival?.arrivalTimestamp ??
+                null,
+            activeArrivalPredictions:
+                activeArrivals.length,
+            horizonSummary,
+            generatedAt:
+                now()
+        };
+
+    }
+
     /* ==================================================================
        SECTION 8
        EVENT EMITTER
@@ -1279,6 +2125,16 @@
         DEFAULT_LONG_HORIZON_FORECAST_CONFIGURATION,
 
         normalizeHorizons,
+
+        SAUDI_REGION_ARABIC_NAMES,
+
+        getArabicRegionName,
+
+        calculateCityIntelligence,
+
+        buildRegionIntelligenceSummary,
+
+        buildNationalIntelligenceSummary,
 
         LongHorizonForecastEmitter
 
@@ -3698,11 +4554,37 @@ Object.assign(
                                 }
                             );
 
+                            const regionSummary =
+                                buildRegionIntelligenceSummary(
+                                    region,
+                                    cities,
+                                    horizons
+                                );
+
                             return {
                                 region,
+                                regionAr:
+                                    regionSummary.regionAr,
                                 cityCount: cities.length,
                                 cities,
                                 horizonForecasts,
+                                regionSummary,
+                                rainyCities:
+                                    regionSummary.rainyCities,
+                                averageProbability:
+                                    regionSummary.averageProbability,
+                                averageProbabilityPercent:
+                                    regionSummary.averageProbabilityPercent,
+                                averageConfidence:
+                                    regionSummary.averageConfidence,
+                                averageConfidencePercent:
+                                    regionSummary.averageConfidencePercent,
+                                highestRiskCity:
+                                    regionSummary.highestRiskCity,
+                                nextRainCity:
+                                    regionSummary.nextRainCity,
+                                nextArrivalMinutes:
+                                    regionSummary.nextArrivalMinutes,
                                 generatedAt: now()
                             };
                         }
@@ -3762,6 +4644,13 @@ Object.assign(
                             }
                         );
 
+                const nationalSummary =
+                    buildNationalIntelligenceSummary(
+                        cityForecasts,
+                        regionForecasts,
+                        horizons
+                    );
+
                 const completedAt = now();
 
                 const nationalResult = {
@@ -3787,6 +4676,7 @@ Object.assign(
                     horizons,
                     cityForecasts,
                     regionForecasts,
+                    nationalSummary,
                     arrivalPredictions,
                     horizonForecasts,
                     failedCities
@@ -3794,6 +4684,8 @@ Object.assign(
 
                 core.cityForecasts = cityForecasts;
                 core.regionForecasts = regionForecasts;
+                core.nationalSummary = nationalSummary;
+                core.nationalForecastSummary = nationalSummary;
                 core.arrivalPredictions = arrivalPredictions;
                 core.horizonForecasts = horizonForecasts;
                 core.longHorizonForecast = nationalResult;
@@ -3807,6 +4699,8 @@ Object.assign(
                 ) {
                     core.state.cityForecasts = cityForecasts;
                     core.state.regionForecasts = regionForecasts;
+                    core.state.nationalSummary = nationalSummary;
+                    core.state.nationalForecastSummary = nationalSummary;
                     core.state.arrivalPredictions = arrivalPredictions;
                     core.state.horizonForecasts = horizonForecasts;
                     core.state.longHorizonForecast = nationalResult;
@@ -3817,6 +4711,8 @@ Object.assign(
                 this.state.latestForecast = nationalResult;
                 this.state.cityForecasts = cityForecasts;
                 this.state.regionForecasts = regionForecasts;
+                this.state.nationalSummary = nationalSummary;
+                this.state.nationalForecastSummary = nationalSummary;
                 this.state.arrivalPredictions = arrivalPredictions;
                 this.state.generatedAt = completedAt;
                 this.state.freshnessTimestamp = completedAt;
