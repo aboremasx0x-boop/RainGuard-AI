@@ -4294,17 +4294,37 @@ Object.assign(
                                 }
                             );
 
-                        if (
-                            result?.success !== true &&
-                            safeOptions.includeUnavailable !== true
-                        ) {
-                            throw new Error(
-                                result?.error?.message ||
-                                result?.message ||
-                                "City forecast failed or was unavailable."
-                            );
-                        }
+                      const hasUsableForecastResult =
+    result &&
+    typeof result ===
+        "object" &&
+    (
+        result.success === true ||
+        result.status ===
+            "available" ||
+        result.status ===
+            "unavailable" ||
+        result.status ===
+            "no-rain" ||
+        result.status ===
+            "monitoring" ||
+        result.forecasts ||
+        result.horizonForecasts ||
+        Array.isArray(
+            result.forecastList
+        ) ||
+        result.arrivalPrediction
+    );
 
+if (
+    !hasUsableForecastResult
+) {
+    throw new Error(
+        result?.error?.message ||
+        result?.message ||
+        "City forecast execution failed."
+    );
+}
                         const cityForecast = {
                             locationId: location.id ?? null,
                             locationCode: location.code || null,
