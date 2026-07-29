@@ -17,10 +17,10 @@
        ================================================================== */
 
     const LONG_HORIZON_FORECAST_VERSION =
-        "32.1.0";
+        "32.3.0";
 
     const LONG_HORIZON_FORECAST_BUILD =
-        "3201";
+        "3231";
 
     const LONG_HORIZON_FORECAST_ENGINE_NAME =
         "LongHorizonForecastEngineV32";
@@ -202,6 +202,29 @@
             runtimeMode:
                 "automatic",
 
+            nationalConcurrency:
+                4,
+
+            nationalBatchDelayMs:
+                0,
+
+            maximumStoredArrivalPredictions:
+                1500,
+
+            maximumStoredForecastHistory:
+                3,
+
+            retainRawResults:
+                false,
+
+            cacheTtlMs:
+                10 *
+                60 *
+                1000,
+
+            enableNationalCache:
+                true,
+
             metadata:
                 {}
 
@@ -257,6 +280,14 @@
         value,
         fallback = 0
     ) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return fallback;
+        }
 
         const numeric =
             Number(
@@ -468,6 +499,175 @@
             : [
                 ...LONG_HORIZON_FORECAST_HORIZONS
             ];
+
+    }
+
+    /* ================================================================= */
+
+    function normalizeTextKey(
+        value
+    ) {
+
+        return String(
+            value ??
+            ""
+        )
+            .trim()
+            .toLowerCase()
+            .replace(
+                /[\s_\-]+/g,
+                "-"
+            )
+            .replace(
+                /[^\p{L}\p{N}.-]+/gu,
+                ""
+            );
+
+    }
+
+    /* ================================================================= */
+
+    function createLocationKey(
+        location = {}
+    ) {
+
+        const source =
+            safeObject(
+                location
+            );
+
+        const id =
+            source.locationId ??
+            source.id ??
+            source.code ??
+            null;
+
+        if (
+            id !== null &&
+            id !== undefined &&
+            String(id).trim()
+        ) {
+            return `id:${normalizeTextKey(id)}`;
+        }
+
+        const city =
+            source.city ??
+            source.nameAr ??
+            source.nameEn ??
+            source.name ??
+            "unknown";
+
+        const region =
+            source.region ??
+            source.regionNameAr ??
+            source.regionNameEn ??
+            source.regionName ??
+            "unknown";
+
+        const latitude =
+            safeNumber(
+                source.latitude ??
+                source.lat,
+                null
+            );
+
+        const longitude =
+            safeNumber(
+                source.longitude ??
+                source.lon ??
+                source.lng,
+                null
+            );
+
+        return [
+            normalizeTextKey(region),
+            normalizeTextKey(city),
+            latitude === null
+                ? "na"
+                : latitude.toFixed(4),
+            longitude === null
+                ? "na"
+                : longitude.toFixed(4)
+        ].join(
+            ":"
+        );
+
+    }
+
+    /* ================================================================= */
+
+    function createArrivalPredictionKey(
+        prediction = {}
+    ) {
+
+        const source =
+            safeObject(
+                prediction
+            );
+
+        const locationKey =
+            source.locationKey ||
+            createLocationKey(
+                source
+            );
+
+        const timestamp =
+            safeNumber(
+                source.arrivalTimestamp,
+                null
+            );
+
+        const arrivalBucket =
+            timestamp === null
+                ? Math.round(
+                    safeNumber(
+                        source.arrivalMinutes,
+                        -1
+                    ) / 5
+                )
+                : Math.round(
+                    timestamp /
+                    (5 * 60 * 1000)
+                );
+
+        return [
+            locationKey,
+            normalizeTextKey(
+                source.source ||
+                "arrival"
+            ),
+            arrivalBucket
+        ].join(
+            "|"
+        );
+
+    }
+
+    /* ================================================================= */
+
+    function delay(
+        milliseconds
+    ) {
+
+        const duration =
+            Math.max(
+                0,
+                safeNumber(
+                    milliseconds,
+                    0
+                )
+            );
+
+        return duration
+            ? new Promise(
+                (resolve) => {
+                    global.setTimeout(
+                        resolve,
+                        duration
+                    );
+                }
+            )
+            : Promise.resolve();
 
     }
 
@@ -703,6 +903,24 @@
                     null,
 
                 latestPrediction:
+                    null,
+
+                latestNationalForecast:
+                    null,
+
+                nationalForecastHistory:
+                    [],
+
+                cityForecasts:
+                    [],
+
+                regionForecasts:
+                    [],
+
+                nationalRunning:
+                    false,
+
+                nationalProgress:
                     null,
 
                 sourceSummary:
@@ -1086,62 +1304,76 @@ Object.assign(
 
         resolveDependencies() {
 
+            const core =
+                this.core ||
+                global.RainArrivalRecoveryCoreV32Instance ||
+                global.LongHorizonRecoveryCoreV32Instance ||
+                global.RecoveryCoreV32Instance ||
+                global.recoveryCoreV32 ||
+                null;
+
+            const candidates = [
+                this.arrivalEngine,
+                core?.rainArrivalPredictionEngine,
+                core?.arrivalPredictionEngine,
+                core?.rainArrivalEngine,
+                global.RainArrivalPredictionEngineV32Instance,
+                global.rainArrivalPredictionEngineV32Instance
+            ];
+
+            const arrivalEngine =
+                candidates.find(
+                    (candidate) => {
+                        return (
+                            candidate &&
+                            candidate !== this &&
+                            typeof candidate !== "function"
+                        );
+                    }
+                ) ||
+                candidates.find(
+                    (candidate) => {
+                        return (
+                            candidate &&
+                            candidate !== this
+                        );
+                    }
+                ) ||
+                (
+                    typeof global.RainArrivalPredictionEngineV32 ===
+                    "function"
+                        ? global.RainArrivalPredictionEngineV32
+                        : null
+                );
+
             const dependencies = {
 
-                arrivalEngine:
-                    this.arrivalEngine ||
-
-                    this.core?.rainArrivalPredictionEngine ||
-
-                    this.core?.forecastEngine ||
-
-                    global.RainArrivalPredictionEngineV32Instance ||
-
-                    global.RainArrivalPredictionEngineV32 ||
-
-                    null,
+                arrivalEngine,
 
                 recoveryCore:
-                    this.core ||
-
-                    global.RecoveryCoreV32Instance ||
-
-                    global.RainArrivalRecoveryCoreV32Instance ||
-
-                    null,
+                    core,
 
                 monitoring:
                     global.PostRecoveryMonitoringV32Instance ||
-
                     global.RecoveryMonitoringV32Instance ||
-
                     global.LongHorizonMonitoringV32Instance ||
-
                     global.monitoringEngineV32 ||
-
                     null,
 
                 verification:
                     global.VerificationEngineV30 ||
-
                     global.VerificationEngineV31 ||
-
                     global.verificationEngine ||
-
                     null,
 
                 visualization:
                     global.StormVisualizationEngineV31 ||
-
                     global.StormVisualizationV31 ||
-
                     null,
 
                 tracking:
                     global.StormTrackingEngineV31 ||
-
                     global.StormCellTrackingEngineV31 ||
-
                     null
 
             };
@@ -1151,12 +1383,18 @@ Object.assign(
 
             if (
                 dependencies.arrivalEngine &&
-                !this.arrivalEngine
+                dependencies.arrivalEngine !== this
             ) {
-
                 this.arrivalEngine =
                     dependencies.arrivalEngine;
+            }
 
+            if (
+                dependencies.recoveryCore &&
+                !this.core
+            ) {
+                this.core =
+                    dependencies.recoveryCore;
             }
 
             return dependencies;
@@ -1394,6 +1632,32 @@ Object.assign(
 
                 region,
 
+                latitude:
+                    safeNumber(
+                        source.latitude ??
+                        source.lat ??
+                        source.location?.latitude ??
+                        source.location?.lat,
+                        null
+                    ),
+
+                longitude:
+                    safeNumber(
+                        source.longitude ??
+                        source.lon ??
+                        source.lng ??
+                        source.location?.longitude ??
+                        source.location?.lon ??
+                        source.location?.lng,
+                        null
+                    ),
+
+                locationKey:
+                    createLocationKey(
+                        source.location ||
+                        source
+                    ),
+
                 generatedAt,
 
                 horizons,
@@ -1452,7 +1716,9 @@ Object.assign(
                 },
 
                 raw:
-                    source
+                    this.configuration.retainRawResults
+                        ? source
+                        : null
 
             };
 
@@ -1562,7 +1828,9 @@ Object.assign(
                     null,
 
                 raw:
-                    prediction
+                    this.configuration.retainRawResults
+                        ? prediction
+                        : null
 
             };
 
@@ -1705,7 +1973,8 @@ Object.assign(
 
         calculateHorizonConfidence(
             arrival,
-            probability
+            probability,
+            horizonHours = 6
         ) {
 
             const arrivalConfidence =
@@ -1715,27 +1984,64 @@ Object.assign(
                     1
                 );
 
-            const probabilityConfidence =
-                1 -
+            const decisiveness =
                 Math.abs(
-                    0.5 -
                     clamp(
                         probability,
                         0,
                         1
-                    )
+                    ) -
+                    0.5
                 ) *
                 2;
+
+            const uncertaintyHours =
+                Math.max(
+                    0,
+                    safeNumber(
+                        arrival?.uncertaintyMinutes,
+                        0
+                    ) / 60
+                );
+
+            const uncertaintyPenalty =
+                clamp(
+                    uncertaintyHours /
+                    Math.max(
+                        1,
+                        safeNumber(
+                            horizonHours,
+                            6
+                        )
+                    ),
+                    0,
+                    0.45
+                );
+
+            const horizonPenalty =
+                clamp(
+                    Math.max(
+                        0,
+                        safeNumber(
+                            horizonHours,
+                            6
+                        ) - 6
+                    ) / 132,
+                    0,
+                    0.5
+                );
 
             return clamp(
                 (
                     arrivalConfidence *
-                    0.75
+                    0.78
                 ) +
                 (
-                    probabilityConfidence *
-                    0.25
-                ),
+                    decisiveness *
+                    0.22
+                ) -
+                uncertaintyPenalty -
+                horizonPenalty,
                 0,
                 1
             );
@@ -1759,7 +2065,8 @@ Object.assign(
             const confidence =
                 this.calculateHorizonConfidence(
                     arrival,
-                    probability
+                    probability,
+                    horizonHours
                 );
 
             const generatedAt =
@@ -2163,7 +2470,7 @@ Object.assign(
             await engine
                 .runCompleteRainArrivalPrediction(
                     normalizedInput.raw ||
-                    normalizedInput
+                    input
                 );
 
     } else if (
@@ -2176,7 +2483,7 @@ Object.assign(
             await engine
                 .predictRainArrival(
                     normalizedInput.raw ||
-                    normalizedInput
+                    input
                 );
 
     } else if (
@@ -2337,8 +2644,29 @@ Object.assign(
 
                 },
 
+                key:
+                    createArrivalPredictionKey({
+                        locationKey:
+                            normalizedInput.locationKey,
+                        city:
+                            normalizedInput.city,
+                        region:
+                            normalizedInput.region,
+                        arrivalTimestamp:
+                            arrival.arrivalTimestamp,
+                        arrivalMinutes:
+                            arrival.arrivalMinutes,
+                        source:
+                            "RainArrivalPredictionEngineV32"
+                    }),
+
+                locationKey:
+                    normalizedInput.locationKey,
+
                 raw:
-                    rawResult
+                    this.configuration.retainRawResults
+                        ? rawResult
+                        : null
 
             };
 
@@ -2427,6 +2755,13 @@ Object.assign(
                 return false;
             }
 
+            const cityKey =
+                forecastResult.locationKey ||
+                forecastResult.summary?.locationKey ||
+                createLocationKey(
+                    forecastResult
+                );
+
             const forecasts =
                 safeObject(
                     forecastResult.forecasts
@@ -2441,23 +2776,38 @@ Object.assign(
                 forecastResult.arrivalPrediction ||
                 null;
 
+            coreState.forecastsByCity =
+                safeObject(
+                    coreState.forecastsByCity
+                );
+
+            coreState.horizonForecastsByCity =
+                safeObject(
+                    coreState.horizonForecastsByCity
+                );
+
+            coreState.forecastListsByCity =
+                safeObject(
+                    coreState.forecastListsByCity
+                );
+
+            coreState.forecastsByCity[
+                cityKey
+            ] = forecasts;
+
+            coreState.horizonForecastsByCity[
+                cityKey
+            ] = forecasts;
+
+            coreState.forecastListsByCity[
+                cityKey
+            ] = forecastList;
+
             coreState.forecasts =
-                {
-
-                    ...coreState.forecasts,
-
-                    ...forecasts
-
-                };
+                forecasts;
 
             coreState.horizonForecasts =
-                {
-
-                    ...coreState.horizonForecasts,
-
-                    ...forecasts
-
-                };
+                forecasts;
 
             coreState.horizonForecastList =
                 forecastList;
@@ -2466,38 +2816,60 @@ Object.assign(
                 arrivalPrediction
             ) {
 
+                const predictionKey =
+                    arrivalPrediction.key ||
+                    createArrivalPredictionKey(
+                        arrivalPrediction
+                    );
+
+                arrivalPrediction.key =
+                    predictionKey;
+
                 const existingIndex =
                     coreState.arrivalPredictions
                         .findIndex(
                             (item) => {
-
                                 return (
-                                    item?.id ===
-                                    arrivalPrediction.id
+                                    item?.key === predictionKey ||
+                                    (
+                                        item?.id &&
+                                        item.id === arrivalPrediction.id
+                                    )
                                 );
-
                             }
                         );
 
                 if (
-                    existingIndex >=
-                    0
+                    existingIndex >= 0
                 ) {
-
                     coreState.arrivalPredictions[
                         existingIndex
-                    ] =
-                        arrivalPrediction;
-
+                    ] = arrivalPrediction;
                 } else {
-
-                    coreState.arrivalPredictions
-                        .push(
-                            arrivalPrediction
-                        );
-
+                    coreState.arrivalPredictions.push(
+                        arrivalPrediction
+                    );
                 }
 
+                const maximum =
+                    Math.max(
+                        100,
+                        safeNumber(
+                            this.configuration.maximumStoredArrivalPredictions,
+                            1500
+                        )
+                    );
+
+                if (
+                    coreState.arrivalPredictions.length >
+                    maximum
+                ) {
+                    coreState.arrivalPredictions.splice(
+                        0,
+                        coreState.arrivalPredictions.length -
+                        maximum
+                    );
+                }
             }
 
             coreState.latestForecast =
@@ -2525,7 +2897,7 @@ Object.assign(
                 coreState.arrivalPredictions;
 
             core.horizonForecasts =
-                coreState.horizonForecasts;
+                coreState.horizonForecastsByCity;
 
             core.horizonForecastList =
                 coreState.horizonForecastList;
@@ -2645,6 +3017,9 @@ Object.assign(
                 region:
                     normalizedInput.region,
 
+                locationKey:
+                    normalizedInput.locationKey,
+
                 horizons:
                     [
                         ...normalizedInput.horizons
@@ -2690,7 +3065,9 @@ Object.assign(
                 },
 
                 rawArrivalResult:
-                    arrivalExecution.rawResult
+                    this.configuration.retainRawResults
+                        ? arrivalExecution.rawResult
+                        : null
 
             };
 
@@ -2699,7 +3076,185 @@ Object.assign(
         /* ============================================================= */
 
         async runForecast(
-            input = {}
+            input = {},
+            runtime = {}
+        ) {
+
+            if (
+                this.destroyed
+            ) {
+                throw new Error(
+                    "Long horizon forecast engine is destroyed."
+                );
+            }
+
+            if (
+                !this.state.initialized
+            ) {
+                this.initialize();
+            }
+
+            const internal =
+                runtime.internal ===
+                true;
+
+            if (
+                !internal &&
+                this.state.running
+            ) {
+                return {
+                    success: false,
+                    status: LONG_HORIZON_FORECAST_STATUS.RUNNING,
+                    message: "Long horizon forecast is already running.",
+                    state: this.getState()
+                };
+            }
+
+            const startedAt =
+                now();
+
+            if (
+                !internal
+            ) {
+                this.state.running = true;
+                this.state.status = LONG_HORIZON_FORECAST_STATUS.RUNNING;
+                this.state.startedAt = startedAt;
+                this.state.completedAt = null;
+                this.state.durationMs = 0;
+                this.state.lastRunAt = startedAt;
+                this.state.errors = [];
+                this.state.warnings = [];
+
+                this.emit(
+                    LONG_HORIZON_FORECAST_EVENT.STARTED,
+                    {
+                        input:
+                            this.configuration.retainRawResults
+                                ? deepClone(input)
+                                : {
+                                    city: input?.city || null,
+                                    region: input?.region || null
+                                }
+                    }
+                );
+            }
+
+            try {
+
+                const normalizedInput =
+                    this.normalizeForecastInput(
+                        input
+                    );
+
+                const arrivalExecution =
+                    await this.executeArrivalPrediction(
+                        {
+                            ...input,
+                            ...normalizedInput,
+                            raw:
+                                this.configuration.retainRawResults
+                                    ? input
+                                    : null
+                        }
+                    );
+
+                const result =
+                    this.buildCompleteForecastResult(
+                        normalizedInput,
+                        arrivalExecution
+                    );
+
+                if (
+                    runtime.synchronizeCore !==
+                    false
+                ) {
+                    this.synchronizeForecastsToCore(
+                        result
+                    );
+                }
+
+                if (
+                    !internal
+                ) {
+                    this.synchronizeStateFromForecastResult(
+                        result
+                    );
+
+                    this.state.status =
+                        result.success
+                            ? LONG_HORIZON_FORECAST_STATUS.COMPLETED
+                            : LONG_HORIZON_FORECAST_STATUS.PARTIAL;
+
+                    this.state.lastSuccessfulRunAt =
+                        result.success
+                            ? now()
+                            : this.state.lastSuccessfulRunAt;
+
+                    this.emit(
+                        LONG_HORIZON_FORECAST_EVENT.COMPLETED,
+                        {
+                            result:
+                                this.configuration.retainRawResults
+                                    ? deepClone(result)
+                                    : result
+                        }
+                    );
+                }
+
+                return result;
+
+            } catch (error) {
+
+                const normalizedError =
+                    normalizeError(
+                        error
+                    );
+
+                if (
+                    !internal
+                ) {
+                    this.state.status =
+                        LONG_HORIZON_FORECAST_STATUS.FAILED;
+
+                    this.state.errors.push({
+                        id: createId("long_horizon_error"),
+                        timestamp: now(),
+                        error: normalizedError
+                    });
+
+                    this.emit(
+                        LONG_HORIZON_FORECAST_EVENT.FAILED,
+                        {
+                            error: normalizedError
+                        }
+                    );
+                }
+
+                return {
+                    success: false,
+                    partial: false,
+                    status: LONG_HORIZON_FORECAST_STATUS.FAILED,
+                    error: normalizedError,
+                    generatedAt: now()
+                };
+
+            } finally {
+
+                if (
+                    !internal
+                ) {
+                    this.state.running = false;
+                    this.state.completedAt = now();
+                    this.state.durationMs =
+                        this.state.completedAt -
+                        startedAt;
+                }
+            }
+
+        },
+
+       async runNationalForecast(
+            options = {}
         ) {
 
             if (
@@ -2717,106 +3272,599 @@ Object.assign(
             }
 
             if (
-                this.state.running
+                this.state.nationalRunning
             ) {
                 return {
-
-                    success:
-                        false,
-
-                    status:
-                        LONG_HORIZON_FORECAST_STATUS.RUNNING,
-
-                    message:
-                        "Long horizon forecast is already running.",
-
-                    state:
-                        this.getState()
-
+                    success: false,
+                    status: LONG_HORIZON_FORECAST_STATUS.RUNNING,
+                    message: "National long horizon forecast is already running.",
+                    progress: deepClone(this.state.nationalProgress)
                 };
             }
 
-            this.state.running =
-                true;
+            const core =
+                this.getCore();
 
-            this.state.status =
-                LONG_HORIZON_FORECAST_STATUS.RUNNING;
+            if (
+                !core
+            ) {
+                throw new Error(
+                    "Recovery Core is unavailable."
+                );
+            }
 
-            this.state.startedAt =
-                now();
+            const safeOptions =
+                safeObject(
+                    options
+                );
 
-            this.state.completedAt =
-                null;
+            const allLocations =
+                typeof core.getActiveLocations ===
+                "function"
+                    ? safeArray(
+                        core.getActiveLocations()
+                    )
+                    : core.locations instanceof Map
+                        ? [...core.locations.values()]
+                        : safeArray(
+                            core.locations
+                        );
 
-            this.state.durationMs =
-                0;
+            const locations =
+                allLocations.filter(
+                    (location) => {
+                        return (
+                            location &&
+                            location.active !== false
+                        );
+                    }
+                );
 
-            this.state.lastRunAt =
-                this.state.startedAt;
+            if (
+                locations.length === 0
+            ) {
+                return {
+                    success: false,
+                    status: LONG_HORIZON_FORECAST_STATUS.FAILED,
+                    message: "No active locations are available.",
+                    generatedAt: now()
+                };
+            }
 
-            this.state.errors =
-                [];
+            const concurrency =
+                Math.max(
+                    1,
+                    Math.min(
+                        12,
+                        Math.floor(
+                            safeNumber(
+                                safeOptions.concurrency ??
+                                this.configuration.nationalConcurrency,
+                                4
+                            )
+                        )
+                    )
+                );
 
-            this.state.warnings =
-                [];
+            const batchDelayMs =
+                Math.max(
+                    0,
+                    safeNumber(
+                        safeOptions.batchDelayMs ??
+                        this.configuration.nationalBatchDelayMs,
+                        0
+                    )
+                );
+
+            const cityForecasts = [];
+            const failedCities = [];
+            const arrivalMap = new Map();
+            const startedAt = now();
+            let nextIndex = 0;
+            let completedCount = 0;
+
+            this.state.nationalRunning = true;
+            this.state.status = LONG_HORIZON_FORECAST_STATUS.RUNNING;
+            this.state.startedAt = startedAt;
+            this.state.lastRunAt = startedAt;
+            this.state.nationalProgress = {
+                total: locations.length,
+                completed: 0,
+                failed: 0,
+                percentage: 0,
+                currentCities: []
+            };
 
             this.emit(
                 LONG_HORIZON_FORECAST_EVENT.STARTED,
                 {
-                    input:
-                        deepClone(
-                            input
-                        )
+                    national: true,
+                    locationCount: locations.length,
+                    concurrency
                 }
             );
 
+            const executeLocation =
+                async (location, index) => {
+
+                    const cityName =
+                        location.nameAr ||
+                        location.nameEn ||
+                        location.name ||
+                        location.city ||
+                        location.code ||
+                        location.id ||
+                        `location-${index + 1}`;
+
+                    const regionName =
+                        location.regionNameAr ||
+                        location.regionNameEn ||
+                        location.region ||
+                        location.regionName ||
+                        "غير محدد";
+
+                    const locationKey =
+                        createLocationKey(
+                            location
+                        );
+
+                    try {
+
+                        const result =
+                            await this.runForecast(
+                                {
+                                    ...safeObject(
+                                        safeOptions.forecast
+                                    ),
+                                    id: location.id,
+                                    city: cityName,
+                                    region: regionName,
+                                    latitude:
+                                        location.latitude ??
+                                        location.lat,
+                                    longitude:
+                                        location.longitude ??
+                                        location.lon ??
+                                        location.lng,
+                                    locationKey,
+                                    location,
+                                    national: true,
+                                    locationIndex: index,
+                                    locationCount: locations.length
+                                },
+                                {
+                                    internal: true,
+                                    synchronizeCore: false
+                                }
+                            );
+
+                        if (
+                            result?.success !== true &&
+                            safeOptions.includeUnavailable !== true
+                        ) {
+                            throw new Error(
+                                result?.error?.message ||
+                                result?.message ||
+                                "City forecast failed or was unavailable."
+                            );
+                        }
+
+                        const cityForecast = {
+                            locationId: location.id ?? null,
+                            locationCode: location.code || null,
+                            locationKey,
+                            city: result.city || cityName,
+                            region: result.region || regionName,
+                            latitude:
+                                safeNumber(
+                                    location.latitude ??
+                                    location.lat,
+                                    null
+                                ),
+                            longitude:
+                                safeNumber(
+                                    location.longitude ??
+                                    location.lon ??
+                                    location.lng,
+                                    null
+                                ),
+                            success: result?.success === true,
+                            status: result?.status || LONG_HORIZON_FORECAST_RESULT_STATUS.UNAVAILABLE,
+                            forecasts: result?.forecasts || {},
+                            forecastList: safeArray(result?.forecastList),
+                            horizonForecasts:
+                                result?.horizonForecasts ||
+                                result?.forecasts ||
+                                {},
+                            horizons: safeArray(result?.horizons),
+                            arrivalPrediction: result?.arrivalPrediction || null,
+                            summary: result?.summary || null,
+                            generatedAt: result?.generatedAt || now()
+                        };
+
+                        cityForecasts.push(
+                            cityForecast
+                        );
+
+                        const predictions = [
+                            cityForecast.arrivalPrediction,
+                            ...safeArray(
+                                result?.arrivalPredictions
+                            )
+                        ].filter(Boolean);
+
+                        predictions.forEach(
+                            (prediction) => {
+                                const record = {
+                                    ...safeObject(prediction),
+                                    locationId: location.id ?? null,
+                                    locationKey,
+                                    city: cityForecast.city,
+                                    region: cityForecast.region
+                                };
+
+                                record.key =
+                                    record.key ||
+                                    createArrivalPredictionKey(
+                                        record
+                                    );
+
+                                arrivalMap.set(
+                                    record.key,
+                                    record
+                                );
+                            }
+                        );
+
+                    } catch (error) {
+
+                        failedCities.push({
+                            locationId: location.id ?? null,
+                            locationKey,
+                            city: cityName,
+                            region: regionName,
+                            error: normalizeError(error)
+                        });
+
+                        if (
+                            safeOptions.stopOnError === true
+                        ) {
+                            throw error;
+                        }
+                    } finally {
+
+                        completedCount += 1;
+
+                        this.state.nationalProgress = {
+                            total: locations.length,
+                            completed: completedCount,
+                            failed: failedCities.length,
+                            percentage:
+                                Math.round(
+                                    completedCount /
+                                    locations.length *
+                                    100
+                                ),
+                            currentCity: cityName
+                        };
+
+                        if (
+                            safeOptions.logProgress !== false
+                        ) {
+                            console.log(
+                                "[LongHorizonForecastV32] National progress:",
+                                completedCount,
+                                "/",
+                                locations.length,
+                                cityName
+                            );
+                        }
+                    }
+                };
+
+            const worker =
+                async () => {
+                    while (
+                        nextIndex < locations.length
+                    ) {
+                        const index = nextIndex;
+                        nextIndex += 1;
+
+                        await executeLocation(
+                            locations[index],
+                            index
+                        );
+
+                        if (
+                            batchDelayMs > 0
+                        ) {
+                            await delay(
+                                batchDelayMs
+                            );
+                        }
+                    }
+                };
+
             try {
 
-                const normalizedInput =
-                    this.normalizeForecastInput(
-                        input
-                    );
-
-                const arrivalExecution =
-                    await this.executeArrivalPrediction(
-                        normalizedInput
-                    );
-
-                const result =
-                    this.buildCompleteForecastResult(
-                        normalizedInput,
-                        arrivalExecution
-                    );
-
-                this.synchronizeStateFromForecastResult(
-                    result
+                await Promise.all(
+                    Array.from(
+                        {
+                            length:
+                                Math.min(
+                                    concurrency,
+                                    locations.length
+                                )
+                        },
+                        () => worker()
+                    )
                 );
 
-                this.synchronizeForecastsToCore(
-                    result
+                cityForecasts.sort(
+                    (first, second) => {
+                        return String(first.region).localeCompare(
+                            String(second.region),
+                            "ar"
+                        ) ||
+                        String(first.city).localeCompare(
+                            String(second.city),
+                            "ar"
+                        );
+                    }
                 );
 
-                this.state.status =
-                    result.success
-                        ? LONG_HORIZON_FORECAST_STATUS.COMPLETED
-                        : LONG_HORIZON_FORECAST_STATUS.PARTIAL;
+                const regionMap = new Map();
 
+                cityForecasts.forEach(
+                    (cityForecast) => {
+                        const regionName =
+                            cityForecast.region ||
+                            "غير محدد";
+
+                        if (
+                            !regionMap.has(regionName)
+                        ) {
+                            regionMap.set(
+                                regionName,
+                                []
+                            );
+                        }
+
+                        regionMap.get(regionName).push(
+                            cityForecast
+                        );
+                    }
+                );
+
+                const horizons =
+                    normalizeHorizons(
+                        safeOptions.horizons ||
+                        this.configuration.horizons
+                    );
+
+                const regionForecasts =
+                    [...regionMap.entries()].map(
+                        ([region, cities]) => {
+                            const horizonForecasts = {};
+
+                            horizons.forEach(
+                                (horizon) => {
+                                    const forecasts =
+                                        cities.map(
+                                            (city) => {
+                                                return city.horizonForecasts?.[horizon] ||
+                                                    city.horizonForecasts?.[String(horizon)] ||
+                                                    null;
+                                            }
+                                        ).filter(Boolean);
+
+                                    const rainExpectedCount =
+                                        forecasts.filter(
+                                            (forecast) => forecast.rainExpected === true
+                                        ).length;
+
+                                    const averageProbability =
+                                        forecasts.length
+                                            ? forecasts.reduce(
+                                                (sum, forecast) => {
+                                                    return sum + safeNumber(forecast.probability, 0);
+                                                },
+                                                0
+                                            ) / forecasts.length
+                                            : 0;
+
+                                    const averageConfidence =
+                                        forecasts.length
+                                            ? forecasts.reduce(
+                                                (sum, forecast) => {
+                                                    return sum + safeNumber(forecast.confidence, 0);
+                                                },
+                                                0
+                                            ) / forecasts.length
+                                            : 0;
+
+                                    horizonForecasts[horizon] = {
+                                        horizonHours: horizon,
+                                        cityCount: forecasts.length,
+                                        rainExpectedCount,
+                                        rainExpectedRatio:
+                                            forecasts.length
+                                                ? rainExpectedCount / forecasts.length
+                                                : 0,
+                                        averageProbability,
+                                        averageConfidence,
+                                        forecasts
+                                    };
+                                }
+                            );
+
+                            return {
+                                region,
+                                cityCount: cities.length,
+                                cities,
+                                horizonForecasts,
+                                generatedAt: now()
+                            };
+                        }
+                    );
+
+                const horizonForecasts = {};
+
+                horizons.forEach(
+                    (horizon) => {
+                        const entries =
+                            cityForecasts.map(
+                                (city) => {
+                                    const forecast =
+                                        city.horizonForecasts?.[horizon] ||
+                                        city.horizonForecasts?.[String(horizon)] ||
+                                        null;
+
+                                    return forecast
+                                        ? {
+                                            locationId: city.locationId,
+                                            locationKey: city.locationKey,
+                                            city: city.city,
+                                            region: city.region,
+                                            latitude: city.latitude,
+                                            longitude: city.longitude,
+                                            forecast
+                                        }
+                                        : null;
+                                }
+                            ).filter(Boolean);
+
+                        horizonForecasts[`h${horizon}`] = {
+                            horizonHours: horizon,
+                            locations: entries,
+                            locationCount: entries.length,
+                            rainExpectedCount:
+                                entries.filter(
+                                    (entry) => entry.forecast.rainExpected === true
+                                ).length,
+                            generatedAt: now()
+                        };
+                    }
+                );
+
+                const arrivalPredictions =
+                    [...arrivalMap.values()]
+                        .sort(
+                            (first, second) => {
+                                return safeNumber(
+                                    first.arrivalTimestamp,
+                                    Number.MAX_SAFE_INTEGER
+                                ) -
+                                safeNumber(
+                                    second.arrivalTimestamp,
+                                    Number.MAX_SAFE_INTEGER
+                                );
+                            }
+                        );
+
+                const completedAt = now();
+
+                const nationalResult = {
+                    id: createId("national_long_horizon_forecast"),
+                    success: cityForecasts.length > 0,
+                    partial: failedCities.length > 0,
+                    status:
+                        cityForecasts.length === 0
+                            ? LONG_HORIZON_FORECAST_STATUS.FAILED
+                            : failedCities.length === 0
+                                ? LONG_HORIZON_FORECAST_STATUS.COMPLETED
+                                : LONG_HORIZON_FORECAST_STATUS.PARTIAL,
+                    generatedAt: completedAt,
+                    startedAt,
+                    completedAt,
+                    durationMs: completedAt - startedAt,
+                    totalLocations: locations.length,
+                    completedCities: cityForecasts.length,
+                    failedCount: failedCities.length,
+                    regionCount: regionForecasts.length,
+                    arrivalCount: arrivalPredictions.length,
+                    concurrency,
+                    horizons,
+                    cityForecasts,
+                    regionForecasts,
+                    arrivalPredictions,
+                    horizonForecasts,
+                    failedCities
+                };
+
+                core.cityForecasts = cityForecasts;
+                core.regionForecasts = regionForecasts;
+                core.arrivalPredictions = arrivalPredictions;
+                core.horizonForecasts = horizonForecasts;
+                core.longHorizonForecast = nationalResult;
+                core.latestNationalForecast = nationalResult;
+                core.latestForecast = nationalResult;
+                core.forecastData = cityForecasts;
+
+                if (
+                    core.state &&
+                    typeof core.state === "object"
+                ) {
+                    core.state.cityForecasts = cityForecasts;
+                    core.state.regionForecasts = regionForecasts;
+                    core.state.arrivalPredictions = arrivalPredictions;
+                    core.state.horizonForecasts = horizonForecasts;
+                    core.state.longHorizonForecast = nationalResult;
+                    core.state.latestNationalForecast = nationalResult;
+                }
+
+                this.state.latestNationalForecast = nationalResult;
+                this.state.latestForecast = nationalResult;
+                this.state.cityForecasts = cityForecasts;
+                this.state.regionForecasts = regionForecasts;
+                this.state.arrivalPredictions = arrivalPredictions;
+                this.state.generatedAt = completedAt;
+                this.state.freshnessTimestamp = completedAt;
+                this.state.status = nationalResult.status;
                 this.state.lastSuccessfulRunAt =
-                    result.success
-                        ? now()
+                    nationalResult.success
+                        ? completedAt
                         : this.state.lastSuccessfulRunAt;
+
+                this.state.nationalForecastHistory.push({
+                    id: nationalResult.id,
+                    generatedAt: nationalResult.generatedAt,
+                    status: nationalResult.status,
+                    completedCities: nationalResult.completedCities,
+                    failedCount: nationalResult.failedCount,
+                    regionCount: nationalResult.regionCount,
+                    durationMs: nationalResult.durationMs
+                });
+
+                const maximumHistory =
+                    Math.max(
+                        1,
+                        safeNumber(
+                            this.configuration.maximumStoredForecastHistory,
+                            3
+                        )
+                    );
+
+                if (
+                    this.state.nationalForecastHistory.length >
+                    maximumHistory
+                ) {
+                    this.state.nationalForecastHistory.splice(
+                        0,
+                        this.state.nationalForecastHistory.length -
+                        maximumHistory
+                    );
+                }
 
                 this.emit(
                     LONG_HORIZON_FORECAST_EVENT.COMPLETED,
                     {
-                        result:
-                            deepClone(
-                                result
-                            )
+                        national: true,
+                        result: nationalResult
                     }
                 );
 
-                return result;
+                return nationalResult;
 
             } catch (error) {
 
@@ -2828,702 +3876,46 @@ Object.assign(
                 this.state.status =
                     LONG_HORIZON_FORECAST_STATUS.FAILED;
 
-                this.state.errors.push(
-                    {
-
-                        id:
-                            createId(
-                                "long_horizon_error"
-                            ),
-
-                        timestamp:
-                            now(),
-
-                        error:
-                            normalizedError
-
-                    }
-                );
-
                 this.emit(
                     LONG_HORIZON_FORECAST_EVENT.FAILED,
                     {
-                        error:
-                            normalizedError
+                        national: true,
+                        error: normalizedError
                     }
                 );
 
                 return {
-
-                    success:
-                        false,
-
-                    partial:
-                        false,
-
-                    status:
-                        LONG_HORIZON_FORECAST_STATUS.FAILED,
-
-                    error:
-                        normalizedError,
-
-                    generatedAt:
-                        now()
-
+                    success: false,
+                    partial: cityForecasts.length > 0,
+                    status: LONG_HORIZON_FORECAST_STATUS.FAILED,
+                    error: normalizedError,
+                    cityForecasts,
+                    failedCities,
+                    generatedAt: now()
                 };
 
             } finally {
 
-                this.state.running =
-                    false;
-
-                this.state.completedAt =
-                    now();
-
+                this.state.nationalRunning = false;
+                this.state.running = false;
+                this.state.completedAt = now();
                 this.state.durationMs =
                     this.state.completedAt -
-                    this.state.startedAt;
-
+                    startedAt;
             }
 
         },
 
-       async runNationalForecast(
-    options = {}
-) {
-
-    if (
-        this.destroyed
-    ) {
-        throw new Error(
-            "Long horizon forecast engine is destroyed."
-        );
-    }
-
-    if (
-        !this.state.initialized
-    ) {
-        this.initialize();
-    }
-
-    const core =
-        this.core ||
-        global.RainArrivalRecoveryCoreV32Instance ||
-        global.LongHorizonRecoveryCoreV32Instance ||
-        null;
-
-    if (
-        !core
-    ) {
-        throw new Error(
-            "Recovery Core is unavailable."
-        );
-    }
-
-    const locations =
-        typeof core.getActiveLocations ===
-        "function"
-            ? core.getActiveLocations()
-            : core.locations instanceof Map
-                ? [
-                    ...core.locations.values()
-                ].filter(
-                    location =>
-                        location?.active !==
-                        false
-                )
-                : [];
-
-    if (
-        locations.length ===
-        0
-    ) {
-        return {
-            success:
-                false,
-
-            status:
-                LONG_HORIZON_FORECAST_STATUS.FAILED,
-
-            message:
-                "No active locations are available.",
-
-            generatedAt:
-                now()
-        };
-    }
-
-    const safeOptions =
-        safeObject(
-            options
-        );
-
-    const cityForecasts =
-        [];
-
-    const failedCities =
-        [];
-
-    const arrivalPredictions =
-        [];
-
-    const startedAt =
-        now();
-
-    this.emit(
-        LONG_HORIZON_FORECAST_EVENT.STARTED,
-        {
-            national:
-                true,
-
-            locationCount:
-                locations.length
-        }
-    );
-
-    for (
-        let index = 0;
-        index < locations.length;
-        index += 1
-    ) {
-        const location =
-            locations[index];
-
-        const cityName =
-            location.nameAr ||
-            location.nameEn ||
-            location.name ||
-            location.city ||
-            location.code ||
-            location.id;
-
-        const regionName =
-            location.regionNameAr ||
-            location.regionNameEn ||
-            location.region ||
-            location.regionName ||
-            "غير محدد";
-
-        try {
-
-            const result =
-                await this.runForecast({
-                    id:
-                        location.id,
-
-                    city:
-                        cityName,
-
-                    region:
-                        regionName,
-
-                    latitude:
-                        location.latitude ??
-                        location.lat,
-
-                    longitude:
-                        location.longitude ??
-                        location.lon ??
-                        location.lng,
-
-                    location,
-
-                    national:
-                        true,
-
-                    locationIndex:
-                        index,
-
-                    locationCount:
-                        locations.length,
-
-                    ...safeOptions.forecast
-                });
-
-            if (
-                result?.success !==
-                true
-            ) {
-                throw new Error(
-                    result?.error?.message ||
-                    result?.message ||
-                    "City forecast failed."
-                );
-            }
-
-            const cityForecast = {
-                locationId:
-                    location.id,
-
-                locationCode:
-                    location.code ||
-                    null,
-
-                city:
-                    result.city ||
-                    cityName,
-
-                region:
-                    result.region ||
-                    regionName,
-
-                latitude:
-                    location.latitude ??
-                    location.lat ??
-                    null,
-
-                longitude:
-                    location.longitude ??
-                    location.lon ??
-                    location.lng ??
-                    null,
-
-                success:
-                    true,
-
-                status:
-                    result.status,
-
-                forecasts:
-                    result.forecasts ||
-                    null,
-
-                forecastList:
-                    safeArray(
-                        result.forecastList
-                    ),
-
-                horizonForecasts:
-                    result.horizonForecasts ||
-                    result.forecasts ||
-                    {},
-
-                horizons:
-                    safeArray(
-                        result.horizons
-                    ),
-
-                arrivalPrediction:
-                    result.arrivalPrediction ||
-                    null,
-
-                arrivalPredictions:
-                    safeArray(
-                        result.arrivalPredictions
-                    ),
-
-                summary:
-                    result.summary ||
-                    null,
-
-                generatedAt:
-                    result.generatedAt ||
-                    now(),
-
-                rawResult:
-                    result
-            };
-
-            cityForecasts.push(
-                cityForecast
-            );
-
-            if (
-                cityForecast.arrivalPrediction
-            ) {
-                arrivalPredictions.push({
-                    locationId:
-                        location.id,
-
-                    city:
-                        cityForecast.city,
-
-                    region:
-                        cityForecast.region,
-
-                    ...safeObject(
-                        cityForecast.arrivalPrediction
-                    )
-                });
-            }
-
-            safeArray(
-                cityForecast.arrivalPredictions
-            ).forEach(
-                prediction => {
-                    arrivalPredictions.push({
-                        locationId:
-                            location.id,
-
-                        city:
-                            cityForecast.city,
-
-                        region:
-                            cityForecast.region,
-
-                        ...safeObject(
-                            prediction
-                        )
-                    });
-                }
-            );
-
-            if (
-                safeOptions.logProgress !==
-                false
-            ) {
-                console.log(
-                    "Completed:",
-                    index + 1,
-                    "/",
-                    locations.length,
-                    cityName
-                );
-            }
-
-        } catch (error) {
-
-            const normalizedError =
-                normalizeError(
-                    error
-                );
-
-            failedCities.push({
-                locationId:
-                    location.id,
-
-                city:
-                    cityName,
-
-                region:
-                    regionName,
-
-                error:
-                    normalizedError
-            });
-
-            if (
-                safeOptions.stopOnError ===
-                true
-            ) {
-                break;
-            }
-        }
-    }
-
-    const regionMap =
-        new Map();
-
-    cityForecasts.forEach(
-        cityForecast => {
-
-            const regionName =
-                cityForecast.region ||
-                "غير محدد";
-
-            if (
-                !regionMap.has(
-                    regionName
-                )
-            ) {
-                regionMap.set(
-                    regionName,
-                    []
-                );
-            }
-
-            regionMap
-                .get(
-                    regionName
-                )
-                .push(
-                    cityForecast
-                );
-        }
-    );
-
-    const regionForecasts =
-        [
-            ...regionMap.entries()
-        ].map(
-            (
-                [
-                    region,
-                    cities
-                ]
-            ) => {
-
-                const horizonSummary =
-                    {};
-
-                [
-                    6,
-                    12,
-                    24,
-                    48,
-                    72
-                ].forEach(
-                    horizon => {
-
-                        const forecasts =
-                            cities
-                                .map(
-                                    city =>
-                                        city
-                                            .horizonForecasts
-                                            ?.[horizon] ||
-                                        city
-                                            .horizonForecasts
-                                            ?.[
-                                                String(
-                                                    horizon
-                                                )
-                                            ] ||
-                                        null
-                                )
-                                .filter(
-                                    Boolean
-                                );
-
-                        horizonSummary[horizon] = {
-                            horizonHours:
-                                horizon,
-
-                            cityCount:
-                                forecasts.length,
-
-                            forecasts
-                        };
-                    }
-                );
-
-                return {
-                    region,
-
-                    cityCount:
-                        cities.length,
-
-                    cities,
-
-                    horizonForecasts:
-                        horizonSummary,
-
-                    generatedAt:
-                        now()
-                };
-            }
-        );
-
-    const horizonForecasts =
-        {};
-
-    [
-        6,
-        12,
-        24,
-        48,
-        72
-    ].forEach(
-        horizon => {
-
-            const locationsForHorizon =
-                cityForecasts
-                    .map(
-                        city => {
-
-                            const forecast =
-                                city
-                                    .horizonForecasts
-                                    ?.[horizon] ||
-                                city
-                                    .horizonForecasts
-                                    ?.[
-                                        String(
-                                            horizon
-                                        )
-                                    ] ||
-                                null;
-
-                            if (
-                                !forecast
-                            ) {
-                                return null;
-                            }
-
-                            return {
-                                locationId:
-                                    city.locationId,
-
-                                city:
-                                    city.city,
-
-                                region:
-                                    city.region,
-
-                                latitude:
-                                    city.latitude,
-
-                                longitude:
-                                    city.longitude,
-
-                                forecast
-                            };
-                        }
-                    )
-                    .filter(
-                        Boolean
-                    );
-
-            horizonForecasts[
-                "h" +
-                horizon
-            ] = {
-                horizonHours:
-                    horizon,
-
-                locations:
-                    locationsForHorizon,
-
-                locationCount:
-                    locationsForHorizon.length,
-
-                generatedAt:
-                    now()
-            };
-        }
-    );
-
-    const completedAt =
-        now();
-
-    const nationalResult = {
-        id:
-            createId(
-                "national_long_horizon_forecast"
-            ),
-
-        success:
-            cityForecasts.length >
-            0,
-
-        partial:
-            failedCities.length >
-            0,
-
-        status:
-            failedCities.length ===
-            0
-                ? LONG_HORIZON_FORECAST_STATUS.COMPLETED
-                : LONG_HORIZON_FORECAST_STATUS.PARTIAL,
-
-        generatedAt:
-            completedAt,
-
-        startedAt,
-
-        completedAt,
-
-        durationMs:
-            completedAt -
-            startedAt,
-
-        totalLocations:
-            locations.length,
-
-        completedCities:
-            cityForecasts.length,
-
-        failedCount:
-            failedCities.length,
-
-        regionCount:
-            regionForecasts.length,
-
-        arrivalCount:
-            arrivalPredictions.length,
-
-        horizons: [
-            6,
-            12,
-            24,
-            48,
-            72
-        ],
-
-        cityForecasts,
-
-        regionForecasts,
-
-        arrivalPredictions,
-
-        horizonForecasts,
-
-        failedCities
-    };
-
-    core.cityForecasts =
-        cityForecasts;
-
-    core.regionForecasts =
-        regionForecasts;
-
-    core.arrivalPredictions =
-        arrivalPredictions;
-
-    core.horizonForecasts =
-        horizonForecasts;
-
-    core.longHorizonForecast =
-        nationalResult;
-
-    core.latestForecast =
-        nationalResult;
-
-    core.forecastData =
-        cityForecasts;
-
-    this.state.latestNationalForecast =
-        deepClone(
-            nationalResult
-        );
-
-    this.state.latestForecast =
-        deepClone(
-            nationalResult
-        );
-
-    this.state.lastSuccessfulRunAt =
-        nationalResult.success
-            ? completedAt
-            : this.state.lastSuccessfulRunAt;
-
-    this.emit(
-        LONG_HORIZON_FORECAST_EVENT.COMPLETED,
-        {
-            national:
-                true,
-
-            result:
-                deepClone(
-                    nationalResult
-                )
-        }
-    );
-
-    return nationalResult;
-},
-
        getLatestNationalForecast() {
 
-    return (
-        this.state
-            .latestNationalForecast ||
-        this.core
-            ?.longHorizonForecast ||
-        null
-    );
+            return deepClone(
+                this.state.latestNationalForecast ||
+                this.core?.latestNationalForecast ||
+                this.core?.longHorizonForecast ||
+                null
+            );
 
-},
+        },
 
         /* ============================================================= */
 
@@ -3625,27 +4017,25 @@ Object.assign(
                 return;
             }
 
-            this.destroyed =
-                true;
-
-            this.state.destroyed =
-                true;
-
-            this.state.running =
-                false;
-
+            this.destroyed = true;
+            this.state.destroyed = true;
+            this.state.running = false;
+            this.state.nationalRunning = false;
             this.state.status =
                 LONG_HORIZON_FORECAST_STATUS.DESTROYED;
-
-            this.events.clear();
 
             this.emit(
                 LONG_HORIZON_FORECAST_EVENT.DESTROYED,
                 {
-                    id:
-                        this.id
+                    id: this.id
                 }
             );
+
+            this.events.clear();
+            this.dependencies = null;
+            this.arrivalEngine = null;
+            this.sourceEngine = null;
+            this.core = null;
 
         }
 
@@ -3686,14 +4076,9 @@ const defaultLongHorizonForecastEngineInstance =
 
         arrivalEngine:
 
-    global.RainArrivalPredictionEngineV32Instance ||
-
-    (
-        typeof global.RainArrivalPredictionEngineV32 ===
-        "function"
-            ? new global.RainArrivalPredictionEngineV32()
-            : null
-    )
+            global.RainArrivalPredictionEngineV32Instance ||
+            global.rainArrivalPredictionEngineV32Instance ||
+            null
 
     });
 
@@ -3766,6 +4151,28 @@ global.runLongHorizonForecast =
 
     };
 
+global.runNationalLongHorizonForecast =
+    async function runNationalLongHorizonForecast(
+        options = {}
+    ) {
+
+        return global
+            .LongHorizonForecastEngineV32Instance
+            .runNationalForecast(
+                options
+            );
+
+    };
+
+global.getLatestNationalLongHorizonForecast =
+    function getLatestNationalLongHorizonForecast() {
+
+        return global
+            .LongHorizonForecastEngineV32Instance
+            .getLatestNationalForecast();
+
+    };
+
 console.log(
     "[RainGuard AI V32] Long Horizon Forecast Engine initialized.",
     {
@@ -3787,6 +4194,3 @@ console.log(
    ====================================================================== */
 
 })(window);
-
-
-    /* لا تغلق الدالة الآن؛ بقية الأجزاء ستكمل داخل نفس الملف. */
