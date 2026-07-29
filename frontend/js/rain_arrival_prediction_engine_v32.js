@@ -22378,83 +22378,242 @@ generateRainArrivalFusionSummary(
     targetCoordinate,
     options = {}
 ) {
-    const estimates = [];
+    const safeSources =
+        this.isPlainObject(sources)
+            ? sources
+            : {};
 
-    if (sources?.radar) {
-        const radarEstimate =
-            this.estimateRadarRainArrival(
-                sources.radar,
-                targetCoordinate,
-                options
+    const normalizedTarget =
+        this.normalizeCoordinate(
+            targetCoordinate
+        );
+
+    const estimates =
+        [];
+
+    const diagnostics = {
+        targetValid:
+            Boolean(
+                normalizedTarget
+            ),
+
+        sourcePresence: {},
+
+        attemptedSources:
+            [],
+
+        acceptedSources:
+            [],
+
+        rejectedSources:
+            []
+    };
+
+    const radarSource =
+        safeSources.radar ??
+        safeSources.radarData ??
+        safeSources.rainViewer ??
+        safeSources.rainviewer ??
+        safeSources.weatherRadar ??
+        safeSources.sources?.radar ??
+        safeSources.collection?.radar ??
+        null;
+
+    const satelliteSource =
+        safeSources.satellite ??
+        safeSources.satelliteData ??
+        safeSources.clouds ??
+        safeSources.cloudData ??
+        safeSources.sources?.satellite ??
+        safeSources.collection?.satellite ??
+        null;
+
+    const lightningSource =
+        safeSources.lightning ??
+        safeSources.lightningData ??
+        safeSources.strikes ??
+        safeSources.sources?.lightning ??
+        safeSources.collection?.lightning ??
+        null;
+
+    const projectedTrack =
+        safeSources.projectedTrack ??
+        safeSources.stormTrack ??
+        safeSources.trackProjection ??
+        safeSources.pathPrediction ??
+        safeSources.predictedPath ??
+        safeSources.sources?.projectedTrack ??
+        [];
+
+    const additionalEstimates =
+        safeSources.additionalEstimates ??
+        safeSources.arrivalEstimates ??
+        safeSources.estimates ??
+        [];
+
+    diagnostics.sourcePresence = {
+        radar:
+            Boolean(
+                radarSource
+            ),
+
+        satellite:
+            Boolean(
+                satelliteSource
+            ),
+
+        lightning:
+            Boolean(
+                lightningSource
+            ),
+
+        projectedTrack:
+            Array.isArray(
+                projectedTrack
+            ) &&
+            projectedTrack.length >
+                0,
+
+        additionalEstimates:
+            Array.isArray(
+                additionalEstimates
+            ) &&
+            additionalEstimates.length >
+                0
+    };
+
+    const acceptEstimate = (
+        sourceName,
+        estimate
+    ) => {
+        diagnostics
+            .attemptedSources
+            .push(
+                sourceName
             );
 
-        if (radarEstimate) {
-            estimates.push(
-                radarEstimate
-            );
+        if (
+            !estimate ||
+            estimate.valid === false ||
+            !Number.isFinite(
+                Number(
+                    estimate.arrivalMinutes
+                )
+            )
+        ) {
+            diagnostics
+                .rejectedSources
+                .push({
+                    source:
+                        sourceName,
+
+                    reason:
+                        "NO_VALID_ARRIVAL_ESTIMATE"
+                });
+
+            return;
         }
-    }
 
-    if (sources?.satellite) {
-        const satelliteEstimate =
-            this.estimateSatelliteRainArrival(
-                sources.satellite,
-                targetCoordinate,
-                options
-            );
-
-        if (satelliteEstimate) {
-            estimates.push(
-                satelliteEstimate
-            );
-        }
-    }
-
-    if (sources?.lightning) {
-        const lightningEstimate =
-            this.estimateLightningRainArrival(
-                sources.lightning,
-                targetCoordinate,
-                options
-            );
-
-        if (lightningEstimate) {
-            estimates.push(
-                lightningEstimate
-            );
-        }
-    }
-
-    if (
-        Array.isArray(
-            sources?.projectedTrack
-        )
-    ) {
-        const trackEstimate =
-            this.estimateStormTrackRainArrival(
-                sources.projectedTrack,
-                targetCoordinate,
-                options
-            );
-
-        if (trackEstimate) {
-            estimates.push(
-                trackEstimate
-            );
-        }
-    }
-
-    if (
-        Array.isArray(
-            sources?.additionalEstimates
-        )
-    ) {
         estimates.push(
-            ...this._normalizeArrivalEstimates(
-                sources.additionalEstimates,
+            estimate
+        );
+
+        diagnostics
+            .acceptedSources
+            .push(
+                sourceName
+            );
+    };
+
+    if (
+        radarSource &&
+        normalizedTarget
+    ) {
+        acceptEstimate(
+            "radar",
+
+            this.estimateRadarRainArrival(
+                radarSource,
+                normalizedTarget,
                 options
             )
         );
+    }
+
+    if (
+        satelliteSource &&
+        normalizedTarget
+    ) {
+        acceptEstimate(
+            "satellite",
+
+            this.estimateSatelliteRainArrival(
+                satelliteSource,
+                normalizedTarget,
+                options
+            )
+        );
+    }
+
+    if (
+        lightningSource &&
+        normalizedTarget
+    ) {
+        acceptEstimate(
+            "lightning",
+
+            this.estimateLightningRainArrival(
+                lightningSource,
+                normalizedTarget,
+                options
+            )
+        );
+    }
+
+    if (
+        Array.isArray(
+            projectedTrack
+        ) &&
+        projectedTrack.length >
+            0 &&
+        normalizedTarget
+    ) {
+        acceptEstimate(
+            "storm_track",
+
+            this.estimateStormTrackRainArrival(
+                projectedTrack,
+                normalizedTarget,
+                options
+            )
+        );
+    }
+
+    if (
+        Array.isArray(
+            additionalEstimates
+        )
+    ) {
+        const normalizedAdditional =
+            this._normalizeArrivalEstimates(
+                additionalEstimates,
+                options
+            );
+
+        estimates.push(
+            ...normalizedAdditional
+        );
+
+        if (
+            normalizedAdditional.length >
+            0
+        ) {
+            diagnostics
+                .acceptedSources
+                .push(
+                    "additional_estimates"
+                );
+        }
     }
 
     const fusedArrival =
@@ -22481,23 +22640,58 @@ generateRainArrivalFusionSummary(
             options
         );
 
+    const hasValidArrival =
+        fusedArrival
+            ?.available === true &&
+        Number.isFinite(
+            Number(
+                fusedArrival
+                    ?.arrivalMinutes
+            )
+        );
+
     return {
         targetCoordinate:
-            this.normalizeCoordinate(
-                targetCoordinate
-            ),
+            normalizedTarget,
+
+        available:
+            hasValidArrival,
+
+        status:
+            hasValidArrival
+                ? "available"
+                : "unavailable",
+
+        reason:
+            hasValidArrival
+                ? "VALID_FUSED_ARRIVAL"
+                : (
+                    estimates.length ===
+                    0
+                        ? "NO_VALID_SOURCE_ESTIMATES"
+                        : "FUSION_DID_NOT_PRODUCE_VALID_ARRIVAL"
+                ),
+
         sourceCount:
             estimates.length,
+
         estimates,
+
         fusedArrival,
+
         arrivalWindow,
+
         classification,
+
         interpretation,
+
+        diagnostics,
+
         generatedAt:
-            new Date().toISOString()
+            new Date()
+                .toISOString()
     };
 }
-
 
 /* ==========================================================================
    SECTION 218
