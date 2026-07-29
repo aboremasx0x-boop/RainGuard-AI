@@ -30259,61 +30259,147 @@ buildUnifiedPredictionResult(
         components
             .operationalDecision;
 
+    /* ==========================================================
+       Safe arrival minutes extraction
+       Prevent Number(null) from becoming 0
+       ========================================================== */
+
+    const rawCorrectedArrivalMinutes =
+        components
+            .temporalCorrection
+            ?.correctedArrivalMinutes;
+
+    const rawFusedArrivalMinutes =
+        components
+            .fusedArrival
+            ?.arrivalMinutes;
+
+    const correctedArrivalMinutes =
+        rawCorrectedArrivalMinutes !== null &&
+        rawCorrectedArrivalMinutes !== undefined &&
+        rawCorrectedArrivalMinutes !== ""
+            ? Number(
+                rawCorrectedArrivalMinutes
+            )
+            : null;
+
+    const fusedArrivalMinutes =
+        rawFusedArrivalMinutes !== null &&
+        rawFusedArrivalMinutes !== undefined &&
+        rawFusedArrivalMinutes !== ""
+            ? Number(
+                rawFusedArrivalMinutes
+            )
+            : null;
+
     const finalArrivalMinutes =
         Number.isFinite(
-            Number(
-                components
-                    .temporalCorrection
-                    ?.correctedArrivalMinutes
-            )
-        )
-            ? Number(
-                components
-                    .temporalCorrection
-                    .correctedArrivalMinutes
-            )
+            correctedArrivalMinutes
+        ) &&
+        correctedArrivalMinutes > 0
+            ? correctedArrivalMinutes
             : (
                 Number.isFinite(
-                    Number(
-                        components
-                            .fusedArrival
-                            ?.arrivalMinutes
-                    )
-                )
-                    ? Number(
-                        components
-                            .fusedArrival
-                            .arrivalMinutes
-                    )
+                    fusedArrivalMinutes
+                ) &&
+                fusedArrivalMinutes > 0
+                    ? fusedArrivalMinutes
                     : null
             );
 
+    const hasValidArrival =
+        Number.isFinite(
+            finalArrivalMinutes
+        ) &&
+        finalArrivalMinutes > 0;
+
+    /* ==========================================================
+       Safe arrival timestamp extraction
+       Prevent Number(null) from becoming 0
+       ========================================================== */
+
+    const rawCorrectedArrivalTimestamp =
+        components
+            .temporalCorrection
+            ?.correctedArrivalTimestamp;
+
+    const rawFusedArrivalTimestamp =
+        components
+            .fusedArrival
+            ?.arrivalTimestamp;
+
+    const correctedArrivalTimestamp =
+        rawCorrectedArrivalTimestamp !== null &&
+        rawCorrectedArrivalTimestamp !== undefined &&
+        rawCorrectedArrivalTimestamp !== ""
+            ? Number(
+                rawCorrectedArrivalTimestamp
+            )
+            : null;
+
+    const fusedArrivalTimestamp =
+        rawFusedArrivalTimestamp !== null &&
+        rawFusedArrivalTimestamp !== undefined &&
+        rawFusedArrivalTimestamp !== ""
+            ? Number(
+                rawFusedArrivalTimestamp
+            )
+            : null;
+
     const finalArrivalTimestamp =
         Number.isFinite(
-            Number(
-                components
-                    .temporalCorrection
-                    ?.correctedArrivalTimestamp
-            )
-        )
-            ? Number(
-                components
-                    .temporalCorrection
-                    .correctedArrivalTimestamp
-            )
-            : components
+            correctedArrivalTimestamp
+        ) &&
+        correctedArrivalTimestamp > 0
+            ? correctedArrivalTimestamp
+            : (
+                Number.isFinite(
+                    fusedArrivalTimestamp
+                ) &&
+                fusedArrivalTimestamp > 0
+                    ? fusedArrivalTimestamp
+                    : null
+            );
+
+    const hasValidTimestamp =
+        Number.isFinite(
+            finalArrivalTimestamp
+        ) &&
+        finalArrivalTimestamp > 0;
+
+    const predictionConfidence =
+        Number(
+            components
                 .fusedArrival
-                ?.arrivalTimestamp ??
-            null;
+                ?.confidence
+        );
+
+    const normalizedConfidence =
+        Number.isFinite(
+            predictionConfidence
+        )
+            ? Math.max(
+                0,
+                Math.min(
+                    100,
+                    predictionConfidence
+                )
+            )
+            : 0;
+
+    const predictionReason =
+        hasValidArrival
+            ? "VALID_ARRIVAL_ESTIMATE"
+            : "NO_VALID_ARRIVAL_EVIDENCE";
 
     return {
         engine: {
             name:
-                'RainGuard AI',
+                "RainGuard AI",
             version:
-                'V32',
+                "V32",
             component:
-                'Rain Arrival Prediction Engine',
+                "Rain Arrival Prediction Engine",
             executionId:
                 context.executionId
         },
@@ -30327,40 +30413,48 @@ buildUnifiedPredictionResult(
 
         prediction: {
             available:
-                Number.isFinite(
-                    finalArrivalMinutes
-                ),
+                hasValidArrival,
+
+            status:
+                hasValidArrival
+                    ? "available"
+                    : "unavailable",
+
+            reason:
+                predictionReason,
+
             arrivalMinutes:
-                finalArrivalMinutes,
+                hasValidArrival
+                    ? finalArrivalMinutes
+                    : null,
+
             arrivalHours:
-                Number.isFinite(
-                    finalArrivalMinutes
-                )
+                hasValidArrival
                     ? finalArrivalMinutes /
                       60
                     : null,
+
             arrivalTimestamp:
-                finalArrivalTimestamp,
+                hasValidTimestamp
+                    ? finalArrivalTimestamp
+                    : null,
+
             arrivalIso:
-                Number.isFinite(
-                    Number(
-                        finalArrivalTimestamp
-                    )
-                )
+                hasValidTimestamp
                     ? new Date(
                         finalArrivalTimestamp
                     ).toISOString()
                     : null,
+
             confidence:
-                components
-                    .fusedArrival
-                    ?.confidence ??
-                0,
+                normalizedConfidence,
+
             uncertaintyMinutes:
                 components
                     .fusedArrival
                     ?.uncertaintyMinutes ??
                 null,
+
             quality
         },
 
@@ -30373,9 +30467,11 @@ buildUnifiedPredictionResult(
         sources: {
             availability:
                 components.sourceMatrix,
+
             collection:
                 components
                     .sourceCollection,
+
             fusion:
                 components
                     .fusedArrival
@@ -30393,30 +30489,41 @@ buildUnifiedPredictionResult(
                 operational
                     ?.warning ??
                 null,
+
             action:
                 operational
                     ?.action ??
-                'monitor',
+                "monitor",
+
             shouldNotify:
-                operational
-                    ?.shouldNotify ??
-                false,
+                hasValidArrival
+                    ? (
+                        operational
+                            ?.shouldNotify ??
+                        false
+                    )
+                    : false,
+
             lifecycle:
                 operational
                     ?.lifecycle ??
                 null,
+
             recommendations:
                 operational
                     ?.recommendations ??
                 null,
+
             message:
                 operational
                     ?.message ??
                 null,
+
             alertRecord:
                 operational
                     ?.alertRecord ??
                 null,
+
             fullDecision:
                 operational ??
                 null
@@ -30428,7 +30535,6 @@ buildUnifiedPredictionResult(
             new Date().toISOString()
     };
 }
-
 
 /* ==========================================================================
    SECTION 278
