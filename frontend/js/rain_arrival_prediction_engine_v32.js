@@ -20372,48 +20372,205 @@ estimateRadarRainArrival(
     targetCoordinate,
     options = {}
 ) {
+    const safeRadar =
+        this.isPlainObject(radarData)
+            ? radarData
+            : {};
+
     const target =
         this.normalizeCoordinate(
             targetCoordinate
         );
 
+    const radarCells =
+        [
+            ...(Array.isArray(safeRadar.cells)
+                ? safeRadar.cells
+                : []),
+
+            ...(Array.isArray(safeRadar.activeCells)
+                ? safeRadar.activeCells
+                : []),
+
+            ...(Array.isArray(safeRadar.stormCells)
+                ? safeRadar.stormCells
+                : []),
+
+            ...(Array.isArray(safeRadar.features)
+                ? safeRadar.features
+                : [])
+        ];
+
+    const firstRadarCell =
+        radarCells.find(
+            (cell) => {
+                const candidate =
+                    cell?.coordinate ??
+                    cell?.center ??
+                    cell?.centroid ??
+                    cell?.position ??
+                    cell?.geometry?.coordinates ??
+                    cell;
+
+                if (Array.isArray(candidate)) {
+                    return (
+                        Number.isFinite(
+                            Number(candidate[0])
+                        ) &&
+                        Number.isFinite(
+                            Number(candidate[1])
+                        )
+                    );
+                }
+
+                return Boolean(
+                    this.normalizeCoordinate(
+                        candidate
+                    )
+                );
+            }
+        ) ??
+        null;
+
+    const arrayCoordinate =
+        Array.isArray(
+            firstRadarCell?.geometry?.coordinates
+        )
+            ? {
+                longitude:
+                    firstRadarCell
+                        .geometry
+                        .coordinates[0],
+
+                latitude:
+                    firstRadarCell
+                        .geometry
+                        .coordinates[1]
+            }
+            : null;
+
     const rainCoordinate =
         this.normalizeCoordinate(
-            radarData?.rainCoordinate ??
-            radarData?.cellCoordinate ??
-            radarData?.stormCoordinate ??
-            radarData?.position ??
-            radarData
+            safeRadar.rainCoordinate ??
+            safeRadar.cellCoordinate ??
+            safeRadar.stormCoordinate ??
+            safeRadar.coordinate ??
+            safeRadar.center ??
+            safeRadar.centroid ??
+            safeRadar.position ??
+            safeRadar.location ??
+            safeRadar.latestCell?.coordinate ??
+            safeRadar.activeCell?.coordinate ??
+            firstRadarCell?.coordinate ??
+            firstRadarCell?.center ??
+            firstRadarCell?.centroid ??
+            firstRadarCell?.position ??
+            arrayCoordinate ??
+            (
+                Number.isFinite(
+                    Number(
+                        safeRadar.latitude ??
+                        safeRadar.lat
+                    )
+                ) &&
+                Number.isFinite(
+                    Number(
+                        safeRadar.longitude ??
+                        safeRadar.lon ??
+                        safeRadar.lng
+                    )
+                )
+                    ? {
+                        latitude:
+                            safeRadar.latitude ??
+                            safeRadar.lat,
+
+                        longitude:
+                            safeRadar.longitude ??
+                            safeRadar.lon ??
+                            safeRadar.lng
+                    }
+                    : null
+            )
         );
 
-    if (!target || !rainCoordinate) {
+    if (
+        !target ||
+        !rainCoordinate
+    ) {
+        console.warn(
+            "[RainArrival V32] Radar coordinate unavailable:",
+            {
+                target,
+                radarKeys:
+                    Object.keys(
+                        safeRadar
+                    ),
+                radarCellCount:
+                    radarCells.length,
+                radarData:
+                    safeRadar
+            }
+        );
+
         return null;
     }
+
+    const radarMotion =
+        safeRadar.motion ??
+        safeRadar.movement ??
+        safeRadar.velocity ??
+        firstRadarCell?.motion ??
+        {};
 
     const speedKmh =
         Math.max(
             0,
             Number(
-                radarData?.speedKmh ??
-                radarData?.motionSpeedKmh ??
-                radarData?.speed ??
+                safeRadar.speedKmh ??
+                safeRadar.motionSpeedKmh ??
+                safeRadar.speed ??
+                radarMotion.speedKmh ??
+                radarMotion.speed ??
+                firstRadarCell?.speedKmh ??
+                firstRadarCell?.speed ??
                 options.defaultRadarSpeedKmh ??
                 30
             ) || 0
         );
 
+    const rawBearing =
+        safeRadar.bearing ??
+        safeRadar.directionDegrees ??
+        safeRadar.motionBearing ??
+        radarMotion.bearing ??
+        radarMotion.direction ??
+        firstRadarCell?.bearing ??
+        firstRadarCell?.direction ??
+        null;
+
     const bearing =
-        this.normalizeBearing(
-            radarData?.bearing ??
-            radarData?.direction ??
-            radarData?.motionBearing
-        );
+        rawBearing !== null &&
+        rawBearing !== undefined &&
+        rawBearing !== ""
+            ? this.normalizeBearing(
+                rawBearing
+            )
+            : null;
 
     const directDistanceKm =
         this.calculateDistanceKm(
             rainCoordinate,
             target
         );
+
+    if (
+        !Number.isFinite(
+            directDistanceKm
+        )
+    ) {
+        return null;
+    }
 
     const targetBearing =
         this.calculateInitialBearing(
@@ -20422,7 +20579,12 @@ estimateRadarRainArrival(
         );
 
     const bearingDifference =
-        Number.isFinite(bearing)
+        Number.isFinite(
+            bearing
+        ) &&
+        Number.isFinite(
+            targetBearing
+        )
             ? this.calculateBearingDifference(
                 bearing,
                 targetBearing
@@ -20433,16 +20595,21 @@ estimateRadarRainArrival(
         Math.max(
             1,
             Number(
-                options.maximumRadarBearingDifference
+                options
+                    .maximumRadarBearingDifference
             ) || 75
         );
 
     const directionAlignment =
-        Number.isFinite(bearingDifference)
+        Number.isFinite(
+            bearingDifference
+        )
             ? Math.max(
                 0,
                 1 -
-                Math.abs(bearingDifference) /
+                Math.abs(
+                    bearingDifference
+                ) /
                 maximumBearingDifference
             )
             : 0.5;
@@ -20456,12 +20623,18 @@ estimateRadarRainArrival(
 
     const arrivalMinutes =
         effectiveSpeedKmh > 0
-            ? directDistanceKm /
-              effectiveSpeedKmh *
-              60
+            ? (
+                directDistanceKm /
+                effectiveSpeedKmh
+            ) * 60
             : null;
 
-    if (!Number.isFinite(arrivalMinutes)) {
+    if (
+        !Number.isFinite(
+            arrivalMinutes
+        ) ||
+        arrivalMinutes < 0
+    ) {
         return null;
     }
 
@@ -20471,12 +20644,23 @@ estimateRadarRainArrival(
             Math.min(
                 100,
                 Number(
-                    radarData?.quality ??
-                    radarData?.confidence ??
-                    radarData?.signalQuality ??
+                    safeRadar.quality ??
+                    safeRadar.confidence ??
+                    safeRadar.signalQuality ??
+                    firstRadarCell?.quality ??
+                    firstRadarCell?.confidence ??
                     75
                 ) || 0
             )
+        );
+
+    const confidenceDistanceKm =
+        Math.max(
+            1,
+            Number(
+                options
+                    .radarConfidenceDistanceKm
+            ) || 250
         );
 
     const distanceConfidence =
@@ -20484,11 +20668,7 @@ estimateRadarRainArrival(
             0,
             100 -
             directDistanceKm /
-            (
-                Number(
-                    options.radarConfidenceDistanceKm
-                ) || 250
-            ) *
+            confidenceDistanceKm *
             100
         );
 
@@ -20516,31 +20696,56 @@ estimateRadarRainArrival(
 
     return this._normalizeArrivalEstimate(
         {
-            source: 'radar',
+            source:
+                "radar",
+
             arrivalMinutes,
+
             confidence,
+
             uncertaintyMinutes,
-            distanceKm: directDistanceKm,
-            speedKmh: effectiveSpeedKmh,
-            rawSpeedKmh: speedKmh,
+
+            distanceKm:
+                directDistanceKm,
+
+            speedKmh:
+                effectiveSpeedKmh,
+
+            rawSpeedKmh:
+                speedKmh,
+
             bearing,
+
             targetBearing,
+
             bearingDifference,
+
             directionAlignment,
+
+            rainCoordinate,
+
+            targetCoordinate:
+                target,
+
             observedAt:
-                radarData?.observedAt ??
-                radarData?.timestamp
+                safeRadar.observedAt ??
+                safeRadar.timestamp ??
+                firstRadarCell?.observedAt ??
+                firstRadarCell?.timestamp
         },
         {
-            source: 'radar',
+            source:
+                "radar",
+
             referenceTimestamp:
-                radarData?.observedAt ??
-                radarData?.timestamp ??
+                safeRadar.observedAt ??
+                safeRadar.timestamp ??
+                firstRadarCell?.observedAt ??
+                firstRadarCell?.timestamp ??
                 Date.now()
         }
     );
 }
-
 
 /* ==========================================================================
    SECTION 203
