@@ -14,7 +14,7 @@
     "use strict";
 
     const VERSION =
-        "32.3.0";
+        "32.3.1";
 
     const BUILD =
         "V32";
@@ -940,93 +940,190 @@
 }
 
         /* ==================================================================
-           SECTION 9
-           HORIZON DATA RESOLUTION
-           ================================================================== */
+   SECTION 9
+   HORIZON DATA RESOLUTION
+   ================================================================== */
 
-        resolveHorizonValue(
-            source,
+resolveHorizonValue(
+    source,
+    hours
+) {
+    const safeSource =
+        safeObject(
+            source
+        );
+
+    const horizons =
+        safeObject(
+            firstDefined(
+                safeSource.horizons,
+                safeSource.horizonForecasts,
+                safeSource.forecastHorizons,
+                safeSource.longHorizon,
+                safeSource.longHorizonForecast,
+                {}
+            )
+        );
+
+    const hourKey =
+        String(
             hours
+        );
+
+    const hourKeyWithH =
+        hourKey +
+        "h";
+
+    const horizonForecast =
+        firstDefined(
+            horizons[
+                hourKey
+            ],
+
+            horizons[
+                hourKeyWithH
+            ],
+
+            horizons[
+                "h" +
+                hourKey
+            ],
+
+            horizons[
+                "hour" +
+                hourKey
+            ],
+
+            safeSource[
+                "forecast" +
+                hourKeyWithH
+            ],
+
+            safeSource[
+                "horizon" +
+                hourKey
+            ],
+
+            null
+        );
+
+    /*
+       الأولوية لاحتمال المطر من نتيجة
+       Long Horizon Forecast Engine V32
+    */
+    if (
+        horizonForecast &&
+        typeof horizonForecast ===
+            "object"
+    ) {
+        const probabilityPercent =
+            firstDefined(
+                horizonForecast
+                    .probabilityPercent,
+
+                horizonForecast
+                    .rainProbabilityPercent,
+
+                horizonForecast
+                    .precipitationProbabilityPercent,
+
+                null
+            );
+
+        if (
+            probabilityPercent !==
+                null &&
+            probabilityPercent !==
+                undefined
         ) {
-            const safeSource =
-                safeObject(
-                    source
-                );
-
-            const horizons =
-                safeObject(
-                    firstDefined(
-                        safeSource.horizons,
-                        safeSource.horizonForecasts,
-                        safeSource.forecastHorizons,
-                        safeSource.longHorizon,
-                        safeSource.longHorizonForecast,
-                        {}
-                    )
-                );
-
-            const hourKey =
-                String(hours);
-
-            const hourKeyWithH =
-                hourKey + "h";
-
-            const directValue =
-                firstDefined(
-                    safeSource[
-                        "rain" +
-                        hourKey
-                    ],
-
-                    safeSource[
-                        "rain" +
-                        hourKeyWithH
-                    ],
-
-                    safeSource[
-                        "precipitation" +
-                        hourKeyWithH
-                    ],
-
-                    safeSource[
-                        "totalRain" +
-                        hourKeyWithH
-                    ],
-
-                    safeSource[
-                        "forecast" +
-                        hourKeyWithH
-                    ],
-
-                    safeSource[
-                        "horizon" +
-                        hourKey
-                    ],
-
-                    horizons[
-                        hourKey
-                    ],
-
-                    horizons[
-                        hourKeyWithH
-                    ],
-
-                    horizons[
-                        "h" +
-                        hourKey
-                    ],
-
-                    horizons[
-                        "hour" +
-                        hourKey
-                    ]
-                );
-
-            return normalizeRainValue(
-                directValue
+            return clamp(
+                toFiniteNumber(
+                    probabilityPercent,
+                    0
+                ),
+                0,
+                100
             );
         }
 
+        const probabilityFraction =
+            firstDefined(
+                horizonForecast
+                    .probability,
+
+                horizonForecast
+                    .rainProbability,
+
+                horizonForecast
+                    .precipitationProbability,
+
+                null
+            );
+
+        if (
+            probabilityFraction !==
+                null &&
+            probabilityFraction !==
+                undefined
+        ) {
+            return normalizePercentage(
+                probabilityFraction
+            );
+        }
+
+        if (
+            horizonForecast
+                .rainExpected ===
+            true
+        ) {
+            return 50;
+        }
+    }
+
+    /*
+       توافق خلفي مع الحقول القديمة
+    */
+    const directValue =
+        firstDefined(
+            safeSource[
+                "rain" +
+                hourKey
+            ],
+
+            safeSource[
+                "rain" +
+                hourKeyWithH
+            ],
+
+            safeSource[
+                "precipitation" +
+                hourKeyWithH
+            ],
+
+            safeSource[
+                "totalRain" +
+                hourKeyWithH
+            ],
+
+            safeSource[
+                "forecast" +
+                hourKeyWithH
+            ],
+
+            safeSource[
+                "horizon" +
+                hourKey
+            ],
+
+            horizonForecast
+        );
+
+    return normalizePercentage(
+        normalizeRainValue(
+            directValue
+        )
+    );
+}
         /* ==================================================================
            SECTION 10
            NORMALIZE REGION ROW
@@ -1874,23 +1971,23 @@
                                 </td>
 
                                 <td>
-                                    ${row.rain6.toFixed(1)}
+                                    ${Math.round(row.rain6)}%
                                 </td>
 
                                 <td>
-                                    ${row.rain12.toFixed(1)}
+                                   ${Math.round(row.rain12)}%
                                 </td>
 
                                 <td>
-                                    ${row.rain24.toFixed(1)}
+                                   ${Math.round(row.rain24)}%
                                 </td>
 
                                 <td>
-                                    ${row.rain48.toFixed(1)}
+                                   ${Math.round(row.rain48)}%
                                 </td>
 
                                 <td>
-                                    ${row.rain72.toFixed(1)}
+                                  ${Math.round(row.rain72)}%
                                 </td>
 
                                 <td>
