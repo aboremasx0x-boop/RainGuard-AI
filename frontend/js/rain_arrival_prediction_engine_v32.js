@@ -29265,171 +29265,326 @@ collectPipelineArrivalEstimates(
     sourceMatrix,
     options = {}
 ) {
-    const estimates = [];
-    const rejected = [];
+    const safeInput =
+        this.isPlainObject(normalizedInput)
+            ? normalizedInput
+            : {};
+
+    const safeSources =
+        this.isPlainObject(
+            safeInput.sources
+        )
+            ? safeInput.sources
+            : {};
+
+    const safeMatrix =
+        this.isPlainObject(
+            sourceMatrix?.matrix
+        )
+            ? sourceMatrix.matrix
+            : {};
+
+    const estimates =
+        [];
+
+    const rejected =
+        [];
+
     const target =
-        normalizedInput.targetCoordinate;
+        this.normalizeCoordinate(
+            safeInput.targetCoordinate ??
+            safeInput.coordinate ??
+            safeInput.location ??
+            null
+        );
+
+    const radarSource =
+        safeSources.radar ??
+        safeSources.radarData ??
+        safeSources.rainViewer ??
+        safeSources.rainviewer ??
+        safeSources.weatherRadar ??
+        null;
+
+    const satelliteSource =
+        safeSources.satellite ??
+        safeSources.satelliteData ??
+        safeSources.clouds ??
+        safeSources.cloudData ??
+        null;
+
+    const lightningSource =
+        safeSources.lightning ??
+        safeSources.lightningData ??
+        safeSources.strikes ??
+        null;
+
+    const projectedTrack =
+        Array.isArray(
+            safeInput.projectedTrack
+        )
+            ? safeInput.projectedTrack
+            : (
+                Array.isArray(
+                    safeInput.stormTrack
+                )
+                    ? safeInput.stormTrack
+                    : (
+                        Array.isArray(
+                            safeInput.trackProjection
+                        )
+                            ? safeInput.trackProjection
+                            : (
+                                Array.isArray(
+                                    safeInput.pathPrediction
+                                )
+                                    ? safeInput.pathPrediction
+                                    : []
+                            )
+                    )
+            );
 
     console.log(
-    "[RainArrival V32] Pipeline input diagnostics:",
-    {
-        target,
-        sources:
-            normalizedInput.sources,
-        sourceMatrix:
-            sourceMatrix?.matrix,
-        projectedTrack:
-            normalizedInput.projectedTrack
-    }
-);
+        "[RainArrival V32] Pipeline input diagnostics:",
+        {
+            target,
+
+            normalizedInputKeys:
+                Object.keys(
+                    safeInput
+                ),
+
+            sourceKeys:
+                Object.keys(
+                    safeSources
+                ),
+
+            sourceMatrixKeys:
+                Object.keys(
+                    safeMatrix
+                ),
+
+            sourceAvailability: {
+                radar:
+                    Boolean(
+                        radarSource
+                    ),
+
+                satellite:
+                    Boolean(
+                        satelliteSource
+                    ),
+
+                lightning:
+                    Boolean(
+                        lightningSource
+                    ),
+
+                projectedTrack:
+                    projectedTrack.length > 0
+            },
+
+            projectedTrackLength:
+                projectedTrack.length
+        }
+    );
 
     const pushEstimate = (
         source,
         estimate
     ) => {
-        if (estimate?.valid !== false) {
-            estimates.push(
-                estimate
-            );
-        } else {
+        if (!estimate) {
             rejected.push({
                 source,
                 reason:
-                    'invalid_estimate',
+                    "NO_ESTIMATE_RETURNED",
+                estimate:
+                    null
+            });
+
+            return;
+        }
+
+        const arrivalMinutes =
+            Number(
+                estimate.arrivalMinutes
+            );
+
+        if (
+            estimate.valid === false ||
+            !Number.isFinite(
+                arrivalMinutes
+            ) ||
+            arrivalMinutes < 0
+        ) {
+            rejected.push({
+                source,
+                reason:
+                    "INVALID_ARRIVAL_ESTIMATE",
                 estimate
             });
+
+            return;
         }
+
+        estimates.push({
+            ...estimate,
+
+            source:
+                estimate.source ??
+                source,
+
+            arrivalMinutes
+        });
     };
 
+    if (!target) {
+        rejected.push({
+            source:
+                "pipeline",
+            reason:
+                "INVALID_TARGET_COORDINATE"
+        });
+    }
+
     if (
         target &&
-        sourceMatrix.matrix
-            ?.radar
-            ?.available
+        radarSource
     ) {
-        const estimate =
+        pushEstimate(
+            "radar",
+
             this.estimateRadarRainArrival(
-                normalizedInput
-                    .sources
-                    .radar,
+                radarSource,
                 target,
                 options
-            );
-
-        if (estimate) {
-            pushEstimate(
-                'radar',
-                estimate
-            );
-        }
+            )
+        );
+    } else if (!radarSource) {
+        rejected.push({
+            source:
+                "radar",
+            reason:
+                "SOURCE_NOT_AVAILABLE"
+        });
     }
 
     if (
         target &&
-        sourceMatrix.matrix
-            ?.satellite
-            ?.available
+        satelliteSource
     ) {
-        const estimate =
+        pushEstimate(
+            "satellite",
+
             this.estimateSatelliteRainArrival(
-                normalizedInput
-                    .sources
-                    .satellite,
+                satelliteSource,
                 target,
                 options
-            );
-
-        if (estimate) {
-            pushEstimate(
-                'satellite',
-                estimate
-            );
-        }
+            )
+        );
+    } else if (!satelliteSource) {
+        rejected.push({
+            source:
+                "satellite",
+            reason:
+                "SOURCE_NOT_AVAILABLE"
+        });
     }
 
     if (
         target &&
-        sourceMatrix.matrix
-            ?.lightning
-            ?.available
+        lightningSource
     ) {
-        const estimate =
+        pushEstimate(
+            "lightning",
+
             this.estimateLightningRainArrival(
-                normalizedInput
-                    .sources
-                    .lightning,
+                lightningSource,
                 target,
                 options
-            );
-
-        if (estimate) {
-            pushEstimate(
-                'lightning',
-                estimate
-            );
-        }
+            )
+        );
+    } else if (!lightningSource) {
+        rejected.push({
+            source:
+                "lightning",
+            reason:
+                "SOURCE_NOT_AVAILABLE"
+        });
     }
 
     if (
         target &&
-        Array.isArray(
-            normalizedInput
-                .projectedTrack
-        ) &&
-        normalizedInput
-            .projectedTrack
-            .length > 0
+        projectedTrack.length > 0
     ) {
-        const estimate =
+        pushEstimate(
+            "storm_track",
+
             this.estimateStormTrackRainArrival(
-                normalizedInput
-                    .projectedTrack,
+                projectedTrack,
                 target,
                 {
                     ...options,
-                    trackConfidence:
-                        normalizedInput
-                            .storm
-                            .confidence
-                }
-            );
 
-        if (estimate) {
-            pushEstimate(
-                'storm_track',
-                estimate
-            );
-        }
+                    trackConfidence:
+                        safeInput
+                            .storm
+                            ?.confidence ??
+                        safeInput
+                            .trackConfidence ??
+                        0
+                }
+            )
+        );
+    } else if (
+        projectedTrack.length === 0
+    ) {
+        rejected.push({
+            source:
+                "storm_track",
+            reason:
+                "PROJECTED_TRACK_EMPTY"
+        });
     }
 
     const genericSources = [
         {
-            source: 'local_ai',
+            source:
+                "local_ai",
+
             value:
-                normalizedInput
-                    .sources
-                    .localAi
+                safeSources.localAi ??
+                safeSources.localAI ??
+                null
         },
         {
-            source: 'anwaa',
+            source:
+                "anwaa",
+
             value:
-                normalizedInput
-                    .sources
-                    .anwaa
+                safeSources.anwaa ??
+                safeSources.ncm ??
+                null
         },
         {
-            source: 'openmeteo',
+            source:
+                "openmeteo",
+
             value:
-                normalizedInput
-                    .sources
-                    .openMeteo
+                safeSources.openMeteo ??
+                safeSources.openmeteo ??
+                safeSources.openMeteoData ??
+                null
         },
         {
-            source: 'numerical_model',
+            source:
+                "numerical_model",
+
             value:
-                normalizedInput
-                    .sources
-                    .numericalModel
+                safeSources.numericalModel ??
+                safeSources.modelForecast ??
+                safeSources.weatherModel ??
+                null
         }
     ];
 
@@ -29438,6 +29593,14 @@ collectPipelineArrivalEstimates(
         of genericSources
     ) {
         if (!genericSource.value) {
+            rejected.push({
+                source:
+                    genericSource.source,
+
+                reason:
+                    "SOURCE_NOT_AVAILABLE"
+            });
+
             continue;
         }
 
@@ -29446,59 +29609,102 @@ collectPipelineArrivalEstimates(
                 genericSource.value,
                 {
                     ...options,
+
                     source:
                         genericSource.source,
+
                     referenceTimestamp:
-                        normalizedInput
-                            .timestamp
+                        safeInput.timestamp
                 }
             );
 
-        if (normalized) {
-            pushEstimate(
-                genericSource.source,
-                normalized
-            );
-        }
+        pushEstimate(
+            genericSource.source,
+            normalized
+        );
     }
+
+    const additionalSource =
+        safeSources.additionalEstimates ??
+        safeSources.arrivalEstimates ??
+        safeInput.additionalEstimates ??
+        [];
 
     const additional =
         this._normalizeArrivalEstimates(
-            normalizedInput
-                .sources
-                .additionalEstimates,
+            additionalSource,
             {
                 ...options,
+
                 referenceTimestamp:
-                    normalizedInput
-                        .timestamp
+                    safeInput.timestamp
             }
         );
 
-    estimates.push(
-        ...additional
-    );
+    for (
+        const estimate
+        of additional
+    ) {
+        pushEstimate(
+            estimate?.source ??
+            "additional_estimate",
+
+            estimate
+        );
+    }
 
     console.log(
-    "[RainArrival V32] Collected estimates:",
-    {
-        estimateCount:
-            estimates.length,
-        estimates,
-        rejected
-    }
-);
+        "[RainArrival V32] Collected estimates:",
+        {
+            estimateCount:
+                estimates.length,
+
+            estimates,
+
+            rejectedCount:
+                rejected.length,
+
+            rejected
+        }
+    );
 
     return {
         estimates,
+
         rejected,
+
         collectedCount:
             estimates.length,
+
         rejectedCount:
-            rejected.length
+            rejected.length,
+
+        sourceDiagnostics: {
+            targetValid:
+                Boolean(
+                    target
+                ),
+
+            radarAvailable:
+                Boolean(
+                    radarSource
+                ),
+
+            satelliteAvailable:
+                Boolean(
+                    satelliteSource
+                ),
+
+            lightningAvailable:
+                Boolean(
+                    lightningSource
+                ),
+
+            projectedTrackLength:
+                projectedTrack.length
+        }
     };
 }
-
 
 /* ==========================================================================
    SECTION 268
