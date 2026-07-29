@@ -28875,101 +28875,516 @@ _normalizePredictionPipelineInput(
     input = {},
     options = {}
 ) {
+    const isMeaningfulSource = (
+        value
+    ) => {
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return false;
+        }
+
+        if (
+            Array.isArray(
+                value
+            )
+        ) {
+            return value.length > 0;
+        }
+
+        if (
+            typeof value ===
+            'object'
+        ) {
+            return Object.keys(
+                value
+            ).length > 0;
+        }
+
+        if (
+            typeof value ===
+            'string'
+        ) {
+            return value.trim()
+                .length > 0;
+        }
+
+        return true;
+    };
+
+    const selectSource = (
+        ...candidates
+    ) => {
+        for (
+            const candidate of
+            candidates
+        ) {
+            if (
+                isMeaningfulSource(
+                    candidate
+                )
+            ) {
+                return candidate;
+            }
+        }
+
+        return null;
+    };
+
+    const safeInput =
+        input &&
+        typeof input ===
+        'object'
+            ? input
+            : {};
+
+    const safeOptions =
+        options &&
+        typeof options ===
+        'object'
+            ? options
+            : {};
+
+    const inputSources =
+        safeInput.sources &&
+        typeof safeInput.sources ===
+        'object'
+            ? safeInput.sources
+            : {};
+
+    const optionSources =
+        safeOptions.sources &&
+        typeof safeOptions.sources ===
+        'object'
+            ? safeOptions.sources
+            : {};
+
+    const sourceData =
+        safeInput.sourceData &&
+        typeof safeInput.sourceData ===
+        'object'
+            ? safeInput.sourceData
+            : {};
+
+    const weatherSources =
+        safeInput.weatherSources &&
+        typeof safeInput.weatherSources ===
+        'object'
+            ? safeInput.weatherSources
+            : {};
+
+    const collectedSources =
+        safeInput.collectedSources &&
+        typeof safeInput.collectedSources ===
+        'object'
+            ? safeInput.collectedSources
+            : {};
+
+    const collection =
+        safeInput.collection &&
+        typeof safeInput.collection ===
+        'object'
+            ? safeInput.collection
+            : {};
+
     const targetCoordinate =
         this.normalizeCoordinate(
-            input.targetCoordinate ??
-            input.coordinate ??
-            input.location ??
-            input.position ??
-            options.targetCoordinate
+            safeInput.targetCoordinate ??
+            safeInput.coordinate ??
+            safeInput.location ??
+            safeInput.position ??
+            safeOptions.targetCoordinate
         );
 
     const stormCoordinate =
         this.normalizeCoordinate(
-            input.stormCoordinate ??
-            input.cellCoordinate ??
-            input.rainCoordinate ??
-            input.currentStormPosition ??
-            input.storm?.coordinate ??
-            input.storm?.position
+            safeInput.stormCoordinate ??
+            safeInput.cellCoordinate ??
+            safeInput.rainCoordinate ??
+            safeInput.currentStormPosition ??
+            safeInput.storm?.coordinate ??
+            safeInput.storm?.position
         );
 
     const timestamp =
         this._normalizeMotionTimestamp(
-            input.timestamp ??
-            input.referenceTimestamp ??
-            input.observedAt ??
-            options.timestamp ??
+            safeInput.timestamp ??
+            safeInput.referenceTimestamp ??
+            safeInput.observedAt ??
+            safeOptions.timestamp ??
             Date.now()
         );
 
     const cities =
         this._normalizeCityRecords(
-            input.cities ??
-            input.cityDatabase ??
-            input.locations ??
-            options.cities ??
+            safeInput.cities ??
+            safeInput.cityDatabase ??
+            safeInput.locations ??
+            safeOptions.cities ??
             []
         );
 
     const observations =
         Array.isArray(
-            input.observations
+            safeInput.observations
         )
-            ? input.observations
+            ? safeInput.observations
             : (
                 Array.isArray(
-                    input.trackHistory
+                    safeInput.trackHistory
                 )
-                    ? input.trackHistory
+                    ? safeInput.trackHistory
                     : []
             );
 
     const projectedTrack =
         Array.isArray(
-            input.projectedTrack
+            safeInput.projectedTrack
         )
-            ? input.projectedTrack
+            ? safeInput.projectedTrack
             : (
                 Array.isArray(
-                    input.forecastTrack
+                    safeInput.forecastTrack
                 )
-                    ? input.forecastTrack
-                    : []
+                    ? safeInput.forecastTrack
+                    : (
+                        Array.isArray(
+                            safeInput.stormTrack
+                        )
+                            ? safeInput.stormTrack
+                            : []
+                    )
             );
 
     const alertHistory =
         Array.isArray(
-            input.alertHistory
+            safeInput.alertHistory
         )
-            ? input.alertHistory
+            ? safeInput.alertHistory
             : [];
 
     const calibrationState =
-        input.calibrationState &&
-        typeof input.calibrationState ===
-        'object'
-            ? input.calibrationState
+        safeInput.calibrationState &&
+        typeof safeInput
+            .calibrationState ===
+            'object'
+            ? safeInput.calibrationState
             : {};
 
     const language =
         String(
-            input.language ??
-            options.language ??
+            safeInput.language ??
+            safeOptions.language ??
             'ar'
-        ).toLowerCase() === 'en'
+        ).toLowerCase() ===
+        'en'
             ? 'en'
             : 'ar';
 
     const mode =
         String(
-            input.mode ??
-            options.mode ??
+            safeInput.mode ??
+            safeOptions.mode ??
             'operational'
-        ).trim().toLowerCase();
+        )
+            .trim()
+            .toLowerCase();
+
+    const radarSource =
+        selectSource(
+            inputSources.radar,
+            inputSources.radarData,
+            inputSources.rainViewer,
+            inputSources.rainviewer,
+            inputSources.weatherRadar,
+
+            safeInput.radar,
+            safeInput.radarData,
+            safeInput.rainViewer,
+            safeInput.rainviewer,
+            safeInput.weatherRadar,
+
+            sourceData.radar,
+            sourceData.radarData,
+            sourceData.rainViewer,
+
+            weatherSources.radar,
+            weatherSources.radarData,
+            weatherSources.rainViewer,
+
+            collectedSources.radar,
+            collection.radar,
+
+            optionSources.radar,
+            safeOptions.radar,
+            safeOptions.radarData
+        );
+
+    const satelliteSource =
+        selectSource(
+            inputSources.satellite,
+            inputSources.satelliteData,
+            inputSources.clouds,
+            inputSources.cloudData,
+
+            safeInput.satellite,
+            safeInput.satelliteData,
+            safeInput.clouds,
+            safeInput.cloudData,
+
+            sourceData.satellite,
+            sourceData.satelliteData,
+
+            weatherSources.satellite,
+            weatherSources.satelliteData,
+
+            collectedSources.satellite,
+            collection.satellite,
+
+            optionSources.satellite,
+            safeOptions.satellite,
+            safeOptions.satelliteData
+        );
+
+    const lightningSource =
+        selectSource(
+            inputSources.lightning,
+            inputSources.lightningData,
+            inputSources.strikes,
+
+            safeInput.lightning,
+            safeInput.lightningData,
+            safeInput.strikes,
+
+            sourceData.lightning,
+            sourceData.lightningData,
+
+            weatherSources.lightning,
+            weatherSources.lightningData,
+
+            collectedSources.lightning,
+            collection.lightning,
+
+            optionSources.lightning,
+            safeOptions.lightning,
+            safeOptions.lightningData
+        );
+
+    const localAiSource =
+        selectSource(
+            inputSources.localAi,
+            inputSources.localAI,
+            inputSources.local_ai,
+
+            safeInput.localAi,
+            safeInput.localAI,
+            safeInput.local_ai,
+
+            sourceData.localAi,
+            sourceData.localAI,
+
+            collectedSources.localAi,
+            collection.localAi,
+
+            optionSources.localAi,
+            optionSources.localAI,
+            safeOptions.localAi,
+            safeOptions.localAI
+        );
+
+    const anwaaSource =
+        selectSource(
+            inputSources.anwaa,
+            inputSources.anwaaData,
+
+            safeInput.anwaa,
+            safeInput.anwaaData,
+
+            sourceData.anwaa,
+            sourceData.anwaaData,
+
+            weatherSources.anwaa,
+
+            collectedSources.anwaa,
+            collection.anwaa,
+
+            optionSources.anwaa,
+            safeOptions.anwaa
+        );
+
+    const openMeteoSource =
+        selectSource(
+            inputSources.openMeteo,
+            inputSources.openmeteo,
+            inputSources.open_meteo,
+            inputSources.openMeteoData,
+
+            safeInput.openMeteo,
+            safeInput.openmeteo,
+            safeInput.open_meteo,
+            safeInput.openMeteoData,
+
+            sourceData.openMeteo,
+            sourceData.openmeteo,
+
+            weatherSources.openMeteo,
+            weatherSources.openmeteo,
+
+            collectedSources.openMeteo,
+            collection.openMeteo,
+
+            optionSources.openMeteo,
+            optionSources.openmeteo,
+            safeOptions.openMeteo,
+            safeOptions.openmeteo
+        );
+
+    const numericalModelSource =
+        selectSource(
+            inputSources.numericalModel,
+            inputSources.numerical_model,
+            inputSources.model,
+            inputSources.forecastModel,
+
+            safeInput.numericalModel,
+            safeInput.numerical_model,
+            safeInput.modelData,
+            safeInput.forecastModel,
+
+            sourceData.numericalModel,
+            sourceData.model,
+
+            weatherSources.numericalModel,
+
+            collectedSources
+                .numericalModel,
+            collection.numericalModel,
+
+            optionSources.numericalModel,
+            optionSources
+                .numerical_model,
+            safeOptions.numericalModel
+        );
+
+    const additionalEstimates =
+        selectSource(
+            inputSources
+                .additionalEstimates,
+            inputSources
+                .arrivalEstimates,
+            inputSources.estimates,
+
+            safeInput
+                .additionalEstimates,
+            safeInput
+                .arrivalEstimates,
+            safeInput.estimates,
+
+            sourceData
+                .additionalEstimates,
+
+            optionSources
+                .additionalEstimates,
+            safeOptions
+                .additionalEstimates
+        );
+
+    const normalizedSources = {
+        radar:
+            radarSource,
+
+        satellite:
+            satelliteSource,
+
+        lightning:
+            lightningSource,
+
+        localAi:
+            localAiSource,
+
+        anwaa:
+            anwaaSource,
+
+        openMeteo:
+            openMeteoSource,
+
+        numericalModel:
+            numericalModelSource,
+
+        additionalEstimates:
+            Array.isArray(
+                additionalEstimates
+            )
+                ? additionalEstimates
+                : []
+    };
+
+    console.log(
+        '[Rain Arrival Input Sources]',
+        {
+            radarAvailable:
+                isMeaningfulSource(
+                    radarSource
+                ),
+
+            satelliteAvailable:
+                isMeaningfulSource(
+                    satelliteSource
+                ),
+
+            lightningAvailable:
+                isMeaningfulSource(
+                    lightningSource
+                ),
+
+            localAiAvailable:
+                isMeaningfulSource(
+                    localAiSource
+                ),
+
+            anwaaAvailable:
+                isMeaningfulSource(
+                    anwaaSource
+                ),
+
+            openMeteoAvailable:
+                isMeaningfulSource(
+                    openMeteoSource
+                ),
+
+            numericalModelAvailable:
+                isMeaningfulSource(
+                    numericalModelSource
+                ),
+
+            radarKeys:
+                radarSource &&
+                typeof radarSource ===
+                'object' &&
+                !Array.isArray(
+                    radarSource
+                )
+                    ? Object.keys(
+                        radarSource
+                    )
+                    : [],
+
+            rawInputKeys:
+                Object.keys(
+                    safeInput
+                ),
+
+            rawSourceKeys:
+                Object.keys(
+                    inputSources
+                )
+        }
+    );
 
     return {
-        ...input,
+        ...safeInput,
+
         targetCoordinate,
         stormCoordinate,
         timestamp,
@@ -28980,94 +29395,94 @@ _normalizePredictionPipelineInput(
         calibrationState,
         language,
         mode,
-        sources: {
-            radar:
-                input.sources?.radar ??
-                input.radar ??
-                null,
-            satellite:
-                input.sources?.satellite ??
-                input.satellite ??
-                null,
-            lightning:
-                input.sources?.lightning ??
-                input.lightning ??
-                null,
-            localAi:
-                input.sources?.localAi ??
-                input.sources?.local_ai ??
-                input.localAi ??
-                input.localAI ??
-                null,
-            anwaa:
-                input.sources?.anwaa ??
-                input.anwaa ??
-                null,
-            openMeteo:
-                input.sources?.openMeteo ??
-                input.sources?.openmeteo ??
-                input.openMeteo ??
-                input.openmeteo ??
-                null,
-            numericalModel:
-                input.sources?.numericalModel ??
-                input.sources?.numerical_model ??
-                input.numericalModel ??
-                null,
-            additionalEstimates:
-                Array.isArray(
-                    input.sources
-                        ?.additionalEstimates
-                )
-                    ? input.sources
-                        .additionalEstimates
-                    : (
-                        Array.isArray(
-                            input.additionalEstimates
-                        )
-                            ? input
-                                .additionalEstimates
-                            : []
-                    )
-        },
+
+        sources:
+            normalizedSources,
+
         storm: {
-            ...(input.storm ?? {}),
+            ...(
+                safeInput.storm ??
+                {}
+            ),
+
             coordinate:
                 stormCoordinate,
+
             speedKmh:
-                Number(
-                    input.storm?.speedKmh ??
-                    input.speedKmh ??
-                    input.motion?.speedKmh
-                ),
+                Number.isFinite(
+                    Number(
+                        safeInput.storm
+                            ?.speedKmh ??
+                        safeInput.speedKmh ??
+                        safeInput.motion
+                            ?.speedKmh
+                    )
+                )
+                    ? Number(
+                        safeInput.storm
+                            ?.speedKmh ??
+                        safeInput.speedKmh ??
+                        safeInput.motion
+                            ?.speedKmh
+                    )
+                    : null,
+
             bearing:
                 this.normalizeBearing(
-                    input.storm?.bearing ??
-                    input.bearing ??
-                    input.motion?.bearing
+                    safeInput.storm
+                        ?.bearing ??
+                    safeInput.bearing ??
+                    safeInput.motion
+                        ?.bearing
                 ),
+
             intensity:
-                Number(
-                    input.storm?.intensity ??
-                    input.intensity ??
-                    0
-                ),
-            risk:
-                Number(
-                    input.storm?.risk ??
-                    input.riskScore ??
-                    0
-                ),
-            confidence:
-                Number(
-                    input.storm?.confidence ??
-                    input.confidence ??
-                    0
+                Number.isFinite(
+                    Number(
+                        safeInput.storm
+                            ?.intensity ??
+                        safeInput.intensity
+                    )
                 )
+                    ? Number(
+                        safeInput.storm
+                            ?.intensity ??
+                        safeInput.intensity
+                    )
+                    : null,
+
+            risk:
+                Number.isFinite(
+                    Number(
+                        safeInput.storm
+                            ?.risk ??
+                        safeInput.riskScore
+                    )
+                )
+                    ? Number(
+                        safeInput.storm
+                            ?.risk ??
+                        safeInput.riskScore
+                    )
+                    : null,
+
+            confidence:
+                Number.isFinite(
+                    Number(
+                        safeInput.storm
+                            ?.confidence ??
+                        safeInput.confidence
+                    )
+                )
+                    ? Number(
+                        safeInput.storm
+                            ?.confidence ??
+                        safeInput.confidence
+                    )
+                    : null
         }
     };
 }
-
 
 /* ==========================================================================
    SECTION 264
