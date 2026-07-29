@@ -603,6 +603,31 @@
 
         </article>
 
+        <!-- =================================================
+     NATIONAL AI DECISION PANEL
+     ================================================= -->
+
+<article class="panel full-width">
+
+    <h2 class="panel-title">
+        القرار الوطني الذكي
+    </h2>
+
+    <p class="panel-description">
+        القرار التشغيلي المبني على أعلى مستوى خطر والتحقق الوطني.
+    </p>
+
+    <div
+        id="decisionPanel"
+        class="box scroll-box wide-box"
+    >
+        <div class="empty-state">
+            في انتظار أول قرار وطني.
+        </div>
+    </div>
+
+</article>
+
 
         <!-- =================================================
              EXECUTIVE REPORT
@@ -727,7 +752,7 @@
 <script src="js/long_horizon/recovery_closure_v32.js?v=3203"></script>
 <script src="js/long_horizon/post_recovery_monitoring_v32.js?v=3201"></script>
 
-<script src="js/rain_arrival_prediction_engine_v32.js?v=3206"></script>
+<script src="js/rain_arrival_prediction_engine_v32.js?v=3207"></script>
 <script src="js/rain_arrival_integration_v32.js?v=3206"></script>
 <script src="js/long_horizon/long_horizon_forecast_engine_v32.js?v=3240"></script>
 <script src="js/long_horizon/dashboard_integration_v32.js?v=3203"></script>
@@ -841,12 +866,12 @@
     }
 
     if (
-        !global.LongHorizonForecastEngineV32Instance &&
-        global.RainArrivalPredictionEngineV32Instance
-    ) {
-        global.LongHorizonForecastEngineV32Instance =
-            global.RainArrivalPredictionEngineV32Instance;
-    }
+    !global.LongHorizonForecastEngineV32Instance &&
+    global.RainArrivalPredictionEngineV32Instance
+) {
+    global.LongHorizonForecastEngineV32Instance =
+        global.RainArrivalPredictionEngineV32Instance;
+}
 
     /* ==========================================================
        SOURCE ADAPTER
@@ -1090,6 +1115,409 @@
      ========================================================= -->
 
 <script src="js/v30_orchestrator.js?v=3107"></script>
+
+<script>
+(function installNationalDecisionEngine(global) {
+    "use strict";
+
+    global.RG24 =
+        global.RG24 ||
+        {};
+
+    global.RG24.DecisionEngine = {
+
+        lastDecision:
+            null,
+
+        decide(reasoning = {}) {
+
+            const risk =
+                Number(
+                    reasoning.topRisk ??
+                    reasoning.risk ??
+                    reasoning.highestRisk ??
+                    0
+                );
+
+            const level =
+                String(
+                    reasoning.topLevel ??
+                    reasoning.level ??
+                    reasoning.riskLevel ??
+                    "LOW"
+                )
+                    .trim()
+                    .toUpperCase();
+
+            const city =
+                reasoning.topCity ??
+                reasoning.city ??
+                reasoning.highestRiskCity ??
+                "--";
+
+            let decision =
+                "NORMAL_MONITORING";
+
+            let decisionAr =
+                "المراقبة الطبيعية";
+
+            let action =
+                "Normal monitoring with radar watch";
+
+            let actionAr =
+                "استمرار المراقبة الطبيعية مع متابعة الرادار.";
+
+            let priority =
+                "LOW";
+
+            let priorityAr =
+                "منخفضة";
+
+            let color =
+                "success";
+
+            if (
+                risk >= 70 ||
+                level === "CRITICAL" ||
+                level === "EXTREME"
+            ) {
+
+                decision =
+                    "EMERGENCY_ESCALATION";
+
+                decisionAr =
+                    "تصعيد طارئ";
+
+                action =
+                    "Activate emergency response and field coordination";
+
+                actionAr =
+                    "تفعيل الاستجابة الطارئة والتنسيق الميداني فورًا.";
+
+                priority =
+                    "CRITICAL";
+
+                priorityAr =
+                    "حرجة";
+
+                color =
+                    "danger";
+
+            } else if (
+                risk >= 50 ||
+                level === "HIGH" ||
+                level === "SEVERE"
+            ) {
+
+                decision =
+                    "ACTIVE_FIELD_READINESS";
+
+                decisionAr =
+                    "جاهزية ميدانية نشطة";
+
+                action =
+                    "Prepare field teams and notify critical infrastructure";
+
+                actionAr =
+                    "رفع جاهزية الفرق الميدانية وإبلاغ الجهات والبنية التحتية الحساسة.";
+
+                priority =
+                    "HIGH";
+
+                priorityAr =
+                    "عالية";
+
+                color =
+                    "warning";
+
+            } else if (
+                risk >= 30 ||
+                level === "MEDIUM" ||
+                level === "MODERATE"
+            ) {
+
+                decision =
+                    "ACTIVE_MONITORING";
+
+                decisionAr =
+                    "مراقبة نشطة";
+
+                action =
+                    "Continue active monitoring and radar tracking";
+
+                actionAr =
+                    "استمرار المراقبة النشطة وتتبع حركة الخلايا بالرادار.";
+
+                priority =
+                    "MEDIUM";
+
+                priorityAr =
+                    "متوسطة";
+
+                color =
+                    "warning";
+
+            }
+
+            this.lastDecision = {
+
+                time:
+                    new Date()
+                        .toLocaleTimeString(
+                            "ar-SA"
+                        ),
+
+                city,
+
+                risk:
+                    Number.isFinite(risk)
+                        ? Math.max(
+                            0,
+                            Math.min(
+                                100,
+                                risk
+                            )
+                        )
+                        : 0,
+
+                level,
+
+                decision,
+
+                decisionAr,
+
+                action,
+
+                actionAr,
+
+                priority,
+
+                priorityAr,
+
+                color
+
+            };
+
+            this.render();
+
+            global.dispatchEvent(
+                new CustomEvent(
+                    "rg24:decision-completed",
+                    {
+                        detail:
+                            this.lastDecision
+                    }
+                )
+            );
+
+            return this.lastDecision;
+        },
+
+        render() {
+
+            const panel =
+                document.getElementById(
+                    "decisionPanel"
+                );
+
+            if (
+                !panel ||
+                !this.lastDecision
+            ) {
+                return false;
+            }
+
+            const d =
+                this.lastDecision;
+
+            panel.innerHTML = `
+                <div class="item ${d.color}">
+                    <h3>${d.decisionAr}</h3>
+
+                    <b>المدينة:</b>
+                    ${d.city}
+                    <br>
+
+                    <b>مستوى الخطر:</b>
+                    ${Math.round(d.risk)}%
+                    <br>
+
+                    <b>التصنيف:</b>
+                    ${d.level}
+                    <br>
+
+                    <b>الأولوية:</b>
+                    ${d.priorityAr}
+                    <br>
+
+                    <b>وقت القرار:</b>
+                    ${d.time}
+                    <br><br>
+
+                    <b>الإجراء الموصى به:</b>
+                    <br>
+
+                    ${d.actionAr}
+                </div>
+            `;
+
+            return true;
+        },
+
+        decideFromCurrentState() {
+
+            const nationalForecast =
+                global
+                    .LongHorizonForecastEngineV32Instance
+                    ?.getLatestNationalForecast?.() ||
+                null;
+
+            const nationalSummary =
+                nationalForecast
+                    ?.nationalSummary ||
+                global
+                    .LongHorizonForecastEngineV32Instance
+                    ?.state
+                    ?.nationalSummary ||
+                null;
+
+            const verificationState =
+                global
+                    .getV30VerificationState?.() ||
+                global
+                    .RG30
+                    ?.VerificationEngine
+                    ?.state ||
+                {};
+
+            const topRisk =
+                nationalSummary
+                    ?.highestRiskScorePercent ??
+                nationalSummary
+                    ?.highestRiskScore ??
+                verificationState
+                    ?.nationalRisk ??
+                verificationState
+                    ?.topRisk ??
+                0;
+
+            const topCity =
+                nationalSummary
+                    ?.highestRiskCity ??
+                verificationState
+                    ?.topCity ??
+                document
+                    .getElementById(
+                        "topCity"
+                    )
+                    ?.textContent ??
+                "--";
+
+            const topLevel =
+                verificationState
+                    ?.topLevel ??
+                verificationState
+                    ?.riskLevel ??
+                this.classifyRiskLevel(
+                    topRisk
+                );
+
+            return this.decide({
+
+                topRisk,
+
+                topCity,
+
+                topLevel
+
+            });
+        },
+
+        classifyRiskLevel(risk) {
+
+            const value =
+                Number(risk) ||
+                0;
+
+            if (
+                value >= 70
+            ) {
+                return "CRITICAL";
+            }
+
+            if (
+                value >= 50
+            ) {
+                return "HIGH";
+            }
+
+            if (
+                value >= 30
+            ) {
+                return "MEDIUM";
+            }
+
+            return "LOW";
+        }
+
+    };
+
+    global.addEventListener(
+        "rg30:cycle-completed",
+        () => {
+            global.RG24
+                ?.DecisionEngine
+                ?.decideFromCurrentState();
+        }
+    );
+
+    global.addEventListener(
+        "long_horizon_forecast_completed",
+        event => {
+
+            if (
+                event?.detail?.national !==
+                true
+            ) {
+                return;
+            }
+
+            global.RG24
+                ?.DecisionEngine
+                ?.decideFromCurrentState();
+        }
+    );
+
+    global.runNationalDecision =
+        function runNationalDecision(
+            reasoning
+        ) {
+
+            if (
+                reasoning &&
+                typeof reasoning ===
+                    "object"
+            ) {
+                return global
+                    .RG24
+                    .DecisionEngine
+                    .decide(
+                        reasoning
+                    );
+            }
+
+            return global
+                .RG24
+                .DecisionEngine
+                .decideFromCurrentState();
+        };
+
+    console.info(
+        "[RainGuard AI] National Decision Engine installed."
+    );
+
+})(window);
+</script>
 
 
 <!-- =========================================================
