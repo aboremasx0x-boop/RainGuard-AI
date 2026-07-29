@@ -29270,6 +29270,19 @@ collectPipelineArrivalEstimates(
     const target =
         normalizedInput.targetCoordinate;
 
+    console.log(
+    "[RainArrival V32] Pipeline input diagnostics:",
+    {
+        target,
+        sources:
+            normalizedInput.sources,
+        sourceMatrix:
+            sourceMatrix?.matrix,
+        projectedTrack:
+            normalizedInput.projectedTrack
+    }
+);
+
     const pushEstimate = (
         source,
         estimate
@@ -29465,6 +29478,16 @@ collectPipelineArrivalEstimates(
     estimates.push(
         ...additional
     );
+
+    console.log(
+    "[RainArrival V32] Collected estimates:",
+    {
+        estimateCount:
+            estimates.length,
+        estimates,
+        rejected
+    }
+);
 
     return {
         estimates,
