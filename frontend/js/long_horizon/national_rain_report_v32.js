@@ -14,7 +14,7 @@
     "use strict";
 
     const VERSION =
-        "32.2.0";
+        "32.3.0";
 
     const BUILD =
         "V32";
