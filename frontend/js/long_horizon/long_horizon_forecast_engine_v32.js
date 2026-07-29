@@ -17,10 +17,10 @@
        ================================================================== */
 
     const LONG_HORIZON_FORECAST_VERSION =
-        "32.4.0";
+    "32.4.1";
 
-    const LONG_HORIZON_FORECAST_BUILD =
-        "3240";
+const LONG_HORIZON_FORECAST_BUILD =
+    "3241";
 
     const LONG_HORIZON_FORECAST_ENGINE_NAME =
         "LongHorizonForecastEngineV32";
@@ -4344,8 +4344,29 @@ if (
                                     location.lng,
                                     null
                                 ),
-                            success: result?.success === true,
-                            status: result?.status || LONG_HORIZON_FORECAST_RESULT_STATUS.UNAVAILABLE,
+                            success:
+    true,
+
+processed:
+    true,
+
+forecastAvailable:
+    result?.success === true ||
+    result?.status ===
+        LONG_HORIZON_FORECAST_RESULT_STATUS.AVAILABLE,
+
+rainArrivalAvailable:
+    result
+        ?.arrivalPrediction
+        ?.available === true,
+
+status:
+    result?.status ||
+    (
+        result?.success === true
+            ? LONG_HORIZON_FORECAST_RESULT_STATUS.AVAILABLE
+            : LONG_HORIZON_FORECAST_RESULT_STATUS.UNAVAILABLE
+    ),
                             forecasts: result?.forecasts || {},
                             forecastList: safeArray(result?.forecastList),
                             horizonForecasts:
@@ -4363,34 +4384,76 @@ if (
                         );
 
                         const predictions = [
-                            cityForecast.arrivalPrediction,
-                            ...safeArray(
-                                result?.arrivalPredictions
-                            )
-                        ].filter(Boolean);
+    cityForecast
+        .arrivalPrediction,
 
-                        predictions.forEach(
-                            (prediction) => {
-                                const record = {
-                                    ...safeObject(prediction),
-                                    locationId: location.id ?? null,
-                                    locationKey,
-                                    city: cityForecast.city,
-                                    region: cityForecast.region
-                                };
+    ...safeArray(
+        result
+            ?.arrivalPredictions
+    )
 
-                                record.key =
-                                    record.key ||
-                                    createArrivalPredictionKey(
-                                        record
-                                    );
+].filter(
+    (prediction) => {
 
-                                arrivalMap.set(
-                                    record.key,
-                                    record
-                                );
-                            }
-                        );
+        if (
+            !prediction ||
+            prediction.available !==
+                true
+        ) {
+            return false;
+        }
+
+        const arrivalMinutes =
+            safeNumber(
+                prediction
+                    .arrivalMinutes,
+                null
+            );
+
+        return (
+            arrivalMinutes !== null &&
+            arrivalMinutes > 0
+        );
+
+    }
+);
+
+predictions.forEach(
+    (prediction) => {
+
+        const record = {
+
+            ...safeObject(
+                prediction
+            ),
+
+            locationId:
+                location.id ??
+                null,
+
+            locationKey,
+
+            city:
+                cityForecast.city,
+
+            region:
+                cityForecast.region
+
+        };
+
+        record.key =
+            record.key ||
+            createArrivalPredictionKey(
+                record
+            );
+
+        arrivalMap.set(
+            record.key,
+            record
+        );
+
+    }
+);
 
                     } catch (error) {
 
