@@ -32409,67 +32409,84 @@ const coreRainCells =
         ? coreState.rainCells
         : [];
 
+const rg31 =
+    globalThis.RG31 ??
+    {};
+
 const stormTracker =
-    globalThis
-        .StormCellTrackingEngineV31Instance ??
-    globalThis
-        .RG31
-        ?.StormCellTrackingEngine ??
-    globalThis
-        .RG31
-        ?.StormTrackingEngine ??
-    globalThis
-        .RainGuardAI
-        ?.StormCellTrackingEngineV31 ??
+    rg31.StormCellTrackingEngine ??
+    rg31.StormTracker ??
+    globalThis.StormCellTrackingEngineV31Instance ??
+    globalThis.StormCellTrackingEngineV31 ??
     null;
 
 let trackedCells =
     [];
 
+const rg31ActiveStormCells =
+    rg31.activeStormCells;
+
 if (
-    typeof stormTracker
-        ?.getActiveCells ===
-        "function"
+    Array.isArray(
+        rg31ActiveStormCells
+    )
+) {
+    trackedCells =
+        rg31ActiveStormCells;
+} else if (
+    rg31ActiveStormCells instanceof
+    Map
+) {
+    trackedCells = [
+        ...rg31ActiveStormCells.values()
+    ];
+} else if (
+    typeof stormTracker?.getActiveCells ===
+    "function"
 ) {
     try {
         const result =
-            stormTracker
-                .getActiveCells();
+            await Promise.resolve(
+                stormTracker.getActiveCells()
+            );
 
         trackedCells =
             Array.isArray(result)
                 ? result
-                : [];
+                : result instanceof Map
+                    ? [...result.values()]
+                    : [];
     } catch (error) {
         trackedCells =
             [];
     }
 } else if (
-    stormTracker
-        ?.activeCells instanceof
-    Map
-) {
-    trackedCells = [
-        ...stormTracker
-            .activeCells
-            .values()
-    ];
-} else if (
     Array.isArray(
-        stormTracker
-            ?.activeCells
+        stormTracker?.activeCells
     )
 ) {
     trackedCells =
         stormTracker.activeCells;
 } else if (
+    stormTracker?.activeCells instanceof
+    Map
+) {
+    trackedCells = [
+        ...stormTracker.activeCells.values()
+    ];
+} else if (
+    Array.isArray(
+        stormTracker?.cells
+    )
+) {
+    trackedCells =
+        stormTracker.cells;
+} else if (
     stormTracker?.cells instanceof
     Map
 ) {
     trackedCells = [
-        ...stormTracker
-            .cells
-            .values()
+        ...stormTracker.cells.values()
     ];
 }
 
@@ -32573,55 +32590,97 @@ if (
 */
 
 const stormPathEngine =
-    globalThis
-        .StormPathPredictionEngineV31Instance ??
-    globalThis
-        .RG31
-        ?.StormPathPredictionEngine ??
-    globalThis
-        .RainGuardAI
-        ?.StormPathPredictionEngineV31 ??
+    rg31.StormPathPredictionEngine ??
+    rg31.StormPathPredictor ??
+    globalThis.StormPathPredictionEngineV31Instance ??
+    globalThis.StormPathPredictionEngineV31 ??
     null;
 
 let predictedPaths =
     [];
 
+const rg31PredictedStormPaths =
+    rg31.predictedStormPaths ??
+    rg31.LatestStormPathPrediction ??
+    null;
+
 if (
-    typeof stormPathEngine
-        ?.getPredictedPaths ===
-        "function"
+    Array.isArray(
+        rg31PredictedStormPaths
+    )
+) {
+    predictedPaths =
+        rg31PredictedStormPaths;
+} else if (
+    rg31PredictedStormPaths instanceof
+    Map
+) {
+    predictedPaths = [
+        ...rg31PredictedStormPaths.values()
+    ];
+} else if (
+    rg31PredictedStormPaths &&
+    typeof rg31PredictedStormPaths ===
+        "object"
+) {
+    const nestedPaths =
+        rg31PredictedStormPaths.paths ??
+        rg31PredictedStormPaths.predictedPaths ??
+        rg31PredictedStormPaths.track ??
+        rg31PredictedStormPaths.points ??
+        [];
+
+    predictedPaths =
+        Array.isArray(nestedPaths)
+            ? nestedPaths
+            : [];
+} else if (
+    typeof stormPathEngine?.getPredictedPaths ===
+    "function"
 ) {
     try {
         const result =
-            stormPathEngine
-                .getPredictedPaths();
+            await Promise.resolve(
+                stormPathEngine.getPredictedPaths()
+            );
 
         predictedPaths =
             Array.isArray(result)
                 ? result
-                : [];
+                : result instanceof Map
+                    ? [...result.values()]
+                    : [];
     } catch (error) {
         predictedPaths =
             [];
     }
 } else if (
     Array.isArray(
-        stormPathEngine
-            ?.predictedPaths
+        stormPathEngine?.predictedPaths
     )
 ) {
     predictedPaths =
-        stormPathEngine
-            .predictedPaths;
+        stormPathEngine.predictedPaths;
 } else if (
-    stormPathEngine
-        ?.paths instanceof
+    stormPathEngine?.predictedPaths instanceof
     Map
 ) {
     predictedPaths = [
-        ...stormPathEngine
-            .paths
-            .values()
+        ...stormPathEngine.predictedPaths.values()
+    ];
+} else if (
+    Array.isArray(
+        stormPathEngine?.paths
+    )
+) {
+    predictedPaths =
+        stormPathEngine.paths;
+} else if (
+    stormPathEngine?.paths instanceof
+    Map
+) {
+    predictedPaths = [
+        ...stormPathEngine.paths.values()
     ];
 }
 
