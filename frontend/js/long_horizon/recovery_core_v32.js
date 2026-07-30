@@ -2642,63 +2642,8 @@ async updateDashboard(
     }
 
     return registeredAdapters;
-}
+};
 
-        /*
-           توحيد المفاتيح داخل Map في حال أن
-           registerSourceAdapter استخدم معرفًا مختلفًا.
-        */
-        if (
-            this.sourceAdapters instanceof
-            Map
-        ) {
-            discoveredAdapters.forEach(
-                ({
-                    key,
-                    adapter
-                }) => {
-                    const exists =
-                        [
-                            ...this
-                                .sourceAdapters
-                                .values()
-                        ].some(
-                            registered =>
-                                registered ===
-                                adapter
-                        );
-
-                    if (
-                        !exists
-                    ) {
-                        this.sourceAdapters.set(
-                            key,
-                            adapter
-                        );
-                    }
-                }
-            );
-        }
-
-        if (
-            this.options?.debug ===
-            true
-        ) {
-            console.log(
-                "[Recovery Core V32] Source adapters registered:",
-                this.sourceAdapters instanceof
-                Map
-                    ? [
-                        ...this
-                            .sourceAdapters
-                            .keys()
-                    ]
-                    : registeredAdapters
-            );
-        }
-
-        return registeredAdapters;
-    };
 
     CoreClass.prototype.enableSourceAdapter =
         function enableSourceAdapter(
