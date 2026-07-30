@@ -23459,5 +23459,66 @@ this.state.sourceExecutions =
         PublicApi
     };
 
+   /* ======================================================================
+   SECTION 187
+   CREATE AND EXPORT DEFAULT CORE INSTANCE
+   ====================================================================== */
+
+try {
+
+    const defaultCoreInstance =
+        CoreClass.createDefaultInstance({
+            debug: false,
+            autoStart: false
+        });
+
+    global.RainArrivalRecoveryCoreV32 =
+        CoreClass;
+
+    global.RainArrivalRecoveryCoreV32Instance =
+        defaultCoreInstance;
+
+    global.RecoveryCoreV32Instance =
+        defaultCoreInstance;
+
+    global.rainArrivalRecoveryCoreV32Instance =
+        defaultCoreInstance;
+
+    if (
+        global.LongHorizonForecastEngineV32Instance &&
+        !global
+            .LongHorizonForecastEngineV32Instance
+            .core
+    ) {
+        global
+            .LongHorizonForecastEngineV32Instance
+            .core =
+                defaultCoreInstance;
+    }
+
+    console.log(
+        "[RainGuard AI V32] Recovery Core default instance created and exported.",
+        {
+            version:
+                defaultCoreInstance
+                    ?.version,
+
+            adapterCount:
+                defaultCoreInstance
+                    ?.sourceAdapters
+                    ?.size ??
+                0
+        }
+    );
+
+} catch (error) {
+
+    console.error(
+        "[RainGuard AI V32] Failed to create Recovery Core default instance.",
+        error
+    );
+
+}
+
 })(window);
 
