@@ -5191,6 +5191,19 @@ async collect(
 };
 
 /* =========================================================
+   RECOVERY CORE V32 COMPATIBILITY EXPORT
+   ========================================================= */
+
+window.SourceAdapterV32Instance =
+    window.RG30.SourceAdapter;
+
+window.SourceAdapterV30Instance =
+    window.RG30.SourceAdapter;
+
+window.RG30SourceAdapterInstance =
+    window.RG30.SourceAdapter;
+
+/* =========================================================
    GLOBAL SHORTCUTS
    ========================================================= */
 
