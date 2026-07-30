@@ -754,7 +754,7 @@
 
 <script src="js/rain_arrival_prediction_engine_v32.js?v=3214"></script>
 <script src="js/rain_arrival_integration_v32.js?v=3206"></script>
-<script src="js/long_horizon/long_horizon_forecast_engine_v32.js?v=3243"></script>
+<script src="js/long_horizon/long_horizon_forecast_engine_v32.js?v=3244"></script>
 <script src="js/long_horizon/dashboard_integration_v32.js?v=3203"></script>
 <script src="js/long_horizon/national_rain_report_v32.js?v=3231"></script>
 
@@ -867,12 +867,36 @@
 
     if (
     !global.LongHorizonForecastEngineV32Instance &&
-    global.RainArrivalPredictionEngineV32Instance
+    typeof global.LongHorizonForecastEngineV32 === "function"
 ) {
-    global.LongHorizonForecastEngineV32Instance =
-        global.RainArrivalPredictionEngineV32Instance;
-}
+    try {
+        global.LongHorizonForecastEngineV32Instance =
+            new global.LongHorizonForecastEngineV32({
+                core:
+                    global.RainArrivalRecoveryCoreV32Instance ||
+                    global.LongHorizonRecoveryCoreV32Instance ||
+                    global.recoveryCoreV32 ||
+                    null,
 
+                arrivalEngine:
+                    global.RainArrivalPredictionEngineV32Instance ||
+                    null,
+
+                autoInitialize:
+                    true
+            });
+
+        console.log(
+            "[Recovery Compatibility] Long Horizon Forecast Engine instance created."
+        );
+
+    } catch (error) {
+        console.error(
+            "[Recovery Compatibility] Long Horizon Forecast Engine creation failed.",
+            error
+        );
+    }
+}
     /* ==========================================================
        SOURCE ADAPTER
     ========================================================== */
