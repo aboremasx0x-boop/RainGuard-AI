@@ -3247,7 +3247,6 @@ Object.assign(
        async executeArrivalPrediction(
     input = {}
 ) {
-
     let engine =
         this.getArrivalEngine();
 
@@ -3259,18 +3258,14 @@ Object.assign(
         typeof engine ===
         "function"
     ) {
-
         try {
-
             engine =
                 new engine({
-
                     core:
                         this.getCore(),
 
                     autoInitialize:
                         true
-
                 });
 
             this.arrivalEngine =
@@ -3279,14 +3274,12 @@ Object.assign(
             if (
                 this.dependencies
             ) {
-
                 this.dependencies.arrivalEngine =
                     engine;
-
             }
-
-        } catch (error) {
-
+        } catch (
+            error
+        ) {
             console.error(
                 "[LongHorizonForecastV32] Failed to create arrival engine instance.",
                 error
@@ -3295,9 +3288,7 @@ Object.assign(
             throw new Error(
                 "Failed to create RainArrivalPredictionEngineV32 instance."
             );
-
         }
-
     }
 
     if (
@@ -3308,10 +3299,179 @@ Object.assign(
         );
     }
 
+    /*
+       تهيئة محرك الوصول بأمان.
+       الدالة تعيد reused: true إذا كان مهيأ سابقًا.
+    */
+    if (
+        typeof engine
+            .initializeRainArrivalEngine ===
+        "function"
+    ) {
+        const initializationResult =
+            await engine
+                .initializeRainArrivalEngine({
+                    mode:
+                        "operational"
+                });
+
+        if (
+            initializationResult
+                ?.initialized !==
+            true
+        ) {
+            console.warn(
+                "[LongHorizonForecastV32] Arrival engine initialization was not completed.",
+                initializationResult
+            );
+        }
+    }
+
     const normalizedInput =
         this.normalizeForecastInput(
             input
         );
+
+    /*
+       نبني مدخلًا كاملاً بدل إعادة إرسال raw فقط.
+       الأصل محفوظ، لكن القيم الموحّدة لها الأولوية.
+    */
+    const executionInput = {
+        ...(
+            normalizedInput.raw &&
+            typeof normalizedInput.raw ===
+                "object"
+                ? normalizedInput.raw
+                : {}
+        ),
+
+        ...(
+            input &&
+            typeof input ===
+                "object"
+                ? input
+                : {}
+        ),
+
+        ...normalizedInput,
+
+        targetCoordinate:
+            normalizedInput
+                .targetCoordinate ??
+            input.targetCoordinate ??
+            input.coordinate ??
+            null,
+
+        stormCoordinate:
+            normalizedInput
+                .stormCoordinate ??
+            input.stormCoordinate ??
+            input.rainCoordinate ??
+            input.cellCoordinate ??
+            null,
+
+        sources: {
+            ...(
+                input.sources &&
+                typeof input.sources ===
+                    "object"
+                    ? input.sources
+                    : {}
+            ),
+
+            ...(
+                normalizedInput.sources &&
+                typeof normalizedInput
+                    .sources ===
+                    "object"
+                    ? normalizedInput
+                        .sources
+                    : {}
+            )
+        },
+
+        projectedTrack:
+            Array.isArray(
+                normalizedInput
+                    .projectedTrack
+            )
+                ? normalizedInput
+                    .projectedTrack
+                : (
+                    Array.isArray(
+                        input.projectedTrack
+                    )
+                        ? input
+                            .projectedTrack
+                        : []
+                ),
+
+        observations:
+            Array.isArray(
+                normalizedInput
+                    .observations
+            )
+                ? normalizedInput
+                    .observations
+                : (
+                    Array.isArray(
+                        input.observations
+                    )
+                        ? input
+                            .observations
+                        : []
+                )
+    };
+
+    /*
+       حذف raw من المدخل النهائي حتى لا يسبب
+       تداخلًا أو إعادة تمرير كائن قديم.
+    */
+    delete executionInput.raw;
+
+    console.log(
+        "[LongHorizonForecastV32] Arrival execution input:",
+        {
+            city:
+                executionInput.city ??
+                executionInput.name ??
+                executionInput
+                    .locationName ??
+                null,
+
+            targetCoordinate:
+                executionInput
+                    .targetCoordinate,
+
+            stormCoordinate:
+                executionInput
+                    .stormCoordinate,
+
+            sourceKeys:
+                Object.keys(
+                    executionInput
+                        .sources ??
+                    {}
+                ),
+
+            radarAvailable:
+                Boolean(
+                    executionInput
+                        .sources
+                        ?.radar
+                ),
+
+            projectedTrackCount:
+                Array.isArray(
+                    executionInput
+                        .projectedTrack
+                )
+                    ? executionInput
+                        .projectedTrack
+                        .length
+                    : 0
+        }
+    );
 
     let result =
         null;
@@ -3321,98 +3481,123 @@ Object.assign(
             .runCompleteRainArrivalPrediction ===
         "function"
     ) {
-
         result =
             await engine
                 .runCompleteRainArrivalPrediction(
-                    normalizedInput.raw ||
-                    input
+                    executionInput,
+                    {
+                        mode:
+                            "operational"
+                    }
                 );
-
     } else if (
         typeof engine
             .predictRainArrival ===
         "function"
     ) {
-
         result =
             await engine
                 .predictRainArrival(
-                    normalizedInput.raw ||
-                    input
+                    executionInput,
+                    {
+                        mode:
+                            "operational"
+                    }
                 );
-
     } else if (
         typeof engine.run ===
         "function"
     ) {
-
         result =
             await engine.run(
-                normalizedInput.raw ||
-                normalizedInput
+                executionInput
             );
-
     } else if (
         typeof engine.execute ===
         "function"
     ) {
-
         result =
             await engine.execute(
-                normalizedInput.raw ||
-                normalizedInput
+                executionInput
             );
-
     } else if (
         typeof engine.predict ===
         "function"
     ) {
-
         result =
             await engine.predict(
-                normalizedInput.raw ||
-                normalizedInput
+                executionInput
             );
-
     } else {
-
         console.error(
             "[LongHorizonForecastV32] Unsupported arrival engine.",
             {
                 engine,
+
                 className:
-                    engine?.constructor?.name,
+                    engine
+                        ?.constructor
+                        ?.name,
+
                 methods:
-                    Object.getOwnPropertyNames(
-                        Object.getPrototypeOf(
-                            engine
-                        ) || {}
-                    )
+                    Object
+                        .getOwnPropertyNames(
+                            Object
+                                .getPrototypeOf(
+                                    engine
+                                ) ||
+                            {}
+                        )
             }
         );
 
         throw new Error(
             "Rain arrival prediction engine has no supported execution method."
         );
-
     }
 
-    return {
+    const arrival =
+        this.extractArrivalPrediction(
+            result
+        );
 
-        normalizedInput,
+    console.log(
+        "[LongHorizonForecastV32] Arrival execution result:",
+        {
+            rawResultAvailable:
+                Boolean(
+                    result
+                ),
+
+            arrivalAvailable:
+                arrival
+                    ?.available ===
+                true,
+
+            status:
+                arrival
+                    ?.status ??
+                result
+                    ?.status ??
+                null,
+
+            arrivalMinutes:
+                arrival
+                    ?.arrivalMinutes ??
+                null
+        }
+    );
+
+    return {
+        normalizedInput:
+            executionInput,
 
         rawResult:
             result,
 
-        arrival:
-            this.extractArrivalPrediction(
-                result
-            )
-
+        arrival
     };
-
-},
+}
         /* ============================================================= */
 
         normalizeArrivalPredictionRecord(
