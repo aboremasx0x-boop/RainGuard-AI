@@ -2583,114 +2583,307 @@ Object.assign(
         /* ============================================================= */
 
         extractArrivalPrediction(
+    predictionResult
+) {
+    const result =
+        safeObject(
             predictionResult
-        ) {
+        );
 
-            const result =
+    const candidates = [
+        result.prediction,
+        result.arrivalPrediction,
+        result.arrival,
+        result.fusedArrival,
+        result.temporalCorrection,
+        result.unifiedResult,
+        result.result,
+        result.data,
+        result.legacy,
+        result
+    ]
+        .map(
+            (candidate) =>
                 safeObject(
-                    predictionResult
-                );
+                    candidate
+                )
+        )
+        .filter(
+            (candidate) =>
+                Object.keys(
+                    candidate
+                ).length > 0
+        );
 
-            const prediction =
-                safeObject(
-                    result.prediction ||
-                    result.result ||
-                    result.data ||
-                    result
-                );
-
-            const arrivalMinutes =
-                safeNumber(
-                    prediction.arrivalMinutes ??
-                    prediction.estimatedArrivalMinutes ??
-                    prediction.minutesToArrival,
-                    null
-                );
-
-            const arrivalHours =
-                safeNumber(
-                    prediction.arrivalHours,
-                    arrivalMinutes !== null
-                        ? arrivalMinutes / 60
-                        : null
-                );
-
-            const arrivalTimestamp =
-                safeNumber(
-                    prediction.arrivalTimestamp ||
-                    prediction.estimatedArrivalTimestamp,
-                    arrivalMinutes !== null
-                        ? now() +
-                            (
-                                arrivalMinutes *
-                                60 *
-                                1000
-                            )
-                        : null
-                );
-
-            const confidence =
-                clamp(
-                    prediction.confidence ??
-                    prediction.score ??
-                    result.confidence ??
-                    0
-                );
-
-            const uncertaintyMinutes =
-                Math.max(
-                    0,
+    const selectFiniteNumber =
+        (...values) => {
+            for (
+                const value of
+                values
+            ) {
+                const normalized =
                     safeNumber(
-                        prediction.uncertaintyMinutes ??
-                        prediction.uncertainty ??
-                        result.uncertaintyMinutes,
-                        0
+                        value,
+                        null
+                    );
+
+                if (
+                    normalized !== null &&
+                    Number.isFinite(
+                        normalized
                     )
-                );
+                ) {
+                    return normalized;
+                }
+            }
 
-            return {
+            return null;
+        };
 
-                available:
-                    prediction.available !==
-                        false &&
-                    arrivalMinutes !==
-                        null,
+    const selectValue =
+        (...values) => {
+            for (
+                const value of
+                values
+            ) {
+                if (
+                    value !== null &&
+                    value !== undefined &&
+                    value !== ""
+                ) {
+                    return value;
+                }
+            }
 
-                arrivalMinutes,
+            return null;
+        };
 
-                arrivalHours,
+    let selectedPrediction =
+        {};
 
-                arrivalTimestamp,
+    let arrivalMinutes =
+        null;
 
-                arrivalIso:
+    for (
+        const candidate of
+        candidates
+    ) {
+        const candidateArrivalMinutes =
+            selectFiniteNumber(
+                candidate.arrivalMinutes,
+                candidate.correctedArrivalMinutes,
+                candidate.convertedArrivalMinutes,
+                candidate.estimatedArrivalMinutes,
+                candidate.minutesToArrival,
+                candidate.etaMinutes,
+                candidate.eta,
+                candidate.arrivalWindow
+                    ?.centerMinutes,
+                candidate.arrivalWindow
+                    ?.estimatedMinutes,
+                candidate.fusedArrival
+                    ?.arrivalMinutes,
+                candidate.temporalCorrection
+                    ?.correctedArrivalMinutes,
+                candidate.prediction
+                    ?.arrivalMinutes,
+                candidate.arrival
+                    ?.arrivalMinutes
+            );
+
+        if (
+            candidateArrivalMinutes !==
+            null
+        ) {
+            selectedPrediction =
+                candidate;
+
+            arrivalMinutes =
+                candidateArrivalMinutes;
+
+            break;
+        }
+    }
+
+    if (
+        arrivalMinutes === null
+    ) {
+        selectedPrediction =
+            candidates[0] ||
+            result;
+    }
+
+    const arrivalHours =
+        selectFiniteNumber(
+            selectedPrediction
+                .arrivalHours,
+            selectedPrediction
+                .estimatedArrivalHours,
+            arrivalMinutes !== null
+                ? arrivalMinutes / 60
+                : null
+        );
+
+    const explicitArrivalTimestamp =
+        selectFiniteNumber(
+            selectedPrediction
+                .arrivalTimestamp,
+            selectedPrediction
+                .estimatedArrivalTimestamp,
+            selectedPrediction
+                .etaTimestamp,
+            selectedPrediction
+                .timestamp,
+            selectedPrediction
+                .arrival
+                ?.arrivalTimestamp,
+            selectedPrediction
+                .fusedArrival
+                ?.arrivalTimestamp
+        );
+
+    const arrivalTimestamp =
+        explicitArrivalTimestamp !==
+        null
+            ? explicitArrivalTimestamp
+            : (
+                arrivalMinutes !== null
+                    ? now() +
+                        (
+                            arrivalMinutes *
+                            60 *
+                            1000
+                        )
+                    : null
+            );
+
+    const confidence =
+        clamp(
+            selectFiniteNumber(
+                selectedPrediction
+                    .confidence,
+                selectedPrediction
+                    .confidenceScore,
+                selectedPrediction
+                    .score,
+                selectedPrediction
+                    .fusedArrival
+                    ?.confidence,
+                selectedPrediction
+                    .prediction
+                    ?.confidence,
+                result.confidence,
+                0
+            ) ?? 0
+        );
+
+    const uncertaintyMinutes =
+        Math.max(
+            0,
+            selectFiniteNumber(
+                selectedPrediction
+                    .uncertaintyMinutes,
+                selectedPrediction
+                    .uncertainty,
+                selectedPrediction
+                    .arrivalWindow
+                    ?.uncertaintyMinutes,
+                selectedPrediction
+                    .fusedArrival
+                    ?.uncertaintyMinutes,
+                result
+                    .uncertaintyMinutes,
+                0
+            ) ?? 0
+        );
+
+    const explicitAvailable =
+        selectValue(
+            selectedPrediction
+                .available,
+            selectedPrediction
+                .arrivalAvailable,
+            selectedPrediction
+                .predictionAvailable,
+            selectedPrediction
+                .fusedArrival
+                ?.available,
+            result.available
+        );
+
+    const available =
+        arrivalMinutes !== null &&
+        arrivalMinutes >= 0 &&
+        explicitAvailable !== false;
+
+    const status =
+        selectValue(
+            selectedPrediction
+                .status,
+            selectedPrediction
+                .classification
+                ?.status,
+            selectedPrediction
+                .fusedArrival
+                ?.status,
+            result.status,
+            available
+                ? "available"
+                : "unavailable"
+        );
+
+    return {
+        available,
+
+        arrivalMinutes,
+
+        arrivalHours,
+
+        arrivalTimestamp,
+
+        arrivalIso:
+            arrivalTimestamp !==
+            null
+                ? new Date(
                     arrivalTimestamp
-                        ? new Date(
-                            arrivalTimestamp
-                        ).toISOString()
-                        : null,
+                ).toISOString()
+                : null,
 
-                confidence,
+        confidence,
 
-                uncertaintyMinutes,
+        uncertaintyMinutes,
 
-                quality:
-                    prediction.quality ||
-                    result.quality ||
-                    null,
+        quality:
+            selectValue(
+                selectedPrediction
+                    .quality,
+                selectedPrediction
+                    .classification
+                    ?.quality,
+                result.quality
+            ),
 
-                status:
-                    prediction.status ||
-                    result.status ||
-                    null,
+        status,
 
-                raw:
-                    this.configuration.retainRawResults
-                        ? prediction
-                        : null
+        source:
+            selectValue(
+                selectedPrediction
+                    .source,
+                selectedPrediction
+                    .primarySource,
+                selectedPrediction
+                    .fusedArrival
+                    ?.source,
+                result.source
+            ),
 
-            };
-
-        },
+        raw:
+            this.configuration
+                .retainRawResults
+                ? selectedPrediction
+                : null
+    };
+}
 
         /* ============================================================= */
 
