@@ -31956,6 +31956,236 @@ runCompleteRainArrivalPredictionSync(
             options
         );
 
+    const recoveryCore =
+    globalThis
+        .RainArrivalRecoveryCoreV32Instance ??
+    globalThis
+        .rainArrivalRecoveryCoreV32Instance ??
+    globalThis
+        .RecoveryCoreV32Instance ??
+    globalThis
+        .LongHorizonForecastEngineV32Instance
+        ?.getCore?.() ??
+    null;
+
+const coreSources =
+    this.isPlainObject(
+        recoveryCore?.state?.sources
+    )
+        ? recoveryCore.state.sources
+        : {};
+
+const coreSourceResults =
+    Array.isArray(
+        recoveryCore?.state?.sourceResults
+    )
+        ? recoveryCore.state.sourceResults
+        : [];
+
+const locationId =
+    normalizedInput.locationId ??
+    normalizedInput.id ??
+    normalizedInput.targetId ??
+    normalizedInput.cityId ??
+    null;
+
+const cityName =
+    String(
+        normalizedInput.city ??
+        normalizedInput.location?.name ??
+        normalizedInput.location?.city ??
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+const matchingObservations =
+    Array.isArray(
+        recoveryCore?.state?.observations
+    )
+        ? recoveryCore.state.observations.filter(
+            item => {
+                if (!item) {
+                    return false;
+                }
+
+                if (
+                    locationId &&
+                    String(
+                        item.locationId ?? ""
+                    ) ===
+                    String(locationId)
+                ) {
+                    return true;
+                }
+
+                return (
+                    cityName &&
+                    String(
+                        item.city ??
+                        item.locationName ??
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    cityName
+                );
+            }
+        )
+        : [];
+
+const matchingForecasts =
+    Array.isArray(
+        recoveryCore?.state?.forecasts
+    )
+        ? recoveryCore.state.forecasts.filter(
+            item => {
+                if (!item) {
+                    return false;
+                }
+
+                if (
+                    locationId &&
+                    String(
+                        item.locationId ?? ""
+                    ) ===
+                    String(locationId)
+                ) {
+                    return true;
+                }
+
+                return (
+                    cityName &&
+                    String(
+                        item.city ??
+                        item.locationName ??
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    cityName
+                );
+            }
+        )
+        : [];
+
+const findSourceResult =
+    (...names) => {
+        const normalizedNames =
+            names.map(
+                name =>
+                    String(name)
+                        .trim()
+                        .toLowerCase()
+            );
+
+        return coreSourceResults.find(
+            item =>
+                normalizedNames.includes(
+                    String(
+                        item?.source ??
+                        item?.sourceName ??
+                        ""
+                    )
+                        .trim()
+                        .toLowerCase()
+                )
+        ) ?? null;
+    };
+
+normalizedInput.sources = {
+    ...coreSources,
+    ...(
+        this.isPlainObject(
+            normalizedInput.sources
+        )
+            ? normalizedInput.sources
+            : {}
+    )
+};
+
+normalizedInput.sources.radar ??=
+    coreSources.radar ??
+    coreSources.rainviewer ??
+    coreSources.rainViewer ??
+    findSourceResult(
+        "radar",
+        "rainviewer"
+    );
+
+normalizedInput.sources.satellite ??=
+    coreSources.satellite ??
+    findSourceResult(
+        "satellite"
+    );
+
+normalizedInput.sources.lightning ??=
+    coreSources.lightning ??
+    findSourceResult(
+        "lightning"
+    );
+
+normalizedInput.sources.anwaa ??=
+    coreSources.anwaa ??
+    coreSources.official ??
+    findSourceResult(
+        "anwaa",
+        "official"
+    );
+
+normalizedInput.sources.openMeteo ??=
+    coreSources.openMeteo ??
+    coreSources.openmeteo ??
+    findSourceResult(
+        "openmeteo",
+        "open_meteo"
+    );
+
+normalizedInput.sources.localAi ??=
+    coreSources.localAi ??
+    coreSources.localAI ??
+    coreSources.local_ai ??
+    findSourceResult(
+        "local_ai",
+        "localai"
+    );
+
+normalizedInput.sources.numericalModel ??=
+    matchingForecasts.length
+        ? {
+            source:
+                "numerical_model",
+
+            forecasts:
+                matchingForecasts,
+
+            observations:
+                matchingObservations,
+
+            available:
+                true,
+
+            status:
+                "available"
+        }
+        : null;
+
+normalizedInput.observations =
+    Array.isArray(
+        normalizedInput.observations
+    ) &&
+    normalizedInput.observations.length
+        ? normalizedInput.observations
+        : matchingObservations;
+
+normalizedInput.forecasts =
+    Array.isArray(
+        normalizedInput.forecasts
+    ) &&
+    normalizedInput.forecasts.length
+        ? normalizedInput.forecasts
+        : matchingForecasts;
+
     const context =
         this._createPredictionRuntimeContext(
             normalizedInput,
