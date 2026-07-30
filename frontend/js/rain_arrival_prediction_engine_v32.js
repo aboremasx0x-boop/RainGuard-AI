@@ -32792,6 +32792,66 @@ console.log(
     }
 );
 
+    console.log(
+    "[RainArrival V32] RG31 storm bridge:",
+    {
+        rg31Available:
+            Boolean(globalThis.RG31),
+
+        activeStormCellsType:
+            Array.isArray(
+                rg31.activeStormCells
+            )
+                ? "array"
+                : rg31.activeStormCells instanceof Map
+                    ? "map"
+                    : typeof rg31.activeStormCells,
+
+        activeStormCellsCount:
+            Array.isArray(
+                rg31.activeStormCells
+            )
+                ? rg31.activeStormCells.length
+                : rg31.activeStormCells instanceof Map
+                    ? rg31.activeStormCells.size
+                    : 0,
+
+        trackedCellsCount:
+            trackedCells.length,
+
+        predictedStormPathsType:
+            Array.isArray(
+                rg31.predictedStormPaths
+            )
+                ? "array"
+                : rg31.predictedStormPaths instanceof Map
+                    ? "map"
+                    : typeof rg31.predictedStormPaths,
+
+        predictedStormPathsCount:
+            Array.isArray(
+                rg31.predictedStormPaths
+            )
+                ? rg31.predictedStormPaths.length
+                : rg31.predictedStormPaths instanceof Map
+                    ? rg31.predictedStormPaths.size
+                    : 0,
+
+        predictedPathsCount:
+            predictedPaths.length,
+
+        availableRainCellsCount:
+            availableRainCells.length,
+
+        projectedTrackLength:
+            Array.isArray(
+                normalizedInput.projectedTrack
+            )
+                ? normalizedInput.projectedTrack.length
+                : 0
+    }
+);
+
     const context =
         this._createPredictionRuntimeContext(
             normalizedInput,
