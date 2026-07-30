@@ -3790,7 +3790,7 @@ Object.assign(
 
         arrival
     };
-}
+},
         /* ============================================================= */
 
         normalizeArrivalPredictionRecord(
