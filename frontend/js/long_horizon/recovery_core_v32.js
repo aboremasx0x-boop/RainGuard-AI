@@ -1961,9 +1961,12 @@ async updateDashboard(
             );
 
         const fetchMethod =
-            resolveAdapterFetchMethod(
-                adapterObject
-            );
+    typeof safeConfig.fetch ===
+        "function"
+        ? safeConfig.fetch
+        : resolveAdapterFetchMethod(
+            adapterObject
+        );
 
         if (!fetchMethod) {
             return null;
@@ -2140,248 +2143,506 @@ async updateDashboard(
 
     CoreClass.prototype.registerSourceAdapters =
     function registerSourceAdapters(
-        adapters = null
-    ) {
-        const discoveredAdapters = [];
+    adapters = null
+) {
+    const discoveredAdapters = [];
 
-        const addAdapter =
-            (
-                key,
-                adapter
-            ) => {
-                if (
-                    !adapter ||
-                    typeof adapter !==
-                        "object"
-                ) {
-                    return;
+    const resolveObject =
+        (...candidates) => {
+            for (
+                const candidate of
+                candidates
+            ) {
+                if (!candidate) {
+                    continue;
                 }
 
-                const alreadyAdded =
-                    discoveredAdapters.some(
-                        item =>
-                            item.adapter ===
-                                adapter ||
-                            item.key ===
-                                key
+                /*
+                   إذا كان Instance جاهزًا.
+                */
+                if (
+                    typeof candidate ===
+                    "object"
+                ) {
+                    return candidate;
+                }
+
+                /*
+                   إذا كان Class أو Constructor.
+                */
+                if (
+                    typeof candidate ===
+                    "function"
+                ) {
+                    try {
+                        return new candidate();
+                    } catch (error) {
+                        continue;
+                    }
+                }
+            }
+
+            return null;
+        };
+
+    const resolveCallableMethod =
+        (
+            adapter,
+            methodNames = []
+        ) => {
+            if (
+                !adapter ||
+                typeof adapter !==
+                    "object"
+            ) {
+                return null;
+            }
+
+            for (
+                const methodName of
+                methodNames
+            ) {
+                if (
+                    typeof adapter[
+                        methodName
+                    ] ===
+                    "function"
+                ) {
+                    return adapter[
+                        methodName
+                    ].bind(
+                        adapter
                     );
-
-                if (
-                    alreadyAdded
-                ) {
-                    return;
                 }
+            }
 
-                discoveredAdapters.push({
-                    key,
-                    adapter
-                });
-            };
+            return null;
+        };
 
-        /*
-           أولًا: المحولات المرسلة يدويًا إلى الدالة.
-        */
-        safeArray(
-            adapters
-        ).forEach(
-            item => {
-                if (
-                    item &&
-                    typeof item ===
-                        "object" &&
-                    item.adapter
-                ) {
-                    addAdapter(
-                        item.key ||
-                        item.id ||
-                        item.name ||
-                        item.adapter
-                            ?.id ||
-                        item.adapter
-                            ?.name ||
-                        "source_" +
-                        discoveredAdapters.length,
-
-                        item.adapter
-                    );
-
-                    return;
-                }
-
-                addAdapter(
-                    item?.id ||
-                    item?.name ||
-                    item?.sourceId ||
-                    item?.constructor
-                        ?.name ||
-                    "source_" +
-                    discoveredAdapters.length,
-
-                    item
+    const normalizeDiscoveredAdapter =
+        (
+            key,
+            candidate,
+            type =
+                "unknown"
+        ) => {
+            const adapter =
+                resolveObject(
+                    candidate
                 );
+
+            if (!adapter) {
+                return null;
             }
-        );
 
-        /*
-           ثانيًا: اكتشاف المحولات العامة الموجودة على window.
-           تمت إضافة أكثر من اسم محتمل لكل محول
-           لأن أسماء النسخ قد تختلف بين ملفات V30 وV31 وV32.
-        */
+            const fetchMethod =
+                resolveCallableMethod(
+                    adapter,
+                    [
+                        "fetch",
+                        "collect",
+                        "getData",
+                        "update",
+                        "fetchWeather",
+                        "getForecast",
+                        "getCurrentData",
+                        "load",
+                        "execute",
+                        "run",
+                        "refresh"
+                    ]
+                );
 
-        addAdapter(
-            "official",
-            global
-                .OfficialWeatherAdapterInstance ||
-            global
-                .OfficialSourceAdapterInstance ||
-            global
-                .AnwaaAdapterV30Instance ||
-            global
-                .AnwaaAdapterV31Instance ||
-            global
-                .AnwaaAdapterV32Instance ||
-            null
-        );
+            if (!fetchMethod) {
+                if (
+                    this.options?.debug ===
+                    true
+                ) {
+                    console.warn(
+                        "[Recovery Core V32] Adapter has no supported fetch method:",
+                        {
+                            key,
+                            adapter,
+                            methods:
+                                Object.getOwnPropertyNames(
+                                    Object.getPrototypeOf(
+                                        adapter
+                                    ) || {}
+                                )
+                        }
+                    );
+                }
 
-        addAdapter(
-            "openmeteo",
-            global
-                .OpenMeteoAdapterInstance ||
-            global
-                .OpenMeteoAdapterV30Instance ||
-            global
-                .OpenMeteoAdapterV31Instance ||
-            global
-                .OpenMeteoAdapterV32Instance ||
-            null
-        );
+                return null;
+            }
 
-        addAdapter(
-            "rainviewer",
-            global
-                .RainViewerAdapterInstance ||
-            global
-                .RainViewerAdapterV30Instance ||
-            global
-                .RainViewerAdapterV31Instance ||
-            global
-                .RainViewerAdapterV32Instance ||
-            null
-        );
+            return {
+                id:
+                    adapter.id ||
+                    key,
 
-        addAdapter(
-            "satellite",
-            global
-                .SatelliteAdapterInstance ||
-            global
-                .SatelliteAdapterV30Instance ||
-            global
-                .SatelliteAdapterV31Instance ||
-            global
-                .SatelliteAdapterV32Instance ||
-            null
-        );
+                name:
+                    adapter.name ||
+                    adapter.sourceName ||
+                    key,
 
-        addAdapter(
-            "lightning",
-            global
-                .LightningAdapterInstance ||
-            global
-                .LightningAdapterV31Instance ||
-            global
-                .LightningAdapterV32Instance ||
-            null
-        );
+                type:
+                    adapter.type ||
+                    adapter.sourceType ||
+                    type,
 
-        addAdapter(
-            "localai",
-            global
-                .LocalAIAdapterInstance ||
-            global
-                .LocalAIAdapterV31Instance ||
-            global
-                .LocalAIAdapterV32Instance ||
-            null
-        );
+                enabled:
+                    adapter.enabled !==
+                    false,
 
-        addAdapter(
-            "weather",
-            global
-                .WeatherAdapterInstance ||
-            global
-                .WeatherSourceAdapterInstance ||
-            null
-        );
+                priority:
+                    adapter.priority ??
+                    0.5,
 
-        addAdapter(
-            "radar",
-            global
-                .RadarAdapterInstance ||
-            global
-                .RadarSourceAdapterInstance ||
-            null
-        );
+                timeoutMs:
+                    adapter.timeoutMs ??
+                    this.options
+                        ?.sourceTimeoutMs,
 
-        const registeredAdapters = [];
+                weight:
+                    adapter.weight ??
+                    null,
 
-        discoveredAdapters.forEach(
-            ({
+                adapter,
+
+                fetch:
+                    fetchMethod,
+
+                metadata: {
+                    sourceKey:
+                        key,
+
+                    originalClass:
+                        adapter
+                            ?.constructor
+                            ?.name ||
+                        null
+                }
+            };
+        };
+
+    const addAdapter =
+        (
+            key,
+            candidate,
+            type =
+                "unknown"
+        ) => {
+            const normalized =
+                normalizeDiscoveredAdapter(
+                    key,
+                    candidate,
+                    type
+                );
+
+            if (!normalized) {
+                return;
+            }
+
+            const alreadyAdded =
+                discoveredAdapters.some(
+                    item =>
+                        item.adapter ===
+                            normalized.adapter ||
+                        item.key ===
+                            key ||
+                        item.name ===
+                            normalized.name
+                );
+
+            if (alreadyAdded) {
+                return;
+            }
+
+            discoveredAdapters.push({
                 key,
-                adapter
-            }) => {
-                try {
-                    /*
-                       نمرر key داخل metadata عند الإمكان،
-                       حتى يحتفظ المحول بهويته داخل Recovery Core.
-                    */
-                    if (
-                        adapter &&
-                        typeof adapter ===
-                            "object"
-                    ) {
-                        adapter.sourceKey =
-                            adapter.sourceKey ||
-                            key;
+                ...normalized
+            });
+        };
 
-                        adapter.id =
-                            adapter.id ||
-                            key;
+    /*
+       المحولات المرسلة يدويًا.
+    */
+    safeArray(
+        adapters
+    ).forEach(
+        (
+            item,
+            index
+        ) => {
+            const candidate =
+                item?.adapter ??
+                item?.instance ??
+                item;
 
-                        adapter.name =
-                            adapter.name ||
-                            key;
-                    }
+            const key =
+                item?.key ||
+                item?.id ||
+                item?.name ||
+                item?.sourceId ||
+                candidate
+                    ?.sourceName ||
+                candidate
+                    ?.name ||
+                `source_${index}`;
 
-                    const registered =
-                        this.registerSourceAdapter(
-                            adapter
-                        );
+            addAdapter(
+                key,
+                candidate,
+                item?.type ||
+                item?.sourceType ||
+                "unknown"
+            );
+        }
+    );
 
-                    if (
+    /*
+       Anwaa / Official.
+    */
+    addAdapter(
+        "anwaa",
+        resolveObject(
+            global.AnwaaAdapterV30Instance,
+            global.AnwaaAdapterV31Instance,
+            global.AnwaaAdapterV32Instance,
+            global.AnwaaAdapterV30,
+            global.AnwaaAdapterV31,
+            global.AnwaaAdapterV32,
+            global.AnwaaAdapter,
+            global.OfficialWeatherAdapterInstance,
+            global.OfficialSourceAdapterInstance,
+            global.RG30AnwaaAdapter,
+            global.rg30AnwaaAdapter
+        ),
+        "forecast"
+    );
+
+    /*
+       Open-Meteo.
+    */
+    addAdapter(
+        "openmeteo",
+        resolveObject(
+            global.OpenMeteoAdapterInstance,
+            global.OpenMeteoAdapterV30Instance,
+            global.OpenMeteoAdapterV31Instance,
+            global.OpenMeteoAdapterV32Instance,
+            global.OpenMeteoAdapterV30,
+            global.OpenMeteoAdapterV31,
+            global.OpenMeteoAdapterV32,
+            global.OpenMeteoAdapter,
+            global.RG30OpenMeteoAdapter,
+            global.rg30OpenMeteoAdapter
+        ),
+        "forecast"
+    );
+
+    /*
+       RainViewer / Radar.
+    */
+    addAdapter(
+        "rainviewer",
+        resolveObject(
+            global.RainViewerAdapterInstance,
+            global.RainViewerAdapterV30Instance,
+            global.RainViewerAdapterV31Instance,
+            global.RainViewerAdapterV32Instance,
+            global.RainViewerAdapterV30,
+            global.RainViewerAdapterV31,
+            global.RainViewerAdapterV32,
+            global.RainViewerAdapter,
+            global.RG30RainViewerAdapter,
+            global.rg30RainViewerAdapter
+        ),
+        "radar"
+    );
+
+    /*
+       Satellite.
+    */
+    addAdapter(
+        "satellite",
+        resolveObject(
+            global.SatelliteAdapterInstance,
+            global.SatelliteAdapterV30Instance,
+            global.SatelliteAdapterV31Instance,
+            global.SatelliteAdapterV32Instance,
+            global.SatelliteAdapterV30,
+            global.SatelliteAdapterV31,
+            global.SatelliteAdapterV32,
+            global.SatelliteAdapter
+        ),
+        "satellite"
+    );
+
+    /*
+       Lightning.
+    */
+    addAdapter(
+        "lightning",
+        resolveObject(
+            global.LightningAdapterInstance,
+            global.LightningAdapterV31Instance,
+            global.LightningAdapterV32Instance,
+            global.LightningAdapterV31,
+            global.LightningAdapterV32,
+            global.LightningAdapter
+        ),
+        "lightning"
+    );
+
+    /*
+       Local AI.
+    */
+    addAdapter(
+        "localai",
+        resolveObject(
+            global.LocalAIAdapterInstance,
+            global.LocalAIAdapterV31Instance,
+            global.LocalAIAdapterV32Instance,
+            global.LocalAIAdapterV31,
+            global.LocalAIAdapterV32,
+            global.LocalAIAdapter,
+            global.LocalModelAdapterInstance,
+            global.LocalModelAdapter
+        ),
+        "ai"
+    );
+
+    /*
+       Generic weather adapter.
+    */
+    addAdapter(
+        "weather",
+        resolveObject(
+            global.WeatherAdapterInstance,
+            global.WeatherSourceAdapterInstance,
+            global.WeatherAdapter,
+            global.WeatherSourceAdapter
+        ),
+        "forecast"
+    );
+
+    /*
+       Generic radar adapter.
+    */
+    addAdapter(
+        "radar",
+        resolveObject(
+            global.RadarAdapterInstance,
+            global.RadarSourceAdapterInstance,
+            global.RadarAdapter,
+            global.RadarSourceAdapter
+        ),
+        "radar"
+    );
+
+    /*
+       V30 source aggregator، لأنه عندك يجمع 6 مصادر فعليًا.
+    */
+    addAdapter(
+        "source_adapter_v30",
+        resolveObject(
+            global.SourceAdapterV30Instance,
+            global.RG30SourceAdapterInstance,
+            global.RainGuardSourceAdapterInstance,
+            global.SourceAdapterInstance,
+            global.SourceAdapterV30,
+            global.RG30SourceAdapter,
+            global.RainGuardSourceAdapter
+        ),
+        "forecast"
+    );
+
+    const registeredAdapters = [];
+
+    discoveredAdapters.forEach(
+        (
+            discovered
+        ) => {
+            try {
+                const registered =
+                    this.registerSourceAdapter({
+                        id:
+                            discovered.id,
+
+                        name:
+                            discovered.name,
+
+                        type:
+                            discovered.type,
+
+                        enabled:
+                            discovered.enabled,
+
+                        priority:
+                            discovered.priority,
+
+                        timeoutMs:
+                            discovered.timeoutMs,
+
+                        weight:
+                            discovered.weight,
+
+                        adapter:
+                            discovered.adapter,
+
+                        fetch:
+                            discovered.fetch,
+
+                        metadata:
+                            discovered.metadata
+                    });
+
+                if (registered) {
+                    registeredAdapters.push(
                         registered
-                    ) {
-                        registeredAdapters.push(
-                            registered
-                        );
-                    }
-
-                } catch (error) {
-                    if (
-                        this.options?.debug ===
-                        true
-                    ) {
-                        console.error(
-                            "[Recovery Core V32] Source adapter registration failed:",
-                            {
-                                key,
-                                adapter,
-                                error
-                            }
-                        );
-                    }
+                    );
+                }
+            } catch (error) {
+                if (
+                    this.options?.debug ===
+                    true
+                ) {
+                    console.error(
+                        "[Recovery Core V32] Source adapter registration failed:",
+                        {
+                            discovered,
+                            error
+                        }
+                    );
                 }
             }
+        }
+    );
+
+    if (
+        this.options?.debug ===
+        true
+    ) {
+        console.table(
+            registeredAdapters.map(
+                adapter => ({
+                    name:
+                        adapter.name,
+
+                    type:
+                        adapter.type,
+
+                    enabled:
+                        adapter.enabled
+                })
+            )
         );
+    }
+
+    return registeredAdapters;
+}
 
         /*
            توحيد المفاتيح داخل Map في حال أن
