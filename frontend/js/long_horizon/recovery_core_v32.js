@@ -4453,21 +4453,241 @@ async updateDashboard(
                 );
             }
 
-            this.state.sources =
-                executions.reduce(
-                    (
-                        sourceState,
-                        execution
-                    ) => {
-                        sourceState[
-                            execution.source
-                        ] = execution;
+           /* ==============================================================
+   Store actual source weather data
+   ============================================================== */
 
-                        return sourceState;
-                    },
-                    {}
-                );
+const normalizedSources = {};
 
+successfulResults.forEach(
+    (sourceResult) => {
+
+        if (
+            !sourceResult ||
+            typeof sourceResult !==
+                "object"
+        ) {
+            return;
+        }
+
+        const sourceName =
+            String(
+                sourceResult.source ||
+                "unknown"
+            )
+                .trim()
+                .toLowerCase();
+
+        const sourcePayload = {
+            source:
+                sourceName,
+
+            sourceType:
+                sourceResult.sourceType ||
+                null,
+
+            generatedAt:
+                sourceResult.generatedAt ||
+                Date.now(),
+
+            receivedAt:
+                sourceResult.receivedAt ||
+                Date.now(),
+
+            confidence:
+                sourceResult.confidence ??
+                0,
+
+            weight:
+                sourceResult.weight ??
+                this.getSourceWeight(
+                    sourceName
+                ),
+
+            observations:
+                safeArray(
+                    sourceResult.observations
+                ),
+
+            forecasts:
+                safeArray(
+                    sourceResult.forecasts
+                ),
+
+            rainCells:
+                safeArray(
+                    sourceResult.rainCells
+                ),
+
+            cells:
+                safeArray(
+                    sourceResult.rainCells
+                ),
+
+            stormCells:
+                safeArray(
+                    sourceResult.rainCells
+                ),
+
+            metadata:
+                deepClone(
+                    safeObject(
+                        sourceResult.metadata
+                    )
+                ),
+
+            rawSummary:
+                deepClone(
+                    safeObject(
+                        sourceResult.rawSummary
+                    )
+                ),
+
+            available:
+                true,
+
+            status:
+                sourceResult.status ||
+                "success"
+        };
+
+        normalizedSources[
+            sourceName
+        ] = sourcePayload;
+
+        /*
+           Create aliases expected by Rain Arrival Engine.
+        */
+
+        if (
+            sourceName ===
+                "rainviewer" ||
+            sourceName ===
+                "rain_viewer" ||
+            sourceName ===
+                "weather_radar"
+        ) {
+            normalizedSources.radar =
+                sourcePayload;
+
+            normalizedSources.rainViewer =
+                sourcePayload;
+        }
+
+        if (
+            sourceName ===
+                "radar"
+        ) {
+            normalizedSources.radar =
+                sourcePayload;
+        }
+
+        if (
+            sourceName ===
+                "satellite" ||
+            sourceName ===
+                "clouds"
+        ) {
+            normalizedSources.satellite =
+                sourcePayload;
+        }
+
+        if (
+            sourceName ===
+                "lightning"
+        ) {
+            normalizedSources.lightning =
+                sourcePayload;
+        }
+
+        if (
+            sourceName ===
+                "official" ||
+            sourceName ===
+                "ncm" ||
+            sourceName ===
+                "anwaa"
+        ) {
+            normalizedSources.anwaa =
+                sourcePayload;
+        }
+
+        if (
+            sourceName ===
+                "openmeteo" ||
+            sourceName ===
+                "open_meteo"
+        ) {
+            normalizedSources.openMeteo =
+                sourcePayload;
+
+            normalizedSources.openmeteo =
+                sourcePayload;
+        }
+
+        if (
+            sourceName ===
+                "localai" ||
+            sourceName ===
+                "local_ai"
+        ) {
+            normalizedSources.localAi =
+                sourcePayload;
+
+            normalizedSources.localAI =
+                sourcePayload;
+        }
+
+        if (
+            sourceName ===
+                "numerical_model" ||
+            sourceName ===
+                "weather_model" ||
+            sourceName ===
+                "model"
+        ) {
+            normalizedSources.numericalModel =
+                sourcePayload;
+        }
+    }
+);
+
+/*
+   Store real source data in both locations expected
+   by Long Horizon Forecast Engine.
+*/
+
+this.state.sources =
+    normalizedSources;
+
+this.sources =
+    normalizedSources;
+
+/*
+   Keep adapter execution information separately.
+*/
+
+this.state.sourceExecutions =
+    executions.reduce(
+        (
+            executionState,
+            execution
+        ) => {
+
+            if (
+                execution?.source
+            ) {
+                executionState[
+                    execution.source
+                ] = execution;
+            }
+
+            return executionState;
+        },
+        {}
+    );
+
+            
             this.state.diagnostics
                 .sourceSuccessCount =
                 executions.filter(
