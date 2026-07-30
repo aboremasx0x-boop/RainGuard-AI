@@ -1259,6 +1259,513 @@ RG30.SourceAdapter = {
 
     },
 
+   /* =====================================================
+   RECOVERY CORE V32 COLLECTION BRIDGE
+   ===================================================== */
+
+async collect(
+    context = {}
+) {
+    const locations =
+        Array.isArray(
+            context.locations
+        )
+            ? context.locations
+            : [];
+
+    if (!locations.length) {
+        return {
+            source:
+                "source_adapter_v32",
+
+            sourceType:
+                "forecast",
+
+            generatedAt:
+                Date.now(),
+
+            confidence:
+                0,
+
+            observations:
+                [],
+
+            forecasts:
+                [],
+
+            rainCells:
+                [],
+
+            status:
+                "unavailable",
+
+            metadata: {
+                reason:
+                    "NO_LOCATIONS_PROVIDED"
+            }
+        };
+    }
+
+    const collection =
+        await this.collectForCities(
+            locations
+        );
+
+    const observations =
+        [];
+
+    const forecasts =
+        [];
+
+    const rainCells =
+        [];
+
+    if (
+        !collection?.ok ||
+        !Array.isArray(
+            collection.cities
+        )
+    ) {
+        return {
+            source:
+                "source_adapter_v32",
+
+            sourceType:
+                "forecast",
+
+            generatedAt:
+                Date.now(),
+
+            confidence:
+                0,
+
+            observations,
+
+            forecasts,
+
+            rainCells,
+
+            status:
+                "unavailable",
+
+            metadata: {
+                reason:
+                    collection?.reason ||
+                    "SOURCE_COLLECTION_FAILED",
+
+                collection
+            }
+        };
+    }
+
+    collection.cities.forEach(
+        cityResult => {
+            const latitude =
+                this.safeNumber(
+                    cityResult.lat,
+                    NaN
+                );
+
+            const longitude =
+                this.safeNumber(
+                    cityResult.lon,
+                    NaN
+                );
+
+            if (
+                !Number.isFinite(
+                    latitude
+                ) ||
+                !Number.isFinite(
+                    longitude
+                )
+            ) {
+                return;
+            }
+
+            Object.entries(
+                cityResult.sources ||
+                {}
+            ).forEach(
+                ([
+                    sourceKey,
+                    sourceResult
+                ]) => {
+                    if (
+                        !sourceResult ||
+                        sourceResult.available !==
+                            true
+                    ) {
+                        return;
+                    }
+
+                    const timestamp =
+                        sourceResult.timestamp ||
+                        collection.timestamp ||
+                        new Date()
+                            .toISOString();
+
+                    const probability =
+                        this.clamp(
+                            sourceResult
+                                .rainProbability ??
+                            sourceResult
+                                .probability ??
+                            0,
+                            0,
+                            100
+                        ) / 100;
+
+                    const confidence =
+                        this.clamp(
+                            sourceResult
+                                .confidence ??
+                            sourceResult
+                                .reliability ??
+                            0,
+                            0,
+                            100
+                        );
+
+                    const normalizedConfidence =
+                        confidence > 1
+                            ? confidence / 100
+                            : confidence;
+
+                    const rainIntensity =
+                        this.safeNumber(
+                            sourceResult
+                                .rainAmount ??
+                            sourceResult
+                                .details
+                                ?.intensity ??
+                            sourceResult
+                                .precipitation,
+                            0
+                        );
+
+                    observations.push({
+                        id:
+                            `${sourceKey}_${cityResult.cityId}_${Date.now()}`,
+
+                        source:
+                            sourceKey,
+
+                        sourceType:
+                            sourceKey ===
+                                "radar"
+                                ? "radar"
+                                : sourceKey ===
+                                    "satellite"
+                                    ? "satellite"
+                                    : sourceKey ===
+                                        "lightning"
+                                        ? "lightning"
+                                        : "observation",
+
+                        timestamp,
+
+                        latitude,
+
+                        longitude,
+
+                        locationId:
+                            cityResult.cityId,
+
+                        city:
+                            cityResult.city,
+
+                        rainIntensity,
+
+                        rainProbability:
+                            probability,
+
+                        rainingNow:
+                            rainIntensity > 0,
+
+                        confidence:
+                            normalizedConfidence,
+
+                        metadata: {
+                            status:
+                                sourceResult.status,
+
+                            warningLevel:
+                                sourceResult.warningLevel,
+
+                            signalScore:
+                                sourceResult.signalScore,
+
+                            details:
+                                sourceResult.details ||
+                                {}
+                        }
+                    });
+
+                    forecasts.push({
+                        id:
+                            `forecast_${sourceKey}_${cityResult.cityId}_${Date.now()}`,
+
+                        source:
+                            sourceKey,
+
+                        sourceType:
+                            "forecast",
+
+                        generatedAt:
+                            timestamp,
+
+                        forecastTimestamp:
+                            timestamp,
+
+                        latitude,
+
+                        longitude,
+
+                        locationId:
+                            cityResult.cityId,
+
+                        city:
+                            cityResult.city,
+
+                        rainIntensity,
+
+                        rainProbability:
+                            probability,
+
+                        confidence:
+                            normalizedConfidence,
+
+                        metadata: {
+                            status:
+                                sourceResult.status,
+
+                            warningLevel:
+                                sourceResult.warningLevel,
+
+                            signalScore:
+                                sourceResult.signalScore,
+
+                            details:
+                                sourceResult.details ||
+                                {}
+                        }
+                    });
+
+                    if (
+                        sourceKey ===
+                            "radar"
+                    ) {
+                        const rawCells =
+                            sourceResult
+                                .details
+                                ?.rainCells ||
+                            sourceResult
+                                .details
+                                ?.cells ||
+                            sourceResult
+                                .raw
+                                ?.rainCells ||
+                            sourceResult
+                                .raw
+                                ?.cells ||
+                            [];
+
+                        if (
+                            Array.isArray(
+                                rawCells
+                            )
+                        ) {
+                            rawCells.forEach(
+                                (
+                                    cell,
+                                    index
+                                ) => {
+                                    rainCells.push({
+                                        id:
+                                            cell.id ||
+                                            cell.cellId ||
+                                            `radar_cell_${cityResult.cityId}_${index}`,
+
+                                        source:
+                                            "radar",
+
+                                        sourceType:
+                                            "radar",
+
+                                        timestamp:
+                                            cell.timestamp ||
+                                            timestamp,
+
+                                        latitude:
+                                            this.safeNumber(
+                                                cell.latitude ??
+                                                cell.lat ??
+                                                cell.center
+                                                    ?.latitude ??
+                                                cell.center
+                                                    ?.lat,
+                                                latitude
+                                            ),
+
+                                        longitude:
+                                            this.safeNumber(
+                                                cell.longitude ??
+                                                cell.lon ??
+                                                cell.lng ??
+                                                cell.center
+                                                    ?.longitude ??
+                                                cell.center
+                                                    ?.lon,
+                                                longitude
+                                            ),
+
+                                        intensity:
+                                            this.safeNumber(
+                                                cell.intensity ??
+                                                cell.rainIntensity ??
+                                                rainIntensity,
+                                                0
+                                            ),
+
+                                        probability:
+                                            this.clamp(
+                                                cell.probability ??
+                                                probability,
+                                                0,
+                                                1
+                                            ),
+
+                                        speedKmh:
+                                            this.safeNumber(
+                                                cell.speedKmh ??
+                                                cell.speed,
+                                                0
+                                            ),
+
+                                        directionDegrees:
+                                            this.safeNumber(
+                                                cell.directionDegrees ??
+                                                cell.direction ??
+                                                cell.bearing,
+                                                0
+                                            ),
+
+                                        confidence:
+                                            this.clamp(
+                                                cell.confidence ??
+                                                normalizedConfidence,
+                                                0,
+                                                1
+                                            ),
+
+                                        metadata: {
+                                            city:
+                                                cityResult.city,
+
+                                            locationId:
+                                                cityResult.cityId
+                                        }
+                                    });
+                                }
+                            );
+                        }
+                    }
+                }
+            );
+        }
+    );
+
+    const availableSources =
+        collection.cities.reduce(
+            (
+                total,
+                city
+            ) => {
+                return total +
+                    this.safeNumber(
+                        city.availableSourceCount,
+                        0
+                    );
+            },
+            0
+        );
+
+    const totalSources =
+        collection.cities.reduce(
+            (
+                total,
+                city
+            ) => {
+                return total +
+                    this.safeNumber(
+                        city.sourceCount,
+                        0
+                    );
+            },
+            0
+        );
+
+    const confidence =
+        totalSources > 0
+            ? availableSources /
+                totalSources
+            : 0;
+
+    return {
+        source:
+            "source_adapter_v32",
+
+        sourceType:
+            "forecast",
+
+        generatedAt:
+            Date.now(),
+
+        confidence:
+            this.clamp(
+                confidence,
+                0,
+                1
+            ),
+
+        observations,
+
+        forecasts,
+
+        rainCells,
+
+        status:
+            observations.length ||
+            forecasts.length ||
+            rainCells.length
+                ? "success"
+                : "unavailable",
+
+        metadata: {
+            collectionNumber:
+                collection.collectionNumber,
+
+            requestedCities:
+                collection.requestedCities,
+
+            coverage:
+                collection.summary
+                    ?.coverage ??
+                0,
+
+            observationCount:
+                observations.length,
+
+            forecastCount:
+                forecasts.length,
+
+            rainCellCount:
+                rainCells.length
+        }
+    };
+},
+
     /* =====================================================
        CACHE
        ===================================================== */
