@@ -2545,20 +2545,52 @@ async updateDashboard(
     /*
        V30 source aggregator، لأنه عندك يجمع 6 مصادر فعليًا.
     */
+   addAdapter(
+    "source_adapter_v32",
+    resolveObject(
+        global.SourceAdapterV32Instance,
+        global.SourceAdapterV30Instance,
+        global.RG30SourceAdapterInstance,
+        global.RainGuardSourceAdapterInstance,
+        global.SourceAdapterInstance,
+        global.SourceAdapterV32,
+        global.SourceAdapterV30,
+        global.RG30SourceAdapter,
+        global.RainGuardSourceAdapter
+    ),
+    "forecast"
+);
+if (
+    typeof global.collectSatellite ===
+    "function"
+) {
     addAdapter(
-        "source_adapter_v30",
-        resolveObject(
-            global.SourceAdapterV30Instance,
-            global.RG30SourceAdapterInstance,
-            global.RainGuardSourceAdapterInstance,
-            global.SourceAdapterInstance,
-            global.SourceAdapterV30,
-            global.RG30SourceAdapter,
-            global.RainGuardSourceAdapter
-        ),
-        "forecast"
-    );
+        "satellite",
+        {
+            id:
+                "satellite",
 
+            name:
+                "satellite",
+
+            type:
+                "satellite",
+
+            enabled:
+                true,
+
+            async fetch(
+                context = {}
+            ) {
+                return await global
+                    .collectSatellite(
+                        context
+                    );
+            }
+        },
+        "satellite"
+    );
+}
     const registeredAdapters = [];
 
     discoveredAdapters.forEach(
