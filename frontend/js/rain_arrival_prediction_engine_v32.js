@@ -31738,6 +31738,1000 @@ async runCompleteRainArrivalPrediction(
             input,
             options
         );
+    /* ==============================================================
+   RECOVERY CORE SOURCE ENRICHMENT
+   ============================================================== */
+
+const recoveryCore =
+    globalThis
+        .RainArrivalRecoveryCoreV32Instance ??
+    globalThis
+        .rainArrivalRecoveryCoreV32Instance ??
+    globalThis
+        .RecoveryCoreV32Instance ??
+    globalThis
+        .LongHorizonForecastEngineV32Instance
+        ?.getCore?.() ??
+    null;
+
+/*
+   استخراج بيانات Recovery Core.
+*/
+
+const coreState =
+    this.isPlainObject(
+        recoveryCore?.state
+    )
+        ? recoveryCore.state
+        : {};
+
+const coreSources =
+    this.isPlainObject(
+        coreState.sources
+    )
+        ? coreState.sources
+        : {};
+
+const coreSourceResults =
+    Array.isArray(
+        coreState.sourceResults
+    )
+        ? coreState.sourceResults
+        : [];
+
+const coreObservations =
+    Array.isArray(
+        coreState.observations
+    )
+        ? coreState.observations
+        : [];
+
+const coreForecasts =
+    Array.isArray(
+        coreState.forecasts
+    )
+        ? coreState.forecasts
+        : [];
+
+/*
+   تحديد المدينة الحالية.
+*/
+
+const locationId =
+    normalizedInput.locationId ??
+    normalizedInput.cityId ??
+    normalizedInput.id ??
+    normalizedInput.targetId ??
+    normalizedInput.location?.id ??
+    null;
+
+const normalizedCityName =
+    String(
+        normalizedInput.city ??
+        normalizedInput.cityName ??
+        normalizedInput.location?.name ??
+        normalizedInput.location?.city ??
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+/*
+   مطابقة السجل مع المدينة الحالية.
+*/
+
+const matchesCurrentLocation =
+    item => {
+        if (
+            !item ||
+            typeof item !==
+                "object"
+        ) {
+            return false;
+        }
+
+        const itemLocationId =
+            item.locationId ??
+            item.cityId ??
+            item.location?.id ??
+            null;
+
+        if (
+            locationId !== null &&
+            locationId !== undefined &&
+            itemLocationId !== null &&
+            itemLocationId !== undefined &&
+            String(itemLocationId) ===
+                String(locationId)
+        ) {
+            return true;
+        }
+
+        const itemCityName =
+            String(
+                item.city ??
+                item.cityName ??
+                item.locationName ??
+                item.location?.name ??
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        return Boolean(
+            normalizedCityName &&
+            itemCityName &&
+            itemCityName ===
+                normalizedCityName
+        );
+    };
+
+const matchingObservations =
+    coreObservations.filter(
+        matchesCurrentLocation
+    );
+
+const matchingForecasts =
+    coreForecasts.filter(
+        matchesCurrentLocation
+    );
+
+/* ==============================================================
+   SOURCE KEY NORMALIZATION
+   ============================================================== */
+
+const normalizeSourceKey =
+    value =>
+        String(
+            value ??
+            ""
+        )
+            .trim()
+            .toLowerCase()
+            .replace(
+                /[\s-]+/g,
+                "_"
+            );
+
+const findMatchingSourceItems =
+    (...sourceNames) => {
+        const acceptedNames =
+            new Set(
+                sourceNames.map(
+                    normalizeSourceKey
+                )
+            );
+
+        return [
+            ...matchingObservations,
+            ...matchingForecasts
+        ].filter(
+            item => {
+                const sourceName =
+                    normalizeSourceKey(
+                        item?.source ??
+                        item?.sourceName ??
+                        item?.sourceKey
+                    );
+
+                return acceptedNames.has(
+                    sourceName
+                );
+            }
+        );
+    };
+
+const findCoreSourceResult =
+    (...sourceNames) => {
+        const acceptedNames =
+            new Set(
+                sourceNames.map(
+                    normalizeSourceKey
+                )
+            );
+
+        return (
+            coreSourceResults.find(
+                item => {
+                    const sourceName =
+                        normalizeSourceKey(
+                            item?.source ??
+                            item?.sourceName ??
+                            item?.sourceKey
+                        );
+
+                    return acceptedNames.has(
+                        sourceName
+                    );
+                }
+            ) ??
+            null
+        );
+    };
+
+/* ==============================================================
+   SOURCE PAYLOAD BUILDER
+   ============================================================== */
+
+const normalizeConfidenceValue =
+    value => {
+        const numericValue =
+            Number(value);
+
+        if (
+            !Number.isFinite(
+                numericValue
+            )
+        ) {
+            return 0;
+        }
+
+        if (
+            numericValue > 1
+        ) {
+            return Math.max(
+                0,
+                Math.min(
+                    1,
+                    numericValue / 100
+                )
+            );
+        }
+
+        return Math.max(
+            0,
+            Math.min(
+                1,
+                numericValue
+            )
+        );
+    };
+
+const getItemTimestamp =
+    item => {
+        const value =
+            item?.timestamp ??
+            item?.forecastTimestamp ??
+            item?.generatedAt ??
+            item?.receivedAt ??
+            0;
+
+        if (
+            typeof value ===
+                "number" &&
+            Number.isFinite(value)
+        ) {
+            return value;
+        }
+
+        const parsed =
+            Date.parse(value);
+
+        return Number.isFinite(
+            parsed
+        )
+            ? parsed
+            : 0;
+    };
+
+const buildSourcePayload =
+    (
+        sourceName,
+        items = [],
+        sourceResult = null
+    ) => {
+        const validItems =
+            Array.isArray(items)
+                ? items.filter(
+                    item =>
+                        item &&
+                        typeof item ===
+                            "object"
+                )
+                : [];
+
+        if (
+            !validItems.length &&
+            !sourceResult
+        ) {
+            return null;
+        }
+
+        const sortedItems =
+            [
+                ...validItems
+            ].sort(
+                (
+                    first,
+                    second
+                ) =>
+                    getItemTimestamp(
+                        second
+                    ) -
+                    getItemTimestamp(
+                        first
+                    )
+            );
+
+        const latest =
+            sortedItems[0] ??
+            sourceResult ??
+            {};
+
+        const observations =
+            validItems.filter(
+                item =>
+                    !item
+                        ?.forecastTimestamp
+            );
+
+        const forecasts =
+            validItems.filter(
+                item =>
+                    Boolean(
+                        item
+                            ?.forecastTimestamp
+                    )
+            );
+
+        const rainCells =
+            [
+                ...(Array.isArray(
+                    sourceResult
+                        ?.rainCells
+                )
+                    ? sourceResult
+                        .rainCells
+                    : []),
+
+                ...(Array.isArray(
+                    sourceResult
+                        ?.cells
+                )
+                    ? sourceResult
+                        .cells
+                    : []),
+
+                ...(Array.isArray(
+                    sourceResult
+                        ?.stormCells
+                )
+                    ? sourceResult
+                        .stormCells
+                    : [])
+            ];
+
+        const confidenceValues =
+            validItems
+                .map(
+                    item =>
+                        normalizeConfidenceValue(
+                            item?.confidence
+                        )
+                )
+                .filter(
+                    value =>
+                        Number.isFinite(
+                            value
+                        )
+                );
+
+        const averageConfidence =
+            confidenceValues.length
+                ? confidenceValues.reduce(
+                    (
+                        total,
+                        value
+                    ) =>
+                        total + value,
+                    0
+                ) /
+                    confidenceValues.length
+                : normalizeConfidenceValue(
+                    latest?.confidence ??
+                    sourceResult
+                        ?.confidence
+                );
+
+        return {
+            ...sourceResult,
+            ...latest,
+
+            source:
+                sourceName,
+
+            sourceName,
+
+            available:
+                true,
+
+            status:
+                "available",
+
+            observations,
+
+            forecasts,
+
+            rainCells,
+
+            cells:
+                rainCells,
+
+            stormCells:
+                rainCells,
+
+            data:
+                validItems,
+
+            confidence:
+                averageConfidence
+        };
+    };
+
+/* ==============================================================
+   COLLECT CITY SOURCE ITEMS
+   ============================================================== */
+
+const radarItems =
+    findMatchingSourceItems(
+        "radar",
+        "rainviewer",
+        "rain_viewer",
+        "weather_radar"
+    );
+
+const satelliteItems =
+    findMatchingSourceItems(
+        "satellite",
+        "clouds",
+        "cloud_data"
+    );
+
+const lightningItems =
+    findMatchingSourceItems(
+        "lightning",
+        "strikes"
+    );
+
+const anwaaItems =
+    findMatchingSourceItems(
+        "anwaa",
+        "official",
+        "ncm"
+    );
+
+const openMeteoItems =
+    findMatchingSourceItems(
+        "openmeteo",
+        "open_meteo"
+    );
+
+const localAiItems =
+    findMatchingSourceItems(
+        "local_ai",
+        "localai",
+        "local_model",
+        "localmodel"
+    );
+
+/* ==============================================================
+   MERGE EXISTING AND RECOVERY CORE SOURCES
+   ============================================================== */
+
+normalizedInput.sources = {
+    ...coreSources,
+
+    ...(
+        this.isPlainObject(
+            normalizedInput.sources
+        )
+            ? normalizedInput.sources
+            : {}
+    )
+};
+
+normalizedInput.sources.radar ??=
+    coreSources.radar ??
+    coreSources.rainviewer ??
+    coreSources.rainViewer ??
+    buildSourcePayload(
+        "radar",
+        radarItems,
+        findCoreSourceResult(
+            "radar",
+            "rainviewer",
+            "rain_viewer"
+        )
+    );
+
+normalizedInput.sources.satellite ??=
+    coreSources.satellite ??
+    buildSourcePayload(
+        "satellite",
+        satelliteItems,
+        findCoreSourceResult(
+            "satellite"
+        )
+    );
+
+normalizedInput.sources.lightning ??=
+    coreSources.lightning ??
+    buildSourcePayload(
+        "lightning",
+        lightningItems,
+        findCoreSourceResult(
+            "lightning"
+        )
+    );
+
+normalizedInput.sources.anwaa ??=
+    coreSources.anwaa ??
+    coreSources.official ??
+    buildSourcePayload(
+        "anwaa",
+        anwaaItems,
+        findCoreSourceResult(
+            "anwaa",
+            "official",
+            "ncm"
+        )
+    );
+
+normalizedInput.sources.openMeteo ??=
+    coreSources.openMeteo ??
+    coreSources.openmeteo ??
+    coreSources.open_meteo ??
+    buildSourcePayload(
+        "openmeteo",
+        openMeteoItems,
+        findCoreSourceResult(
+            "openmeteo",
+            "open_meteo"
+        )
+    );
+
+normalizedInput.sources.localAi ??=
+    coreSources.localAi ??
+    coreSources.localAI ??
+    coreSources.local_ai ??
+    buildSourcePayload(
+        "local_ai",
+        localAiItems,
+        findCoreSourceResult(
+            "local_ai",
+            "localai",
+            "local_model"
+        )
+    );
+
+/*
+   إنشاء مصدر النموذج العددي من توقعات المدينة.
+*/
+
+if (
+    !normalizedInput
+        .sources
+        .numericalModel &&
+    matchingForecasts.length
+) {
+    const forecastConfidenceValues =
+        matchingForecasts
+            .map(
+                item =>
+                    normalizeConfidenceValue(
+                        item?.confidence
+                    )
+            );
+
+    const forecastConfidence =
+        forecastConfidenceValues
+            .length
+            ? forecastConfidenceValues
+                .reduce(
+                    (
+                        total,
+                        value
+                    ) =>
+                        total + value,
+                    0
+                ) /
+                forecastConfidenceValues
+                    .length
+            : 0;
+
+    normalizedInput
+        .sources
+        .numericalModel = {
+            source:
+                "numerical_model",
+
+            sourceName:
+                "numerical_model",
+
+            available:
+                true,
+
+            status:
+                "available",
+
+            forecasts:
+                matchingForecasts,
+
+            observations:
+                matchingObservations,
+
+            data:
+                matchingForecasts,
+
+            confidence:
+                forecastConfidence
+        };
+}
+
+/*
+   تمرير الملاحظات والتوقعات إلى المدخل الموحد.
+*/
+
+if (
+    !Array.isArray(
+        normalizedInput
+            .observations
+    ) ||
+    !normalizedInput
+        .observations
+        .length
+) {
+    normalizedInput.observations =
+        matchingObservations;
+}
+
+if (
+    !Array.isArray(
+        normalizedInput
+            .forecasts
+    ) ||
+    !normalizedInput
+        .forecasts
+        .length
+) {
+    normalizedInput.forecasts =
+        matchingForecasts;
+}
+
+/* ==============================================================
+   STORM CELLS AND PROJECTED TRACK
+   ============================================================== */
+
+const coreRainCells =
+    Array.isArray(
+        coreState.rainCells
+    )
+        ? coreState.rainCells
+        : [];
+
+const stormTracker =
+    globalThis
+        .StormCellTrackingEngineV31Instance ??
+    globalThis
+        .RG31
+        ?.StormCellTrackingEngine ??
+    globalThis
+        .RG31
+        ?.StormTrackingEngine ??
+    globalThis
+        .RainGuardAI
+        ?.StormCellTrackingEngineV31 ??
+    null;
+
+let trackedCells =
+    [];
+
+if (
+    typeof stormTracker
+        ?.getActiveCells ===
+        "function"
+) {
+    try {
+        const result =
+            stormTracker
+                .getActiveCells();
+
+        trackedCells =
+            Array.isArray(result)
+                ? result
+                : [];
+    } catch (error) {
+        trackedCells =
+            [];
+    }
+} else if (
+    stormTracker
+        ?.activeCells instanceof
+    Map
+) {
+    trackedCells = [
+        ...stormTracker
+            .activeCells
+            .values()
+    ];
+} else if (
+    Array.isArray(
+        stormTracker
+            ?.activeCells
+    )
+) {
+    trackedCells =
+        stormTracker.activeCells;
+} else if (
+    stormTracker?.cells instanceof
+    Map
+) {
+    trackedCells = [
+        ...stormTracker
+            .cells
+            .values()
+    ];
+}
+
+const availableRainCells = [
+    ...coreRainCells,
+    ...trackedCells
+].filter(
+    (
+        cell,
+        index,
+        array
+    ) => {
+        if (!cell) {
+            return false;
+        }
+
+        const cellId =
+            cell.id ??
+            cell.cellId ??
+            null;
+
+        if (!cellId) {
+            return true;
+        }
+
+        return (
+            array.findIndex(
+                candidate =>
+                    String(
+                        candidate?.id ??
+                        candidate?.cellId ??
+                        ""
+                    ) ===
+                    String(cellId)
+            ) === index
+        );
+    }
+);
+
+/*
+   إضافة الخلايا إلى مصدر الرادار.
+*/
+
+if (
+    availableRainCells.length
+) {
+    if (
+        !this.isPlainObject(
+            normalizedInput
+                .sources
+                .radar
+        )
+    ) {
+        normalizedInput
+            .sources
+            .radar = {
+                source:
+                    "radar",
+
+                sourceName:
+                    "radar",
+
+                available:
+                    true,
+
+                status:
+                    "available",
+
+                confidence:
+                    0.75
+            };
+    }
+
+    normalizedInput
+        .sources
+        .radar
+        .rainCells =
+            availableRainCells;
+
+    normalizedInput
+        .sources
+        .radar
+        .cells =
+            availableRainCells;
+
+    normalizedInput
+        .sources
+        .radar
+        .stormCells =
+            availableRainCells;
+
+    normalizedInput
+        .sources
+        .radar
+        .available =
+            true;
+}
+
+/*
+   استخدام مسارات التتبع الفعلية إن وُجدت.
+*/
+
+const stormPathEngine =
+    globalThis
+        .StormPathPredictionEngineV31Instance ??
+    globalThis
+        .RG31
+        ?.StormPathPredictionEngine ??
+    globalThis
+        .RainGuardAI
+        ?.StormPathPredictionEngineV31 ??
+    null;
+
+let predictedPaths =
+    [];
+
+if (
+    typeof stormPathEngine
+        ?.getPredictedPaths ===
+        "function"
+) {
+    try {
+        const result =
+            stormPathEngine
+                .getPredictedPaths();
+
+        predictedPaths =
+            Array.isArray(result)
+                ? result
+                : [];
+    } catch (error) {
+        predictedPaths =
+            [];
+    }
+} else if (
+    Array.isArray(
+        stormPathEngine
+            ?.predictedPaths
+    )
+) {
+    predictedPaths =
+        stormPathEngine
+            .predictedPaths;
+} else if (
+    stormPathEngine
+        ?.paths instanceof
+    Map
+) {
+    predictedPaths = [
+        ...stormPathEngine
+            .paths
+            .values()
+    ];
+}
+
+/*
+   لا نضع الخلايا الخام كمسار إلا عند عدم وجود مسار فعلي.
+*/
+
+if (
+    (
+        !Array.isArray(
+            normalizedInput
+                .projectedTrack
+        ) ||
+        !normalizedInput
+            .projectedTrack
+            .length
+    ) &&
+    predictedPaths.length
+) {
+    const firstPath =
+        predictedPaths[0];
+
+    const pathPoints =
+        firstPath?.points ??
+        firstPath?.track ??
+        firstPath?.path ??
+        firstPath
+            ?.projectedTrack ??
+        [];
+
+    if (
+        Array.isArray(
+            pathPoints
+        ) &&
+        pathPoints.length
+    ) {
+        normalizedInput
+            .projectedTrack =
+                pathPoints;
+    }
+}
+
+/* ==============================================================
+   TEMPORARY DIAGNOSTICS
+   ============================================================== */
+
+console.log(
+    "[RainArrival V32] Sources after Recovery Core enrichment:",
+    {
+        city:
+            normalizedInput.city,
+
+        locationId,
+
+        recoveryCoreAvailable:
+            Boolean(
+                recoveryCore
+            ),
+
+        sourceKeys:
+            Object.keys(
+                normalizedInput
+                    .sources ||
+                {}
+            ),
+
+        radarItems:
+            radarItems.length,
+
+        satelliteItems:
+            satelliteItems.length,
+
+        lightningItems:
+            lightningItems.length,
+
+        anwaaItems:
+            anwaaItems.length,
+
+        openMeteoItems:
+            openMeteoItems.length,
+
+        localAiItems:
+            localAiItems.length,
+
+        matchingObservations:
+            matchingObservations.length,
+
+        matchingForecasts:
+            matchingForecasts.length,
+
+        coreRainCells:
+            coreRainCells.length,
+
+        trackedCells:
+            trackedCells.length,
+
+        predictedPaths:
+            predictedPaths.length,
+
+        projectedTrackLength:
+            Array.isArray(
+                normalizedInput
+                    .projectedTrack
+            )
+                ? normalizedInput
+                    .projectedTrack
+                    .length
+                : 0
+    }
+);
 
     const context =
         this._createPredictionRuntimeContext(
