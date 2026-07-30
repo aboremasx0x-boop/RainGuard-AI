@@ -4644,33 +4644,99 @@ Object.assign(
 
                     try {
 
+                       const locationSources = {
+
+    ...safeObject(
+        safeOptions.sources
+    ),
+
+    ...safeObject(
+        core.sources
+    ),
+
+    ...safeObject(
+        core.state?.sources
+    ),
+
+    ...safeObject(
+        location.sources
+    ),
+
+    radar:
+        location.sources?.radar ??
+        core.sources?.radar ??
+        null,
+
+    satellite:
+        location.sources?.satellite ??
+        core.sources?.satellite ??
+        null,
+
+    lightning:
+        location.sources?.lightning ??
+        core.sources?.lightning ??
+        null,
+
+    localAi:
+        location.sources?.localAi ??
+        core.sources?.localAi ??
+        null,
+
+    anwaa:
+        location.sources?.anwaa ??
+        core.sources?.anwaa ??
+        null,
+
+    openMeteo:
+        location.sources?.openMeteo ??
+        core.sources?.openMeteo ??
+        null,
+
+    numericalModel:
+        location.sources?.numericalModel ??
+        core.sources?.numericalModel ??
+        null
+};
+
                         const result =
-                            await this.runForecast(
-                                {
-                                    ...safeObject(
-                                        safeOptions.forecast
-                                    ),
-                                    id: location.id,
-                                    city: cityName,
-                                    region: regionName,
-                                    latitude:
-                                        location.latitude ??
-                                        location.lat,
-                                    longitude:
-                                        location.longitude ??
-                                        location.lon ??
-                                        location.lng,
-                                    locationKey,
-                                    location,
-                                    national: true,
-                                    locationIndex: index,
-                                    locationCount: locations.length
-                                },
-                                {
-                                    internal: true,
-                                    synchronizeCore: false
-                                }
-                            );
+    await this.runForecast(
+        {
+            ...safeObject(
+                safeOptions.forecast
+            ),
+
+            id: location.id,
+            city: cityName,
+            region: regionName,
+
+            latitude:
+                location.latitude ??
+                location.lat,
+
+            longitude:
+                location.longitude ??
+                location.lon ??
+                location.lng,
+
+            locationKey,
+
+            location,
+
+            sources:
+                locationSources,
+
+            national: true,
+
+            locationIndex: index,
+
+            locationCount:
+                locations.length
+        },
+        {
+            internal: true,
+            synchronizeCore: false
+        }
+    );
 
                       const hasUsableForecastResult =
     result &&
