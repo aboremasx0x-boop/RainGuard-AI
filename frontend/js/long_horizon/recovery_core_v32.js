@@ -2548,6 +2548,7 @@ async updateDashboard(
    addAdapter(
     "source_adapter_v32",
     resolveObject(
+        global.RG30?.SourceAdapter,
         global.SourceAdapterV32Instance,
         global.SourceAdapterV30Instance,
         global.RG30SourceAdapterInstance,
