@@ -1064,9 +1064,12 @@ RG31.StormCellTrackingEngine = {
             {};
 
         const coordinates =
-            this.extractCityCoordinates(
-                cityResult
-            );
+    this.extractStormCoordinates(
+        cityResult,
+        radar,
+        satellite,
+        lightning
+    );
 
         if (
             coordinates.lat ===
@@ -1266,6 +1269,9 @@ RG31.StormCellTrackingEngine = {
 
             lon:
                 coordinates.lon,
+           coordinateSource:
+               coordinates.source ??
+             "unknown",
 
             radarScore:
                 Math.round(
@@ -1357,9 +1363,14 @@ RG31.StormCellTrackingEngine = {
                 ),
 
             timestamp:
-                cityResult.timestamp ||
-                new Date()
-                    .toISOString()
+    new Date()
+        .toISOString(),
+
+sourceTimestamp:
+    cityResult.timestamp ??
+    cityResult.observedAt ??
+    cityResult.generatedAt ??
+    null
 
         };
 
@@ -1459,6 +1470,166 @@ RG31.StormCellTrackingEngine = {
         };
 
     },
+
+   /* =====================================================
+   EXTRACT STORM COORDINATES
+   ===================================================== */
+
+extractStormCoordinates(
+    cityResult = {},
+    radar = {},
+    satellite = {},
+    lightning = {}
+) {
+
+    const radarDetails =
+        radar.details ||
+        {};
+
+    const satelliteDetails =
+        satellite.details ||
+        {};
+
+    const lightningDetails =
+        lightning.details ||
+        {};
+
+    const radarCell =
+        radarDetails.activeCell ??
+        radarDetails.stormCell ??
+        radarDetails.rainCell ??
+        radarDetails.cell ??
+        radar.activeCell ??
+        radar.stormCell ??
+        radar.rainCell ??
+        radar.cell ??
+        null;
+
+    const satelliteCell =
+        satelliteDetails.stormCell ??
+        satelliteDetails.cloudCell ??
+        satellite.stormCell ??
+        satellite.cloudCell ??
+        null;
+
+    const latitude =
+        this.firstNullableNumber(
+
+            radarCell?.currentLat,
+            radarCell?.latitude,
+            radarCell?.lat,
+            radarCell?.center?.latitude,
+            radarCell?.center?.lat,
+            radarCell?.centroid?.latitude,
+            radarCell?.centroid?.lat,
+
+            radarDetails.currentLat,
+            radarDetails.latitude,
+            radarDetails.lat,
+            radarDetails.cellLatitude,
+            radarDetails.stormLatitude,
+            radarDetails.rainLatitude,
+
+            radar.currentLat,
+            radar.latitude,
+            radar.lat,
+
+            satelliteCell?.currentLat,
+            satelliteCell?.latitude,
+            satelliteCell?.lat,
+
+            satelliteDetails.currentLat,
+            satelliteDetails.latitude,
+            satelliteDetails.lat,
+
+            lightningDetails.currentLat,
+            lightningDetails.latitude,
+            lightningDetails.lat
+        );
+
+    const longitude =
+        this.firstNullableNumber(
+
+            radarCell?.currentLon,
+            radarCell?.currentLng,
+            radarCell?.longitude,
+            radarCell?.lon,
+            radarCell?.lng,
+            radarCell?.center?.longitude,
+            radarCell?.center?.lon,
+            radarCell?.center?.lng,
+            radarCell?.centroid?.longitude,
+            radarCell?.centroid?.lon,
+            radarCell?.centroid?.lng,
+
+            radarDetails.currentLon,
+            radarDetails.currentLng,
+            radarDetails.longitude,
+            radarDetails.lon,
+            radarDetails.lng,
+            radarDetails.cellLongitude,
+            radarDetails.stormLongitude,
+            radarDetails.rainLongitude,
+
+            radar.currentLon,
+            radar.currentLng,
+            radar.longitude,
+            radar.lon,
+            radar.lng,
+
+            satelliteCell?.currentLon,
+            satelliteCell?.currentLng,
+            satelliteCell?.longitude,
+            satelliteCell?.lon,
+            satelliteCell?.lng,
+
+            satelliteDetails.currentLon,
+            satelliteDetails.longitude,
+            satelliteDetails.lon,
+            satelliteDetails.lng,
+
+            lightningDetails.currentLon,
+            lightningDetails.longitude,
+            lightningDetails.lon,
+            lightningDetails.lng
+        );
+
+    if (
+        latitude !== null &&
+        longitude !== null
+    ) {
+        return {
+            lat:
+                latitude,
+
+            lon:
+                longitude,
+
+            source:
+                "storm_source"
+        };
+    }
+
+    const cityCoordinates =
+        this.extractCityCoordinates(
+            cityResult
+        );
+
+    return {
+        lat:
+            cityCoordinates.lat,
+
+        lon:
+            cityCoordinates.lon,
+
+        source:
+            cityCoordinates.lat !== null &&
+            cityCoordinates.lon !== null
+                ? "city_fallback"
+                : "unavailable"
+    };
+
+},
 
     /* =====================================================
        KNOWN CITY COORDINATES
@@ -2983,20 +3154,17 @@ RG31.StormCellTrackingEngine = {
         const previousIntensity =
             cell.intensity;
 
-        const timeGapMinutes =
-            Math.max(
+        const rawTimeGapMinutes =
+    this.calculateTimeDifferenceMinutes(
+        cell.lastSeenAt,
+        candidate.timestamp
+    );
 
-                1,
-
-                this.calculateTimeDifferenceMinutes(
-
-                    cell.lastSeenAt,
-
-                    candidate.timestamp
-
-                )
-
-            );
+const timeGapMinutes =
+    Math.max(
+        0.05,
+        rawTimeGapMinutes
+    );
 
         const movementDistanceKm =
             this.calculateDistanceKm(
@@ -3192,136 +3360,112 @@ RG31.StormCellTrackingEngine = {
                 ]
                 : [];
 
-        cell.history.unshift({
+        const latestHistoryPoint =
+    Array.isArray(
+        cell.history
+    )
+        ? cell.history[0] ?? null
+        : null;
 
-            lat:
-                candidate.lat,
+const latestHistoryTimestamp =
+    latestHistoryPoint?.timestamp
+        ? new Date(
+            latestHistoryPoint.timestamp
+        ).getTime()
+        : null;
 
-            lon:
-                candidate.lon,
+const currentHistoryTimestamp =
+    new Date(
+        now
+    ).getTime();
 
-            city:
-                candidate.city,
+const sameLatitude =
+    latestHistoryPoint &&
+    Math.abs(
+        this.safeNumber(
+            latestHistoryPoint.lat,
+            0
+        ) -
+        this.safeNumber(
+            candidate.lat,
+            0
+        )
+    ) < 0.000001;
 
-            intensity:
-                candidate.intensity,
+const sameLongitude =
+    latestHistoryPoint &&
+    Math.abs(
+        this.safeNumber(
+            latestHistoryPoint.lon,
+            0
+        ) -
+        this.safeNumber(
+            candidate.lon,
+            0
+        )
+    ) < 0.000001;
 
-            compositeScore:
-                candidate.compositeScore,
+const sameTimestamp =
+    Number.isFinite(
+        latestHistoryTimestamp
+    ) &&
+    Number.isFinite(
+        currentHistoryTimestamp
+    ) &&
+    latestHistoryTimestamp ===
+        currentHistoryTimestamp;
 
-            confidence:
-                candidate.confidence,
+if (
+    !sameTimestamp ||
+    !sameLatitude ||
+    !sameLongitude
+) {
 
-            riskScore:
-                candidate.riskScore,
+    cell.history.unshift({
 
-            speedKmh:
-                cell.speedKmh,
+        lat:
+            candidate.lat,
 
-            directionDegrees:
-                cell.directionDegrees,
+        lon:
+            candidate.lon,
 
-            directionLabel:
-                cell.directionLabel,
+        city:
+            candidate.city,
 
-            movementDistanceKm:
-                cell.movementDistanceKm,
+        intensity:
+            candidate.intensity,
 
-            timestamp:
-                now
+        compositeScore:
+            candidate.compositeScore,
 
-        });
+        confidence:
+            candidate.confidence,
 
-        cell.history =
-            cell.history.slice(
+        riskScore:
+            candidate.riskScore,
 
-                0,
+        speedKmh:
+            cell.speedKmh,
 
-                this.config
-                    .maximumCellHistory
+        directionDegrees:
+            cell.directionDegrees,
 
-            );
+        directionLabel:
+            cell.directionLabel,
 
-        let cityTransition =
-            null;
+        movementDistanceKm:
+            cell.movementDistanceKm,
 
-        if (
-            previousCity &&
-            candidate.city &&
-            previousCity !==
-                candidate.city
-        ) {
+        coordinateSource:
+            candidate.coordinateSource ??
+            null,
 
-            cell.cityTransitionCount =
-                this.safeNumber(
-                    cell.cityTransitionCount,
-                    0
-                ) +
-                1;
+        timestamp:
+            now
 
-            cityTransition =
-                this.createCityTransition({
+    });
 
-                    cellId:
-                        cell.cellId,
-
-                    fromCity:
-                        previousCity,
-
-                    toCity:
-                        candidate.city,
-
-                    fromLat:
-                        previousLat,
-
-                    fromLon:
-                        previousLon,
-
-                    toLat:
-                        candidate.lat,
-
-                    toLon:
-                        candidate.lon,
-
-                    speedKmh:
-                        cell.speedKmh,
-
-                    directionDegrees:
-                        cell.directionDegrees,
-
-                    directionLabel:
-                        cell.directionLabel,
-
-                    intensity:
-                        cell.intensity,
-
-                    riskScore:
-                        cell.riskScore,
-
-                    timestamp:
-                        now
-
-                });
-
-        }
-
-        this.activeCells[
-            cell.cellId
-        ] =
-            cell;
-
-        return {
-
-            cell,
-
-            cityTransition,
-
-            match
-
-        };
-
-    },
-
+}
     /* =====================================================
        CREATE NEW TRACKED CELL
        ===================================================== */
