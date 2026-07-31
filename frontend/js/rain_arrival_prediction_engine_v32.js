@@ -20382,73 +20382,98 @@ estimateRadarRainArrival(
             targetCoordinate
         );
 
-    const radarCells =
-        [
-            ...(Array.isArray(safeRadar.cells)
+    const radarCells = [
+        ...(
+            Array.isArray(
+                safeRadar.cells
+            )
                 ? safeRadar.cells
-                : []),
+                : []
+        ),
 
-            ...(Array.isArray(safeRadar.activeCells)
+        ...(
+            Array.isArray(
+                safeRadar.activeCells
+            )
                 ? safeRadar.activeCells
-                : []),
+                : []
+        ),
 
-            ...(Array.isArray(safeRadar.stormCells)
+        ...(
+            Array.isArray(
+                safeRadar.stormCells
+            )
                 ? safeRadar.stormCells
-                : []),
+                : []
+        ),
 
-            ...(Array.isArray(safeRadar.features)
+        ...(
+            Array.isArray(
+                safeRadar.features
+            )
                 ? safeRadar.features
-                : [])
-        ];
+                : []
+        )
+    ];
 
     const firstRadarCell =
         radarCells.find(
             (cell) => {
-               const candidate =
-    cell?.coordinate ??
-    cell?.center ??
-    cell?.centroid ??
-    cell?.position ??
-    cell?.currentPosition ??
-    cell?.geometry?.coordinates ??
-    (
-        Number.isFinite(
-            Number(
-                cell?.currentLat ??
-                cell?.latitude ??
-                cell?.lat
-            )
-        ) &&
-        Number.isFinite(
-            Number(
-                cell?.currentLon ??
-                cell?.longitude ??
-                cell?.lon ??
-                cell?.lng
-            )
-        )
-            ? {
-                latitude:
-                    cell?.currentLat ??
-                    cell?.latitude ??
-                    cell?.lat,
+                const currentCoordinate =
+                    Number.isFinite(
+                        Number(
+                            cell?.currentLat ??
+                            cell?.latitude ??
+                            cell?.lat
+                        )
+                    ) &&
+                    Number.isFinite(
+                        Number(
+                            cell?.currentLon ??
+                            cell?.longitude ??
+                            cell?.lon ??
+                            cell?.lng
+                        )
+                    )
+                        ? {
+                            latitude:
+                                cell?.currentLat ??
+                                cell?.latitude ??
+                                cell?.lat,
 
-                longitude:
-                    cell?.currentLon ??
-                    cell?.longitude ??
-                    cell?.lon ??
-                    cell?.lng
-            }
-            : cell
-    );
+                            longitude:
+                                cell?.currentLon ??
+                                cell?.longitude ??
+                                cell?.lon ??
+                                cell?.lng
+                        }
+                        : null;
 
-                if (Array.isArray(candidate)) {
+                const candidate =
+                    cell?.coordinate ??
+                    cell?.center ??
+                    cell?.centroid ??
+                    cell?.position ??
+                    cell?.currentPosition ??
+                    currentCoordinate ??
+                    cell?.geometry?.coordinates ??
+                    cell;
+
+                if (
+                    Array.isArray(
+                        candidate
+                    )
+                ) {
                     return (
                         Number.isFinite(
-                            Number(candidate[0])
+                            Number(
+                                candidate[0]
+                            )
                         ) &&
                         Number.isFinite(
-                            Number(candidate[1])
+                            Number(
+                                candidate[1]
+                            )
                         )
                     );
                 }
@@ -20464,7 +20489,9 @@ estimateRadarRainArrival(
 
     const arrayCoordinate =
         Array.isArray(
-            firstRadarCell?.geometry?.coordinates
+            firstRadarCell
+                ?.geometry
+                ?.coordinates
         )
             ? {
                 longitude:
@@ -20478,35 +20505,36 @@ estimateRadarRainArrival(
                         .coordinates[1]
             }
             : null;
+
     const currentCellCoordinate =
-    Number.isFinite(
-        Number(
-            firstRadarCell?.currentLat ??
-            firstRadarCell?.latitude ??
-            firstRadarCell?.lat
-        )
-    ) &&
-    Number.isFinite(
-        Number(
-            firstRadarCell?.currentLon ??
-            firstRadarCell?.longitude ??
-            firstRadarCell?.lon ??
-            firstRadarCell?.lng
-        )
-    )
-        ? {
-            latitude:
+        Number.isFinite(
+            Number(
                 firstRadarCell?.currentLat ??
                 firstRadarCell?.latitude ??
-                firstRadarCell?.lat,
-
-            longitude:
+                firstRadarCell?.lat
+            )
+        ) &&
+        Number.isFinite(
+            Number(
                 firstRadarCell?.currentLon ??
                 firstRadarCell?.longitude ??
                 firstRadarCell?.lon ??
                 firstRadarCell?.lng
-        }
-        : null;
+            )
+        )
+            ? {
+                latitude:
+                    firstRadarCell?.currentLat ??
+                    firstRadarCell?.latitude ??
+                    firstRadarCell?.lat,
+
+                longitude:
+                    firstRadarCell?.currentLon ??
+                    firstRadarCell?.longitude ??
+                    firstRadarCell?.lon ??
+                    firstRadarCell?.lng
+            }
+            : null;
 
     const rainCoordinate =
         this.normalizeCoordinate(
@@ -20520,13 +20548,13 @@ estimateRadarRainArrival(
             safeRadar.location ??
             safeRadar.latestCell?.coordinate ??
             safeRadar.activeCell?.coordinate ??
-           firstRadarCell?.coordinate ??
-           firstRadarCell?.center ??
-           firstRadarCell?.centroid ??
-           firstRadarCell?.position ??
-           firstRadarCell?.currentPosition ??
-           currentCellCoordinate ??
-           arrayCoordinate ??
+            firstRadarCell?.coordinate ??
+            firstRadarCell?.center ??
+            firstRadarCell?.centroid ??
+            firstRadarCell?.position ??
+            firstRadarCell?.currentPosition ??
+            currentCellCoordinate ??
+            arrayCoordinate ??
             (
                 Number.isFinite(
                     Number(
@@ -20563,12 +20591,15 @@ estimateRadarRainArrival(
             "[RainArrival V32] Radar coordinate unavailable:",
             {
                 target,
+
                 radarKeys:
                     Object.keys(
                         safeRadar
                     ),
+
                 radarCellCount:
                     radarCells.length,
+
                 radarData:
                     safeRadar
             }
@@ -20584,36 +20615,53 @@ estimateRadarRainArrival(
         firstRadarCell?.motion ??
         {};
 
-    const speedKmh =
-    Number(
+    const rawSpeedKmh =
         safeRadar.speedKmh ??
         safeRadar.speed ??
         safeRadar.motionSpeedKmh ??
+        radarMotion.speedKmh ??
+        radarMotion.speed ??
         firstRadarCell?.speedKmh ??
         firstRadarCell?.speed ??
         firstRadarCell?.motionSpeedKmh ??
-        0
-    );
+        null;
+
+    const speedKmh =
+        Number.isFinite(
+            Number(
+                rawSpeedKmh
+            )
+        )
+            ? Math.max(
+                0,
+                Number(
+                    rawSpeedKmh
+                )
+            )
+            : 0;
+
     const rawBearing =
         safeRadar.bearing ??
         safeRadar.directionDegrees ??
         safeRadar.motionBearing ??
+        safeRadar.direction ??
         radarMotion.bearing ??
+        radarMotion.directionDegrees ??
         radarMotion.direction ??
+        firstRadarCell?.directionDegrees ??
         firstRadarCell?.bearing ??
         firstRadarCell?.direction ??
         null;
 
     const bearing =
-    Number(
-        safeRadar.bearing ??
-        safeRadar.directionDegrees ??
-        safeRadar.direction ??
-        firstRadarCell?.directionDegrees ??
-        firstRadarCell?.bearing ??
-        firstRadarCell?.direction ??
-        0
-    );
+        Number.isFinite(
+            Number(
+                rawBearing
+            )
+        )
+            ? Number(
+                rawBearing
+            )
             : null;
 
     const directDistanceKm =
@@ -20693,6 +20741,21 @@ estimateRadarRainArrival(
         ) ||
         arrivalMinutes < 0
     ) {
+        console.warn(
+            "[RainArrival V32] Radar ETA unavailable:",
+            {
+                directDistanceKm,
+                speedKmh,
+                effectiveSpeedKmh,
+                bearing,
+                targetBearing,
+                bearingDifference,
+                directionAlignment,
+                rainCoordinate,
+                target
+            }
+        );
+
         return null;
     }
 
@@ -20725,9 +20788,11 @@ estimateRadarRainArrival(
         Math.max(
             0,
             100 -
-            directDistanceKm /
-            confidenceDistanceKm *
-            100
+            (
+                directDistanceKm /
+                confidenceDistanceKm *
+                100
+            )
         );
 
     const confidence =
