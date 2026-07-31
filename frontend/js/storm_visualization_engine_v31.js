@@ -1428,24 +1428,68 @@ RG31.StormVisualizationEngine = {
                 report
             );
 
-           window.RG31 = window.RG31 || {};
+         /* ======================================================
+   PUBLISH GLOBAL RG31 DATA
+   ====================================================== */
+
+window.RG31 =
+    window.RG31 || {};
 
 window.RG31.activeStormCells =
-    activeStormCells;
+    normalizedCells;
 
 window.RG31.predictedStormPaths =
-    predictedStormPaths;
+    normalizedPredictions;
 
-window.RG31.LatestStormPathPrediction = {
-    cells: activeStormCells,
-    paths: predictedStormPaths,
-    generatedAt: Date.now()
-};
+window.RG31.latestStormVisualizationReport =
+    report;
 
 window.RG31.latestStormTrackingReport = {
-    cells: activeStormCells,
-    paths: predictedStormPaths
+    activeCells:
+        normalizedCells,
+
+    predictedPaths:
+        normalizedPredictions,
+
+    renderedCells,
+
+    renderedPaths,
+
+    renderedImpactedCities,
+
+    cycleNumber:
+        this.cycleNumber,
+
+    timestamp:
+        this.lastRenderAt
 };
+
+window.RG31.LatestStormPathPrediction = {
+    cells:
+        normalizedCells,
+
+    predictions:
+        normalizedPredictions,
+
+    generatedAt:
+        this.lastRenderAt
+};
+
+if (
+    window.RainGuardAI?.V32
+) {
+    window.RainGuardAI.V32.activeStormCells =
+        normalizedCells;
+
+    window.RainGuardAI.V32.predictedStormPaths =
+        normalizedPredictions;
+
+    window.RainGuardAI.V32.latestStormTrackingReport =
+        window.RG31.latestStormTrackingReport;
+
+    window.RainGuardAI.V32.LatestStormPathPrediction =
+        window.RG31.LatestStormPathPrediction;
+}
 
             if (
                 this.config
