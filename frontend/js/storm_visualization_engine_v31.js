@@ -1428,6 +1428,25 @@ RG31.StormVisualizationEngine = {
                 report
             );
 
+           window.RG31 = window.RG31 || {};
+
+window.RG31.activeStormCells =
+    activeStormCells;
+
+window.RG31.predictedStormPaths =
+    predictedStormPaths;
+
+window.RG31.LatestStormPathPrediction = {
+    cells: activeStormCells,
+    paths: predictedStormPaths,
+    generatedAt: Date.now()
+};
+
+window.RG31.latestStormTrackingReport = {
+    cells: activeStormCells,
+    paths: predictedStormPaths
+};
+
             if (
                 this.config
                     .development
