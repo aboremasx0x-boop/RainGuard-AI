@@ -20404,13 +20404,43 @@ estimateRadarRainArrival(
     const firstRadarCell =
         radarCells.find(
             (cell) => {
-                const candidate =
-                    cell?.coordinate ??
-                    cell?.center ??
-                    cell?.centroid ??
-                    cell?.position ??
-                    cell?.geometry?.coordinates ??
-                    cell;
+               const candidate =
+    cell?.coordinate ??
+    cell?.center ??
+    cell?.centroid ??
+    cell?.position ??
+    cell?.currentPosition ??
+    cell?.geometry?.coordinates ??
+    (
+        Number.isFinite(
+            Number(
+                cell?.currentLat ??
+                cell?.latitude ??
+                cell?.lat
+            )
+        ) &&
+        Number.isFinite(
+            Number(
+                cell?.currentLon ??
+                cell?.longitude ??
+                cell?.lon ??
+                cell?.lng
+            )
+        )
+            ? {
+                latitude:
+                    cell?.currentLat ??
+                    cell?.latitude ??
+                    cell?.lat,
+
+                longitude:
+                    cell?.currentLon ??
+                    cell?.longitude ??
+                    cell?.lon ??
+                    cell?.lng
+            }
+            : cell
+    );
 
                 if (Array.isArray(candidate)) {
                     return (
@@ -20448,6 +20478,35 @@ estimateRadarRainArrival(
                         .coordinates[1]
             }
             : null;
+    const currentCellCoordinate =
+    Number.isFinite(
+        Number(
+            firstRadarCell?.currentLat ??
+            firstRadarCell?.latitude ??
+            firstRadarCell?.lat
+        )
+    ) &&
+    Number.isFinite(
+        Number(
+            firstRadarCell?.currentLon ??
+            firstRadarCell?.longitude ??
+            firstRadarCell?.lon ??
+            firstRadarCell?.lng
+        )
+    )
+        ? {
+            latitude:
+                firstRadarCell?.currentLat ??
+                firstRadarCell?.latitude ??
+                firstRadarCell?.lat,
+
+            longitude:
+                firstRadarCell?.currentLon ??
+                firstRadarCell?.longitude ??
+                firstRadarCell?.lon ??
+                firstRadarCell?.lng
+        }
+        : null;
 
     const rainCoordinate =
         this.normalizeCoordinate(
@@ -20461,11 +20520,13 @@ estimateRadarRainArrival(
             safeRadar.location ??
             safeRadar.latestCell?.coordinate ??
             safeRadar.activeCell?.coordinate ??
-            firstRadarCell?.coordinate ??
-            firstRadarCell?.center ??
-            firstRadarCell?.centroid ??
-            firstRadarCell?.position ??
-            arrayCoordinate ??
+           firstRadarCell?.coordinate ??
+           firstRadarCell?.center ??
+           firstRadarCell?.centroid ??
+           firstRadarCell?.position ??
+           firstRadarCell?.currentPosition ??
+           currentCellCoordinate ??
+           arrayCoordinate ??
             (
                 Number.isFinite(
                     Number(
@@ -20524,21 +20585,15 @@ estimateRadarRainArrival(
         {};
 
     const speedKmh =
-        Math.max(
-            0,
-            Number(
-                safeRadar.speedKmh ??
-                safeRadar.motionSpeedKmh ??
-                safeRadar.speed ??
-                radarMotion.speedKmh ??
-                radarMotion.speed ??
-                firstRadarCell?.speedKmh ??
-                firstRadarCell?.speed ??
-                options.defaultRadarSpeedKmh ??
-                30
-            ) || 0
-        );
-
+    Number(
+        safeRadar.speedKmh ??
+        safeRadar.speed ??
+        safeRadar.motionSpeedKmh ??
+        firstRadarCell?.speedKmh ??
+        firstRadarCell?.speed ??
+        firstRadarCell?.motionSpeedKmh ??
+        0
+    );
     const rawBearing =
         safeRadar.bearing ??
         safeRadar.directionDegrees ??
@@ -20550,12 +20605,15 @@ estimateRadarRainArrival(
         null;
 
     const bearing =
-        rawBearing !== null &&
-        rawBearing !== undefined &&
-        rawBearing !== ""
-            ? this.normalizeBearing(
-                rawBearing
-            )
+    Number(
+        safeRadar.bearing ??
+        safeRadar.directionDegrees ??
+        safeRadar.direction ??
+        firstRadarCell?.directionDegrees ??
+        firstRadarCell?.bearing ??
+        firstRadarCell?.direction ??
+        0
+    );
             : null;
 
     const directDistanceKm =
