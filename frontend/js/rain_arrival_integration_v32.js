@@ -1478,6 +1478,28 @@
             throw error;
         }
 
+        /*
+ * Publish the created prediction-engine instance
+ * using the paths expected by the connected-engine registry.
+ */
+globalObject.RainGuardAI =
+    globalObject.RainGuardAI || {};
+
+globalObject.RainGuardAI.V32 =
+    globalObject.RainGuardAI.V32 || {};
+
+globalObject.RainGuardAI.V32
+    .rainArrivalPrediction =
+    runtimeState.engine;
+
+globalObject.RainGuardAI.V32
+    .arrivalPredictionEngine =
+    runtimeState.engine;
+
+globalObject
+    .RainArrivalPredictionEngineV32Instance =
+    runtimeState.engine;
+
         runtimeState
             .dependencies
             .v32
@@ -40360,10 +40382,12 @@
     const ENGINE_PATHS =
         Object.freeze({
             arrivalPrediction: [
-                'RainGuardAI.V32.rainArrivalPrediction',
-                'RainGuardAI.V32.arrivalPredictionEngine',
-                'RainArrivalPredictionEngineV32'
-            ],
+    'RainGuardAI.V32.rainArrivalPrediction',
+    'RainGuardAI.V32.arrivalPredictionEngine',
+    'RainGuardAI.V32.rainArrivalIntegration._state.engine',
+    'RainArrivalPredictionEngineV32Instance',
+    'RainArrivalPredictionEngineV32'
+],
 
             stormTracking: [
                 'RainGuardAI.V31.stormCellTracking',
