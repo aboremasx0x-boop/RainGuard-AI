@@ -30,7 +30,7 @@ window.RG30 =
 RG31.StormVisualizationEngine = {
 
     version:
-        "31.1.0",
+        "31.2.0",
 
     initialized:
         false,
@@ -345,7 +345,16 @@ RG31.StormVisualizationEngine = {
                 5,
 
             arrowSize:
-                22
+                22,
+
+            showForecastArrows:
+                true,
+
+            forecastArrowInterval:
+                1,
+
+            forecastArrowSize:
+                18
 
         },
 
@@ -1585,6 +1594,36 @@ RG31.StormVisualizationEngine = {
                             this.resolveCanonicalForecastTrack(
                                 prediction
                             ).length,
+                        0
+                    ),
+
+                forecastDirectionArrowsRendered:
+                    renderedPaths.reduce(
+                        (
+                            total,
+                            path
+                        ) =>
+                            total +
+                            this.safeNumber(
+                                path
+                                    ?.directionArrowCount,
+                                0
+                            ),
+                        0
+                    ),
+
+                etaPointsRendered:
+                    renderedPaths.reduce(
+                        (
+                            total,
+                            path
+                        ) =>
+                            total +
+                            this.safeNumber(
+                                path
+                                    ?.etaPointCount,
+                                0
+                            ),
                         0
                     ),
 
@@ -5701,6 +5740,475 @@ if (
     },
 
     /* ======================================================
+       CALCULATE SEGMENT BEARING
+       PHASE 2
+       ====================================================== */
+
+    calculateSegmentBearing(
+        start = {},
+        end = {}
+    ) {
+
+        const startLat =
+            this.firstNullableNumber(
+                start.lat,
+                start.latitude
+            );
+
+        const startLon =
+            this.firstNullableNumber(
+                start.lon,
+                start.lng,
+                start.longitude
+            );
+
+        const endLat =
+            this.firstNullableNumber(
+                end.lat,
+                end.latitude
+            );
+
+        const endLon =
+            this.firstNullableNumber(
+                end.lon,
+                end.lng,
+                end.longitude
+            );
+
+        if (
+            startLat === null ||
+            startLon === null ||
+            endLat === null ||
+            endLon === null
+        ) {
+
+            return null;
+
+        }
+
+        const toRadians =
+            value =>
+                value *
+                Math.PI /
+                180;
+
+        const toDegrees =
+            value =>
+                value *
+                180 /
+                Math.PI;
+
+        const firstLatitude =
+            toRadians(
+                startLat
+            );
+
+        const secondLatitude =
+            toRadians(
+                endLat
+            );
+
+        const longitudeDifference =
+            toRadians(
+                endLon -
+                startLon
+            );
+
+        const y =
+            Math.sin(
+                longitudeDifference
+            ) *
+            Math.cos(
+                secondLatitude
+            );
+
+        const x =
+            Math.cos(
+                firstLatitude
+            ) *
+            Math.sin(
+                secondLatitude
+            ) -
+            Math.sin(
+                firstLatitude
+            ) *
+            Math.cos(
+                secondLatitude
+            ) *
+            Math.cos(
+                longitudeDifference
+            );
+
+        return (
+            toDegrees(
+                Math.atan2(
+                    y,
+                    x
+                )
+            ) +
+            360
+        ) %
+        360;
+
+    },
+
+    /* ======================================================
+       RESOLVE ETA LABEL
+       PHASE 2
+       ====================================================== */
+
+    resolveForecastEtaLabel(
+        point = {}
+    ) {
+
+        const minutes =
+            Math.max(
+                0,
+                Math.round(
+                    this.safeNumber(
+                        point.arrivalMinutes ??
+                        point.etaMinutes ??
+                        point.estimatedArrivalMinutes ??
+                        point.minutes,
+                        0
+                    )
+                )
+            );
+
+        const timestamp =
+            point.timestamp ||
+            point.estimatedArrivalTimestamp ||
+            null;
+
+        let timeLabel =
+            null;
+
+        if (
+            timestamp
+        ) {
+
+            const date =
+                new Date(
+                    timestamp
+                );
+
+            if (
+                Number.isFinite(
+                    date.getTime()
+                )
+            ) {
+
+                timeLabel =
+                    date.toLocaleTimeString(
+                        this.isArabic()
+                            ? "ar-SA"
+                            : "en-US",
+                        {
+                            hour:
+                                "2-digit",
+                            minute:
+                                "2-digit"
+                        }
+                    );
+
+            }
+
+        }
+
+        return {
+
+            minutes,
+
+            shortLabel:
+                `${minutes}m`,
+
+            localizedLabel:
+                this.isArabic()
+                    ? `${minutes} د`
+                    : `${minutes} min`,
+
+            timeLabel,
+
+            fullLabel:
+                timeLabel
+                    ? (
+                        this.isArabic()
+                            ? `${minutes} دقيقة — ${timeLabel}`
+                            : `${minutes} min — ${timeLabel}`
+                    )
+                    : (
+                        this.isArabic()
+                            ? `${minutes} دقيقة`
+                            : `${minutes} min`
+                    )
+
+        };
+
+    },
+
+    /* ======================================================
+       RENDER FORECAST DIRECTION ARROWS
+       PHASE 2
+       ====================================================== */
+
+    renderForecastDirectionArrows({
+
+        prediction = {},
+
+        pathPoints = []
+
+    } = {}) {
+
+        if (
+            this.config
+                .direction
+                .showForecastArrows !==
+                true ||
+            !this.directionLayer ||
+            typeof window.L ===
+                "undefined" ||
+            !Array.isArray(
+                pathPoints
+            ) ||
+            pathPoints.length <
+                2
+        ) {
+
+            return [];
+
+        }
+
+        const arrows =
+            [];
+
+        const interval =
+            Math.max(
+                1,
+                Math.round(
+                    this.safeNumber(
+                        this.config
+                            .direction
+                            .forecastArrowInterval,
+                        1
+                    )
+                )
+            );
+
+        for (
+            let index = 1;
+            index <
+            pathPoints.length;
+            index += interval
+        ) {
+
+            const previousPoint =
+                pathPoints[
+                    Math.max(
+                        0,
+                        index -
+                        1
+                    )
+                ];
+
+            const currentPoint =
+                pathPoints[
+                    index
+                ];
+
+            const bearing =
+                this.calculateSegmentBearing(
+                    previousPoint,
+                    currentPoint
+                );
+
+            if (
+                bearing === null
+            ) {
+
+                continue;
+
+            }
+
+            const lat =
+                this.firstNullableNumber(
+                    currentPoint.lat,
+                    currentPoint.latitude
+                );
+
+            const lon =
+                this.firstNullableNumber(
+                    currentPoint.lon,
+                    currentPoint.lng,
+                    currentPoint.longitude
+                );
+
+            if (
+                lat === null ||
+                lon === null
+            ) {
+
+                continue;
+
+            }
+
+            const riskScore =
+                this.safeNumber(
+                    currentPoint.riskScore,
+                    prediction.highestPredictedRisk
+                );
+
+            const color =
+                this.getRiskColor(
+                    this.getRiskLevel(
+                        riskScore
+                    )
+                );
+
+            const eta =
+                this.resolveForecastEtaLabel(
+                    currentPoint
+                );
+
+            const icon =
+                this.createForecastDirectionArrowIcon({
+
+                    color,
+
+                    bearing,
+
+                    etaLabel:
+                        eta.localizedLabel,
+
+                    size:
+                        this.config
+                            .direction
+                            .forecastArrowSize
+
+                });
+
+            const marker =
+                window.L
+                    .marker(
+                        [
+                            lat,
+                            lon
+                        ],
+                        {
+                            icon,
+
+                            interactive:
+                                false,
+
+                            keyboard:
+                                false,
+
+                            pane:
+                                "markerPane",
+
+                            zIndexOffset:
+                                700 +
+                                index
+
+                        }
+                    )
+                    .addTo(
+                        this.directionLayer
+                    );
+
+            arrows.push(
+                marker
+            );
+
+        }
+
+        return arrows;
+
+    },
+
+    /* ======================================================
+       CREATE FORECAST DIRECTION ARROW ICON
+       PHASE 2
+       ====================================================== */
+
+    createForecastDirectionArrowIcon({
+
+        color,
+
+        bearing = 0,
+
+        etaLabel = "",
+
+        size = 18
+
+    } = {}) {
+
+        const safeSize =
+            Math.max(
+                14,
+                Math.round(
+                    this.safeNumber(
+                        size,
+                        18
+                    )
+                )
+            );
+
+        const html = `
+
+            <div
+                class="rg31-forecast-direction-arrow"
+                style="
+                    --rg31-forecast-arrow-color:${this.escapeHtml(
+                        color
+                    )};
+                    --rg31-forecast-arrow-rotation:${this.safeNumber(
+                        bearing,
+                        0
+                    )}deg;
+                    --rg31-forecast-arrow-size:${safeSize}px;
+                "
+            >
+
+                <span class="rg31-forecast-arrow-symbol">
+                    ➤
+                </span>
+
+                <span class="rg31-forecast-arrow-eta">
+                    ${this.escapeHtml(
+                        etaLabel
+                    )}
+                </span>
+
+            </div>
+
+        `;
+
+        return window.L.divIcon({
+
+            html,
+
+            className:
+                "rg31-forecast-direction-div-icon",
+
+            iconSize:
+                [
+                    safeSize *
+                    3,
+                    safeSize *
+                    2
+                ],
+
+            iconAnchor:
+                [
+                    safeSize,
+                    safeSize
+                ]
+
+        });
+
+    },
+
+    /* ======================================================
        RENDER PREDICTED STORM PATH
        ====================================================== */
 
@@ -5916,6 +6424,15 @@ if (
 
             });
 
+        const directionArrows =
+            this.renderForecastDirectionArrows({
+
+                prediction,
+
+                pathPoints
+
+            });
+
         const pointMarkers =
             [];
 
@@ -5970,6 +6487,19 @@ if (
 
             forecastPointCount:
                 pointMarkers.length,
+
+            directionArrowCount:
+                directionArrows.length,
+
+            etaPointCount:
+                pathPoints.filter(
+                    point =>
+                        this.safeNumber(
+                            point.minutes,
+                            0
+                        ) >
+                        0
+                ).length,
 
             pathLineCreated:
                 Boolean(
@@ -6277,11 +6807,13 @@ if (
 
         }
 
-        const minutes =
-            this.safeNumber(
-                point.minutes,
-                0
+        const eta =
+            this.resolveForecastEtaLabel(
+                point
             );
+
+        const minutes =
+            eta.minutes;
 
         const riskScore =
             this.clamp(
@@ -6330,7 +6862,7 @@ if (
                 .labels[
                     minutes
                 ] ||
-            `${minutes}m`;
+            eta.localizedLabel;
 
         const icon =
             this.createForecastPointIcon({
@@ -6441,6 +6973,16 @@ if (
                             100
                         )
                     )}%
+
+                    <br>
+
+                    ${this.text(
+                        "ETA",
+                        "وقت الوصول"
+                    )}:
+                    ${this.escapeHtml(
+                        eta.fullLabel
+                    )}
 
                 </div>
 
