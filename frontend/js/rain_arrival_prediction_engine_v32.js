@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.4.0";
+        "32.5.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -20670,19 +20670,53 @@ estimateRadarRainArrival(
         firstRadarCell?.motionSpeedKmh ??
         null;
 
+    const fallbackSpeedKmh =
+        Number(
+            options.fallbackSpeedKmh ??
+            options.motionSpeedKmh ??
+            options.defaultStormSpeedKmh ??
+            0
+        );
+
     const speedKmh =
         Number.isFinite(
             Number(
                 rawSpeedKmh
             )
-        )
+        ) &&
+        Number(
+            rawSpeedKmh
+        ) > 0
             ? Math.max(
                 0,
                 Number(
                     rawSpeedKmh
                 )
             )
-            : 0;
+            : (
+                Number.isFinite(
+                    fallbackSpeedKmh
+                ) &&
+                fallbackSpeedKmh > 0
+                    ? fallbackSpeedKmh
+                    : 0
+            );
+
+    const speedSource =
+        Number.isFinite(
+            Number(
+                rawSpeedKmh
+            )
+        ) &&
+        Number(
+            rawSpeedKmh
+        ) > 0
+            ? "radar"
+            : (
+                speedKmh > 0
+                    ? "motion_fallback"
+                    : "unavailable"
+            );
 
     const rawBearing =
         safeRadar.bearing ??
@@ -20697,6 +20731,13 @@ estimateRadarRainArrival(
         firstRadarCell?.direction ??
         null;
 
+    const fallbackBearing =
+        Number(
+            options.fallbackBearing ??
+            options.motionBearing ??
+            options.defaultStormBearing
+        );
+
     const bearing =
         Number.isFinite(
             Number(
@@ -20706,7 +20747,28 @@ estimateRadarRainArrival(
             ? Number(
                 rawBearing
             )
-            : null;
+            : (
+                Number.isFinite(
+                    fallbackBearing
+                )
+                    ? fallbackBearing
+                    : null
+            );
+
+    const bearingSource =
+        Number.isFinite(
+            Number(
+                rawBearing
+            )
+        )
+            ? "radar"
+            : (
+                Number.isFinite(
+                    bearing
+                )
+                    ? "motion_fallback"
+                    : "unavailable"
+            );
 
     const directDistanceKm =
         this.calculateDistanceKm(
@@ -20888,6 +20950,16 @@ estimateRadarRainArrival(
             bearingDifference,
 
             directionAlignment,
+
+            speedSource,
+
+            bearingSource,
+
+            usedMotionFallback:
+                speedSource ===
+                    "motion_fallback" ||
+                bearingSource ===
+                    "motion_fallback",
 
             rainCoordinate,
 
@@ -22073,9 +22145,24 @@ detectArrivalEstimateOutliers(
     estimates,
     options = {}
 ) {
-    const normalized =
+    const normalizedInput =
         this._normalizeArrivalEstimates(
             estimates,
+            options
+        );
+
+    const deduplication =
+        this.deduplicateRainArrivalEstimates(
+            normalizedInput,
+            options
+        );
+
+    const normalized =
+        deduplication.estimates;
+
+    const sourceAgreement =
+        this.diagnoseRainArrivalSourceAgreement(
+            normalized,
             options
         );
 
@@ -22472,6 +22559,283 @@ calculateArrivalEstimateWeight(
 
 
 /* ==========================================================================
+   SECTION 210A
+   Phase 6 — Source Fusion Reliability and Conflict Control
+   ========================================================================== */
+
+getRainArrivalSourceReliability(
+    source,
+    options = {}
+) {
+    const key =
+        String(
+            source ??
+            "unknown"
+        )
+            .trim()
+            .toLowerCase();
+
+    const defaults = {
+        radar: 0.94,
+        storm_track: 0.88,
+        satellite: 0.78,
+        lightning: 0.72,
+        anwaa: 0.86,
+        openmeteo: 0.68,
+        local_ai: 0.82,
+        numerical_model: 0.70,
+        recovery_core: 0.80,
+        additional_estimate: 0.65
+    };
+
+    const custom =
+        Number(
+            options.sourceReliability?.[key] ??
+            options.sourceReliabilities?.[key]
+        );
+
+    return Number.isFinite(custom)
+        ? Math.max(
+            0.05,
+            Math.min(
+                1,
+                custom
+            )
+        )
+        : (
+            defaults[key] ??
+            0.60
+        );
+}
+
+
+deduplicateRainArrivalEstimates(
+    estimates,
+    options = {}
+) {
+    const safe =
+        Array.isArray(estimates)
+            ? estimates
+            : [];
+
+    const familyMap = {
+        rainviewer: "radar",
+        weather_radar: "radar",
+        projected_track: "storm_track",
+        storm_path: "storm_track",
+        forecast_model: "numerical_model"
+    };
+
+    const groups =
+        new Map();
+
+    for (const estimate of safe) {
+        const source =
+            String(
+                estimate?.source ??
+                "unknown"
+            )
+                .trim()
+                .toLowerCase();
+
+        const family =
+            familyMap[source] ??
+            source;
+
+        const quality =
+            (
+                Number(
+                    estimate?.confidence
+                ) || 0
+            ) *
+            this.getRainArrivalSourceReliability(
+                family,
+                options
+            );
+
+        const current =
+            groups.get(family);
+
+        if (
+            !current ||
+            quality >
+            current.quality
+        ) {
+            groups.set(
+                family,
+                {
+                    family,
+                    quality,
+                    estimate: {
+                        ...estimate,
+                        sourceFamily:
+                            family
+                    }
+                }
+            );
+        }
+    }
+
+    const retained =
+        Array.from(
+            groups.values()
+        )
+            .map(
+                item =>
+                    item.estimate
+            );
+
+    return {
+        estimates:
+            retained,
+
+        inputCount:
+            safe.length,
+
+        retainedCount:
+            retained.length,
+
+        duplicateCount:
+            Math.max(
+                0,
+                safe.length -
+                retained.length
+            )
+    };
+}
+
+
+diagnoseRainArrivalSourceAgreement(
+    estimates,
+    options = {}
+) {
+    const safe =
+        Array.isArray(estimates)
+            ? estimates.filter(
+                estimate =>
+                    Number.isFinite(
+                        Number(
+                            estimate
+                                ?.arrivalMinutes
+                        )
+                    )
+            )
+            : [];
+
+    if (safe.length === 0) {
+        return {
+            status:
+                "NO_VALID_ESTIMATES",
+            conflict:
+                false,
+            sourceCount:
+                0,
+            spreadMinutes:
+                null,
+            agreementScore:
+                0
+        };
+    }
+
+    if (safe.length === 1) {
+        return {
+            status:
+                "SINGLE_SOURCE",
+            conflict:
+                false,
+            sourceCount:
+                1,
+            spreadMinutes:
+                0,
+            agreementScore:
+                Math.max(
+                    25,
+                    Math.min(
+                        75,
+                        Number(
+                            safe[0]
+                                ?.confidence
+                        ) || 50
+                    )
+                )
+        };
+    }
+
+    const arrivals =
+        safe.map(
+            estimate =>
+                Number(
+                    estimate
+                        .arrivalMinutes
+                )
+        );
+
+    const minimum =
+        Math.min(
+            ...arrivals
+        );
+
+    const maximum =
+        Math.max(
+            ...arrivals
+        );
+
+    const spreadMinutes =
+        maximum -
+        minimum;
+
+    const conflictThresholdMinutes =
+        Math.max(
+            5,
+            Number(
+                options
+                    .sourceConflictThresholdMinutes
+            ) || 45
+        );
+
+    const conflict =
+        spreadMinutes >
+        conflictThresholdMinutes;
+
+    return {
+        status:
+            conflict
+                ? "SOURCE_CONFLICT"
+                : "SOURCES_AGREE",
+
+        conflict,
+
+        sourceCount:
+            safe.length,
+
+        spreadMinutes,
+
+        conflictThresholdMinutes,
+
+        agreementScore:
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    100 -
+                    (
+                        spreadMinutes /
+                        conflictThresholdMinutes
+                    ) *
+                    60
+                )
+            ),
+
+        minimumArrivalMinutes:
+            minimum,
+
+        maximumArrivalMinutes:
+            maximum
+    };
+}
+
+
+/* ==========================================================================
    SECTION 211
    Weighted Arrival Fusion
    ========================================================================== */
@@ -22502,7 +22866,17 @@ fuseRainArrivalEstimates(
             sourceCount: 0,
             estimates: [],
             acceptedEstimates: [],
-            outliers: []
+            outliers: [],
+
+            sourceAgreement,
+
+            deduplication,
+
+            fusionMode:
+                "unavailable",
+
+            sourceConflict:
+                false
         };
     }
 
@@ -22523,10 +22897,50 @@ fuseRainArrivalEstimates(
     const weightedEstimates = [];
 
     for (const estimate of acceptedEstimates) {
+        const reliabilityPrior =
+            this.getRainArrivalSourceReliability(
+                estimate?.source,
+                options
+            );
+
         const weightData =
             this.calculateArrivalEstimateWeight(
-                estimate,
-                options
+                {
+                    ...estimate,
+
+                    reliability:
+                        Number.isFinite(
+                            Number(
+                                estimate
+                                    ?.reliability
+                            )
+                        )
+                            ? estimate
+                                .reliability
+                            : reliabilityPrior
+                },
+                {
+                    ...options,
+
+                    sourceWeights: {
+                        ...(
+                            options
+                                .sourceWeights ??
+                            {}
+                        ),
+
+                        [estimate.source]:
+                            Number(
+                                options
+                                    .sourceWeights
+                                    ?.[
+                                        estimate
+                                            .source
+                                    ]
+                            ) ||
+                            reliabilityPrior
+                    }
+                }
             );
 
         weightedArrivalSum +=
@@ -22584,7 +22998,7 @@ fuseRainArrivalEstimates(
             options
         );
 
-    const confidence =
+    const rawConfidence =
         this.calculateFusedArrivalConfidence(
             weightedEstimates,
             {
@@ -22593,6 +23007,50 @@ fuseRainArrivalEstimates(
                 uncertainty
             }
         );
+
+    const singleSourceMode =
+        weightedEstimates.length ===
+        1;
+
+    const singleSourceConfidenceCap =
+        Math.max(
+            35,
+            Math.min(
+                85,
+                Number(
+                    options
+                        .singleSourceConfidenceCap
+                ) || 72
+            )
+        );
+
+    const confidence = {
+        ...rawConfidence,
+
+        score:
+            singleSourceMode
+                ? Math.min(
+                    rawConfidence.score,
+                    singleSourceConfidenceCap
+                )
+                : rawConfidence.score,
+
+        level:
+            singleSourceMode &&
+            rawConfidence.score >
+            singleSourceConfidenceCap
+                ? "single_source_capped"
+                : rawConfidence.level
+    };
+
+    const fusionMode =
+        singleSourceMode
+            ? "single_source"
+            : (
+                sourceAgreement.conflict
+                    ? "multi_source_conflict_resilient"
+                    : "multi_source_consensus"
+            );
 
     return {
         available: true,
@@ -22627,7 +23085,27 @@ fuseRainArrivalEstimates(
         consensus,
         uncertainty,
         confidenceDetails:
-            confidence
+            confidence,
+
+        sourceAgreement,
+
+        sourceConflict:
+            sourceAgreement.conflict,
+
+        fusionMode,
+
+        deduplication,
+
+        coverage: {
+            validSourceCount:
+                normalized.length,
+
+            acceptedSourceCount:
+                acceptedEstimates.length,
+
+            missingSourcesAreConflict:
+                false
+        }
     };
 }
 
@@ -32748,23 +33226,101 @@ orchestratePipelineArrivalFusion(
             arrivalMinutes: null,
             confidence: 0,
             sourceCount: 0,
-            estimates: []
+            estimates: [],
+
+            fusionMode:
+                "unavailable",
+
+            sourceConflict:
+                false,
+
+            sourceAgreement: {
+                status:
+                    "NO_VALID_ESTIMATES",
+
+                conflict:
+                    false,
+
+                sourceCount:
+                    0
+            },
+
+            coverage: {
+                validSourceCount:
+                    0,
+
+                rejectedSourceCount:
+                    collectedSources
+                        ?.rejectedCount ??
+                    collectedSources
+                        ?.rejected
+                        ?.length ??
+                    0,
+
+                missingSourcesAreConflict:
+                    false
+            }
         };
     }
 
-    return this.fuseRainArrivalEstimates(
-        estimates,
-        {
-            ...options,
-            referenceTimestamp:
-                normalizedInput
-                    .timestamp,
-            targetSourceCount:
-                options
-                    .targetSourceCount ??
-                4
+    const fused =
+        this.fuseRainArrivalEstimates(
+            estimates,
+            {
+                ...options,
+
+                referenceTimestamp:
+                    normalizedInput
+                        .timestamp,
+
+                targetSourceCount:
+                    options
+                        .targetSourceCount ??
+                    4,
+
+                sourceConflictThresholdMinutes:
+                    options
+                        .sourceConflictThresholdMinutes ??
+                    45,
+
+                singleSourceConfidenceCap:
+                    options
+                        .singleSourceConfidenceCap ??
+                    72
+            }
+        );
+
+    return {
+        ...fused,
+
+        rejectedSources:
+            collectedSources
+                ?.rejected ??
+            [],
+
+        coverage: {
+            ...(
+                fused.coverage ??
+                {}
+            ),
+
+            rejectedSourceCount:
+                collectedSources
+                    ?.rejectedCount ??
+                collectedSources
+                    ?.rejected
+                    ?.length ??
+                0,
+
+            availableSourceCount:
+                collectedSources
+                    ?.collectedCount ??
+                estimates.length,
+
+            missingSourcesAreConflict:
+                false
         }
-    );
+    };
 }
 
 
@@ -35034,7 +35590,30 @@ console.log(
                     normalizedInput,
                     components
                         .sourceMatrix,
-                    options
+                    {
+                        ...options,
+
+                        fallbackSpeedKmh:
+                            components
+                                .motionAnalysis
+                                ?.speedKmh ??
+                            options
+                                .fallbackSpeedKmh,
+
+                        fallbackBearing:
+                            components
+                                .motionAnalysis
+                                ?.bearing ??
+                            options
+                                .fallbackBearing,
+
+                        motionConfidence:
+                            components
+                                .motionAnalysis
+                                ?.confidence ??
+                            options
+                                .motionConfidence
+                    }
                 ),
             {
                 estimates: [],
