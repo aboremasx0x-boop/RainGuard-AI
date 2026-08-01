@@ -17,7 +17,7 @@ window.RG30 = window.RG30 || {};
 
 RG31.StormPathPredictionEngine = {
 
-    version: "31.0.0",
+    version: "31.0.1",
 
     initialized: false,
 
@@ -205,14 +205,23 @@ RG31.StormPathPredictionEngine = {
                     return;
 
                 const report =
-                    event.detail.report;
+                    event?.detail?.report ||
+                    event?.detail ||
+                    {};
+
+                const activeCells =
+                    Array.isArray(
+                        report.activeCells
+                    )
+                        ? report.activeCells
+                        : Array.isArray(
+                            event?.detail?.activeCells
+                        )
+                            ? event.detail.activeCells
+                            : [];
 
                 this.predictStormPaths(
-
-                    report.activeCells ||
-
-                    []
-
+                    activeCells
                 );
 
             }
@@ -246,13 +255,20 @@ RG31.StormPathPredictionEngine = {
 
         try {
 
+            const normalizedActiveCells =
+                Array.isArray(
+                    activeCells
+                )
+                    ? activeCells
+                    : [];
+
             const paths = [];
 
             for (
 
                 const cell
 
-                of activeCells
+                of normalizedActiveCells
 
             ) {
 
@@ -272,11 +288,31 @@ RG31.StormPathPredictionEngine = {
 
             paths.forEach(
 
-                p =>
+                (
+                    path,
+                    index
+                ) => {
 
-                this.predictedPaths[
-                    p.cellId
-                ] = p
+                    const pathKey =
+                        String(
+                            path?.cellId ||
+                            `storm_path_${this.cycleNumber}_${index}`
+                        )
+                            .trim();
+
+                    this.predictedPaths[
+                        pathKey
+                    ] = {
+
+                        ...path,
+
+                        cellId:
+                            path?.cellId ||
+                            pathKey
+
+                    };
+
+                }
 
             );
 
@@ -284,6 +320,9 @@ RG31.StormPathPredictionEngine = {
 
                 cycleNumber:
                     this.cycleNumber,
+
+                activeCellCount:
+                    normalizedActiveCells.length,
 
                 predictionCount:
                     paths.length,
@@ -2543,6 +2582,9 @@ RG31.StormPathPredictionEngine = {
 
         }
 
+        const publishedPredictions =
+            this.getPredictedPaths();
+
         window.RG31.latestStormPathPrediction =
             report;
 
@@ -2550,17 +2592,23 @@ RG31.StormPathPredictionEngine = {
             report;
 
         window.RG31.PredictedStormPaths =
-            this.getPredictedPaths();
+            publishedPredictions;
 
         window.RG30.PredictedStormPaths =
-            this.getPredictedPaths();
+            publishedPredictions;
+
+        window.RG31.predictedStormPaths =
+            publishedPredictions;
+
+        window.RG30.predictedStormPaths =
+            publishedPredictions;
 
         const detail = {
 
             report,
 
             predictions:
-                this.getPredictedPaths(),
+                publishedPredictions,
 
             timestamp:
                 this.lastPredictionAt,
@@ -2608,7 +2656,7 @@ RG31.StormPathPredictionEngine = {
                     detail: {
 
                         predictions:
-                            this.getPredictedPaths(),
+                            publishedPredictions,
 
                         cycleNumber:
                             this.cycleNumber,
@@ -3997,6 +4045,12 @@ RG31.StormPathPredictionEngine = {
         window.RG30.PredictedStormPaths =
             [];
 
+        window.RG31.predictedStormPaths =
+            [];
+
+        window.RG30.predictedStormPaths =
+            [];
+
         this.renderStormPredictionPanel(
             null
         );
@@ -4344,6 +4398,21 @@ RG31.StormPathPredictionEngine = {
 
         window.RG30.StormPathPredictor =
             this;
+
+        const publishedPredictions =
+            this.getPredictedPaths();
+
+        window.RG31.PredictedStormPaths =
+            publishedPredictions;
+
+        window.RG30.PredictedStormPaths =
+            publishedPredictions;
+
+        window.RG31.predictedStormPaths =
+            publishedPredictions;
+
+        window.RG30.predictedStormPaths =
+            publishedPredictions;
 
         return true;
 
