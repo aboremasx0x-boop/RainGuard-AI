@@ -61554,9 +61554,9 @@ globalObject
         return;
     }
 
-    const PATCH_VERSION = '32.6.0';
-    const PATCH_BUILD = 3260;
-    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3260';
+    const PATCH_VERSION = '32.7.0';
+    const PATCH_BUILD = 3270;
+    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3270';
 
     function isObject(value) {
         return Boolean(value) && typeof value === 'object';
@@ -62297,13 +62297,13 @@ globalObject
     }
 
     const VERSION =
-        '32.6.0';
+        '32.7.0';
 
     const BUILD =
-        3260;
+        3270;
 
     const INSTALL_FLAG =
-        '__rainArrivalVerificationStatusRendererV3260';
+        '__rainArrivalVerificationStatusRendererV3270';
 
     const STATUS_ELEMENT_SELECTORS = [
         '#verificationStatusTop',
@@ -63010,6 +63010,1051 @@ globalObject
         ? globalThis
         : (
             typeof window !== 'undefined'
+                ? window
+                : this
+        )
+);
+
+/* ==========================================================================
+   PHASE 12
+   Rain Arrival Publication Pipeline
+   Version 32.7.0
+   ========================================================================== */
+
+/**
+ * Guarantees that every completed prediction reaches:
+ *
+ * Prediction Engine
+ *   -> Publication Bridge
+ *   -> RainGuardAI.V32.latestRainArrivalPrediction
+ *   -> RainGuardAI.V32.dashboardState
+ *   -> Dashboard Verification Status Renderer
+ *
+ * It also creates a truthful baseline "unavailable" publication during
+ * startup, so the dashboard never remains stuck on stale SOURCE_CONFLICT.
+ */
+(function rainArrivalPublicationPipelineV32(globalObject) {
+    'use strict';
+
+    if (!globalObject) {
+        return;
+    }
+
+    const VERSION =
+        '32.7.0';
+
+    const BUILD =
+        3270;
+
+    const INSTALL_FLAG =
+        '__rainArrivalPublicationPipelineV3270';
+
+    const ENGINE_WRAP_FLAG =
+        '__rainArrivalPublicationPipelineEngineV3270';
+
+    const SYNC_WRAP_FLAG =
+        '__rainArrivalPublicationPipelineSyncV3270';
+
+    const MAX_INSTALL_ATTEMPTS =
+        60;
+
+    const INSTALL_INTERVAL_MS =
+        500;
+
+    const STATE_POLL_INTERVAL_MS =
+        1500;
+
+    function isObject(value) {
+        return Boolean(value) &&
+            typeof value ===
+                'object';
+    }
+
+    function getNamespace() {
+        const RainGuardAI =
+            globalObject.RainGuardAI =
+                globalObject.RainGuardAI || {};
+
+        const V32 =
+            RainGuardAI.V32 =
+                RainGuardAI.V32 || {};
+
+        return {
+            RainGuardAI,
+            V32
+        };
+    }
+
+    function getBridge() {
+        const { V32 } =
+            getNamespace();
+
+        return (
+            V32.rainArrivalPublicationBridge ??
+            globalObject
+                .RainArrivalPublicationBridgeV32 ??
+            null
+        );
+    }
+
+    function getRenderer() {
+        const { V32 } =
+            getNamespace();
+
+        return (
+            V32.verificationStatusRenderer ??
+            globalObject
+                .RainArrivalVerificationStatusRendererV32 ??
+            null
+        );
+    }
+
+    function discoverEngine() {
+        const { V32 } =
+            getNamespace();
+
+        return (
+            globalObject
+                .RainArrivalPredictionEngineV32Instance ??
+            V32.rainArrivalPrediction ??
+            V32.arrivalPredictionEngine ??
+            V32.rainArrivalIntegration
+                ?.getEngine?.() ??
+            globalObject
+                .RainArrivalPredictionEngineV32 ??
+            null
+        );
+    }
+
+    function buildUnavailableResult(
+        reason =
+            'WAITING_FOR_VALID_RAIN_ARRIVAL_SOURCE'
+    ) {
+        const now =
+            Date.now();
+
+        return {
+            id:
+                `rain_arrival_baseline_${now}`,
+
+            success:
+                true,
+
+            partial:
+                false,
+
+            available:
+                false,
+
+            status:
+                'RAIN_ARRIVAL_UNAVAILABLE',
+
+            reason,
+
+            fusionMode:
+                'unavailable',
+
+            sourceConflict:
+                false,
+
+            fusionDecision: {
+                status:
+                    'NO_VALID_SOURCE',
+
+                action:
+                    'WAIT_FOR_VALID_SOURCE',
+
+                sourceConflict:
+                    false,
+
+                validSourceCount:
+                    0,
+
+                missingSourcesAreConflict:
+                    false,
+
+                generatedAt:
+                    new Date(now)
+                        .toISOString()
+            },
+
+            prediction: {
+                available:
+                    false,
+
+                status:
+                    'RAIN_ARRIVAL_UNAVAILABLE',
+
+                arrivalMinutes:
+                    null,
+
+                confidence:
+                    0,
+
+                reason,
+
+                fusionMode:
+                    'unavailable',
+
+                sourceConflict:
+                    false,
+
+                fusionDecision: {
+                    status:
+                        'NO_VALID_SOURCE',
+
+                    action:
+                        'WAIT_FOR_VALID_SOURCE',
+
+                    sourceConflict:
+                        false,
+
+                    validSourceCount:
+                        0,
+
+                    missingSourcesAreConflict:
+                        false
+                }
+            },
+
+            sources: {
+                fusion: {
+                    available:
+                        false,
+
+                    arrivalMinutes:
+                        null,
+
+                    confidence:
+                        0,
+
+                    fusionMode:
+                        'unavailable',
+
+                    sourceConflict:
+                        false,
+
+                    decision: {
+                        status:
+                            'NO_VALID_SOURCE',
+
+                        action:
+                            'WAIT_FOR_VALID_SOURCE',
+
+                        sourceConflict:
+                            false,
+
+                        validSourceCount:
+                            0,
+
+                        missingSourcesAreConflict:
+                            false
+                    },
+
+                    coverage: {
+                        validSourceCount:
+                            0,
+
+                        rejectedSourceCount:
+                            0,
+
+                        operationalAvailableSourceCount:
+                            0,
+
+                        missingSourcesAreConflict:
+                            false
+                    }
+                }
+            },
+
+            generatedAt:
+                now,
+
+            generatedAtIso:
+                new Date(now)
+                    .toISOString(),
+
+            phase12Baseline:
+                true
+        };
+    }
+
+    function publish(
+        result,
+        context = {}
+    ) {
+        const bridge =
+            getBridge();
+
+        if (
+            !bridge ||
+            typeof bridge
+                .publishRainArrivalPrediction !==
+                'function'
+        ) {
+            return null;
+        }
+
+        const publication =
+            bridge.publishRainArrivalPrediction(
+                result,
+                context
+            );
+
+        if (publication) {
+            const renderer =
+                getRenderer();
+
+            renderer?.render?.({
+                prediction:
+                    publication,
+
+                publication,
+
+                result,
+
+                dashboardState:
+                    getNamespace()
+                        .V32
+                        .dashboardState
+            });
+        }
+
+        return publication;
+    }
+
+    function ensureBaselinePublication(
+        options = {}
+    ) {
+        const { V32 } =
+            getNamespace();
+
+        const existing =
+            V32.latestRainArrivalPrediction;
+
+        if (
+            isObject(existing) &&
+            options.force !==
+                true
+        ) {
+            getRenderer()?.render?.({
+                prediction:
+                    existing,
+
+                publication:
+                    existing,
+
+                dashboardState:
+                    V32.dashboardState
+            });
+
+            return existing;
+        }
+
+        return publish(
+            buildUnavailableResult(
+                options.reason
+            ),
+            {
+                city:
+                    options.city ??
+                    null,
+
+                phase:
+                    12,
+
+                baseline:
+                    true
+            }
+        );
+    }
+
+    function wrapAsyncMethod(
+        engine,
+        methodName
+    ) {
+        const original =
+            engine?.[methodName];
+
+        if (
+            typeof original !==
+                'function'
+        ) {
+            return false;
+        }
+
+        if (
+            original[ENGINE_WRAP_FLAG]
+        ) {
+            return true;
+        }
+
+        const wrapped =
+            async function phase12PublishedPrediction(
+                input = {},
+                ...remainingArguments
+            ) {
+                let result;
+
+                try {
+                    result =
+                        await original.call(
+                            this,
+                            input,
+                            ...remainingArguments
+                        );
+                } catch (error) {
+                    const failure = {
+                        success:
+                            false,
+
+                        available:
+                            false,
+
+                        status:
+                            'RAIN_ARRIVAL_UNAVAILABLE',
+
+                        reason:
+                            'PREDICTION_EXECUTION_FAILED',
+
+                        error: {
+                            name:
+                                error?.name ??
+                                'Error',
+
+                            message:
+                                error?.message ??
+                                String(error)
+                        },
+
+                        prediction: {
+                            available:
+                                false,
+
+                            arrivalMinutes:
+                                null,
+
+                            confidence:
+                                0,
+
+                            status:
+                                'RAIN_ARRIVAL_UNAVAILABLE',
+
+                            reason:
+                                'PREDICTION_EXECUTION_FAILED'
+                        },
+
+                        fusionMode:
+                            'unavailable',
+
+                        sourceConflict:
+                            false,
+
+                        fusionDecision: {
+                            status:
+                                'NO_VALID_SOURCE',
+
+                            action:
+                                'WAIT_FOR_VALID_SOURCE',
+
+                            sourceConflict:
+                                false
+                        }
+                    };
+
+                    publish(
+                        failure,
+                        input
+                    );
+
+                    throw error;
+                }
+
+                publish(
+                    result,
+                    input
+                );
+
+                return result;
+            };
+
+        try {
+            Object.defineProperty(
+                wrapped,
+                ENGINE_WRAP_FLAG,
+                {
+                    configurable:
+                        false,
+
+                    enumerable:
+                        false,
+
+                    writable:
+                        false,
+
+                    value:
+                        true
+                }
+            );
+        } catch (_) {
+            wrapped[ENGINE_WRAP_FLAG] =
+                true;
+        }
+
+        try {
+            engine[methodName] =
+                wrapped;
+        } catch (_) {
+            return false;
+        }
+
+        return (
+            engine[methodName] ===
+            wrapped
+        );
+    }
+
+    function wrapSyncMethod(
+        engine,
+        methodName
+    ) {
+        const original =
+            engine?.[methodName];
+
+        if (
+            typeof original !==
+                'function'
+        ) {
+            return false;
+        }
+
+        if (
+            original[SYNC_WRAP_FLAG]
+        ) {
+            return true;
+        }
+
+        const wrapped =
+            function phase12PublishedSyncPrediction(
+                input = {},
+                ...remainingArguments
+            ) {
+                const result =
+                    original.call(
+                        this,
+                        input,
+                        ...remainingArguments
+                    );
+
+                publish(
+                    result,
+                    input
+                );
+
+                return result;
+            };
+
+        try {
+            Object.defineProperty(
+                wrapped,
+                SYNC_WRAP_FLAG,
+                {
+                    configurable:
+                        false,
+
+                    enumerable:
+                        false,
+
+                    writable:
+                        false,
+
+                    value:
+                        true
+                }
+            );
+        } catch (_) {
+            wrapped[SYNC_WRAP_FLAG] =
+                true;
+        }
+
+        try {
+            engine[methodName] =
+                wrapped;
+        } catch (_) {
+            return false;
+        }
+
+        return (
+            engine[methodName] ===
+            wrapped
+        );
+    }
+
+    function wrapGlobalFunction(
+        functionName
+    ) {
+        const original =
+            globalObject[
+                functionName
+            ];
+
+        if (
+            typeof original !==
+                'function' ||
+            original[ENGINE_WRAP_FLAG]
+        ) {
+            return false;
+        }
+
+        const wrapped =
+            async function phase12GlobalPublishedPrediction(
+                input = {},
+                ...remainingArguments
+            ) {
+                const result =
+                    await original.call(
+                        this,
+                        input,
+                        ...remainingArguments
+                    );
+
+                publish(
+                    result,
+                    input
+                );
+
+                return result;
+            };
+
+        try {
+            Object.defineProperty(
+                wrapped,
+                ENGINE_WRAP_FLAG,
+                {
+                    value:
+                        true
+                }
+            );
+        } catch (_) {
+            wrapped[ENGINE_WRAP_FLAG] =
+                true;
+        }
+
+        try {
+            globalObject[
+                functionName
+            ] =
+                wrapped;
+        } catch (_) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function installEngineHooks() {
+        const engine =
+            discoverEngine();
+
+        if (!engine) {
+            return {
+                engineAvailable:
+                    false,
+
+                asyncWrapped:
+                    false,
+
+                syncWrapped:
+                    false
+            };
+        }
+
+        const asyncMethods = [
+            'runCompleteRainArrivalPrediction',
+            'runPrediction',
+            'predict',
+            'execute'
+        ];
+
+        const syncMethods = [
+            'runCompleteRainArrivalPredictionSync',
+            'runPredictionSync',
+            'predictSync'
+        ];
+
+        let asyncWrapped =
+            false;
+
+        let syncWrapped =
+            false;
+
+        for (
+            const methodName of
+            asyncMethods
+        ) {
+            asyncWrapped =
+                wrapAsyncMethod(
+                    engine,
+                    methodName
+                ) ||
+                asyncWrapped;
+        }
+
+        for (
+            const methodName of
+            syncMethods
+        ) {
+            syncWrapped =
+                wrapSyncMethod(
+                    engine,
+                    methodName
+                ) ||
+                syncWrapped;
+        }
+
+        wrapGlobalFunction(
+            'runCompleteRainArrivalPrediction'
+        );
+
+        wrapGlobalFunction(
+            'runRainArrivalPrediction'
+        );
+
+        return {
+            engineAvailable:
+                true,
+
+            asyncWrapped,
+
+            syncWrapped,
+
+            engine
+        };
+    }
+
+    function findLatestEngineResult() {
+        const engine =
+            discoverEngine();
+
+        const { V32 } =
+            getNamespace();
+
+        const candidates = [
+            engine?.latestResult,
+            engine?.latestPrediction,
+            engine?.lastResult,
+            engine?.state
+                ?.latestResult,
+            engine?.state
+                ?.latestPrediction,
+            engine?._state
+                ?.latestResult,
+            engine?._state
+                ?.latestPrediction,
+            V32.rainArrivalPrediction
+                ?.latestResult,
+            V32.rainArrivalPrediction
+                ?.latestPrediction
+        ];
+
+        return candidates.find(
+            isObject
+        ) ?? null;
+    }
+
+    let lastPolledResult =
+        null;
+
+    function pollLatestResult() {
+        const latest =
+            findLatestEngineResult();
+
+        if (
+            latest &&
+            latest !==
+                lastPolledResult
+        ) {
+            lastPolledResult =
+                latest;
+
+            publish(
+                latest,
+                {
+                    source:
+                        'phase12_state_poll'
+                }
+            );
+        }
+    }
+
+    function installEventFallbacks() {
+        const eventNames = [
+            'rainguard:v32:rain-arrival:completed',
+            'rainguard:v32:rain-arrival:result',
+            'rainguard:v32:prediction:completed',
+            'rainguard:v32:prediction:result',
+            'rain-arrival-prediction-completed',
+            'rain-arrival-result'
+        ];
+
+        for (
+            const eventName of
+            eventNames
+        ) {
+            globalObject
+                .addEventListener?.(
+                    eventName,
+                    event => {
+                        const detail =
+                            event?.detail ??
+                            {};
+
+                        const result =
+                            detail.result ??
+                            detail.prediction ??
+                            detail.output ??
+                            detail;
+
+                        if (
+                            isObject(result)
+                        ) {
+                            publish(
+                                result,
+                                detail.input ??
+                                detail.context ??
+                                {}
+                            );
+                        }
+                    }
+                );
+        }
+    }
+
+    function install() {
+        const { V32 } =
+            getNamespace();
+
+        const bridge =
+            getBridge();
+
+        const renderer =
+            getRenderer();
+
+        const hooks =
+            installEngineHooks();
+
+        const api = {
+            version:
+                VERSION,
+
+            build:
+                BUILD,
+
+            installed:
+                Boolean(
+                    bridge &&
+                    renderer
+                ),
+
+            bridgeAvailable:
+                Boolean(bridge),
+
+            rendererAvailable:
+                Boolean(renderer),
+
+            engineAvailable:
+                hooks.engineAvailable,
+
+            asyncWrapped:
+                hooks.asyncWrapped,
+
+            syncWrapped:
+                hooks.syncWrapped,
+
+            publish,
+
+            ensureBaselinePublication,
+
+            install,
+
+            installEngineHooks,
+
+            getLatest() {
+                return V32
+                    .latestRainArrivalPrediction ??
+                    null;
+            },
+
+            getDashboardState() {
+                return V32
+                    .dashboardState ??
+                    null;
+            },
+
+            diagnose() {
+                return {
+                    version:
+                        VERSION,
+
+                    build:
+                        BUILD,
+
+                    bridgeAvailable:
+                        Boolean(
+                            getBridge()
+                        ),
+
+                    rendererAvailable:
+                        Boolean(
+                            getRenderer()
+                        ),
+
+                    engineAvailable:
+                        Boolean(
+                            discoverEngine()
+                        ),
+
+                    latestPublication:
+                        V32
+                            .latestRainArrivalPrediction ??
+                        null,
+
+                    dashboardState:
+                        V32
+                            .dashboardState ??
+                        null,
+
+                    rendererState:
+                        getRenderer()
+                            ?.getLatestState?.() ??
+                        null,
+
+                    statusElement:
+                        globalObject
+                            .document
+                            ?.getElementById(
+                                'verificationStatusTop'
+                            )
+                            ?.textContent ??
+                        null
+                };
+            }
+        };
+
+        V32.rainArrivalPublicationPipeline =
+            api;
+
+        globalObject
+            .RainArrivalPublicationPipelineV32 =
+            api;
+
+        return api;
+    }
+
+    let installationAttempts =
+        0;
+
+    function installWithRetry() {
+        installationAttempts +=
+            1;
+
+        const api =
+            install();
+
+        if (
+            api.bridgeAvailable &&
+            api.rendererAvailable
+        ) {
+            ensureBaselinePublication();
+
+            return;
+        }
+
+        if (
+            installationAttempts <
+            MAX_INSTALL_ATTEMPTS
+        ) {
+            globalObject.setTimeout(
+                installWithRetry,
+                INSTALL_INTERVAL_MS
+            );
+        }
+    }
+
+    installEventFallbacks();
+
+    installWithRetry();
+
+    globalObject.setInterval?.(
+        () => {
+            installEngineHooks();
+            pollLatestResult();
+
+            const { V32 } =
+                getNamespace();
+
+            if (
+                !V32
+                    .latestRainArrivalPrediction
+            ) {
+                ensureBaselinePublication();
+            }
+        },
+        STATE_POLL_INTERVAL_MS
+    );
+
+    globalObject.document
+        ?.addEventListener?.(
+            'DOMContentLoaded',
+            () => {
+                ensureBaselinePublication();
+            },
+            {
+                once:
+                    true
+            }
+        );
+
+    globalObject.addEventListener?.(
+        'load',
+        () => {
+            ensureBaselinePublication();
+        },
+        {
+            once:
+                true
+        }
+    );
+
+    try {
+        Object.defineProperty(
+            globalObject,
+            INSTALL_FLAG,
+            {
+                configurable:
+                    false,
+
+                enumerable:
+                    false,
+
+                writable:
+                    false,
+
+                value:
+                    true
+            }
+        );
+    } catch (_) {
+        globalObject[INSTALL_FLAG] =
+            true;
+    }
+})(
+    typeof globalThis !==
+        'undefined'
+        ? globalThis
+        : (
+            typeof window !==
+                'undefined'
                 ? window
                 : this
         )
