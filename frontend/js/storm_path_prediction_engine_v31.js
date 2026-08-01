@@ -17,11 +17,13 @@ window.RG30 = window.RG30 || {};
 
 RG31.StormPathPredictionEngine = {
 
-    version: "31.0.1",
+    version: "31.0.2",
 
     initialized: false,
 
     predictionInProgress: false,
+
+    pendingPredictionRequest: null,
 
     cycleNumber: 0,
 
@@ -209,16 +211,27 @@ RG31.StormPathPredictionEngine = {
                     event?.detail ||
                     {};
 
+                const activeCellsSource =
+                    report.activeCells ??
+                    event?.detail?.activeCells ??
+                    report.cells ??
+                    event?.detail?.cells ??
+                    [];
+
                 const activeCells =
                     Array.isArray(
-                        report.activeCells
+                        activeCellsSource
                     )
-                        ? report.activeCells
-                        : Array.isArray(
-                            event?.detail?.activeCells
-                        )
-                            ? event.detail.activeCells
-                            : [];
+                        ? activeCellsSource
+                        : (
+                            activeCellsSource &&
+                            typeof activeCellsSource ===
+                                "object"
+                                ? Object.values(
+                                    activeCellsSource
+                                )
+                                : []
+                        );
 
                 this.predictStormPaths(
                     activeCells
@@ -243,8 +256,16 @@ RG31.StormPathPredictionEngine = {
         if (!this.config.enabled)
             return null;
 
-        if (this.predictionInProgress)
+        if (
+            this.predictionInProgress
+        ) {
+
+            this.pendingPredictionRequest =
+                activeCells;
+
             return this.latestPredictionReport;
+
+        }
 
         this.predictionInProgress = true;
 
@@ -260,27 +281,76 @@ RG31.StormPathPredictionEngine = {
                     activeCells
                 )
                     ? activeCells
-                    : [];
+                    : (
+                        activeCells &&
+                        typeof activeCells ===
+                            "object"
+                            ? Object.values(
+                                activeCells
+                            )
+                            : []
+                    );
 
             const paths = [];
 
             for (
 
-                const cell
+                let index = 0;
 
-                of normalizedActiveCells
+                index <
+                normalizedActiveCells.length;
+
+                index += 1
 
             ) {
 
+                const sourceCell =
+                    normalizedActiveCells[
+                        index
+                    ];
+
+                if (
+                    !sourceCell ||
+                    typeof sourceCell !==
+                        "object"
+                ) {
+
+                    continue;
+
+                }
+
+                const stableCellId =
+                    String(
+                        sourceCell.cellId ||
+                        sourceCell.id ||
+                        sourceCell.trackingId ||
+                        `storm_cell_${this.cycleNumber}_${index}`
+                    )
+                        .trim();
+
+                const normalizedCell = {
+
+                    ...sourceCell,
+
+                    cellId:
+                        stableCellId
+
+                };
+
                 const prediction =
                     this.predictSingleCell(
-
-                        cell
-
+                        normalizedCell
                     );
 
-                if (prediction)
-                    paths.push(prediction);
+                if (
+                    prediction
+                ) {
+
+                    paths.push(
+                        prediction
+                    );
+
+                }
 
             }
 
@@ -316,6 +386,9 @@ RG31.StormPathPredictionEngine = {
 
             );
 
+            const publishedPaths =
+                this.getPredictedPaths();
+
             this.latestPredictionReport = {
 
                 cycleNumber:
@@ -325,10 +398,17 @@ RG31.StormPathPredictionEngine = {
                     normalizedActiveCells.length,
 
                 predictionCount:
-                    paths.length,
+                    publishedPaths.length,
 
                 predictions:
-                    paths,
+                    publishedPaths,
+
+                rejectedCellCount:
+                    Math.max(
+                        0,
+                        normalizedActiveCells.length -
+                        publishedPaths.length
+                    ),
 
                 timestamp:
                     this.lastPredictionAt
@@ -345,7 +425,7 @@ RG31.StormPathPredictionEngine = {
 
             this.writeLog(
 
-                `Predicted ${paths.length} storm paths.`
+                `Predicted ${publishedPaths.length} storm paths.`
 
             );
 
@@ -355,7 +435,31 @@ RG31.StormPathPredictionEngine = {
 
         finally {
 
-            this.predictionInProgress = false;
+            this.predictionInProgress =
+                false;
+
+            const pendingRequest =
+                this.pendingPredictionRequest;
+
+            this.pendingPredictionRequest =
+                null;
+
+            if (
+                pendingRequest
+            ) {
+
+                window.setTimeout(
+                    () => {
+
+                        this.predictStormPaths(
+                            pendingRequest
+                        );
+
+                    },
+                    0
+                );
+
+            }
 
         }
 
@@ -2585,11 +2689,29 @@ RG31.StormPathPredictionEngine = {
         const publishedPredictions =
             this.getPredictedPaths();
 
+        const publishedReport = {
+
+            ...report,
+
+            predictionCount:
+                publishedPredictions.length,
+
+            predictions:
+                publishedPredictions
+
+        };
+
         window.RG31.latestStormPathPrediction =
-            report;
+            publishedReport;
+
+        window.RG31.LatestStormPathPrediction =
+            publishedReport;
 
         window.RG30.latestStormPathPrediction =
-            report;
+            publishedReport;
+
+        window.RG30.LatestStormPathPrediction =
+            publishedReport;
 
         window.RG31.PredictedStormPaths =
             publishedPredictions;
@@ -2603,9 +2725,32 @@ RG31.StormPathPredictionEngine = {
         window.RG30.predictedStormPaths =
             publishedPredictions;
 
+        if (
+            window.RainGuardAI?.V32
+        ) {
+
+            window.RainGuardAI.V32
+                .predictedStormPaths =
+                publishedPredictions;
+
+            window.RainGuardAI.V32
+                .PredictedStormPaths =
+                publishedPredictions;
+
+            window.RainGuardAI.V32
+                .latestStormPathPrediction =
+                publishedReport;
+
+            window.RainGuardAI.V32
+                .LatestStormPathPrediction =
+                publishedReport;
+
+        }
+
         const detail = {
 
-            report,
+            report:
+                publishedReport,
 
             predictions:
                 publishedPredictions,
@@ -2672,7 +2817,7 @@ RG31.StormPathPredictionEngine = {
         );
 
         this.renderStormPredictionPanel(
-            report
+            publishedReport
         );
 
     },
@@ -4006,6 +4151,9 @@ RG31.StormPathPredictionEngine = {
         this.predictionInProgress =
             false;
 
+        this.pendingPredictionRequest =
+            null;
+
         this.cycleNumber =
             0;
 
@@ -4038,6 +4186,34 @@ RG31.StormPathPredictionEngine = {
 
         window.RG30.latestStormPathPrediction =
             null;
+
+        window.RG31.LatestStormPathPrediction =
+            null;
+
+        window.RG30.LatestStormPathPrediction =
+            null;
+
+        if (
+            window.RainGuardAI?.V32
+        ) {
+
+            window.RainGuardAI.V32
+                .latestStormPathPrediction =
+                null;
+
+            window.RainGuardAI.V32
+                .LatestStormPathPrediction =
+                null;
+
+            window.RainGuardAI.V32
+                .predictedStormPaths =
+                [];
+
+            window.RainGuardAI.V32
+                .PredictedStormPaths =
+                [];
+
+        }
 
         window.RG31.PredictedStormPaths =
             [];
@@ -4247,16 +4423,36 @@ RG31.StormPathPredictionEngine = {
                 ?.StormCellTrackingEngine ||
 
             window.RG30
-                ?.StormCellTrackingEngine;
+                ?.StormCellTrackingEngine ||
+
+            window
+                .StormCellTrackingEngineV31Instance;
+
+        const trackerCells =
+            tracker
+                ?.getActiveCells?.() ??
+            tracker
+                ?.activeCells ??
+            [];
+
+        const sourceCells =
+            activeCells ??
+            trackerCells;
 
         const cells =
             Array.isArray(
-                activeCells
+                sourceCells
             )
-                ? activeCells
-                : tracker
-                    ?.getActiveCells?.() ||
-                [];
+                ? sourceCells
+                : (
+                    sourceCells &&
+                    typeof sourceCells ===
+                        "object"
+                        ? Object.values(
+                            sourceCells
+                        )
+                        : []
+                );
 
         return this.predictStormPaths(
             cells
@@ -4413,6 +4609,28 @@ RG31.StormPathPredictionEngine = {
 
         window.RG30.predictedStormPaths =
             publishedPredictions;
+
+        if (
+            window.RainGuardAI?.V32
+        ) {
+
+            window.RainGuardAI.V32
+                .stormPathPredictionEngine =
+                this;
+
+            window.RainGuardAI.V32
+                .StormPathPredictionEngine =
+                this;
+
+            window.RainGuardAI.V32
+                .predictedStormPaths =
+                publishedPredictions;
+
+            window.RainGuardAI.V32
+                .PredictedStormPaths =
+                publishedPredictions;
+
+        }
 
         return true;
 
@@ -4635,17 +4853,34 @@ window.destroyStormPathPredictionV31 =
                                     ?.StormCellTrackingEngine ||
 
                                 window.RG30
-                                    ?.StormCellTrackingEngine;
+                                    ?.StormCellTrackingEngine ||
 
-                            const activeCells =
+                                window
+                                    .StormCellTrackingEngineV31Instance;
+
+                            const activeCellsSource =
                                 tracker
-                                    ?.getActiveCells?.() ||
+                                    ?.getActiveCells?.() ??
+                                tracker
+                                    ?.activeCells ??
                                 [];
 
-                            if (
+                            const activeCells =
                                 Array.isArray(
-                                    activeCells
-                                ) &&
+                                    activeCellsSource
+                                )
+                                    ? activeCellsSource
+                                    : (
+                                        activeCellsSource &&
+                                        typeof activeCellsSource ===
+                                            "object"
+                                            ? Object.values(
+                                                activeCellsSource
+                                            )
+                                            : []
+                                    );
+
+                            if (
                                 activeCells.length &&
                                 engine
                                     .config
