@@ -61554,9 +61554,9 @@ globalObject
         return;
     }
 
-    const PATCH_VERSION = '32.5.0';
-    const PATCH_BUILD = 3250;
-    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3250';
+    const PATCH_VERSION = '32.6.0';
+    const PATCH_BUILD = 3260;
+    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3260';
 
     function isObject(value) {
         return Boolean(value) && typeof value === 'object';
@@ -62257,6 +62257,754 @@ globalObject
         'rainguard:v32:rain-arrival:initialized',
         installPredictionPublicationBridge
     );
+})(
+    typeof globalThis !== 'undefined'
+        ? globalThis
+        : (
+            typeof window !== 'undefined'
+                ? window
+                : this
+        )
+);
+
+/* ==========================================================================
+   PHASE 11
+   Dashboard Verification Status Renderer
+   Version 32.6.0
+   ========================================================================== */
+
+/**
+ * Synchronizes the top verification/national-status card with the final
+ * rain-arrival Fusion decision.
+ *
+ * Rules:
+ * - Valid ETA              -> وصول المطر: N دقيقة
+ * - Real multi-source clash-> تعارض المصادر
+ * - No valid source        -> طبيعي
+ * - Operational source but
+ *   ETA not ready          -> مراقبة
+ *
+ * Missing sources are never displayed as SOURCE_CONFLICT.
+ */
+(function rainArrivalDashboardVerificationStatusRenderer(globalObject) {
+    'use strict';
+
+    if (
+        !globalObject ||
+        !globalObject.document
+    ) {
+        return;
+    }
+
+    const VERSION =
+        '32.6.0';
+
+    const BUILD =
+        3260;
+
+    const INSTALL_FLAG =
+        '__rainArrivalVerificationStatusRendererV3260';
+
+    const STATUS_ELEMENT_SELECTORS = [
+        '#verificationStatusTop',
+        '[data-i18n-state="verificationStatus"]',
+        '[data-state-key="verificationStatus"]',
+        '[data-verification-status]',
+        '.verification-status-value',
+        '.national-status-value'
+    ];
+
+    const CONFIDENCE_ELEMENT_SELECTORS = [
+        '#verificationConfidenceTop',
+        '[data-verification-confidence]',
+        '.verification-confidence-value'
+    ];
+
+    function isObject(value) {
+        return Boolean(value) &&
+            typeof value ===
+                'object';
+    }
+
+    function finiteNumber(...values) {
+        for (const value of values) {
+            if (
+                value === null ||
+                value === undefined ||
+                value === ''
+            ) {
+                continue;
+            }
+
+            const numeric =
+                Number(value);
+
+            if (
+                Number.isFinite(numeric)
+            ) {
+                return numeric;
+            }
+        }
+
+        return null;
+    }
+
+    function findFirst(selectors) {
+        for (const selector of selectors) {
+            const element =
+                globalObject.document
+                    .querySelector(selector);
+
+            if (element) {
+                return element;
+            }
+        }
+
+        return null;
+    }
+
+    function resolvePublication(detail) {
+        const V32 =
+            globalObject.RainGuardAI?.V32;
+
+        const candidates = [
+            detail?.prediction,
+            detail?.publication,
+            detail?.dashboardState
+                ?.latestRainArrivalPrediction,
+            detail?.result
+                ?.latestRainArrivalPrediction,
+            V32?.latestRainArrivalPrediction,
+            V32?.dashboardState
+                ?.latestRainArrivalPrediction,
+            V32?.latestPrediction,
+            globalObject
+                .latestRainArrivalPrediction
+        ];
+
+        return candidates.find(
+            isObject
+        ) ?? null;
+    }
+
+    function resolveFusionDecision(
+        publication,
+        detail
+    ) {
+        return (
+            publication?.fusionDecision ??
+            detail?.result?.sources?.fusion
+                ?.decision ??
+            detail?.result?.fusion
+                ?.decision ??
+            detail?.result?.fusionDecision ??
+            detail?.dashboardState
+                ?.fusionDecision ??
+            globalObject.RainGuardAI?.V32
+                ?.dashboardState
+                ?.fusionDecision ??
+            null
+        );
+    }
+
+    function resolveSourceConflict(
+        publication,
+        decision,
+        detail
+    ) {
+        const validSourceCount =
+            finiteNumber(
+                decision?.validSourceCount,
+                publication?.rawResult
+                    ?.sources
+                    ?.fusion
+                    ?.coverage
+                    ?.validSourceCount,
+                detail?.result
+                    ?.sources
+                    ?.fusion
+                    ?.coverage
+                    ?.validSourceCount,
+                0
+            ) ?? 0;
+
+        const declaredConflict =
+            publication?.sourceConflict ===
+                true ||
+            decision?.sourceConflict ===
+                true ||
+            detail?.result?.sources?.fusion
+                ?.sourceConflict ===
+                true ||
+            detail?.result?.sourceConflict ===
+                true;
+
+        return declaredConflict &&
+            validSourceCount >= 2;
+    }
+
+    function buildRendererState(
+        publication,
+        detail = {}
+    ) {
+        const decision =
+            resolveFusionDecision(
+                publication,
+                detail
+            );
+
+        const arrivalMinutes =
+            finiteNumber(
+                publication?.arrivalMinutes,
+                publication?.rainArrivalMinutes,
+                publication?.etaMinutes,
+                detail?.result?.prediction
+                    ?.arrivalMinutes
+            );
+
+        const confidence =
+            finiteNumber(
+                publication?.confidence,
+                publication?.confidenceScore,
+                detail?.result?.prediction
+                    ?.confidence,
+                0
+            ) ?? 0;
+
+        const available =
+            publication?.available ===
+                true &&
+            arrivalMinutes !== null &&
+            arrivalMinutes >= 0;
+
+        const sourceConflict =
+            resolveSourceConflict(
+                publication,
+                decision,
+                detail
+            );
+
+        const validSourceCount =
+            finiteNumber(
+                decision?.validSourceCount,
+                publication?.rawResult
+                    ?.sources
+                    ?.fusion
+                    ?.coverage
+                    ?.validSourceCount,
+                detail?.result
+                    ?.sources
+                    ?.fusion
+                    ?.coverage
+                    ?.validSourceCount,
+                0
+            ) ?? 0;
+
+        const operationalSourceCount =
+            finiteNumber(
+                publication?.rawResult
+                    ?.sources
+                    ?.fusion
+                    ?.coverage
+                    ?.operationalAvailableSourceCount,
+                detail?.result
+                    ?.sources
+                    ?.fusion
+                    ?.coverage
+                    ?.operationalAvailableSourceCount,
+                detail?.result
+                    ?.sources
+                    ?.availability
+                    ?.operationalAvailableCount,
+                globalObject.RainGuardAI
+                    ?.V32
+                    ?.dashboardState
+                    ?.operationalAvailableSourceCount,
+                0
+            ) ?? 0;
+
+        let statusKey =
+            'NORMAL';
+
+        let textAr =
+            'طبيعي';
+
+        let textEn =
+            'NORMAL';
+
+        if (available) {
+            const roundedMinutes =
+                Math.max(
+                    0,
+                    Math.round(
+                        arrivalMinutes
+                    )
+                );
+
+            statusKey =
+                'RAIN_ARRIVAL_AVAILABLE';
+
+            textAr =
+                `وصول المطر: ${roundedMinutes} دقيقة`;
+
+            textEn =
+                `RAIN ARRIVAL: ${roundedMinutes} MIN`;
+        } else if (sourceConflict) {
+            statusKey =
+                'REAL_SOURCE_CONFLICT';
+
+            textAr =
+                'تعارض المصادر';
+
+            textEn =
+                'SOURCE CONFLICT';
+        } else if (
+            validSourceCount > 0 ||
+            operationalSourceCount > 0
+        ) {
+            statusKey =
+                'MONITORING';
+
+            textAr =
+                'مراقبة';
+
+            textEn =
+                'MONITORING';
+        }
+
+        return {
+            statusKey,
+            textAr,
+            textEn,
+            available,
+            sourceConflict,
+            arrivalMinutes:
+                available
+                    ? arrivalMinutes
+                    : null,
+            confidence:
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        confidence
+                    )
+                ),
+            validSourceCount,
+            operationalSourceCount,
+            decisionStatus:
+                decision?.status ??
+                null,
+            fusionMode:
+                publication?.fusionMode ??
+                detail?.result?.fusionMode ??
+                'unavailable',
+            updatedAt:
+                Date.now()
+        };
+    }
+
+    function resolveDisplayText(state) {
+        const documentDirection =
+            globalObject.document
+                .documentElement
+                ?.dir;
+
+        const language =
+            globalObject.document
+                .documentElement
+                ?.lang ??
+            globalObject.navigator
+                ?.language ??
+            'ar';
+
+        const useArabic =
+            documentDirection === 'rtl' ||
+            String(language)
+                .toLowerCase()
+                .startsWith('ar');
+
+        return useArabic
+            ? state.textAr
+            : state.textEn;
+    }
+
+    let latestRendererState =
+        null;
+
+    let mutationGuard =
+        false;
+
+    let observer =
+        null;
+
+    function applyRendererState(
+        state,
+        options = {}
+    ) {
+        if (!isObject(state)) {
+            return {
+                updated:
+                    false,
+                reason:
+                    'invalid_state'
+            };
+        }
+
+        const statusElement =
+            findFirst(
+                STATUS_ELEMENT_SELECTORS
+            );
+
+        if (!statusElement) {
+            return {
+                updated:
+                    false,
+                reason:
+                    'status_element_not_found'
+            };
+        }
+
+        const displayText =
+            resolveDisplayText(state);
+
+        mutationGuard =
+            true;
+
+        try {
+            statusElement.textContent =
+                displayText;
+
+            statusElement.dataset
+                .stateValue =
+                state.statusKey;
+
+            statusElement.dataset
+                .rainArrivalState =
+                state.statusKey;
+
+            statusElement.dataset
+                .sourceConflict =
+                String(
+                    state.sourceConflict
+                );
+
+            statusElement.dataset
+                .fusionMode =
+                state.fusionMode ??
+                'unavailable';
+
+            statusElement.dataset
+                .decisionStatus =
+                state.decisionStatus ??
+                '';
+
+            statusElement.setAttribute(
+                'data-i18n-state',
+                'verificationStatus'
+            );
+
+            statusElement.setAttribute(
+                'aria-label',
+                displayText
+            );
+
+            const confidenceElement =
+                findFirst(
+                    CONFIDENCE_ELEMENT_SELECTORS
+                );
+
+            if (
+                confidenceElement &&
+                options.updateConfidence !==
+                    false
+            ) {
+                confidenceElement.textContent =
+                    `${Math.round(
+                        state.confidence
+                    )}%`;
+
+                confidenceElement.dataset
+                    .rainArrivalConfidence =
+                    String(
+                        state.confidence
+                    );
+            }
+
+            const V32 =
+                globalObject.RainGuardAI
+                    ?.V32;
+
+            if (V32) {
+                V32.dashboardState = {
+                    ...(
+                        isObject(
+                            V32.dashboardState
+                        )
+                            ? V32
+                                .dashboardState
+                            : {}
+                    ),
+
+                    renderedVerificationStatus:
+                        state.statusKey,
+
+                    renderedVerificationText:
+                        displayText,
+
+                    renderedSourceConflict:
+                        state.sourceConflict,
+
+                    verificationStatusRendererVersion:
+                        VERSION,
+
+                    verificationStatusRendererBuild:
+                        BUILD,
+
+                    verificationStatusRenderedAt:
+                        state.updatedAt
+                };
+            }
+
+            return {
+                updated:
+                    true,
+                element:
+                    statusElement,
+                text:
+                    displayText,
+                state
+            };
+        } finally {
+            globalObject.setTimeout(
+                () => {
+                    mutationGuard =
+                        false;
+                },
+                0
+            );
+        }
+    }
+
+    function renderFromDetail(
+        detail = {},
+        options = {}
+    ) {
+        const publication =
+            resolvePublication(
+                detail
+            );
+
+        if (!publication) {
+            return {
+                updated:
+                    false,
+                reason:
+                    'publication_not_available'
+            };
+        }
+
+        latestRendererState =
+            buildRendererState(
+                publication,
+                detail
+            );
+
+        return applyRendererState(
+            latestRendererState,
+            options
+        );
+    }
+
+    function enforceLatestState() {
+        if (
+            mutationGuard ||
+            !latestRendererState
+        ) {
+            return;
+        }
+
+        const statusElement =
+            findFirst(
+                STATUS_ELEMENT_SELECTORS
+            );
+
+        if (!statusElement) {
+            return;
+        }
+
+        const expectedText =
+            resolveDisplayText(
+                latestRendererState
+            );
+
+        const currentText =
+            String(
+                statusElement.textContent ??
+                ''
+            ).trim();
+
+        const staleConflict =
+            currentText ===
+                'SOURCE_CONFLICT' ||
+            currentText ===
+                'SOURCE CONFLICT' ||
+            currentText ===
+                'تعارض المصادر';
+
+        if (
+            currentText !== expectedText ||
+            (
+                staleConflict &&
+                latestRendererState
+                    .sourceConflict !==
+                    true
+            )
+        ) {
+            applyRendererState(
+                latestRendererState
+            );
+        }
+    }
+
+    function installObserver() {
+        observer?.disconnect?.();
+
+        observer =
+            new globalObject.MutationObserver(
+                enforceLatestState
+            );
+
+        observer.observe(
+            globalObject.document.body,
+            {
+                childList:
+                    true,
+                characterData:
+                    true,
+                subtree:
+                    true
+            }
+        );
+
+        return observer;
+    }
+
+    function install() {
+        if (
+            globalObject[INSTALL_FLAG]
+        ) {
+            return globalObject
+                .RainArrivalVerificationStatusRendererV32;
+        }
+
+        const eventNames = [
+            'rainguard:v32:rain-arrival:published',
+            'rainguard:v32:rain-arrival:prediction-updated',
+            'rainguard:v32:dashboard:update',
+            'rainguard:dashboard:update'
+        ];
+
+        for (const eventName of eventNames) {
+            globalObject.addEventListener(
+                eventName,
+                event => {
+                    renderFromDetail(
+                        event?.detail ??
+                        {}
+                    );
+                }
+            );
+        }
+
+        globalObject.document
+            .addEventListener(
+                'DOMContentLoaded',
+                () => {
+                    installObserver();
+                    renderFromDetail({});
+                },
+                {
+                    once:
+                        true
+                }
+            );
+
+        if (
+            globalObject.document
+                .readyState !==
+            'loading'
+        ) {
+            installObserver();
+            renderFromDetail({});
+        }
+
+        const api = {
+            version:
+                VERSION,
+            build:
+                BUILD,
+            install,
+            render:
+                renderFromDetail,
+            apply:
+                applyRendererState,
+            buildState:
+                buildRendererState,
+            enforce:
+                enforceLatestState,
+            getLatestState() {
+                return latestRendererState;
+            },
+            getStatusElement() {
+                return findFirst(
+                    STATUS_ELEMENT_SELECTORS
+                );
+            },
+            disconnect() {
+                observer?.disconnect?.();
+            }
+        };
+
+        globalObject
+            .RainArrivalVerificationStatusRendererV32 =
+            api;
+
+        const RainGuardAI =
+            globalObject.RainGuardAI =
+                globalObject.RainGuardAI || {};
+
+        const V32 =
+            RainGuardAI.V32 =
+                RainGuardAI.V32 || {};
+
+        V32.verificationStatusRenderer =
+            api;
+
+        try {
+            Object.defineProperty(
+                globalObject,
+                INSTALL_FLAG,
+                {
+                    configurable:
+                        false,
+                    enumerable:
+                        false,
+                    writable:
+                        false,
+                    value:
+                        true
+                }
+            );
+        } catch (_) {
+            globalObject[INSTALL_FLAG] =
+                true;
+        }
+
+        return api;
+    }
+
+    install();
 })(
     typeof globalThis !== 'undefined'
         ? globalThis
