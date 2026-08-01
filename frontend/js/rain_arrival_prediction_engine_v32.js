@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.9.0";
+        "32.10.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -33787,6 +33787,763 @@ collectPipelineArrivalEstimates(
 }
 
 /* ==========================================================================
+   SECTION 267B
+   Phase 13 — Multi-frame Motion Observation Recovery
+   ========================================================================== */
+
+/**
+ * Recover chronological storm observations from RainGuard V31/V32 tracking
+ * objects, radar cells, projected paths, and explicit input observations.
+ *
+ * This solves the common runtime condition where normalizedInput.observations
+ * is empty even though RG31 active cells contain current/previous/history
+ * coordinates.
+ *
+ * @param {Object} normalizedInput
+ * @param {Object} [options]
+ * @returns {Object}
+ */
+recoverPipelineMotionObservations(
+    normalizedInput,
+    options = {}
+) {
+    const safeInput =
+        this.isPlainObject(normalizedInput)
+            ? normalizedInput
+            : {};
+
+    const target =
+        this.normalizeCoordinate(
+            safeInput.targetCoordinate ??
+            safeInput.target?.coordinate
+        );
+
+    const candidates = [];
+
+    const pushObservation = (
+        value,
+        source,
+        cellId = null,
+        fallbackTimestamp = null
+    ) => {
+        if (!value) {
+            return;
+        }
+
+        const coordinate =
+            this.normalizeCoordinate(
+                value.coordinate ??
+                value.coordinates ??
+                value.position ??
+                value.location ??
+                {
+                    latitude:
+                        value.currentLat ??
+                        value.lat ??
+                        value.latitude,
+
+                    longitude:
+                        value.currentLon ??
+                        value.lon ??
+                        value.lng ??
+                        value.longitude
+                }
+            );
+
+        if (!coordinate) {
+            return;
+        }
+
+        const timestamp =
+            this._normalizeMotionTimestamp(
+                value.timestamp ??
+                value.observedAt ??
+                value.time ??
+                value.datetime ??
+                value.date ??
+                fallbackTimestamp
+            );
+
+        candidates.push({
+            coordinate,
+            timestamp:
+                Number.isFinite(timestamp)
+                    ? timestamp
+                    : null,
+            source,
+            cellId:
+                value.cellId ??
+                value.id ??
+                cellId ??
+                null,
+            confidence:
+                Number(
+                    value.confidence ??
+                    value.quality ??
+                    value.score
+                ) || null,
+            raw:
+                value
+        });
+    };
+
+    const explicitObservations =
+        Array.isArray(safeInput.observations)
+            ? safeInput.observations
+            : [];
+
+    explicitObservations.forEach(
+        item =>
+            pushObservation(
+                item,
+                "input_observation"
+            )
+    );
+
+    const radar =
+        safeInput.sources?.radar ??
+        safeInput.radar ??
+        {};
+
+    const globalRG31 =
+        globalThis.RG31 ??
+        globalThis.RainGuardAI?.V31 ??
+        {};
+
+    const cellCollections = [
+        radar.cells,
+        radar.activeCells,
+        radar.stormCells,
+        safeInput.activeStormCells,
+        safeInput.trackedCells,
+        globalRG31.activeStormCells,
+        globalRG31.trackedCells,
+        globalRG31.StormCellTrackingEngine
+            ?.activeCells,
+        globalRG31.StormCellTrackingEngine
+            ?.trackedCells,
+        globalRG31.StormCellTrackingEngine
+            ?.latestTrackingReport
+            ?.activeCells,
+        globalRG31.latestTrackingReport
+            ?.activeCells
+    ];
+
+    const cells = [];
+
+    for (const collection of cellCollections) {
+        if (Array.isArray(collection)) {
+            cells.push(...collection);
+        } else if (
+            collection instanceof Map
+        ) {
+            cells.push(
+                ...collection.values()
+            );
+        } else if (
+            this.isPlainObject(collection)
+        ) {
+            cells.push(
+                ...Object.values(collection)
+            );
+        }
+    }
+
+    const uniqueCells =
+        Array.from(
+            new Map(
+                cells
+                    .filter(Boolean)
+                    .map(
+                        (cell, index) => [
+                            String(
+                                cell.cellId ??
+                                cell.id ??
+                                cell.trackId ??
+                                `cell_${index}`
+                            ),
+                            cell
+                        ]
+                    )
+            ).values()
+        );
+
+    const cellScores = [];
+
+    for (const cell of uniqueCells) {
+        const cellId =
+            cell.cellId ??
+            cell.id ??
+            cell.trackId ??
+            null;
+
+        const history =
+            Array.isArray(cell.history)
+                ? cell.history
+                : (
+                    Array.isArray(cell.observations)
+                        ? cell.observations
+                        : []
+                );
+
+        history.forEach(
+            item =>
+                pushObservation(
+                    item,
+                    "cell_history",
+                    cellId
+                )
+        );
+
+        if (
+            Number.isFinite(
+                Number(cell.previousLat)
+            ) &&
+            Number.isFinite(
+                Number(
+                    cell.previousLon ??
+                    cell.previousLng
+                )
+            )
+        ) {
+            pushObservation(
+                {
+                    latitude:
+                        cell.previousLat,
+                    longitude:
+                        cell.previousLon ??
+                        cell.previousLng,
+                    timestamp:
+                        cell.previousTimestamp ??
+                        cell.previousObservedAt ??
+                        history?.[1]?.timestamp ??
+                        history?.[history.length - 2]
+                            ?.timestamp
+                },
+                "cell_previous",
+                cellId
+            );
+        }
+
+        pushObservation(
+            {
+                latitude:
+                    cell.currentLat ??
+                    cell.lat ??
+                    cell.latitude,
+                longitude:
+                    cell.currentLon ??
+                    cell.lon ??
+                    cell.lng ??
+                    cell.longitude,
+                timestamp:
+                    cell.timestamp ??
+                    cell.updatedAt ??
+                    cell.observedAt ??
+                    history?.[0]?.timestamp ??
+                    history?.[history.length - 1]
+                        ?.timestamp
+            },
+            "cell_current",
+            cellId
+        );
+
+        const currentCoordinate =
+            this.normalizeCoordinate(
+                {
+                    latitude:
+                        cell.currentLat ??
+                        cell.lat ??
+                        cell.latitude,
+                    longitude:
+                        cell.currentLon ??
+                        cell.lon ??
+                        cell.lng ??
+                        cell.longitude
+                }
+            );
+
+        cellScores.push({
+            cellId,
+            cell,
+            historyCount:
+                history.length,
+            distanceToTargetKm:
+                target &&
+                currentCoordinate
+                    ? this.calculateDistanceKm(
+                        currentCoordinate,
+                        target
+                    )
+                    : null,
+            explicitSpeedKmh:
+                Number(
+                    cell.speedKmh ??
+                    cell.speed
+                ),
+            explicitBearing:
+                this.normalizeBearing(
+                    cell.directionDegrees ??
+                    cell.bearing ??
+                    cell.direction
+                )
+        });
+    }
+
+    const trackCollections = [
+        safeInput.projectedTrack,
+        safeInput.projectedTracks,
+        globalRG31.predictedStormPaths,
+        globalRG31.latestStormPathPrediction
+            ?.predictions,
+        globalRG31.latestStormPathPrediction
+            ?.paths
+    ];
+
+    for (const collection of trackCollections) {
+        if (!Array.isArray(collection)) {
+            continue;
+        }
+
+        for (const path of collection) {
+            const points =
+                Array.isArray(path)
+                    ? path
+                    : (
+                        path.projectedTrack ??
+                        path.track ??
+                        path.points ??
+                        []
+                    );
+
+            if (Array.isArray(points)) {
+                points.forEach(
+                    item =>
+                        pushObservation(
+                            item,
+                            "projected_track",
+                            path.cellId ??
+                            path.id ??
+                            null
+                        )
+                );
+            }
+        }
+    }
+
+    const selectedCell =
+        cellScores
+            .slice()
+            .sort(
+                (a, b) => {
+                    const aHistory =
+                        Number(a.historyCount) || 0;
+                    const bHistory =
+                        Number(b.historyCount) || 0;
+
+                    if (bHistory !== aHistory) {
+                        return bHistory - aHistory;
+                    }
+
+                    const aDistance =
+                        Number.isFinite(
+                            a.distanceToTargetKm
+                        )
+                            ? a.distanceToTargetKm
+                            : Number.POSITIVE_INFINITY;
+
+                    const bDistance =
+                        Number.isFinite(
+                            b.distanceToTargetKm
+                        )
+                            ? b.distanceToTargetKm
+                            : Number.POSITIVE_INFINITY;
+
+                    return aDistance - bDistance;
+                }
+            )[0] ?? null;
+
+    const selectedCellId =
+        selectedCell?.cellId ??
+        null;
+
+    let filtered =
+        candidates.filter(
+            item =>
+                !selectedCellId ||
+                !item.cellId ||
+                item.cellId ===
+                    selectedCellId ||
+                item.source ===
+                    "input_observation"
+        );
+
+    filtered =
+        filtered
+            .filter(
+                item =>
+                    item.coordinate
+            )
+            .sort(
+                (a, b) => {
+                    const at =
+                        Number.isFinite(a.timestamp)
+                            ? a.timestamp
+                            : 0;
+                    const bt =
+                        Number.isFinite(b.timestamp)
+                            ? b.timestamp
+                            : 0;
+
+                    return at - bt;
+                }
+            );
+
+    const deduplicated = [];
+
+    for (const item of filtered) {
+        const previous =
+            deduplicated[
+                deduplicated.length - 1
+            ];
+
+        const sameTimestamp =
+            previous &&
+            Number.isFinite(item.timestamp) &&
+            Number.isFinite(
+                previous.timestamp
+            ) &&
+            item.timestamp ===
+                previous.timestamp;
+
+        const sameCoordinate =
+            previous &&
+            Math.abs(
+                item.coordinate.latitude -
+                previous.coordinate.latitude
+            ) <= 1e-6 &&
+            Math.abs(
+                item.coordinate.longitude -
+                previous.coordinate.longitude
+            ) <= 1e-6;
+
+        if (
+            sameTimestamp &&
+            sameCoordinate
+        ) {
+            continue;
+        }
+
+        deduplicated.push(item);
+    }
+
+    return {
+        observations:
+            deduplicated,
+
+        observationCount:
+            deduplicated.length,
+
+        candidateCount:
+            candidates.length,
+
+        activeCellCount:
+            uniqueCells.length,
+
+        selectedCellId,
+
+        selectedCell,
+
+        sourceCounts:
+            deduplicated.reduce(
+                (result, item) => {
+                    result[item.source] =
+                        (
+                            result[item.source] ??
+                            0
+                        ) + 1;
+
+                    return result;
+                },
+                {}
+            )
+    };
+}
+
+
+/**
+ * Resolve a robust motion vector from recovered observations, explicit cell
+ * motion, and projected-track motion.
+ *
+ * @param {Object} normalizedInput
+ * @param {Object} recovered
+ * @param {Object} [options]
+ * @returns {Object}
+ */
+resolvePipelineMultiFrameMotion(
+    normalizedInput,
+    recovered,
+    options = {}
+) {
+    const observations =
+        Array.isArray(
+            recovered?.observations
+        )
+            ? recovered.observations
+            : [];
+
+    let summary =
+        null;
+
+    if (observations.length >= 2) {
+        summary =
+            this.generateStormTrackSummary(
+                observations,
+                {
+                    ...options,
+                    minimumDurationMinutes:
+                        options
+                            .minimumMotionDurationMinutes ??
+                        0.1,
+                    maximumSpeedKmh:
+                        options
+                            .maximumStormMotionSpeedKmh ??
+                        180
+                }
+            );
+    }
+
+    const aggregate =
+        summary?.aggregateVector ??
+        null;
+
+    const selectedCell =
+        recovered?.selectedCell?.cell ??
+        null;
+
+    const explicitSpeed =
+        Number(
+            selectedCell?.speedKmh ??
+            selectedCell?.speed ??
+            normalizedInput?.storm
+                ?.speedKmh
+        );
+
+    const explicitBearing =
+        this.normalizeBearing(
+            selectedCell
+                ?.directionDegrees ??
+            selectedCell?.bearing ??
+            selectedCell?.direction ??
+            normalizedInput?.storm
+                ?.bearing
+        );
+
+    const vectorSpeed =
+        Number(
+            aggregate?.speedKmh ??
+            aggregate?.speed ??
+            summary?.averageSpeedKmh
+        );
+
+    const vectorBearing =
+        this.normalizeBearing(
+            aggregate?.bearing ??
+            aggregate?.direction ??
+            summary?.averageBearing
+        );
+
+    const minimumSpeedKmh =
+        Math.max(
+            0.5,
+            Number(
+                options
+                    .minimumResolvedMotionSpeedKmh
+            ) || 1
+        );
+
+    let speedKmh =
+        Number.isFinite(vectorSpeed) &&
+        vectorSpeed >= minimumSpeedKmh
+            ? vectorSpeed
+            : (
+                Number.isFinite(explicitSpeed) &&
+                explicitSpeed >=
+                    minimumSpeedKmh
+                    ? explicitSpeed
+                    : null
+            );
+
+    let bearing =
+        Number.isFinite(vectorBearing)
+            ? vectorBearing
+            : explicitBearing;
+
+    let source =
+        Number.isFinite(vectorSpeed) &&
+        Number.isFinite(vectorBearing)
+            ? "multi_frame_history"
+            : (
+                Number.isFinite(explicitSpeed) &&
+                Number.isFinite(explicitBearing)
+                    ? "tracked_cell_explicit"
+                    : "unavailable"
+            );
+
+    if (
+        (
+            !Number.isFinite(speedKmh) ||
+            !Number.isFinite(bearing)
+        ) &&
+        Array.isArray(
+            normalizedInput.projectedTrack
+        ) &&
+        normalizedInput.projectedTrack.length >= 2
+    ) {
+        const trackSummary =
+            this.generateStormTrackSummary(
+                normalizedInput.projectedTrack,
+                options
+            );
+
+        const trackAggregate =
+            trackSummary?.aggregateVector;
+
+        if (
+            Number.isFinite(
+                Number(
+                    trackAggregate?.speedKmh
+                )
+            ) &&
+            Number.isFinite(
+                this.normalizeBearing(
+                    trackAggregate?.bearing
+                )
+            )
+        ) {
+            speedKmh =
+                Number(
+                    trackAggregate.speedKmh
+                );
+
+            bearing =
+                this.normalizeBearing(
+                    trackAggregate.bearing
+                );
+
+            summary =
+                summary ??
+                trackSummary;
+
+            source =
+                "projected_track_history";
+        }
+    }
+
+    const confidence =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(
+                    summary?.confidence?.score ??
+                    summary?.movementConfidence
+                        ?.score ??
+                    aggregate?.confidence ??
+                    selectedCell?.confidence ??
+                    normalizedInput?.storm
+                        ?.confidence ??
+                    (
+                        observations.length >= 3
+                            ? 72
+                            : (
+                                observations.length === 2
+                                    ? 58
+                                    : 35
+                            )
+                    )
+                ) || 0
+            )
+        );
+
+    const available =
+        Number.isFinite(speedKmh) &&
+        speedKmh >= minimumSpeedKmh &&
+        Number.isFinite(bearing);
+
+    return {
+        available,
+
+        speedKmh:
+            available
+                ? speedKmh
+                : 0,
+
+        bearing:
+            available
+                ? bearing
+                : null,
+
+        confidence,
+
+        source,
+
+        summary,
+
+        aggregateVector:
+            aggregate,
+
+        observations,
+
+        observationCount:
+            observations.length,
+
+        selectedCellId:
+            recovered?.selectedCellId ??
+            null,
+
+        diagnostics: {
+            candidateCount:
+                recovered?.candidateCount ??
+                0,
+
+            activeCellCount:
+                recovered?.activeCellCount ??
+                0,
+
+            selectedCellId:
+                recovered?.selectedCellId ??
+                null,
+
+            sourceCounts:
+                recovered?.sourceCounts ??
+                {},
+
+            vectorSpeedKmh:
+                Number.isFinite(vectorSpeed)
+                    ? vectorSpeed
+                    : null,
+
+            vectorBearing:
+                Number.isFinite(vectorBearing)
+                    ? vectorBearing
+                    : null,
+
+            explicitSpeedKmh:
+                Number.isFinite(explicitSpeed)
+                    ? explicitSpeed
+                    : null,
+
+            explicitBearing:
+                Number.isFinite(explicitBearing)
+                    ? explicitBearing
+                    : null
+        }
+    };
+}
+
+
+/* ==========================================================================
    SECTION 268
    Motion Analysis Orchestration
    ========================================================================== */
@@ -33802,112 +34559,135 @@ orchestratePipelineMotionAnalysis(
     normalizedInput,
     options = {}
 ) {
-    const observations =
-        normalizedInput.observations;
-
-    let summary = null;
-
-    if (
-        Array.isArray(observations) &&
-        observations.length >= 2
-    ) {
-        summary =
-            this.generateStormTrackSummary(
-                observations,
-                options
-            );
-    }
-
-    const inputMotion = {
-        speedKmh:
-            Number(
-                normalizedInput
-                    .storm
-                    .speedKmh
-            ),
-        bearing:
-            this.normalizeBearing(
-                normalizedInput
-                    .storm
-                    .bearing
-            )
-    };
-
-    const resolvedSpeedKmh =
-        Number.isFinite(
-            summary?.averageSpeedKmh
-        )
-            ? summary.averageSpeedKmh
-            : (
-                Number.isFinite(
-                    inputMotion.speedKmh
-                )
-                    ? inputMotion.speedKmh
-                    : 0
-            );
-
-    const resolvedBearing =
-        Number.isFinite(
-            summary?.averageBearing
-        )
-            ? summary.averageBearing
-            : inputMotion.bearing;
-
-    const confidence =
-        Number.isFinite(
-            summary?.movementConfidence
-                ?.score
-        )
-            ? summary
-                .movementConfidence
-                .score
-            : Math.max(
-                0,
-                Math.min(
-                    100,
-                    Number(
-                        normalizedInput
-                            .storm
-                            .confidence
-                    ) || 50
-                )
-            );
-
-    const state =
-        summary?.motionState ??
-        this.classifyMotionState(
-            {
-                speedKmh:
-                    resolvedSpeedKmh
-            },
+    const recovered =
+        this.recoverPipelineMotionObservations(
+            normalizedInput,
             options
         );
 
-    return {
-        available:
-            Number.isFinite(
-                resolvedBearing
-            ) &&
-            resolvedSpeedKmh > 0,
-        speedKmh:
-            resolvedSpeedKmh,
-        bearing:
-            resolvedBearing,
-        compass:
-            this.bearingToCompassDirection(
-                resolvedBearing,
+    const resolved =
+        this.resolvePipelineMultiFrameMotion(
+            normalizedInput,
+            recovered,
+            options
+        );
+
+    const state =
+        resolved.available
+            ? this.classifyMotionState(
                 {
-                    language:
-                        normalizedInput
-                            .language
-                }
-            ),
-        confidence,
+                    speedKmh:
+                        resolved.speedKmh,
+
+                    bearing:
+                        resolved.bearing
+                },
+                options
+            )
+            : {
+                state:
+                    "unknown",
+                speedClass:
+                    "unknown",
+                directionClass:
+                    null,
+                speedKmh:
+                    null,
+                bearing:
+                    null
+            };
+
+    const result = {
+        available:
+            resolved.available,
+
+        speedKmh:
+            resolved.speedKmh,
+
+        bearing:
+            resolved.bearing,
+
+        compass:
+            Number.isFinite(
+                resolved.bearing
+            )
+                ? this
+                    .bearingToCompassDirection(
+                        resolved.bearing,
+                        {
+                            language:
+                                normalizedInput
+                                    .language
+                        }
+                    )
+                : null,
+
+        confidence:
+            resolved.confidence,
+
+        source:
+            resolved.source,
+
         state,
-        summary,
+
+        summary:
+            resolved.summary,
+
+        aggregateVector:
+            resolved.aggregateVector,
+
+        observations:
+            resolved.observations,
+
         observationCount:
-            observations.length
+            resolved.observationCount,
+
+        selectedCellId:
+            resolved.selectedCellId,
+
+        diagnostics:
+            resolved.diagnostics,
+
+        motionRecovered:
+            resolved.available &&
+            (
+                resolved.source ===
+                    "multi_frame_history" ||
+                resolved.source ===
+                    "projected_track_history"
+            )
     };
+
+    console.log(
+        "[RainArrival V32] Phase 13 motion analysis:",
+        {
+            available:
+                result.available,
+
+            speedKmh:
+                result.speedKmh,
+
+            bearing:
+                result.bearing,
+
+            confidence:
+                result.confidence,
+
+            source:
+                result.source,
+
+            observationCount:
+                result.observationCount,
+
+            selectedCellId:
+                result.selectedCellId,
+
+            diagnostics:
+                result.diagnostics
+        }
+    );
+
+    return result;
 }
 
 
@@ -37620,7 +38400,12 @@ normalizedInput.forecasts =
                             motionAnalysis
                                 ?.confidence ??
                             options
-                                .motionConfidence
+                                .motionConfidence,
+
+                        motionSource:
+                            motionAnalysis
+                                ?.source ??
+                            "phase13_motion_engine"
                     }
                 ),
             {
@@ -73056,4 +73841,58 @@ if (
                 )
         )
 );
-    
+
+/* ==========================================================================
+   PHASE 13 GLOBAL MOTION DIAGNOSTIC BRIDGE
+   ========================================================================== */
+(function installPhase13MotionDiagnostic(globalObject) {
+    'use strict';
+
+    if (!globalObject) {
+        return;
+    }
+
+    globalObject.runRainArrivalMotionDiagnosticV32 =
+        function runRainArrivalMotionDiagnosticV32(
+            input = {},
+            options = {}
+        ) {
+            const engine =
+                globalObject
+                    .RainArrivalPredictionEngineV32Instance ??
+                globalObject
+                    .RainGuardAI
+                    ?.V32
+                    ?.rainArrivalPrediction;
+
+            if (
+                !engine ||
+                typeof engine
+                    .runPhase13MotionDiagnostic !==
+                    "function"
+            ) {
+                return {
+                    passed:
+                        false,
+
+                    reason:
+                        "PHASE13_ENGINE_NOT_AVAILABLE"
+                };
+            }
+
+            return engine
+                .runPhase13MotionDiagnostic(
+                    input,
+                    options
+                );
+        };
+})(
+    typeof globalThis !== "undefined"
+        ? globalThis
+        : (
+            typeof window !== "undefined"
+                ? window
+                : this
+        )
+);
+
