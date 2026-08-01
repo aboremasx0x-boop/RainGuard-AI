@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.5.0";
+        "32.6.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -20672,6 +20672,7 @@ estimateRadarRainArrival(
 
     const fallbackSpeedKmh =
         Number(
+            options.effectiveSpeedKmh ??
             options.fallbackSpeedKmh ??
             options.motionSpeedKmh ??
             options.defaultStormSpeedKmh ??
@@ -20714,7 +20715,10 @@ estimateRadarRainArrival(
             ? "radar"
             : (
                 speedKmh > 0
-                    ? "motion_fallback"
+                    ? (
+                        options.motionSource ??
+                        "motion_fallback"
+                    )
                     : "unavailable"
             );
 
@@ -20733,6 +20737,7 @@ estimateRadarRainArrival(
 
     const fallbackBearing =
         Number(
+            options.effectiveBearing ??
             options.fallbackBearing ??
             options.motionBearing ??
             options.defaultStormBearing
@@ -20766,7 +20771,10 @@ estimateRadarRainArrival(
                 Number.isFinite(
                     bearing
                 )
-                    ? "motion_fallback"
+                    ? (
+                        options.motionSource ??
+                        "motion_fallback"
+                    )
                     : "unavailable"
             );
 
@@ -20833,12 +20841,43 @@ estimateRadarRainArrival(
             directionAlignment
         );
 
-    const arrivalMinutes =
+    const rawArrivalMinutes =
         effectiveSpeedKmh > 0
             ? (
                 directDistanceKm /
                 effectiveSpeedKmh
             ) * 60
+            : null;
+
+    const minimumArrivalMinutes =
+        Math.max(
+            0.1,
+            Number(
+                options.minimumArrivalMinutes
+            ) || 0.5
+        );
+
+    const rainNowDistanceKm =
+        Math.max(
+            0.1,
+            Number(
+                options.rainNowDistanceKm
+            ) || 1
+        );
+
+    const arrivalMinutes =
+        Number.isFinite(
+            rawArrivalMinutes
+        )
+            ? (
+                directDistanceKm <=
+                rainNowDistanceKm
+                    ? 0
+                    : Math.max(
+                        minimumArrivalMinutes,
+                        rawArrivalMinutes
+                    )
+            )
             : null;
 
     if (
@@ -20956,10 +20995,19 @@ estimateRadarRainArrival(
             bearingSource,
 
             usedMotionFallback:
-                speedSource ===
-                    "motion_fallback" ||
-                bearingSource ===
-                    "motion_fallback",
+                speedSource !==
+                    "radar" ||
+                bearingSource !==
+                    "radar",
+
+            motionSource:
+                options.motionSource ??
+                speedSource,
+
+            motionConfidence:
+                Number(
+                    options.motionConfidence
+                ) || 0,
 
             rainCoordinate,
 
@@ -31971,6 +32019,437 @@ buildPredictionSourceAvailabilityMatrix(
 
 
 /* ==========================================================================
+   SECTION 266A
+   Phase 7 — Effective Motion Resolution for Radar ETA
+   ========================================================================== */
+
+/**
+ * Resolve the best usable movement vector for Radar ETA.
+ * Priority:
+ * 1) explicit Motion Analysis options
+ * 2) source/radar motion
+ * 3) selected projected-track metadata
+ * 4) two-point track calculation
+ * 5) tracked-cell history calculation
+ *
+ * @param {Object} normalizedInput
+ * @param {Object[]} projectedTrack
+ * @param {Object} radarSource
+ * @param {Object} [options]
+ * @returns {Object}
+ */
+resolveEffectiveRainArrivalMotion(
+    normalizedInput,
+    projectedTrack,
+    radarSource,
+    options = {}
+) {
+    const safeInput =
+        this.isPlainObject(normalizedInput)
+            ? normalizedInput
+            : {};
+
+    const safeRadar =
+        this.isPlainObject(radarSource)
+            ? radarSource
+            : {};
+
+    const track =
+        Array.isArray(projectedTrack)
+            ? projectedTrack
+            : [];
+
+    const finitePositive = (...values) => {
+        for (const value of values) {
+            if (
+                value === null ||
+                value === undefined ||
+                value === ""
+            ) {
+                continue;
+            }
+
+            const numeric =
+                Number(value);
+
+            if (
+                Number.isFinite(numeric) &&
+                numeric > 0
+            ) {
+                return numeric;
+            }
+        }
+
+        return null;
+    };
+
+    const finiteBearing = (...values) => {
+        for (const value of values) {
+            if (
+                value === null ||
+                value === undefined ||
+                value === ""
+            ) {
+                continue;
+            }
+
+            const numeric =
+                Number(value);
+
+            if (
+                Number.isFinite(numeric)
+            ) {
+                return (
+                    (
+                        numeric %
+                        360
+                    ) +
+                    360
+                ) %
+                360;
+            }
+        }
+
+        return null;
+    };
+
+    const firstTrackPoint =
+        track[0] ??
+        null;
+
+    const secondTrackPoint =
+        track[1] ??
+        null;
+
+    const radarCells = [
+        ...(
+            Array.isArray(
+                safeRadar.cells
+            )
+                ? safeRadar.cells
+                : []
+        ),
+        ...(
+            Array.isArray(
+                safeRadar.activeCells
+            )
+                ? safeRadar.activeCells
+                : []
+        ),
+        ...(
+            Array.isArray(
+                safeRadar.stormCells
+            )
+                ? safeRadar.stormCells
+                : []
+        )
+    ];
+
+    const firstRadarCell =
+        radarCells[0] ??
+        null;
+
+    let speedKmh =
+        finitePositive(
+            options.effectiveSpeedKmh,
+            options.fallbackSpeedKmh,
+            options.motionSpeedKmh,
+            options.speedKmh,
+            safeInput.motionAnalysis?.speedKmh,
+            safeInput.motion?.speedKmh,
+            safeInput.storm?.speedKmh,
+            safeRadar.speedKmh,
+            safeRadar.motionSpeedKmh,
+            safeRadar.motion?.speedKmh,
+            firstRadarCell?.speedKmh,
+            firstRadarCell?.motionSpeedKmh,
+            firstTrackPoint?.speedKmh,
+            firstTrackPoint?.averageSpeedKmh,
+            firstTrackPoint?.velocityKmh
+        );
+
+    let bearing =
+        finiteBearing(
+            options.effectiveBearing,
+            options.fallbackBearing,
+            options.motionBearing,
+            options.bearing,
+            safeInput.motionAnalysis?.bearing,
+            safeInput.motion?.bearing,
+            safeInput.storm?.bearing,
+            safeRadar.bearing,
+            safeRadar.motionBearing,
+            safeRadar.motion?.bearing,
+            firstRadarCell?.bearing,
+            firstRadarCell?.directionDegrees,
+            firstTrackPoint?.bearing,
+            firstTrackPoint?.directionDegrees,
+            firstTrackPoint?.heading
+        );
+
+    let source =
+        speedKmh && bearing !== null
+            ? "explicit_or_metadata"
+            : null;
+
+    const pointCoordinate = (point) =>
+        this.normalizeCoordinate(
+            point?.coordinate ??
+            point?.position ??
+            point?.currentPosition ??
+            point
+        );
+
+    const pointTimestamp = (point) => {
+        const value =
+            point?.timestamp ??
+            point?.time ??
+            point?.observedAt ??
+            point?.createdAt ??
+            point?.forecastTimestamp ??
+            point?.arrivalTimestamp ??
+            null;
+
+        const numeric =
+            Number(value);
+
+        if (
+            Number.isFinite(numeric) &&
+            numeric > 0
+        ) {
+            return numeric < 1e12
+                ? numeric * 1000
+                : numeric;
+        }
+
+        const parsed =
+            Date.parse(value);
+
+        return Number.isFinite(parsed)
+            ? parsed
+            : null;
+    };
+
+    if (
+        (
+            speedKmh === null ||
+            bearing === null
+        ) &&
+        firstTrackPoint &&
+        secondTrackPoint
+    ) {
+        const firstCoordinate =
+            pointCoordinate(
+                firstTrackPoint
+            );
+
+        const secondCoordinate =
+            pointCoordinate(
+                secondTrackPoint
+            );
+
+        const firstTimestamp =
+            pointTimestamp(
+                firstTrackPoint
+            );
+
+        const secondTimestamp =
+            pointTimestamp(
+                secondTrackPoint
+            );
+
+        if (
+            firstCoordinate &&
+            secondCoordinate
+        ) {
+            if (bearing === null) {
+                bearing =
+                    this.calculateInitialBearing(
+                        firstCoordinate,
+                        secondCoordinate
+                    );
+            }
+
+            if (
+                speedKmh === null &&
+                firstTimestamp !== null &&
+                secondTimestamp !== null
+            ) {
+                const elapsedHours =
+                    Math.abs(
+                        secondTimestamp -
+                        firstTimestamp
+                    ) /
+                    3600000;
+
+                const distanceKm =
+                    this.calculateDistanceKm(
+                        firstCoordinate,
+                        secondCoordinate
+                    );
+
+                if (
+                    Number.isFinite(distanceKm) &&
+                    elapsedHours > 0
+                ) {
+                    speedKmh =
+                        distanceKm /
+                        elapsedHours;
+                }
+            }
+
+            source =
+                "projected_track_points";
+        }
+    }
+
+    if (
+        speedKmh === null ||
+        bearing === null
+    ) {
+        const history =
+            Array.isArray(
+                firstRadarCell?.history
+            )
+                ? firstRadarCell.history
+                : [];
+
+        if (history.length >= 2) {
+            const newest =
+                history[0];
+
+            const older =
+                history[1];
+
+            const newestCoordinate =
+                pointCoordinate(newest);
+
+            const olderCoordinate =
+                pointCoordinate(older);
+
+            const newestTimestamp =
+                pointTimestamp(newest);
+
+            const olderTimestamp =
+                pointTimestamp(older);
+
+            if (
+                newestCoordinate &&
+                olderCoordinate
+            ) {
+                if (bearing === null) {
+                    bearing =
+                        this.calculateInitialBearing(
+                            olderCoordinate,
+                            newestCoordinate
+                        );
+                }
+
+                if (
+                    speedKmh === null &&
+                    newestTimestamp !== null &&
+                    olderTimestamp !== null
+                ) {
+                    const elapsedHours =
+                        Math.abs(
+                            newestTimestamp -
+                            olderTimestamp
+                        ) /
+                        3600000;
+
+                    const distanceKm =
+                        this.calculateDistanceKm(
+                            olderCoordinate,
+                            newestCoordinate
+                        );
+
+                    if (
+                        Number.isFinite(distanceKm) &&
+                        elapsedHours > 0
+                    ) {
+                        speedKmh =
+                            distanceKm /
+                            elapsedHours;
+                    }
+                }
+
+                source =
+                    "tracked_cell_history";
+            }
+        }
+    }
+
+    const minimumSpeedKmh =
+        Math.max(
+            1,
+            Number(
+                options.minimumRadarFallbackSpeedKmh
+            ) || 5
+        );
+
+    const maximumSpeedKmh =
+        Math.max(
+            minimumSpeedKmh,
+            Number(
+                options.maximumRadarFallbackSpeedKmh
+            ) || 140
+        );
+
+    if (
+        Number.isFinite(speedKmh)
+    ) {
+        speedKmh =
+            Math.max(
+                minimumSpeedKmh,
+                Math.min(
+                    maximumSpeedKmh,
+                    speedKmh
+                )
+            );
+    } else {
+        speedKmh =
+            null;
+    }
+
+    const confidence =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(
+                    options.motionConfidence ??
+                    safeInput.motionAnalysis?.confidence ??
+                    safeInput.motion?.confidence ??
+                    firstTrackPoint?.confidence ??
+                    firstRadarCell?.confidence ??
+                    50
+                ) || 0
+            )
+        );
+
+    return {
+        available:
+            Number.isFinite(speedKmh) &&
+            speedKmh > 0 &&
+            Number.isFinite(bearing),
+
+        speedKmh,
+        bearing,
+        confidence,
+        source:
+            source ??
+            "unavailable",
+
+        trackPointCount:
+            track.length,
+
+        radarCellCount:
+            radarCells.length
+    };
+}
+
+
+/* ==========================================================================
    SECTION 267
    Source Arrival Estimate Collection
    ========================================================================== */
@@ -32161,6 +32640,17 @@ collectPipelineArrivalEstimates(
         projectedTrack[0]?.sourceCellId ??
         null;
 
+    const effectiveMotion =
+        this.resolveEffectiveRainArrivalMotion(
+            safeInput,
+            projectedTrack,
+            radarSource,
+            options
+        );
+
+    diagnostics.effectiveMotion =
+        effectiveMotion;
+
     console.log(
         "[RainArrival V32] Pipeline input diagnostics:",
         {
@@ -32218,7 +32708,9 @@ collectPipelineArrivalEstimates(
             selectedTrackCellId:
                 projectedTrack[0]?.cellId ??
                 projectedTrack[0]?.sourceCellId ??
-                null
+                null,
+
+            effectiveMotion
         }
     );
 
@@ -32342,7 +32834,33 @@ collectPipelineArrivalEstimates(
                     this.estimateRadarRainArrival(
                         radarSource,
                         target,
-                        options
+                        {
+                            ...options,
+
+                            effectiveSpeedKmh:
+                                effectiveMotion
+                                    .speedKmh,
+
+                            effectiveBearing:
+                                effectiveMotion
+                                    .bearing,
+
+                            fallbackSpeedKmh:
+                                effectiveMotion
+                                    .speedKmh,
+
+                            fallbackBearing:
+                                effectiveMotion
+                                    .bearing,
+
+                            motionConfidence:
+                                effectiveMotion
+                                    .confidence,
+
+                            motionSource:
+                                effectiveMotion
+                                    .source
+                        }
                     )
             )
         );
