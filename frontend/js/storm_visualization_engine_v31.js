@@ -30,7 +30,7 @@ window.RG30 =
 RG31.StormVisualizationEngine = {
 
     version:
-        "31.0.1",
+        "31.1.0",
 
     initialized:
         false,
@@ -1565,6 +1565,28 @@ RG31.StormVisualizationEngine = {
 
                 impactedCitiesRendered:
                     renderedImpactedCities.length,
+
+                predictionsWithCanonicalTrack:
+                    normalizedPredictions.filter(
+                        prediction =>
+                            this.resolveCanonicalForecastTrack(
+                                prediction
+                            ).length >
+                            0
+                    ).length,
+
+                canonicalTrackPointCount:
+                    normalizedPredictions.reduce(
+                        (
+                            total,
+                            prediction
+                        ) =>
+                            total +
+                            this.resolveCanonicalForecastTrack(
+                                prediction
+                            ).length,
+                        0
+                    ),
 
                 renderedCells,
 
@@ -5287,6 +5309,398 @@ if (
 
     },
       /* ======================================================
+       RESOLVE CANONICAL FORECAST TRACK
+       PHASE 1
+       ====================================================== */
+
+    resolveCanonicalForecastTrack(
+        prediction = {}
+    ) {
+
+        const candidates = [
+
+            prediction.projectedTrack,
+
+            prediction.pathPoints,
+
+            prediction.forecastPoints,
+
+            prediction.points,
+
+            prediction.track,
+
+            prediction.trajectory,
+
+            prediction.projectedPoints,
+
+            prediction.predictedPoints,
+
+            prediction.predictedPositions,
+
+            prediction.path,
+
+            prediction.forecasts
+
+        ];
+
+        for (
+            const candidate of
+            candidates
+        ) {
+
+            if (
+                Array.isArray(
+                    candidate
+                ) &&
+                candidate.length >
+                0
+            ) {
+
+                return candidate
+                    .map(
+                        (
+                            point,
+                            index
+                        ) =>
+                            this.normalizeForecastTrackPoint(
+                                point,
+                                prediction,
+                                index
+                            )
+                    )
+                    .filter(
+                        Boolean
+                    );
+
+            }
+
+        }
+
+        return [];
+
+    },
+
+    /* ======================================================
+       NORMALIZE FORECAST TRACK POINT
+       PHASE 1
+       ====================================================== */
+
+    normalizeForecastTrackPoint(
+        point = {},
+        prediction = {},
+        index = 0
+    ) {
+
+        if (
+            !point ||
+            typeof point !==
+                "object"
+        ) {
+
+            return null;
+
+        }
+
+        const lat =
+            this.firstNullableNumber(
+
+                point.lat,
+
+                point.latitude,
+
+                point.coordinate
+                    ?.lat,
+
+                point.coordinate
+                    ?.latitude,
+
+                point.position
+                    ?.lat,
+
+                point.position
+                    ?.latitude,
+
+                point.currentPosition
+                    ?.lat,
+
+                point.currentPosition
+                    ?.latitude,
+
+                point.predictedPosition
+                    ?.lat,
+
+                point.predictedPosition
+                    ?.latitude
+
+            );
+
+        const lon =
+            this.firstNullableNumber(
+
+                point.lon,
+
+                point.lng,
+
+                point.longitude,
+
+                point.coordinate
+                    ?.lon,
+
+                point.coordinate
+                    ?.lng,
+
+                point.coordinate
+                    ?.longitude,
+
+                point.position
+                    ?.lon,
+
+                point.position
+                    ?.lng,
+
+                point.position
+                    ?.longitude,
+
+                point.currentPosition
+                    ?.lon,
+
+                point.currentPosition
+                    ?.lng,
+
+                point.currentPosition
+                    ?.longitude,
+
+                point.predictedPosition
+                    ?.lon,
+
+                point.predictedPosition
+                    ?.lng,
+
+                point.predictedPosition
+                    ?.longitude
+
+            );
+
+        if (
+            lat ===
+                null ||
+            lon ===
+                null
+        ) {
+
+            return null;
+
+        }
+
+        const minutes =
+            Math.max(
+
+                0,
+
+                this.safeNumber(
+
+                    point.minutes ??
+                    point.arrivalMinutes ??
+                    point.etaMinutes ??
+                    point.estimatedArrivalMinutes,
+
+                    index *
+                    30
+
+                )
+
+            );
+
+        return {
+
+            ...point,
+
+            index,
+
+            cellId:
+                point.cellId ||
+                prediction.cellId ||
+                null,
+
+            lat,
+
+            lon,
+
+            lng:
+                lon,
+
+            latitude:
+                lat,
+
+            longitude:
+                lon,
+
+            coordinate: {
+
+                lat,
+
+                lon,
+
+                lng:
+                    lon,
+
+                latitude:
+                    lat,
+
+                longitude:
+                    lon
+
+            },
+
+            position: {
+
+                lat,
+
+                lon,
+
+                lng:
+                    lon,
+
+                latitude:
+                    lat,
+
+                longitude:
+                    lon
+
+            },
+
+            minutes,
+
+            arrivalMinutes:
+                minutes,
+
+            etaMinutes:
+                minutes,
+
+            estimatedArrivalMinutes:
+                minutes,
+
+            timestamp:
+                point.timestamp ||
+                point.estimatedArrivalTimestamp ||
+                new Date(
+                    Date.now() +
+                    minutes *
+                    60000
+                )
+                .toISOString()
+
+        };
+
+    },
+
+    /* ======================================================
+       RESOLVE CURRENT PREDICTION POSITION
+       PHASE 1
+       ====================================================== */
+
+    resolvePredictionCurrentPosition(
+        prediction = {},
+        cell = null
+    ) {
+
+        const lat =
+            this.firstNullableNumber(
+
+                prediction
+                    ?.currentPosition
+                    ?.lat,
+
+                prediction
+                    ?.currentPosition
+                    ?.latitude,
+
+                prediction
+                    ?.coordinate
+                    ?.lat,
+
+                prediction
+                    ?.coordinate
+                    ?.latitude,
+
+                prediction
+                    ?.lat,
+
+                prediction
+                    ?.latitude,
+
+                cell
+                    ?.currentLat,
+
+                cell
+                    ?.lat,
+
+                cell
+                    ?.latitude
+
+            );
+
+        const lon =
+            this.firstNullableNumber(
+
+                prediction
+                    ?.currentPosition
+                    ?.lon,
+
+                prediction
+                    ?.currentPosition
+                    ?.lng,
+
+                prediction
+                    ?.currentPosition
+                    ?.longitude,
+
+                prediction
+                    ?.coordinate
+                    ?.lon,
+
+                prediction
+                    ?.coordinate
+                    ?.lng,
+
+                prediction
+                    ?.coordinate
+                    ?.longitude,
+
+                prediction
+                    ?.lon,
+
+                prediction
+                    ?.lng,
+
+                prediction
+                    ?.longitude,
+
+                cell
+                    ?.currentLon,
+
+                cell
+                    ?.lon,
+
+                cell
+                    ?.lng,
+
+                cell
+                    ?.longitude
+
+            );
+
+        return {
+
+            lat,
+
+            lon
+
+        };
+
+    },
+
+    /* ======================================================
        RENDER PREDICTED STORM PATH
        ====================================================== */
 
@@ -5318,11 +5732,9 @@ if (
         }
 
         const forecasts =
-            Array.isArray(
-                prediction.forecasts
-            )
-                ? prediction.forecasts
-                : [];
+            this.resolveCanonicalForecastTrack(
+                prediction
+            );
 
         if (
             !forecasts.length
@@ -5332,38 +5744,20 @@ if (
 
         }
 
-        const currentLat =
-            this.firstNullableNumber(
+        const currentPosition =
+            this.resolvePredictionCurrentPosition(
 
-                prediction
-                    ?.currentPosition
-                    ?.lat,
+                prediction,
 
                 cell
-                    ?.currentLat,
-
-                cell
-                    ?.lat
 
             );
+
+        const currentLat =
+            currentPosition.lat;
 
         const currentLon =
-            this.firstNullableNumber(
-
-                prediction
-                    ?.currentPosition
-                    ?.lon,
-
-                cell
-                    ?.currentLon,
-
-                cell
-                    ?.lon,
-
-                cell
-                    ?.lng
-
-            );
+            currentPosition.lon;
 
         if (
             currentLat === null ||
@@ -5382,13 +5776,15 @@ if (
                         return (
 
                             this.firstNullableNumber(
-                                point.lat
+                                point.lat,
+                                point.latitude
                             ) !==
                                 null &&
 
                             this.firstNullableNumber(
                                 point.lon,
-                                point.lng
+                                point.lng,
+                                point.longitude
                             ) !==
                                 null
 
@@ -5455,14 +5851,16 @@ if (
 
                         lat:
                             this.safeNumber(
-                                point.lat,
+                                point.lat ??
+                                point.latitude,
                                 0
                             ),
 
                         lon:
                             this.safeNumber(
                                 point.lon ??
-                                point.lng,
+                                point.lng ??
+                                point.longitude,
                                 0
                             ),
 
@@ -5662,13 +6060,15 @@ if (
 
                         const lat =
                             this.firstNullableNumber(
-                                point.lat
+                                point.lat,
+                                point.latitude
                             );
 
                         const lon =
                             this.firstNullableNumber(
                                 point.lon,
-                                point.lng
+                                point.lng,
+                                point.longitude
                             );
 
                         if (
@@ -5857,13 +6257,15 @@ if (
 
         const lat =
             this.firstNullableNumber(
-                point.lat
+                point.lat,
+                point.latitude
             );
 
         const lon =
             this.firstNullableNumber(
                 point.lon,
-                point.lng
+                point.lng,
+                point.longitude
             );
 
         if (
