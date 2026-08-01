@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.1.0";
+        "32.2.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -19460,7 +19460,15 @@ rankAffectedCities(
             importanceScore,
             rankingScore,
             closestPoint:
-                arrival.closestPoint
+                arrival.closestPoint,
+            trackPointCount:
+                projectedTrack.length,
+            sourceCellId:
+                projectedTrack[0]?.sourceCellId ??
+                projectedTrack[0]?.cellId ??
+                null,
+            targetCoordinate:
+                target
         });
     }
 
@@ -21294,6 +21302,476 @@ estimateLightningRainArrival(
                 Date.now()
         }
     );
+}
+
+
+/* ==========================================================================
+   SECTION 204A
+   Phase 3 — Canonical Storm Track Integration
+   ========================================================================== */
+
+/**
+ * Normalize one storm-track point into the coordinate/time structure expected
+ * by the rain-arrival engine.
+ *
+ * @param {Object} point
+ * @param {Object} [path]
+ * @param {number} [index]
+ * @returns {Object|null}
+ */
+normalizeRainArrivalStormTrackPoint(
+    point = {},
+    path = {},
+    index = 0
+) {
+    if (
+        !point ||
+        typeof point !== 'object'
+    ) {
+        return null;
+    }
+
+    const coordinate =
+        this.normalizeCoordinate(
+            point.coordinate ??
+            point.position ??
+            point.currentPosition ??
+            point.predictedPosition ??
+            point.location ??
+            point
+        );
+
+    if (!coordinate) {
+        return null;
+    }
+
+    const arrivalMinutesCandidates = [
+        point.arrivalMinutes,
+        point.etaMinutes,
+        point.estimatedArrivalMinutes,
+        point.minutes,
+        point.minutesFromNow,
+        point.leadMinutes,
+        point.offsetMinutes
+    ];
+
+    let arrivalMinutes = null;
+
+    for (const value of arrivalMinutesCandidates) {
+        const numeric = Number(value);
+
+        if (
+            Number.isFinite(numeric) &&
+            numeric >= 0
+        ) {
+            arrivalMinutes = numeric;
+            break;
+        }
+    }
+
+    const timestampCandidate =
+        point.arrivalTimestamp ??
+        point.estimatedArrivalTimestamp ??
+        point.etaTimestamp ??
+        point.timestamp ??
+        point.forecastTimestamp ??
+        null;
+
+    const timestamp =
+        this._normalizeMotionTimestamp(
+            timestampCandidate
+        );
+
+    if (
+        arrivalMinutes === null &&
+        Number.isFinite(timestamp)
+    ) {
+        arrivalMinutes =
+            Math.max(
+                0,
+                (
+                    timestamp -
+                    Date.now()
+                ) /
+                60000
+            );
+    }
+
+    if (arrivalMinutes === null) {
+        arrivalMinutes =
+            Math.max(
+                0,
+                index * 30
+            );
+    }
+
+    const normalizedTimestamp =
+        Number.isFinite(timestamp)
+            ? timestamp
+            : Date.now() +
+              arrivalMinutes *
+              60000;
+
+    return {
+        ...point,
+
+        index,
+
+        cellId:
+            point.cellId ??
+            point.sourceCellId ??
+            path.cellId ??
+            path.sourceCellId ??
+            null,
+
+        sourceCellId:
+            point.sourceCellId ??
+            point.cellId ??
+            path.sourceCellId ??
+            path.cellId ??
+            null,
+
+        city:
+            point.city ??
+            path.city ??
+            null,
+
+        region:
+            point.region ??
+            path.region ??
+            null,
+
+        lat:
+            coordinate.lat,
+
+        lon:
+            coordinate.lon,
+
+        lng:
+            coordinate.lon,
+
+        latitude:
+            coordinate.lat,
+
+        longitude:
+            coordinate.lon,
+
+        coordinate: {
+            lat:
+                coordinate.lat,
+            lon:
+                coordinate.lon,
+            lng:
+                coordinate.lon,
+            latitude:
+                coordinate.lat,
+            longitude:
+                coordinate.lon
+        },
+
+        position: {
+            lat:
+                coordinate.lat,
+            lon:
+                coordinate.lon,
+            lng:
+                coordinate.lon,
+            latitude:
+                coordinate.lat,
+            longitude:
+                coordinate.lon
+        },
+
+        arrivalMinutes,
+
+        etaMinutes:
+            arrivalMinutes,
+
+        estimatedArrivalMinutes:
+            arrivalMinutes,
+
+        timestamp:
+            normalizedTimestamp,
+
+        arrivalTimestamp:
+            normalizedTimestamp,
+
+        estimatedArrivalTimestamp:
+            normalizedTimestamp,
+
+        speedKmh:
+            Number(
+                point.speedKmh ??
+                path.speedKmh ??
+                0
+            ) || 0,
+
+        directionDegrees:
+            Number.isFinite(
+                Number(
+                    point.directionDegrees ??
+                    point.bearing ??
+                    point.heading ??
+                    path.directionDegrees
+                )
+            )
+                ? Number(
+                    point.directionDegrees ??
+                    point.bearing ??
+                    point.heading ??
+                    path.directionDegrees
+                )
+                : null
+    };
+}
+
+
+/**
+ * Extract every valid projected track from all V31/V32 compatibility shapes.
+ *
+ * @param {unknown} candidate
+ * @param {number} [depth]
+ * @returns {Object[][]}
+ */
+extractRainArrivalStormTracks(
+    candidate,
+    depth = 0
+) {
+    if (
+        candidate === null ||
+        candidate === undefined ||
+        depth > 10
+    ) {
+        return [];
+    }
+
+    if (candidate instanceof Map) {
+        return Array.from(
+            candidate.values()
+        ).flatMap(
+            value =>
+                this.extractRainArrivalStormTracks(
+                    value,
+                    depth + 1
+                )
+        );
+    }
+
+    if (Array.isArray(candidate)) {
+        if (candidate.length === 0) {
+            return [];
+        }
+
+        const normalizedDirectTrack =
+            candidate
+                .map(
+                    (point, index) =>
+                        this.normalizeRainArrivalStormTrackPoint(
+                            point,
+                            {},
+                            index
+                        )
+                )
+                .filter(Boolean);
+
+        const directPointRatio =
+            normalizedDirectTrack.length /
+            candidate.length;
+
+        if (
+            normalizedDirectTrack.length >= 2 &&
+            directPointRatio >= 0.6
+        ) {
+            return [
+                normalizedDirectTrack
+            ];
+        }
+
+        return candidate.flatMap(
+            value =>
+                this.extractRainArrivalStormTracks(
+                    value,
+                    depth + 1
+                )
+        );
+    }
+
+    if (typeof candidate !== 'object') {
+        return [];
+    }
+
+    const pointKeys = [
+        'projectedTrack',
+        'pathPoints',
+        'forecastPoints',
+        'points',
+        'track',
+        'trajectory',
+        'projectedPoints',
+        'predictedPoints',
+        'predictedPositions',
+        'positions',
+        'projections',
+        'forecasts',
+        'path'
+    ];
+
+    for (const key of pointKeys) {
+        if (
+            Array.isArray(
+                candidate[key]
+            ) &&
+            candidate[key].length > 0
+        ) {
+            const normalized =
+                candidate[key]
+                    .map(
+                        (point, index) =>
+                            this.normalizeRainArrivalStormTrackPoint(
+                                point,
+                                candidate,
+                                index
+                            )
+                    )
+                    .filter(Boolean);
+
+            if (normalized.length >= 1) {
+                return [
+                    normalized
+                ];
+            }
+        }
+    }
+
+    const collectionKeys = [
+        'predictions',
+        'paths',
+        'predictedPaths',
+        'predictedStormPaths',
+        'projectedTracks',
+        'stormPaths',
+        'data',
+        'result',
+        'latestPrediction',
+        'latestStormPathPrediction'
+    ];
+
+    return collectionKeys.flatMap(
+        key =>
+            this.extractRainArrivalStormTracks(
+                candidate[key],
+                depth + 1
+            )
+    );
+}
+
+
+/**
+ * Select the projected track most relevant to the requested target.
+ *
+ * @param {Object[][]} tracks
+ * @param {Object} target
+ * @returns {{track:Object[], index:number, distanceKm:number|null, score:number}|null}
+ */
+selectRainArrivalStormTrack(
+    tracks = [],
+    target = null
+) {
+    const normalizedTarget =
+        this.normalizeCoordinate(
+            target
+        );
+
+    if (
+        !normalizedTarget ||
+        !Array.isArray(tracks) ||
+        tracks.length === 0
+    ) {
+        return null;
+    }
+
+    let best = null;
+
+    tracks.forEach(
+        (track, index) => {
+            if (
+                !Array.isArray(track) ||
+                track.length === 0
+            ) {
+                return;
+            }
+
+            let minimumDistanceKm =
+                Number.POSITIVE_INFINITY;
+
+            for (const point of track) {
+                const coordinate =
+                    this.normalizeCoordinate(
+                        point
+                    );
+
+                if (!coordinate) {
+                    continue;
+                }
+
+                const distanceKm =
+                    this.calculateHaversineDistanceKm(
+                        coordinate,
+                        normalizedTarget
+                    );
+
+                if (
+                    Number.isFinite(distanceKm) &&
+                    distanceKm <
+                    minimumDistanceKm
+                ) {
+                    minimumDistanceKm =
+                        distanceKm;
+                }
+            }
+
+            if (
+                !Number.isFinite(
+                    minimumDistanceKm
+                )
+            ) {
+                return;
+            }
+
+            const confidence =
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(
+                            track[0]?.confidence ??
+                            70
+                        ) || 0
+                    )
+                );
+
+            const score =
+                minimumDistanceKm -
+                confidence *
+                0.05;
+
+            if (
+                !best ||
+                score <
+                best.score
+            ) {
+                best = {
+                    track,
+                    index,
+                    distanceKm:
+                        minimumDistanceKm,
+                    score
+                };
+            }
+        }
+    );
+
+    return best;
 }
 
 
@@ -30236,93 +30714,6 @@ collectPipelineArrivalEstimates(
         safeSources.strikes ??
         null;
 
-    const normalizeTrackCollection = (candidate, depth = 0) => {
-        if (
-            candidate === null ||
-            candidate === undefined ||
-            depth > 8
-        ) {
-            return [];
-        }
-
-        if (candidate instanceof Map) {
-            return normalizeTrackCollection(
-                Array.from(candidate.values()),
-                depth + 1
-            );
-        }
-
-        if (Array.isArray(candidate)) {
-            const directPoints = candidate.filter((item) =>
-                Boolean(
-                    this.normalizeCoordinate(
-                        item?.coordinate ??
-                        item?.position ??
-                        item?.location ??
-                        item?.currentPosition ??
-                        item?.predictedPosition ??
-                        item
-                    )
-                )
-            );
-
-            if (directPoints.length > 0) {
-                return directPoints;
-            }
-
-            for (const item of candidate) {
-                const nested =
-                    normalizeTrackCollection(
-                        item,
-                        depth + 1
-                    );
-
-                if (nested.length > 0) {
-                    return nested;
-                }
-            }
-
-            return [];
-        }
-
-        if (typeof candidate !== 'object') {
-            return [];
-        }
-
-        const keys = [
-            'points',
-            'pathPoints',
-            'track',
-            'path',
-            'projectedTrack',
-            'projectedPoints',
-            'forecastPoints',
-            'predictedPoints',
-            'predictedPositions',
-            'trajectory',
-            'positions',
-            'projections',
-            'predictions',
-            'paths',
-            'predictedPaths',
-            'predictedStormPaths'
-        ];
-
-        for (const key of keys) {
-            const nested =
-                normalizeTrackCollection(
-                    candidate[key],
-                    depth + 1
-                );
-
-            if (nested.length > 0) {
-                return nested;
-            }
-        }
-
-        return [];
-    };
-
     const projectedTrackCandidates = [
         safeInput.projectedTrack,
         safeInput.projectedTracks,
@@ -30333,25 +30724,50 @@ collectPipelineArrivalEstimates(
         safeInput.predictedStormPaths,
         safeInput.stormPaths,
         safeInput.storm?.projectedTrack,
+        safeInput.storm?.predictedPaths,
         safeSources.stormTrack,
         safeSources.projectedTrack,
+        safeSources.projectedTracks,
         safeSources.predictedStormPaths,
         globalThis.RG31?.predictedStormPaths,
         globalThis.RG31?.PredictedStormPaths,
         globalThis.RG31?.latestStormPathPrediction,
-        globalThis.RG31?.LatestStormPathPrediction
+        globalThis.RG31?.LatestStormPathPrediction,
+        globalThis.RG31?.StormPathPredictionEngine
+            ?.latestPredictionReport,
+        globalThis.RG31?.StormPathPredictionEngine
+            ?.predictedPaths,
+        globalThis.RainGuardAI?.V32
+            ?.predictedStormPaths
     ];
 
-    let projectedTrack = [];
+    const availableTracks = [];
 
     for (const candidate of projectedTrackCandidates) {
-        projectedTrack =
-            normalizeTrackCollection(candidate);
+        const tracks =
+            this.extractRainArrivalStormTracks(
+                candidate
+            );
 
-        if (projectedTrack.length > 0) {
-            break;
+        if (tracks.length > 0) {
+            availableTracks.push(
+                ...tracks
+            );
         }
     }
+
+    const selectedTrackResult =
+        target
+            ? this.selectRainArrivalStormTrack(
+                availableTracks,
+                target
+            )
+            : null;
+
+    const projectedTrack =
+        selectedTrackResult?.track ??
+        availableTracks[0] ??
+        [];
 
     console.log(
         "[RainArrival V32] Pipeline input diagnostics:",
@@ -30394,7 +30810,23 @@ collectPipelineArrivalEstimates(
             },
 
             projectedTrackLength:
-                projectedTrack.length
+                projectedTrack.length,
+
+            availableTrackCount:
+                availableTracks.length,
+
+            selectedTrackIndex:
+                selectedTrackResult?.index ??
+                null,
+
+            selectedTrackDistanceKm:
+                selectedTrackResult?.distanceKm ??
+                null,
+
+            selectedTrackCellId:
+                projectedTrack[0]?.cellId ??
+                projectedTrack[0]?.sourceCellId ??
+                null
         }
     );
 
@@ -30541,7 +30973,19 @@ collectPipelineArrivalEstimates(
                             ?.confidence ??
                         safeInput
                             .trackConfidence ??
-                        0
+                        projectedTrack[0]
+                            ?.confidence ??
+                        75,
+
+                    selectedTrackIndex:
+                        selectedTrackResult
+                            ?.index ??
+                        null,
+
+                    selectedTrackDistanceKm:
+                        selectedTrackResult
+                            ?.distanceKm ??
+                        null
                 }
             )
         );
@@ -30552,7 +30996,11 @@ collectPipelineArrivalEstimates(
             source:
                 "storm_track",
             reason:
-                "PROJECTED_TRACK_EMPTY"
+                "PROJECTED_TRACK_EMPTY",
+            availableTrackCount:
+                availableTracks.length,
+            candidateCount:
+                projectedTrackCandidates.length
         });
     }
 
