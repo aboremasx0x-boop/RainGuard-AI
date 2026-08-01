@@ -61554,9 +61554,9 @@ globalObject
         return;
     }
 
-    const PATCH_VERSION = '32.2.0';
-    const PATCH_BUILD = 3220;
-    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3220';
+    const PATCH_VERSION = '32.3.0';
+    const PATCH_BUILD = 3230;
+    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3230';
 
     function isObject(value) {
         return Boolean(value) && typeof value === 'object';
@@ -61774,6 +61774,9 @@ globalObject
                 result?.source ??
                 'rain_arrival_prediction_engine_v32',
 
+            clearedStaleArrival:
+                !available,
+
             target:
                 result?.target ??
                 result?.resolvedTargetLocation ??
@@ -61908,8 +61911,12 @@ globalObject
 
             sourceConflict:
                 false,
+
             sourceConflictOverriddenByValidArrival:
                 publication.available,
+
+            clearedStaleArrival:
+                publication.clearedStaleArrival,
 
             latestRainArrivalPrediction:
                 publication,
