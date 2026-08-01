@@ -62174,3 +62174,400 @@ globalObject
         )
 );
 
+/* ==========================================================================
+   PHASE 7
+   Verification Status UI Bridge
+   ========================================================================== */
+
+(function installRainArrivalVerificationStatusBridge(global) {
+    "use strict";
+
+    const BRIDGE_KEY =
+        "__rainArrivalVerificationStatusBridgeV32";
+
+    const TARGET_ID =
+        "verificationStatusTop";
+
+    const EVENT_NAMES = [
+        "rainguard:v32:rain-arrival:prediction-updated",
+        "rainguard:v32:rain-arrival:published",
+        "rainguard:v32:dashboard:update",
+        "rainguard:dashboard:update"
+    ];
+
+    function getLatestRainArrivalPrediction() {
+        return (
+            global.RainGuardAI
+                ?.V32
+                ?.latestRainArrivalPrediction ??
+            global.latestRainArrivalPrediction ??
+            null
+        );
+    }
+
+    function getVerificationStatusElement() {
+        return document.getElementById(
+            TARGET_ID
+        );
+    }
+
+    function formatArrivalStatus(
+        prediction
+    ) {
+        const arrivalMinutes =
+            Number(
+                prediction?.arrivalMinutes ??
+                prediction?.prediction
+                    ?.arrivalMinutes
+            );
+
+        if (
+            prediction?.status !==
+                "RAIN_ARRIVAL_AVAILABLE" ||
+            !Number.isFinite(
+                arrivalMinutes
+            )
+        ) {
+            return null;
+        }
+
+        return {
+            text:
+                `RAIN ARRIVAL: ${Math.round(
+                    arrivalMinutes
+                )} MIN`,
+
+            state:
+                "RAIN_ARRIVAL_AVAILABLE",
+
+            arrivalMinutes,
+
+            city:
+                prediction?.city ??
+                prediction?.prediction?.city ??
+                null,
+
+            confidence:
+                Number(
+                    prediction?.confidence ??
+                    prediction?.confidenceScore ??
+                    prediction?.prediction
+                        ?.confidence
+                ) || 0
+        };
+    }
+
+    function updateVerificationStatusFromRainArrival(
+        prediction =
+            getLatestRainArrivalPrediction()
+    ) {
+        const target =
+            getVerificationStatusElement();
+
+        if (!target) {
+            return {
+                updated:
+                    false,
+
+                reason:
+                    "VERIFICATION_STATUS_ELEMENT_NOT_FOUND"
+            };
+        }
+
+        const formatted =
+            formatArrivalStatus(
+                prediction
+            );
+
+        if (!formatted) {
+            return {
+                updated:
+                    false,
+
+                reason:
+                    "RAIN_ARRIVAL_NOT_AVAILABLE",
+
+                prediction:
+                    prediction ?? null
+            };
+        }
+
+        target.textContent =
+            formatted.text;
+
+        target.dataset.stateValue =
+            formatted.state;
+
+        target.dataset.arrivalMinutes =
+            String(
+                formatted.arrivalMinutes
+            );
+
+        target.dataset.city =
+            formatted.city ?? "";
+
+        target.dataset.confidence =
+            String(
+                formatted.confidence
+            );
+
+        target.setAttribute(
+            "data-i18n-state",
+            "rainArrivalAvailable"
+        );
+
+        target.setAttribute(
+            "aria-label",
+            formatted.text
+        );
+
+        target.classList.remove(
+            "status-conflict",
+            "conflict",
+            "warning",
+            "danger"
+        );
+
+        target.classList.add(
+            "rain-arrival-available"
+        );
+
+        const parent =
+            target.closest(
+                ".kpi-card"
+            );
+
+        if (parent) {
+            parent.dataset.stateValue =
+                formatted.state;
+
+            parent.dataset.arrivalMinutes =
+                String(
+                    formatted.arrivalMinutes
+                );
+        }
+
+        global.RainGuardAI =
+            global.RainGuardAI ?? {};
+
+        global.RainGuardAI.V32 =
+            global.RainGuardAI.V32 ?? {};
+
+        global.RainGuardAI
+            .V32
+            .verificationStatusUI = {
+                status:
+                    formatted.state,
+
+                text:
+                    formatted.text,
+
+                arrivalMinutes:
+                    formatted.arrivalMinutes,
+
+                city:
+                    formatted.city,
+
+                confidence:
+                    formatted.confidence,
+
+                updatedAt:
+                    new Date()
+                        .toISOString()
+            };
+
+        console.log(
+            "[RainGuard AI V32] Verification status updated from rain arrival.",
+            global.RainGuardAI
+                .V32
+                .verificationStatusUI
+        );
+
+        return {
+            updated:
+                true,
+
+            ...global.RainGuardAI
+                .V32
+                .verificationStatusUI
+        };
+    }
+
+    function handleRainArrivalEvent(
+        event
+    ) {
+        const prediction =
+            event?.detail?.prediction ??
+            event?.detail?.result ??
+            event?.detail ??
+            getLatestRainArrivalPrediction();
+
+        updateVerificationStatusFromRainArrival(
+            prediction
+        );
+    }
+
+    function installEventListeners() {
+        for (
+            const eventName
+            of EVENT_NAMES
+        ) {
+            global.addEventListener(
+                eventName,
+                handleRainArrivalEvent
+            );
+        }
+    }
+
+    function installMutationProtection() {
+        const target =
+            getVerificationStatusElement();
+
+        if (!target) {
+            return null;
+        }
+
+        const observer =
+            new MutationObserver(
+                () => {
+                    const prediction =
+                        getLatestRainArrivalPrediction();
+
+                    const formatted =
+                        formatArrivalStatus(
+                            prediction
+                        );
+
+                    if (
+                        formatted &&
+                        target.textContent
+                            ?.trim() !==
+                            formatted.text
+                    ) {
+                        updateVerificationStatusFromRainArrival(
+                            prediction
+                        );
+                    }
+                }
+            );
+
+        observer.observe(
+            target,
+            {
+                childList:
+                    true,
+
+                characterData:
+                    true,
+
+                subtree:
+                    true,
+
+                attributes:
+                    true,
+
+                attributeFilter: [
+                    "data-state-value"
+                ]
+            }
+        );
+
+        return observer;
+    }
+
+    function initialize() {
+        if (
+            global[BRIDGE_KEY]
+                ?.installed
+        ) {
+            return global[BRIDGE_KEY];
+        }
+
+        installEventListeners();
+
+        const observer =
+            installMutationProtection();
+
+        const initialUpdate =
+            updateVerificationStatusFromRainArrival();
+
+        const bridge = {
+            installed:
+                true,
+
+            version:
+                "32.2.0",
+
+            targetId:
+                TARGET_ID,
+
+            eventNames:
+                [...EVENT_NAMES],
+
+            observer,
+
+            initialUpdate,
+
+            update:
+                updateVerificationStatusFromRainArrival,
+
+            destroy() {
+                for (
+                    const eventName
+                    of EVENT_NAMES
+                ) {
+                    global.removeEventListener(
+                        eventName,
+                        handleRainArrivalEvent
+                    );
+                }
+
+                observer?.disconnect?.();
+
+                this.installed =
+                    false;
+            }
+        };
+
+        global[BRIDGE_KEY] =
+            bridge;
+
+        global.RainGuardAI =
+            global.RainGuardAI ?? {};
+
+        global.RainGuardAI.V32 =
+            global.RainGuardAI.V32 ?? {};
+
+        global.RainGuardAI
+            .V32
+            .verificationStatusBridge =
+            bridge;
+
+        console.log(
+            "[RainGuard AI V32] Verification status UI bridge installed.",
+            bridge
+        );
+
+        return bridge;
+    }
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initialize,
+            {
+                once:
+                    true
+            }
+        );
+    } else {
+        initialize();
+    }
+
+})(
+    window
+);
+
