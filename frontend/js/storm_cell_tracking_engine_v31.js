@@ -3466,6 +3466,98 @@ if (
     });
 
 }
+               cell.history =
+            Array.isArray(
+                cell.history
+            )
+                ? cell.history.slice(
+                    0,
+                    this.config
+                        .maximumCellHistory
+                )
+                : [];
+
+        let cityTransition =
+            null;
+
+        if (
+            previousCity &&
+            candidate.city &&
+            previousCity !==
+                candidate.city
+        ) {
+
+            cell.cityTransitionCount =
+                this.safeNumber(
+                    cell.cityTransitionCount,
+                    0
+                ) +
+                1;
+
+            cityTransition =
+                this.createCityTransition({
+
+                    cellId:
+                        cell.cellId,
+
+                    fromCity:
+                        previousCity,
+
+                    toCity:
+                        candidate.city,
+
+                    fromLat:
+                        previousLat,
+
+                    fromLon:
+                        previousLon,
+
+                    toLat:
+                        candidate.lat,
+
+                    toLon:
+                        candidate.lon,
+
+                    speedKmh:
+                        cell.speedKmh,
+
+                    directionDegrees:
+                        cell.directionDegrees,
+
+                    directionLabel:
+                        cell.directionLabel,
+
+                    intensity:
+                        cell.intensity,
+
+                    riskScore:
+                        cell.riskScore,
+
+                    timestamp:
+                        now
+
+                });
+
+        }
+
+        this.activeCells[
+            cell.cellId
+        ] =
+            cell;
+
+        return {
+
+            cell,
+
+            cityTransition,
+
+            match
+
+        };
+
+    },
+
+       
     /* =====================================================
        CREATE NEW TRACKED CELL
        ===================================================== */
@@ -3552,6 +3644,23 @@ if (
 
         cell.lightningThreat =
             candidate.lightningThreat;
+               cell.coordinateSource =
+            candidate.coordinateSource ??
+            null;
+
+        if (
+            Array.isArray(
+                cell.history
+            ) &&
+            cell.history[0]
+        ) {
+
+            cell.history[0]
+                .coordinateSource =
+                    candidate.coordinateSource ??
+                    null;
+
+        }
 
         return cell;
 
