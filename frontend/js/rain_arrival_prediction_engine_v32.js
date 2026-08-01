@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.7.0";
+        "32.8.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -32096,79 +32096,171 @@ buildPredictionSourceAvailabilityMatrix(
     normalizedInput,
     options = {}
 ) {
+    const safeInput =
+        this.isPlainObject(normalizedInput)
+            ? normalizedInput
+            : {};
+
     const sources =
-        normalizedInput.sources ??
-        {};
+        this.isPlainObject(safeInput.sources)
+            ? safeInput.sources
+            : {};
+
+    const hasUsableData = value => {
+        if (
+            value === null ||
+            value === undefined ||
+            value === false
+        ) {
+            return false;
+        }
+
+        if (Array.isArray(value)) {
+            return value.length > 0;
+        }
+
+        if (typeof value === "number") {
+            return Number.isFinite(value);
+        }
+
+        if (typeof value === "string") {
+            return value.trim().length > 0;
+        }
+
+        if (typeof value === "object") {
+            if (
+                value.available === false &&
+                !value.data &&
+                !value.items &&
+                !value.results &&
+                !value.cells &&
+                !value.estimates
+            ) {
+                return false;
+            }
+
+            return Object.keys(value).length > 0;
+        }
+
+        return Boolean(value);
+    };
+
+    const projectedTrack =
+        safeInput.projectedTrack ??
+        safeInput.projectedTracks ??
+        safeInput.stormTrack ??
+        sources.stormTrack ??
+        sources.projectedTrack ??
+        globalThis.RG31?.predictedStormPaths ??
+        globalThis.RG31?.latestStormPathPrediction ??
+        [];
+
+    const motionAvailable =
+        Boolean(
+            safeInput.motionAnalysis?.available
+        ) ||
+        (
+            Number(safeInput.motionAnalysis?.speedKmh) > 0 &&
+            Number.isFinite(
+                Number(safeInput.motionAnalysis?.bearing)
+            )
+        ) ||
+        (
+            Number(safeInput.storm?.speedKmh) > 0 &&
+            Number.isFinite(
+                Number(safeInput.storm?.bearing)
+            )
+        );
 
     const sourceDefinitions = [
         {
-            key: 'radar',
-            value: sources.radar
-        },
-        {
-            key: 'satellite',
-            value: sources.satellite
-        },
-        {
-            key: 'lightning',
-            value: sources.lightning
-        },
-        {
-            key: 'local_ai',
-            value: sources.localAi
-        },
-        {
-            key: 'anwaa',
-            value: sources.anwaa
-        },
-        {
-            key: 'openmeteo',
-            value: sources.openMeteo
-        },
-        {
-            key: 'numerical_model',
-            value: sources.numericalModel
-        },
-        {
-            key: 'storm_track',
+            key: "radar",
             value:
-                normalizedInput
-                    .projectedTrack
+                sources.radar ??
+                sources.radarData ??
+                sources.rainViewer ??
+                sources.rainviewer ??
+                null,
+            operationalFallback:
+                motionAvailable
+        },
+        {
+            key: "satellite",
+            value:
+                sources.satellite ??
+                sources.satelliteData ??
+                null
+        },
+        {
+            key: "lightning",
+            value:
+                sources.lightning ??
+                sources.lightningData ??
+                null
+        },
+        {
+            key: "local_ai",
+            value:
+                sources.localAi ??
+                sources.localAI ??
+                null
+        },
+        {
+            key: "anwaa",
+            value:
+                sources.anwaa ??
+                sources.ncm ??
+                null
+        },
+        {
+            key: "openmeteo",
+            value:
+                sources.openMeteo ??
+                sources.openmeteo ??
+                null
+        },
+        {
+            key: "numerical_model",
+            value:
+                sources.numericalModel ??
+                sources.modelForecast ??
+                null
+        },
+        {
+            key: "storm_track",
+            value:
+                projectedTrack,
+            operationalFallback:
+                hasUsableData(projectedTrack)
         }
     ];
 
     const matrix = {};
-
-    let availableCount = 0;
+    let rawAvailableCount = 0;
+    let operationalAvailableCount = 0;
     let totalQuality = 0;
 
-    for (
-        const definition
-        of sourceDefinitions
-    ) {
-        const value =
-            definition.value;
+    for (const definition of sourceDefinitions) {
+        const rawAvailable =
+            hasUsableData(definition.value);
 
-        const available =
-            Array.isArray(value)
-                ? value.length > 0
-                : Boolean(value);
+        const operationalAvailable =
+            rawAvailable ||
+            Boolean(definition.operationalFallback);
 
         const quality =
-            available
+            operationalAvailable
                 ? Math.max(
                     0,
                     Math.min(
                         100,
                         Number(
-                            value?.quality ??
-                            value?.confidence ??
-                            value
-                                ?.dataQuality ??
-                            options
-                                .defaultSourceQuality ??
+                            definition.value?.quality ??
+                            definition.value?.confidence ??
+                            definition.value?.dataQuality ??
+                            options.defaultSourceQuality ??
                             70
-                        ) || 0
+                        ) || 70
                     )
                 )
                 : 0;
@@ -32179,53 +32271,106 @@ buildPredictionSourceAvailabilityMatrix(
                 options
             );
 
-        matrix[
-            definition.key
-        ] = {
-            available,
+        matrix[definition.key] = {
+            available:
+                operationalAvailable,
+
+            rawAvailable,
+
+            operationalAvailable,
+
+            fallbackAvailable:
+                !rawAvailable &&
+                operationalAvailable,
+
+            fallbackType:
+                !rawAvailable &&
+                operationalAvailable
+                    ? (
+                        definition.key === "radar"
+                            ? "motion_analysis"
+                            : "storm_track"
+                    )
+                    : null,
+
             quality,
+
             reliability,
+
             effectiveScore:
-                available
-                    ? quality *
-                      reliability
-                    : 0
+                operationalAvailable
+                    ? quality * reliability
+                    : 0,
+
+            availabilityStatus:
+                operationalAvailable
+                    ? (
+                        rawAvailable
+                            ? "AVAILABLE"
+                            : "AVAILABLE_BY_FALLBACK"
+                    )
+                    : "NOT_AVAILABLE"
         };
 
-        if (available) {
-            availableCount += 1;
+        if (rawAvailable) {
+            rawAvailableCount += 1;
+        }
+
+        if (operationalAvailable) {
+            operationalAvailableCount += 1;
             totalQuality += quality;
         }
     }
 
-    const sourceCoverageScore =
-        sourceDefinitions.length > 0
-            ? availableCount /
-              sourceDefinitions.length *
-              100
-            : 0;
-
-    const averageAvailableQuality =
-        availableCount > 0
-            ? totalQuality /
-              availableCount
-            : 0;
-
     return {
         matrix,
-        availableCount,
+
+        availableCount:
+            operationalAvailableCount,
+
+        rawAvailableCount,
+
+        operationalAvailableCount,
+
         totalSourceCount:
             sourceDefinitions.length,
-        sourceCoverageScore,
-        averageAvailableQuality,
+
+        sourceCoverageScore:
+            sourceDefinitions.length > 0
+                ? (
+                    operationalAvailableCount /
+                    sourceDefinitions.length
+                ) * 100
+                : 0,
+
+        averageAvailableQuality:
+            operationalAvailableCount > 0
+                ? totalQuality /
+                  operationalAvailableCount
+                : 0,
+
         sufficient:
-            availableCount >=
+            operationalAvailableCount >=
             (
                 Number(
-                    options
-                        .minimumAvailableSources
+                    options.minimumAvailableSources
                 ) || 1
-            )
+            ),
+
+        decisionStatus:
+            operationalAvailableCount === 0
+                ? "NO_OPERATIONAL_SOURCE"
+                : (
+                    operationalAvailableCount === 1
+                        ? "SINGLE_OPERATIONAL_SOURCE"
+                        : "MULTI_SOURCE_AVAILABLE"
+                ),
+
+        missingSourcesAreConflict:
+            false,
+
+        motionFallbackAvailable:
+            motionAvailable
     };
 }
 
@@ -33944,6 +34089,151 @@ orchestratePipelineCityImpact(
 
 
 /* ==========================================================================
+   SECTION 270A
+   Phase 9 — Source Availability and Fusion Decision
+   ========================================================================== */
+
+buildRainArrivalFusionDecision(
+    fused,
+    collectedSources,
+    sourceMatrix,
+    options = {}
+) {
+    const estimates =
+        Array.isArray(
+            collectedSources?.estimates
+        )
+            ? collectedSources.estimates
+            : [];
+
+    const validSourceCount =
+        estimates.length;
+
+    const rejected =
+        Array.isArray(
+            collectedSources?.rejected
+        )
+            ? collectedSources.rejected
+            : [];
+
+    const unavailableCount =
+        rejected.filter(
+            item =>
+                item?.reason ===
+                "SOURCE_NOT_AVAILABLE"
+        ).length;
+
+    const realConflict =
+        validSourceCount >= 2 &&
+        fused?.sourceAgreement?.conflict === true;
+
+    let status =
+        "NO_VALID_SOURCE";
+
+    let action =
+        "WAIT_FOR_VALID_SOURCE";
+
+    if (validSourceCount === 1) {
+        status =
+            "SINGLE_SOURCE_ACCEPTED";
+
+        action =
+            "USE_SINGLE_SOURCE_WITH_CAPPED_CONFIDENCE";
+    } else if (
+        validSourceCount >= 2 &&
+        !realConflict
+    ) {
+        status =
+            "MULTI_SOURCE_CONSENSUS";
+
+        action =
+            "USE_WEIGHTED_CONSENSUS";
+    } else if (realConflict) {
+        status =
+            "REAL_SOURCE_CONFLICT";
+
+        action =
+            "USE_RESILIENT_WEIGHTED_SOURCE_SELECTION";
+    }
+
+    const rankedSources =
+        estimates
+            .map(
+                estimate => ({
+                    source:
+                        estimate?.source ??
+                        "unknown",
+
+                    arrivalMinutes:
+                        Number(
+                            estimate?.arrivalMinutes
+                        ),
+
+                    confidence:
+                        Number(
+                            estimate?.confidence
+                        ) || 0,
+
+                    reliability:
+                        this.getRainArrivalSourceReliability(
+                            estimate?.source,
+                            options
+                        ),
+
+                    score:
+                        (
+                            Number(
+                                estimate?.confidence
+                            ) || 0
+                        ) *
+                        this.getRainArrivalSourceReliability(
+                            estimate?.source,
+                            options
+                        )
+                })
+            )
+            .sort(
+                (a, b) =>
+                    b.score -
+                    a.score
+            );
+
+    return {
+        status,
+
+        action,
+
+        sourceConflict:
+            realConflict,
+
+        validSourceCount,
+
+        rejectedSourceCount:
+            rejected.length,
+
+        unavailableSourceCount:
+            unavailableCount,
+
+        missingSourcesAreConflict:
+            false,
+
+        primarySource:
+            rankedSources[0] ??
+            null,
+
+        rankedSources,
+
+        sourceMatrixStatus:
+            sourceMatrix?.decisionStatus ??
+            null,
+
+        generatedAt:
+            new Date().toISOString()
+    };
+}
+
+
+/* ==========================================================================
    SECTION 271
    Arrival Fusion Orchestration
    ========================================================================== */
@@ -33962,17 +34252,32 @@ orchestratePipelineArrivalFusion(
     options = {}
 ) {
     const estimates =
-        collectedSources
-            ?.estimates ??
-        [];
+        Array.isArray(
+            collectedSources?.estimates
+        )
+            ? collectedSources.estimates
+            : [];
+
+    const sourceMatrix =
+        options.sourceMatrix ??
+        null;
 
     if (estimates.length === 0) {
-        return {
-            available: false,
-            arrivalMinutes: null,
-            confidence: 0,
-            sourceCount: 0,
-            estimates: [],
+        const unavailable = {
+            available:
+                false,
+
+            arrivalMinutes:
+                null,
+
+            confidence:
+                0,
+
+            sourceCount:
+                0,
+
+            estimates:
+                [],
 
             fusionMode:
                 "unavailable",
@@ -34007,6 +34312,16 @@ orchestratePipelineArrivalFusion(
                     false
             }
         };
+
+        unavailable.decision =
+            this.buildRainArrivalFusionDecision(
+                unavailable,
+                collectedSources,
+                sourceMatrix,
+                options
+            );
+
+        return unavailable;
     }
 
     const fused =
@@ -34016,12 +34331,10 @@ orchestratePipelineArrivalFusion(
                 ...options,
 
                 referenceTimestamp:
-                    normalizedInput
-                        .timestamp,
+                    normalizedInput.timestamp,
 
                 targetSourceCount:
-                    options
-                        .targetSourceCount ??
+                    options.targetSourceCount ??
                     4,
 
                 sourceConflictThresholdMinutes:
@@ -34036,12 +34349,27 @@ orchestratePipelineArrivalFusion(
             }
         );
 
-    return {
+    const realConflict =
+        estimates.length >= 2 &&
+        fused?.sourceAgreement?.conflict === true;
+
+    const result = {
         ...fused,
 
+        sourceConflict:
+            realConflict,
+
+        fusionMode:
+            estimates.length === 1
+                ? "single_source"
+                : (
+                    realConflict
+                        ? "multi_source_conflict_resilient"
+                        : "multi_source_consensus"
+                ),
+
         rejectedSources:
-            collectedSources
-                ?.rejected ??
+            collectedSources?.rejected ??
             [],
 
         coverage: {
@@ -34059,14 +34387,22 @@ orchestratePipelineArrivalFusion(
                 0,
 
             availableSourceCount:
-                collectedSources
-                    ?.collectedCount ??
                 estimates.length,
 
             missingSourcesAreConflict:
                 false
         }
     };
+
+    result.decision =
+        this.buildRainArrivalFusionDecision(
+            result,
+            collectedSources,
+            sourceMatrix,
+            options
+        );
+
+    return result;
 }
 
 
@@ -36399,7 +36735,11 @@ console.log(
                     normalizedInput,
                     components
                         .sourceCollection,
-                    options
+                    {
+                        ...options,
+                        sourceMatrix:
+                            components.sourceMatrix
+                    }
                 ),
             {
                 available: false,
@@ -56036,7 +56376,11 @@ async runResilientRainArrivalPrediction(
                     normalizedInput,
                     components
                         .sourceCollection,
-                    options
+                    {
+                        ...options,
+                        sourceMatrix:
+                            components.sourceMatrix
+                    }
                 ),
             [
                 {
