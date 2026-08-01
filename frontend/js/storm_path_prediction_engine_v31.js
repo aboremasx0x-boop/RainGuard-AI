@@ -17,7 +17,7 @@ window.RG30 = window.RG30 || {};
 
 RG31.StormPathPredictionEngine = {
 
-    version: "31.0.2",
+    version: "31.0.3",
 
     initialized: false,
 
@@ -410,6 +410,33 @@ RG31.StormPathPredictionEngine = {
                         publishedPaths.length
                     ),
 
+                projectedTrackCount:
+                    publishedPaths.reduce(
+                        (
+                            total,
+                            path
+                        ) =>
+                            total +
+                            (
+                                Array.isArray(
+                                    path.projectedTrack
+                                )
+                                    ? path.projectedTrack.length
+                                    : 0
+                            ),
+                        0
+                    ),
+
+                pathsWithProjectedTrack:
+                    publishedPaths.filter(
+                        path =>
+                            Array.isArray(
+                                path.projectedTrack
+                            ) &&
+                            path.projectedTrack.length >
+                            0
+                    ).length,
+
                 timestamp:
                     this.lastPredictionAt
 
@@ -593,6 +620,223 @@ RG31.StormPathPredictionEngine = {
                 predictionPoints
             );
 
+        const projectedTrack =
+            predictionPoints
+                .filter(
+                    point =>
+                        point &&
+                        Number.isFinite(
+                            Number(
+                                point.lat
+                            )
+                        ) &&
+                        Number.isFinite(
+                            Number(
+                                point.lon
+                            )
+                        )
+                )
+                .map(
+                    (
+                        point,
+                        index
+                    ) => {
+
+                        const latitude =
+                            Number(
+                                point.lat
+                            );
+
+                        const longitude =
+                            Number(
+                                point.lon
+                            );
+
+                        const minutes =
+                            this.safeNumber(
+                                point.minutes,
+                                0
+                            );
+
+                        return {
+
+                            index,
+
+                            cellId:
+                                cell.cellId,
+
+                            sourceCellId:
+                                cell.cellId,
+
+                            city:
+                                cell.city ||
+                                "Unknown",
+
+                            region:
+                                cell.region ||
+                                "",
+
+                            lat:
+                                latitude,
+
+                            lon:
+                                longitude,
+
+                            lng:
+                                longitude,
+
+                            latitude,
+
+                            longitude,
+
+                            coordinate: {
+                                lat:
+                                    latitude,
+
+                                lon:
+                                    longitude,
+
+                                lng:
+                                    longitude,
+
+                                latitude,
+
+                                longitude
+                            },
+
+                            position: {
+                                lat:
+                                    latitude,
+
+                                lon:
+                                    longitude,
+
+                                lng:
+                                    longitude,
+
+                                latitude,
+
+                                longitude
+                            },
+
+                            currentPosition: {
+                                lat:
+                                    latitude,
+
+                                lon:
+                                    longitude,
+
+                                lng:
+                                    longitude,
+
+                                latitude,
+
+                                longitude
+                            },
+
+                            predictedPosition: {
+                                lat:
+                                    latitude,
+
+                                lon:
+                                    longitude,
+
+                                lng:
+                                    longitude,
+
+                                latitude,
+
+                                longitude
+                            },
+
+                            minutes,
+
+                            arrivalMinutes:
+                                minutes,
+
+                            etaMinutes:
+                                minutes,
+
+                            estimatedArrivalMinutes:
+                                minutes,
+
+                            timestamp:
+                                point.timestamp,
+
+                            estimatedArrivalTimestamp:
+                                point.timestamp,
+
+                            speedKmh:
+                                this.safeNumber(
+                                    point.speedKmh,
+                                    speedKmh
+                                ),
+
+                            directionDegrees:
+                                this.firstNullableNumber(
+                                    point.directionDegrees,
+                                    directionDegrees
+                                ),
+
+                            bearing:
+                                this.firstNullableNumber(
+                                    point.directionDegrees,
+                                    directionDegrees
+                                ),
+
+                            heading:
+                                this.firstNullableNumber(
+                                    point.directionDegrees,
+                                    directionDegrees
+                                ),
+
+                            distanceKm:
+                                this.safeNumber(
+                                    point.distanceKm,
+                                    0
+                                ),
+
+                            intensity:
+                                this.safeNumber(
+                                    point.intensity,
+                                    0
+                                ),
+
+                            confidence:
+                                this.safeNumber(
+                                    point.confidence,
+                                    0
+                                ),
+
+                            riskScore:
+                                this.safeNumber(
+                                    point.riskScore,
+                                    0
+                                ),
+
+                            riskLevel:
+                                point.riskLevel ||
+                                this.getRiskLevel(
+                                    point.riskScore
+                                ),
+
+                            nearestCity:
+                                point.nearestCity ||
+                                null,
+
+                            nearestCityDistanceKm:
+                                point.nearestCityDistanceKm ??
+                                null,
+
+                            simulated:
+                                point.simulated ===
+                                true
+
+                        };
+
+                    }
+                );
+
         return {
 
             cellId:
@@ -612,6 +856,34 @@ RG31.StormPathPredictionEngine = {
                     currentLat,
 
                 lon:
+                    currentLon,
+
+                lng:
+                    currentLon,
+
+                latitude:
+                    currentLat,
+
+                longitude:
+                    currentLon
+
+            },
+
+            coordinate: {
+
+                lat:
+                    currentLat,
+
+                lon:
+                    currentLon,
+
+                lng:
+                    currentLon,
+
+                latitude:
+                    currentLat,
+
+                longitude:
                     currentLon
 
             },
@@ -671,6 +943,36 @@ RG31.StormPathPredictionEngine = {
 
             forecasts:
                 predictionPoints,
+
+            forecastPoints:
+                projectedTrack,
+
+            points:
+                projectedTrack,
+
+            pathPoints:
+                projectedTrack,
+
+            track:
+                projectedTrack,
+
+            trajectory:
+                projectedTrack,
+
+            projectedTrack:
+                projectedTrack,
+
+            projectedPoints:
+                projectedTrack,
+
+            predictedPoints:
+                projectedTrack,
+
+            predictedPositions:
+                projectedTrack,
+
+            path:
+                projectedTrack,
 
             impactedCities,
 
@@ -835,6 +1137,62 @@ RG31.StormPathPredictionEngine = {
 
             lon:
                 projectedPosition.lon,
+
+            lng:
+                projectedPosition.lon,
+
+            latitude:
+                projectedPosition.lat,
+
+            longitude:
+                projectedPosition.lon,
+
+            coordinate: {
+
+                lat:
+                    projectedPosition.lat,
+
+                lon:
+                    projectedPosition.lon,
+
+                lng:
+                    projectedPosition.lon,
+
+                latitude:
+                    projectedPosition.lat,
+
+                longitude:
+                    projectedPosition.lon
+
+            },
+
+            position: {
+
+                lat:
+                    projectedPosition.lat,
+
+                lon:
+                    projectedPosition.lon,
+
+                lng:
+                    projectedPosition.lon,
+
+                latitude:
+                    projectedPosition.lat,
+
+                longitude:
+                    projectedPosition.lon
+
+            },
+
+            arrivalMinutes:
+                normalizedMinutes,
+
+            etaMinutes:
+                normalizedMinutes,
+
+            estimatedArrivalMinutes:
+                normalizedMinutes,
 
             distanceKm:
                 Number(
@@ -2890,6 +3248,56 @@ RG31.StormPathPredictionEngine = {
                         )
                         : [],
 
+                forecastPoints:
+                    this.cloneTrackPoints(
+                        prediction.forecastPoints
+                    ),
+
+                points:
+                    this.cloneTrackPoints(
+                        prediction.points
+                    ),
+
+                pathPoints:
+                    this.cloneTrackPoints(
+                        prediction.pathPoints
+                    ),
+
+                track:
+                    this.cloneTrackPoints(
+                        prediction.track
+                    ),
+
+                trajectory:
+                    this.cloneTrackPoints(
+                        prediction.trajectory
+                    ),
+
+                projectedTrack:
+                    this.cloneTrackPoints(
+                        prediction.projectedTrack
+                    ),
+
+                projectedPoints:
+                    this.cloneTrackPoints(
+                        prediction.projectedPoints
+                    ),
+
+                predictedPoints:
+                    this.cloneTrackPoints(
+                        prediction.predictedPoints
+                    ),
+
+                predictedPositions:
+                    this.cloneTrackPoints(
+                        prediction.predictedPositions
+                    ),
+
+                path:
+                    this.cloneTrackPoints(
+                        prediction.path
+                    ),
+
                 impactedCities:
                     Array.isArray(
                         prediction.impactedCities
@@ -2912,6 +3320,70 @@ RG31.StormPathPredictionEngine = {
                             })
                         )
                         : []
+
+            })
+        );
+
+    },
+
+    /* ======================================================
+       CLONE TRACK POINTS
+    ====================================================== */
+
+    cloneTrackPoints(
+        points = []
+    ) {
+
+        if (
+            !Array.isArray(
+                points
+            )
+        ) {
+
+            return [];
+
+        }
+
+        return points.map(
+            point => ({
+
+                ...point,
+
+                coordinate:
+                    point?.coordinate &&
+                    typeof point.coordinate ===
+                        "object"
+                        ? {
+                            ...point.coordinate
+                        }
+                        : point?.coordinate,
+
+                position:
+                    point?.position &&
+                    typeof point.position ===
+                        "object"
+                        ? {
+                            ...point.position
+                        }
+                        : point?.position,
+
+                currentPosition:
+                    point?.currentPosition &&
+                    typeof point.currentPosition ===
+                        "object"
+                        ? {
+                            ...point.currentPosition
+                        }
+                        : point?.currentPosition,
+
+                predictedPosition:
+                    point?.predictedPosition &&
+                    typeof point.predictedPosition ===
+                        "object"
+                        ? {
+                            ...point.predictedPosition
+                        }
+                        : point?.predictedPosition
 
             })
         );
@@ -2968,6 +3440,56 @@ RG31.StormPathPredictionEngine = {
                         })
                     )
                     : [],
+
+            forecastPoints:
+                this.cloneTrackPoints(
+                    prediction.forecastPoints
+                ),
+
+            points:
+                this.cloneTrackPoints(
+                    prediction.points
+                ),
+
+            pathPoints:
+                this.cloneTrackPoints(
+                    prediction.pathPoints
+                ),
+
+            track:
+                this.cloneTrackPoints(
+                    prediction.track
+                ),
+
+            trajectory:
+                this.cloneTrackPoints(
+                    prediction.trajectory
+                ),
+
+            projectedTrack:
+                this.cloneTrackPoints(
+                    prediction.projectedTrack
+                ),
+
+            projectedPoints:
+                this.cloneTrackPoints(
+                    prediction.projectedPoints
+                ),
+
+            predictedPoints:
+                this.cloneTrackPoints(
+                    prediction.predictedPoints
+                ),
+
+            predictedPositions:
+                this.cloneTrackPoints(
+                    prediction.predictedPositions
+                ),
+
+            path:
+                this.cloneTrackPoints(
+                    prediction.path
+                ),
 
             impactedCities:
                 Array.isArray(
