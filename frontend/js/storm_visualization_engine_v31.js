@@ -30,13 +30,16 @@ window.RG30 =
 RG31.StormVisualizationEngine = {
 
     version:
-        "31.0.0",
+        "31.0.1",
 
     initialized:
         false,
 
     rendering:
         false,
+
+    pendingRenderRequest:
+        null,
 
     cycleNumber:
         0,
@@ -1095,7 +1098,10 @@ RG31.StormVisualizationEngine = {
                 ?.StormCellTrackingEngine ||
 
             window.RG30
-                ?.StormCellTrackingEngine;
+                ?.StormCellTrackingEngine ||
+
+            window
+                .StormCellTrackingEngineV31Instance;
 
         if (
             typeof tracker
@@ -1103,22 +1109,87 @@ RG31.StormVisualizationEngine = {
                 "function"
         ) {
 
-            return tracker
-                .getActiveCells();
+            const result =
+                tracker.getActiveCells();
+
+            if (
+                Array.isArray(
+                    result
+                )
+            ) {
+
+                return [
+                    ...result
+                ];
+
+            }
+
+            if (
+                result &&
+                typeof result ===
+                    "object"
+            ) {
+
+                return Object.values(
+                    result
+                );
+
+            }
 
         }
 
-        if (
-            Array.isArray(
-                window.RG31
-                    ?.ActiveStormCells
-            )
+        const candidates = [
+
+            window.RG31
+                ?.ActiveStormCells,
+
+            window.RG31
+                ?.activeStormCells,
+
+            window.RG30
+                ?.ActiveStormCells,
+
+            window.RG30
+                ?.activeStormCells,
+
+            window.RainGuardAI
+                ?.V32
+                ?.activeStormCells,
+
+            window.RG31
+                ?.latestStormTrackingReport
+                ?.activeCells
+
+        ];
+
+        for (
+            const candidate of
+            candidates
         ) {
 
-            return [
-                ...window.RG31
-                    .ActiveStormCells
-            ];
+            if (
+                Array.isArray(
+                    candidate
+                )
+            ) {
+
+                return [
+                    ...candidate
+                ];
+
+            }
+
+            if (
+                candidate &&
+                typeof candidate ===
+                    "object"
+            ) {
+
+                return Object.values(
+                    candidate
+                );
+
+            }
 
         }
 
@@ -1138,7 +1209,10 @@ RG31.StormVisualizationEngine = {
                 ?.StormPathPredictionEngine ||
 
             window.RG30
-                ?.StormPathPredictionEngine;
+                ?.StormPathPredictionEngine ||
+
+            window
+                .StormPathPredictionEngineV31Instance;
 
         if (
             typeof predictor
@@ -1146,22 +1220,91 @@ RG31.StormVisualizationEngine = {
                 "function"
         ) {
 
-            return predictor
-                .getPredictedPaths();
+            const result =
+                predictor.getPredictedPaths();
+
+            if (
+                Array.isArray(
+                    result
+                )
+            ) {
+
+                return [
+                    ...result
+                ];
+
+            }
+
+            if (
+                result &&
+                typeof result ===
+                    "object"
+            ) {
+
+                return Object.values(
+                    result
+                );
+
+            }
 
         }
 
-        if (
-            Array.isArray(
-                window.RG31
-                    ?.PredictedStormPaths
-            )
+        const candidates = [
+
+            window.RG31
+                ?.PredictedStormPaths,
+
+            window.RG31
+                ?.predictedStormPaths,
+
+            window.RG30
+                ?.PredictedStormPaths,
+
+            window.RG30
+                ?.predictedStormPaths,
+
+            window.RainGuardAI
+                ?.V32
+                ?.predictedStormPaths,
+
+            window.RG31
+                ?.latestStormPathPrediction
+                ?.predictions,
+
+            window.RG31
+                ?.LatestStormPathPrediction
+                ?.predictions
+
+        ];
+
+        for (
+            const candidate of
+            candidates
         ) {
 
-            return [
-                ...window.RG31
-                    .PredictedStormPaths
-            ];
+            if (
+                Array.isArray(
+                    candidate
+                )
+            ) {
+
+                return [
+                    ...candidate
+                ];
+
+            }
+
+            if (
+                candidate &&
+                typeof candidate ===
+                    "object"
+            ) {
+
+                return Object.values(
+                    candidate
+                );
+
+            }
 
         }
 
@@ -1211,6 +1354,14 @@ RG31.StormVisualizationEngine = {
             this.rendering
         ) {
 
+            this.pendingRenderRequest = {
+
+                activeCells,
+
+                predictions
+
+            };
+
             return this.latestVisualizationReport;
 
         }
@@ -1248,14 +1399,30 @@ RG31.StormVisualizationEngine = {
                     activeCells
                 )
                     ? activeCells
-                    : [];
+                    : (
+                        activeCells &&
+                        typeof activeCells ===
+                            "object"
+                            ? Object.values(
+                                activeCells
+                            )
+                            : []
+                    );
 
             const normalizedPredictions =
                 Array.isArray(
                     predictions
                 )
                     ? predictions
-                    : [];
+                    : (
+                        predictions &&
+                        typeof predictions ===
+                            "object"
+                            ? Object.values(
+                                predictions
+                            )
+                            : []
+                    );
 
             this.clearVisualizationLayers();
 
@@ -1435,16 +1602,11 @@ RG31.StormVisualizationEngine = {
 window.RG31 =
     window.RG31 || {};
 
-window.RG31.activeStormCells =
-    normalizedCells;
+window.RG30 =
+    window.RG30 || {};
 
-window.RG31.predictedStormPaths =
-    normalizedPredictions;
+const visualizationBridgeReport = {
 
-window.RG31.latestStormVisualizationReport =
-    report;
-
-window.RG31.latestStormTrackingReport = {
     activeCells:
         normalizedCells,
 
@@ -1462,33 +1624,95 @@ window.RG31.latestStormTrackingReport = {
 
     timestamp:
         this.lastRenderAt
+
 };
 
-window.RG31.LatestStormPathPrediction = {
+const latestPathPrediction = {
+
     cells:
         normalizedCells,
 
     predictions:
         normalizedPredictions,
 
+    predictionCount:
+        normalizedPredictions.length,
+
     generatedAt:
         this.lastRenderAt
+
 };
+
+window.RG31.ActiveStormCells =
+    normalizedCells;
+
+window.RG31.activeStormCells =
+    normalizedCells;
+
+window.RG30.ActiveStormCells =
+    normalizedCells;
+
+window.RG30.activeStormCells =
+    normalizedCells;
+
+window.RG31.PredictedStormPaths =
+    normalizedPredictions;
+
+window.RG31.predictedStormPaths =
+    normalizedPredictions;
+
+window.RG30.PredictedStormPaths =
+    normalizedPredictions;
+
+window.RG30.predictedStormPaths =
+    normalizedPredictions;
+
+window.RG31.latestStormVisualizationReport =
+    report;
+
+window.RG30.latestStormVisualizationReport =
+    report;
+
+window.RG31.latestStormVisualizationBridgeReport =
+    visualizationBridgeReport;
+
+window.RG30.latestStormVisualizationBridgeReport =
+    visualizationBridgeReport;
+
+window.RG31.LatestStormPathPrediction =
+    latestPathPrediction;
+
+window.RG31.latestStormPathPrediction =
+    latestPathPrediction;
+
+window.RG30.LatestStormPathPrediction =
+    latestPathPrediction;
+
+window.RG30.latestStormPathPrediction =
+    latestPathPrediction;
 
 if (
     window.RainGuardAI?.V32
 ) {
+
     window.RainGuardAI.V32.activeStormCells =
         normalizedCells;
 
     window.RainGuardAI.V32.predictedStormPaths =
         normalizedPredictions;
 
-    window.RainGuardAI.V32.latestStormTrackingReport =
-        window.RG31.latestStormTrackingReport;
+    window.RainGuardAI.V32.latestStormVisualizationReport =
+        report;
+
+    window.RainGuardAI.V32.latestStormVisualizationBridgeReport =
+        visualizationBridgeReport;
 
     window.RainGuardAI.V32.LatestStormPathPrediction =
-        window.RG31.LatestStormPathPrediction;
+        latestPathPrediction;
+
+    window.RainGuardAI.V32.latestStormPathPrediction =
+        latestPathPrediction;
+
 }
 
             if (
@@ -1561,6 +1785,29 @@ if (
             this.rendering =
                 false;
 
+            const pendingRequest =
+                this.pendingRenderRequest;
+
+            this.pendingRenderRequest =
+                null;
+
+            if (
+                pendingRequest
+            ) {
+
+                window.setTimeout(
+                    () => {
+
+                        this.renderStormSystem(
+                            pendingRequest
+                        );
+
+                    },
+                    0
+                );
+
+            }
+
         }
 
     },
@@ -1625,21 +1872,39 @@ if (
             {};
 
         activeCells.forEach(
-            cell => {
+            (
+                cell,
+                index
+            ) => {
 
                 if (
-                    !cell ||
-                    !cell.cellId
+                    !cell
                 ) {
 
                     return;
 
                 }
 
+                const key =
+                    String(
+                        cell.cellId ||
+                        cell.id ||
+                        cell.trackingId ||
+                        `storm_cell_${index}`
+                    )
+                        .trim();
+
                 lookup[
-                    cell.cellId
-                ] =
-                    cell;
+                    key
+                ] = {
+
+                    ...cell,
+
+                    cellId:
+                        cell.cellId ||
+                        key
+
+                };
 
             }
         );
@@ -1660,21 +1925,39 @@ if (
             {};
 
         predictions.forEach(
-            prediction => {
+            (
+                prediction,
+                index
+            ) => {
 
                 if (
-                    !prediction ||
-                    !prediction.cellId
+                    !prediction
                 ) {
 
                     return;
 
                 }
 
+                const key =
+                    String(
+                        prediction.cellId ||
+                        prediction.id ||
+                        prediction.trackingId ||
+                        `storm_path_${index}`
+                    )
+                        .trim();
+
                 lookup[
-                    prediction.cellId
-                ] =
-                    prediction;
+                    key
+                ] = {
+
+                    ...prediction,
+
+                    cellId:
+                        prediction.cellId ||
+                        key
+
+                };
 
             }
         );
@@ -2142,8 +2425,17 @@ if (
 
         };
 
+        const renderedCellKey =
+            String(
+                cell.cellId ||
+                cell.id ||
+                `rendered_cell_${Object.keys(
+                    this.renderedCells
+                ).length}`
+            );
+
         this.renderedCells[
-            cell.cellId
+            renderedCellKey
         ] =
             renderedCell;
 
@@ -5309,8 +5601,17 @@ if (
 
         };
 
+        const renderedPathKey =
+            String(
+                prediction.cellId ||
+                prediction.id ||
+                `rendered_path_${Object.keys(
+                    this.renderedPaths
+                ).length}`
+            );
+
         this.renderedPaths[
-            prediction.cellId
+            renderedPathKey
         ] =
             renderedPath;
 
@@ -10550,6 +10851,9 @@ if (
 
         this.rendering =
             false;
+
+        this.pendingRenderRequest =
+            null;
 
         this.cycleNumber =
             0;
