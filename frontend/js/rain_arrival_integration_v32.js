@@ -61554,9 +61554,9 @@ globalObject
         return;
     }
 
-    const PATCH_VERSION = '32.3.0';
-    const PATCH_BUILD = 3230;
-    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3230';
+    const PATCH_VERSION = '32.4.0';
+    const PATCH_BUILD = 3240;
+    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3240';
 
     function isObject(value) {
         return Boolean(value) && typeof value === 'object';
