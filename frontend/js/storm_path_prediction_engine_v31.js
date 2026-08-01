@@ -17,7 +17,7 @@ window.RG30 = window.RG30 || {};
 
 RG31.StormPathPredictionEngine = {
 
-    version: "31.0.3",
+    version: "31.0.4",
 
     initialized: false,
 
@@ -372,15 +372,16 @@ RG31.StormPathPredictionEngine = {
 
                     this.predictedPaths[
                         pathKey
-                    ] = {
+                    ] =
+                        this.normalizePublishedPrediction({
 
-                        ...path,
+                            ...path,
 
-                        cellId:
-                            path?.cellId ||
-                            pathKey
+                            cellId:
+                                path?.cellId ||
+                                pathKey
 
-                    };
+                        });
 
                 }
 
@@ -418,11 +419,9 @@ RG31.StormPathPredictionEngine = {
                         ) =>
                             total +
                             (
-                                Array.isArray(
-                                    path.projectedTrack
-                                )
-                                    ? path.projectedTrack.length
-                                    : 0
+                                this.resolveCanonicalProjectedTrack(
+                                    path
+                                ).length
                             ),
                         0
                     ),
@@ -430,10 +429,9 @@ RG31.StormPathPredictionEngine = {
                 pathsWithProjectedTrack:
                     publishedPaths.filter(
                         path =>
-                            Array.isArray(
-                                path.projectedTrack
-                            ) &&
-                            path.projectedTrack.length >
+                            this.resolveCanonicalProjectedTrack(
+                                path
+                            ).length >
                             0
                     ).length,
 
@@ -3000,12 +2998,37 @@ RG31.StormPathPredictionEngine = {
                 parsed.latestPredictionReport ||
                 null;
 
-            this.predictedPaths =
+            const restoredPaths =
                 parsed.predictedPaths &&
                 typeof parsed.predictedPaths ===
                     "object"
                     ? parsed.predictedPaths
                     : {};
+
+            this.predictedPaths =
+                Object.fromEntries(
+
+                    Object.entries(
+                        restoredPaths
+                    )
+                    .map(
+                        (
+                            [
+                                key,
+                                prediction
+                            ]
+                        ) => [
+
+                            key,
+
+                            this.normalizePublishedPrediction(
+                                prediction
+                            )
+
+                        ]
+                    )
+
+                );
 
             return true;
 
@@ -3181,6 +3204,485 @@ RG31.StormPathPredictionEngine = {
     },
 
     /* ======================================================
+       RESOLVE CANONICAL PROJECTED TRACK
+    ====================================================== */
+
+    resolveCanonicalProjectedTrack(
+        prediction = {}
+    ) {
+
+        const candidates = [
+
+            prediction.projectedTrack,
+
+            prediction.pathPoints,
+
+            prediction.forecastPoints,
+
+            prediction.points,
+
+            prediction.track,
+
+            prediction.trajectory,
+
+            prediction.projectedPoints,
+
+            prediction.predictedPoints,
+
+            prediction.predictedPositions,
+
+            prediction.path,
+
+            prediction.forecasts
+
+        ];
+
+        let sourcePoints =
+            [];
+
+        for (
+            const candidate of
+            candidates
+        ) {
+
+            if (
+                Array.isArray(
+                    candidate
+                ) &&
+                candidate.length >
+                0
+            ) {
+
+                sourcePoints =
+                    candidate;
+
+                break;
+
+            }
+
+        }
+
+        return sourcePoints
+            .map(
+                (
+                    point,
+                    index
+                ) =>
+                    this.normalizeTrackPoint(
+                        point,
+                        prediction,
+                        index
+                    )
+            )
+            .filter(
+                point =>
+                    point !==
+                    null
+            );
+
+    },
+
+    /* ======================================================
+       NORMALIZE TRACK POINT
+    ====================================================== */
+
+    normalizeTrackPoint(
+        point = {},
+        prediction = {},
+        index = 0
+    ) {
+
+        if (
+            !point ||
+            typeof point !==
+                "object"
+        ) {
+
+            return null;
+
+        }
+
+        const latitude =
+            this.firstNullableNumber(
+
+                point.latitude,
+
+                point.lat,
+
+                point.coordinate
+                    ?.latitude,
+
+                point.coordinate
+                    ?.lat,
+
+                point.position
+                    ?.latitude,
+
+                point.position
+                    ?.lat,
+
+                point.currentPosition
+                    ?.latitude,
+
+                point.currentPosition
+                    ?.lat,
+
+                point.predictedPosition
+                    ?.latitude,
+
+                point.predictedPosition
+                    ?.lat
+
+            );
+
+        const longitude =
+            this.firstNullableNumber(
+
+                point.longitude,
+
+                point.lon,
+
+                point.lng,
+
+                point.coordinate
+                    ?.longitude,
+
+                point.coordinate
+                    ?.lon,
+
+                point.coordinate
+                    ?.lng,
+
+                point.position
+                    ?.longitude,
+
+                point.position
+                    ?.lon,
+
+                point.position
+                    ?.lng,
+
+                point.currentPosition
+                    ?.longitude,
+
+                point.currentPosition
+                    ?.lon,
+
+                point.currentPosition
+                    ?.lng,
+
+                point.predictedPosition
+                    ?.longitude,
+
+                point.predictedPosition
+                    ?.lon,
+
+                point.predictedPosition
+                    ?.lng
+
+            );
+
+        if (
+            latitude ===
+                null ||
+            longitude ===
+                null
+        ) {
+
+            return null;
+
+        }
+
+        const minutes =
+            Math.max(
+
+                0,
+
+                this.safeNumber(
+
+                    point.arrivalMinutes ??
+                    point.etaMinutes ??
+                    point.estimatedArrivalMinutes ??
+                    point.minutes,
+
+                    index *
+                    30
+
+                )
+
+            );
+
+        const timestamp =
+            point.timestamp ||
+            point.estimatedArrivalTimestamp ||
+            new Date(
+
+                Date.now() +
+                minutes *
+                60000
+
+            )
+            .toISOString();
+
+        const speedKmh =
+            this.safeNumber(
+
+                point.speedKmh,
+
+                prediction.speedKmh ??
+                0
+
+            );
+
+        const directionDegrees =
+            this.firstNullableNumber(
+
+                point.directionDegrees,
+
+                point.bearing,
+
+                point.heading,
+
+                prediction.directionDegrees
+
+            );
+
+        return {
+
+            ...point,
+
+            index,
+
+            cellId:
+                point.cellId ||
+                prediction.cellId ||
+                null,
+
+            sourceCellId:
+                point.sourceCellId ||
+                prediction.cellId ||
+                null,
+
+            city:
+                point.city ||
+                prediction.city ||
+                "Unknown",
+
+            region:
+                point.region ||
+                prediction.region ||
+                "",
+
+            lat:
+                latitude,
+
+            lon:
+                longitude,
+
+            lng:
+                longitude,
+
+            latitude,
+
+            longitude,
+
+            coordinate: {
+
+                lat:
+                    latitude,
+
+                lon:
+                    longitude,
+
+                lng:
+                    longitude,
+
+                latitude,
+
+                longitude
+
+            },
+
+            position: {
+
+                lat:
+                    latitude,
+
+                lon:
+                    longitude,
+
+                lng:
+                    longitude,
+
+                latitude,
+
+                longitude
+
+            },
+
+            currentPosition: {
+
+                lat:
+                    latitude,
+
+                lon:
+                    longitude,
+
+                lng:
+                    longitude,
+
+                latitude,
+
+                longitude
+
+            },
+
+            predictedPosition: {
+
+                lat:
+                    latitude,
+
+                lon:
+                    longitude,
+
+                lng:
+                    longitude,
+
+                latitude,
+
+                longitude
+
+            },
+
+            minutes,
+
+            arrivalMinutes:
+                minutes,
+
+            etaMinutes:
+                minutes,
+
+            estimatedArrivalMinutes:
+                minutes,
+
+            timestamp,
+
+            estimatedArrivalTimestamp:
+                timestamp,
+
+            speedKmh,
+
+            directionDegrees,
+
+            bearing:
+                directionDegrees,
+
+            heading:
+                directionDegrees
+
+        };
+
+    },
+
+    /* ======================================================
+       NORMALIZE PUBLISHED PREDICTION
+    ====================================================== */
+
+    normalizePublishedPrediction(
+        prediction = {}
+    ) {
+
+        const canonicalTrack =
+            this.resolveCanonicalProjectedTrack(
+                prediction
+            );
+
+        const clonedTrack =
+            () =>
+                this.cloneTrackPoints(
+                    canonicalTrack
+                );
+
+        return {
+
+            ...prediction,
+
+            forecasts:
+                Array.isArray(
+                    prediction.forecasts
+                )
+                    ? prediction.forecasts.map(
+                        point => ({
+                            ...point
+                        })
+                    )
+                    : clonedTrack(),
+
+            forecastPoints:
+                clonedTrack(),
+
+            points:
+                clonedTrack(),
+
+            pathPoints:
+                clonedTrack(),
+
+            track:
+                clonedTrack(),
+
+            trajectory:
+                clonedTrack(),
+
+            projectedTrack:
+                clonedTrack(),
+
+            projectedPoints:
+                clonedTrack(),
+
+            predictedPoints:
+                clonedTrack(),
+
+            predictedPositions:
+                clonedTrack(),
+
+            path:
+                clonedTrack(),
+
+            projectedTrackCount:
+                canonicalTrack.length,
+
+            hasProjectedTrack:
+                canonicalTrack.length >
+                0,
+
+            impactedCities:
+                Array.isArray(
+                    prediction.impactedCities
+                )
+                    ? prediction.impactedCities.map(
+                        city => ({
+                            ...city,
+
+                            forecastPoints:
+                                Array.isArray(
+                                    city.forecastPoints
+                                )
+                                    ? city.forecastPoints.map(
+                                        point => ({
+                                            ...point
+                                        })
+                                    )
+                                    : []
+
+                        })
+                    )
+                    : []
+
+        };
+
+    },
+
+    /* ======================================================
        GET PREDICTED PATHS
     ====================================================== */
 
@@ -3233,95 +3735,9 @@ RG31.StormPathPredictionEngine = {
             }
         )
         .map(
-            prediction => ({
-
-                ...prediction,
-
-                forecasts:
-                    Array.isArray(
-                        prediction.forecasts
-                    )
-                        ? prediction.forecasts.map(
-                            point => ({
-                                ...point
-                            })
-                        )
-                        : [],
-
-                forecastPoints:
-                    this.cloneTrackPoints(
-                        prediction.forecastPoints
-                    ),
-
-                points:
-                    this.cloneTrackPoints(
-                        prediction.points
-                    ),
-
-                pathPoints:
-                    this.cloneTrackPoints(
-                        prediction.pathPoints
-                    ),
-
-                track:
-                    this.cloneTrackPoints(
-                        prediction.track
-                    ),
-
-                trajectory:
-                    this.cloneTrackPoints(
-                        prediction.trajectory
-                    ),
-
-                projectedTrack:
-                    this.cloneTrackPoints(
-                        prediction.projectedTrack
-                    ),
-
-                projectedPoints:
-                    this.cloneTrackPoints(
-                        prediction.projectedPoints
-                    ),
-
-                predictedPoints:
-                    this.cloneTrackPoints(
-                        prediction.predictedPoints
-                    ),
-
-                predictedPositions:
-                    this.cloneTrackPoints(
-                        prediction.predictedPositions
-                    ),
-
-                path:
-                    this.cloneTrackPoints(
-                        prediction.path
-                    ),
-
-                impactedCities:
-                    Array.isArray(
-                        prediction.impactedCities
-                    )
-                        ? prediction.impactedCities.map(
-                            city => ({
-                                ...city,
-
-                                forecastPoints:
-                                    Array.isArray(
-                                        city.forecastPoints
-                                    )
-                                        ? city.forecastPoints.map(
-                                            point => ({
-                                                ...point
-                                            })
-                                        )
-                                        : []
-
-                            })
-                        )
-                        : []
-
-            })
+            prediction => this.normalizePublishedPrediction(
+                prediction
+            )
         );
 
     },
@@ -3426,95 +3842,10 @@ RG31.StormPathPredictionEngine = {
 
         }
 
-        return {
-
-            ...prediction,
-
-            forecasts:
-                Array.isArray(
-                    prediction.forecasts
-                )
-                    ? prediction.forecasts.map(
-                        point => ({
-                            ...point
-                        })
-                    )
-                    : [],
-
-            forecastPoints:
-                this.cloneTrackPoints(
-                    prediction.forecastPoints
-                ),
-
-            points:
-                this.cloneTrackPoints(
-                    prediction.points
-                ),
-
-            pathPoints:
-                this.cloneTrackPoints(
-                    prediction.pathPoints
-                ),
-
-            track:
-                this.cloneTrackPoints(
-                    prediction.track
-                ),
-
-            trajectory:
-                this.cloneTrackPoints(
-                    prediction.trajectory
-                ),
-
-            projectedTrack:
-                this.cloneTrackPoints(
-                    prediction.projectedTrack
-                ),
-
-            projectedPoints:
-                this.cloneTrackPoints(
-                    prediction.projectedPoints
-                ),
-
-            predictedPoints:
-                this.cloneTrackPoints(
-                    prediction.predictedPoints
-                ),
-
-            predictedPositions:
-                this.cloneTrackPoints(
-                    prediction.predictedPositions
-                ),
-
-            path:
-                this.cloneTrackPoints(
-                    prediction.path
-                ),
-
-            impactedCities:
-                Array.isArray(
-                    prediction.impactedCities
-                )
-                    ? prediction.impactedCities.map(
-                        city => ({
-                            ...city,
-
-                            forecastPoints:
-                                Array.isArray(
-                                    city.forecastPoints
-                                )
-                                    ? city.forecastPoints.map(
-                                        point => ({
-                                            ...point
-                                        })
-                                    )
-                                    : []
-
-                        })
-                    )
-                    : []
-
-        };
+        return this
+            .normalizePublishedPrediction(
+                prediction
+            );
 
     },
 
@@ -5327,6 +5658,98 @@ window.destroyStormPathPredictionV31 =
         return window.RG31
             .StormPathPredictionEngine
             .destroy();
+
+    };
+
+window.repairStormPathPredictionAliasesV31 =
+    function () {
+
+        const engine =
+            window.RG31
+                .StormPathPredictionEngine;
+
+        const repaired =
+            {};
+
+        Object.entries(
+            engine.predictedPaths ||
+            {}
+        )
+        .forEach(
+            (
+                [
+                    key,
+                    prediction
+                ]
+            ) => {
+
+                repaired[
+                    key
+                ] =
+                    engine
+                        .normalizePublishedPrediction(
+                            prediction
+                        );
+
+            }
+        );
+
+        engine.predictedPaths =
+            repaired;
+
+        const predictions =
+            engine.getPredictedPaths();
+
+        engine.latestPredictionReport = {
+
+            ...(
+                engine.latestPredictionReport ||
+                {}
+            ),
+
+            predictionCount:
+                predictions.length,
+
+            predictions,
+
+            projectedTrackCount:
+                predictions.reduce(
+                    (
+                        total,
+                        prediction
+                    ) =>
+                        total +
+                        (
+                            prediction
+                                .projectedTrack
+                                ?.length ||
+                            0
+                        ),
+                    0
+                ),
+
+            pathsWithProjectedTrack:
+                predictions.filter(
+                    prediction =>
+                        (
+                            prediction
+                                .projectedTrack
+                                ?.length ||
+                            0
+                        ) >
+                        0
+                ).length
+
+        };
+
+        engine.saveState();
+
+        engine.publishPredictionReport(
+            engine.latestPredictionReport
+        );
+
+        return engine
+            .latestPredictionReport;
 
     };
 
