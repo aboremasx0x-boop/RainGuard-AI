@@ -37,13 +37,13 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.0.0";
+        "32.1.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
 
     const ENGINE_MINOR_VERSION =
-        0;
+        1;
 
     const ENGINE_PATCH_VERSION =
         0;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-rain-arrival-production";
+        "rainguard-v32-rain-arrival-production-target-track-compat";
 
     const ENGINE_STAGE =
         "production";
@@ -12963,15 +12963,51 @@ normalizeCoordinate(coordinate, options = {}) {
         coordinate &&
         typeof coordinate === 'object'
     ) {
+        /*
+         * V32.1 compatibility:
+         * Accept direct coordinates and the nested shapes published by
+         * V30/V31/V32 target, city, radar and storm-path modules.
+         */
+        const nestedCoordinate =
+            coordinate.coordinate ??
+            coordinate.coordinates ??
+            coordinate.position ??
+            coordinate.currentPosition ??
+            coordinate.predictedPosition ??
+            coordinate.futurePosition ??
+            coordinate.location ??
+            coordinate.center ??
+            coordinate.centroid ??
+            coordinate.targetCoordinate ??
+            coordinate.target ??
+            null;
+
+        if (
+            nestedCoordinate &&
+            nestedCoordinate !== coordinate
+        ) {
+            const nestedNormalized =
+                this.normalizeCoordinate(
+                    nestedCoordinate,
+                    options
+                );
+
+            if (nestedNormalized) {
+                return nestedNormalized;
+            }
+        }
+
         latitude = Number(
             coordinate.latitude ??
-            coordinate.lat
+            coordinate.lat ??
+            coordinate.y
         );
 
         longitude = Number(
             coordinate.longitude ??
             coordinate.lon ??
-            coordinate.lng
+            coordinate.lng ??
+            coordinate.x
         );
     } else {
         return null;
@@ -29111,13 +29147,129 @@ _normalizePredictionPipelineInput(
             ? safeInput.collection
             : {};
 
+    const extractTrackPoints = (candidate, depth = 0) => {
+        if (
+            candidate === null ||
+            candidate === undefined ||
+            depth > 8
+        ) {
+            return [];
+        }
+
+        if (candidate instanceof Map) {
+            return extractTrackPoints(
+                Array.from(candidate.values()),
+                depth + 1
+            );
+        }
+
+        if (Array.isArray(candidate)) {
+            if (candidate.length === 0) {
+                return [];
+            }
+
+            const directPoints =
+                candidate.filter((item) =>
+                    Boolean(
+                        this.normalizeCoordinate(
+                            item?.coordinate ??
+                            item?.position ??
+                            item?.location ??
+                            item?.currentPosition ??
+                            item?.predictedPosition ??
+                            item
+                        )
+                    )
+                );
+
+            if (directPoints.length > 0) {
+                return directPoints;
+            }
+
+            for (const item of candidate) {
+                const nested =
+                    extractTrackPoints(
+                        item,
+                        depth + 1
+                    );
+
+                if (nested.length > 0) {
+                    return nested;
+                }
+            }
+
+            return [];
+        }
+
+        if (typeof candidate !== 'object') {
+            return [];
+        }
+
+        const nestedCandidates = [
+            candidate.points,
+            candidate.pathPoints,
+            candidate.track,
+            candidate.path,
+            candidate.projectedTrack,
+            candidate.projectedPoints,
+            candidate.forecastPoints,
+            candidate.predictedPoints,
+            candidate.predictedPositions,
+            candidate.trajectory,
+            candidate.positions,
+            candidate.projections,
+            candidate.predictions,
+            candidate.paths,
+            candidate.predictedPaths,
+            candidate.predictedStormPaths,
+            candidate.result?.predictions,
+            candidate.latestPrediction?.predictions
+        ];
+
+        for (const nestedCandidate of nestedCandidates) {
+            const nested =
+                extractTrackPoints(
+                    nestedCandidate,
+                    depth + 1
+                );
+
+            if (nested.length > 0) {
+                return nested;
+            }
+        }
+
+        return [];
+    };
+
+    const selectProjectedTrack = (...candidates) => {
+        for (const candidate of candidates) {
+            const points = extractTrackPoints(candidate);
+
+            if (points.length > 0) {
+                return points;
+            }
+        }
+
+        return [];
+    };
+
     const targetCoordinate =
         this.normalizeCoordinate(
             safeInput.targetCoordinate ??
+            safeInput.target?.coordinate ??
+            safeInput.target?.coordinates ??
+            safeInput.target?.position ??
+            safeInput.target ??
             safeInput.coordinate ??
+            safeInput.coordinates ??
+            safeInput.location?.coordinate ??
+            safeInput.location?.position ??
             safeInput.location ??
             safeInput.position ??
-            safeOptions.targetCoordinate
+            safeInput.cityCoordinate ??
+            safeOptions.targetCoordinate ??
+            safeOptions.target?.coordinate ??
+            safeOptions.target
         );
 
     const stormCoordinate =
@@ -29161,24 +29313,38 @@ _normalizePredictionPipelineInput(
                     : []
             );
 
+    const rg31 =
+        globalThis.RG31 ??
+        globalThis.RainGuardAI?.V31 ??
+        {};
+
     const projectedTrack =
-        Array.isArray(
-            safeInput.projectedTrack
-        )
-            ? safeInput.projectedTrack
-            : (
-                Array.isArray(
-                    safeInput.forecastTrack
-                )
-                    ? safeInput.forecastTrack
-                    : (
-                        Array.isArray(
-                            safeInput.stormTrack
-                        )
-                            ? safeInput.stormTrack
-                            : []
-                    )
-            );
+        selectProjectedTrack(
+            safeInput.projectedTrack,
+            safeInput.projectedTracks,
+            safeInput.forecastTrack,
+            safeInput.stormTrack,
+            safeInput.trackProjection,
+            safeInput.pathPrediction,
+            safeInput.predictedPaths,
+            safeInput.predictedStormPaths,
+            safeInput.stormPaths,
+            safeInput.storm?.projectedTrack,
+            safeInput.storm?.predictedPaths,
+            inputSources.stormTrack,
+            inputSources.projectedTrack,
+            inputSources.predictedStormPaths,
+            safeOptions.projectedTrack,
+            safeOptions.predictedPaths,
+            rg31.predictedStormPaths,
+            rg31.PredictedStormPaths,
+            rg31.latestStormPathPrediction,
+            rg31.LatestStormPathPrediction,
+            rg31.StormPathPredictionEngine?.latestPredictionReport,
+            rg31.StormPathPredictionEngine?.predictedPaths,
+            globalThis.latestStormPathPrediction,
+            globalThis.predictedStormPaths
+        );
 
     const alertHistory =
         Array.isArray(
@@ -30036,8 +30202,16 @@ collectPipelineArrivalEstimates(
     const target =
         this.normalizeCoordinate(
             safeInput.targetCoordinate ??
+            safeInput.target?.coordinate ??
+            safeInput.target?.coordinates ??
+            safeInput.target?.position ??
+            safeInput.target ??
             safeInput.coordinate ??
+            safeInput.coordinates ??
+            safeInput.location?.coordinate ??
+            safeInput.location?.position ??
             safeInput.location ??
+            safeInput.position ??
             null
         );
 
@@ -30062,30 +30236,122 @@ collectPipelineArrivalEstimates(
         safeSources.strikes ??
         null;
 
-    const projectedTrack =
-        Array.isArray(
-            safeInput.projectedTrack
-        )
-            ? safeInput.projectedTrack
-            : (
-                Array.isArray(
-                    safeInput.stormTrack
-                )
-                    ? safeInput.stormTrack
-                    : (
-                        Array.isArray(
-                            safeInput.trackProjection
-                        )
-                            ? safeInput.trackProjection
-                            : (
-                                Array.isArray(
-                                    safeInput.pathPrediction
-                                )
-                                    ? safeInput.pathPrediction
-                                    : []
-                            )
-                    )
+    const normalizeTrackCollection = (candidate, depth = 0) => {
+        if (
+            candidate === null ||
+            candidate === undefined ||
+            depth > 8
+        ) {
+            return [];
+        }
+
+        if (candidate instanceof Map) {
+            return normalizeTrackCollection(
+                Array.from(candidate.values()),
+                depth + 1
             );
+        }
+
+        if (Array.isArray(candidate)) {
+            const directPoints = candidate.filter((item) =>
+                Boolean(
+                    this.normalizeCoordinate(
+                        item?.coordinate ??
+                        item?.position ??
+                        item?.location ??
+                        item?.currentPosition ??
+                        item?.predictedPosition ??
+                        item
+                    )
+                )
+            );
+
+            if (directPoints.length > 0) {
+                return directPoints;
+            }
+
+            for (const item of candidate) {
+                const nested =
+                    normalizeTrackCollection(
+                        item,
+                        depth + 1
+                    );
+
+                if (nested.length > 0) {
+                    return nested;
+                }
+            }
+
+            return [];
+        }
+
+        if (typeof candidate !== 'object') {
+            return [];
+        }
+
+        const keys = [
+            'points',
+            'pathPoints',
+            'track',
+            'path',
+            'projectedTrack',
+            'projectedPoints',
+            'forecastPoints',
+            'predictedPoints',
+            'predictedPositions',
+            'trajectory',
+            'positions',
+            'projections',
+            'predictions',
+            'paths',
+            'predictedPaths',
+            'predictedStormPaths'
+        ];
+
+        for (const key of keys) {
+            const nested =
+                normalizeTrackCollection(
+                    candidate[key],
+                    depth + 1
+                );
+
+            if (nested.length > 0) {
+                return nested;
+            }
+        }
+
+        return [];
+    };
+
+    const projectedTrackCandidates = [
+        safeInput.projectedTrack,
+        safeInput.projectedTracks,
+        safeInput.stormTrack,
+        safeInput.trackProjection,
+        safeInput.pathPrediction,
+        safeInput.predictedPaths,
+        safeInput.predictedStormPaths,
+        safeInput.stormPaths,
+        safeInput.storm?.projectedTrack,
+        safeSources.stormTrack,
+        safeSources.projectedTrack,
+        safeSources.predictedStormPaths,
+        globalThis.RG31?.predictedStormPaths,
+        globalThis.RG31?.PredictedStormPaths,
+        globalThis.RG31?.latestStormPathPrediction,
+        globalThis.RG31?.LatestStormPathPrediction
+    ];
+
+    let projectedTrack = [];
+
+    for (const candidate of projectedTrackCandidates) {
+        projectedTrack =
+            normalizeTrackCollection(candidate);
+
+        if (projectedTrack.length > 0) {
+            break;
+        }
+    }
 
     console.log(
         "[RainArrival V32] Pipeline input diagnostics:",
