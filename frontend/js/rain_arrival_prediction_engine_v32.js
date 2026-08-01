@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.6.0";
+        "32.7.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -20210,18 +20210,25 @@ _normalizeArrivalEstimate(
             Date.now()
         );
 
+    const rawArrivalMinutes =
+        typeof estimate === 'number'
+            ? estimate
+            : (
+                estimate.arrivalMinutes ??
+                estimate.etaMinutes ??
+                estimate.minutesToArrival ??
+                estimate.leadMinutes ??
+                estimate.timeToArrivalMinutes
+            );
+
     let arrivalMinutes =
-        Number(
-            typeof estimate === 'number'
-                ? estimate
-                : (
-                    estimate.arrivalMinutes ??
-                    estimate.etaMinutes ??
-                    estimate.minutesToArrival ??
-                    estimate.leadMinutes ??
-                    estimate.timeToArrivalMinutes
-                )
-        );
+        rawArrivalMinutes === null ||
+        rawArrivalMinutes === undefined ||
+        rawArrivalMinutes === ""
+            ? Number.NaN
+            : Number(
+                rawArrivalMinutes
+            );
 
     let arrivalTimestamp =
         this._normalizeMotionTimestamp(
@@ -20318,19 +20325,55 @@ _normalizeArrivalEstimate(
                 : null
         );
 
-    const valid =
-        arrivalMinutes >=
-        (
+    const minimumArrivalMinutes =
+        Number.isFinite(
             Number(
                 options.minimumArrivalMinutes
-            ) || -30
-        ) &&
-        arrivalMinutes <=
-        (
+            )
+        )
+            ? Number(
+                options.minimumArrivalMinutes
+            )
+            : -30;
+
+    const maximumArrivalMinutes =
+        Number.isFinite(
             Number(
                 options.maximumArrivalMinutes
-            ) || 1440
-        );
+            )
+        )
+            ? Number(
+                options.maximumArrivalMinutes
+            )
+            : 1440;
+
+    let validationReason =
+        null;
+
+    if (
+        !Number.isFinite(
+            arrivalMinutes
+        )
+    ) {
+        validationReason =
+            "ARRIVAL_MINUTES_NOT_FINITE";
+    } else if (
+        arrivalMinutes <
+        minimumArrivalMinutes
+    ) {
+        validationReason =
+            "ARRIVAL_BELOW_MINIMUM";
+    } else if (
+        arrivalMinutes >
+        maximumArrivalMinutes
+    ) {
+        validationReason =
+            "ARRIVAL_EXCEEDS_FORECAST_HORIZON";
+    }
+
+    const valid =
+        validationReason ===
+        null;
 
     return {
         ...(typeof estimate === 'object'
@@ -20358,7 +20401,23 @@ _normalizeArrivalEstimate(
             Number.isFinite(speedKmh)
                 ? speedKmh
                 : null,
-        valid
+
+        valid,
+
+        validation: {
+            valid,
+
+            reason:
+                validationReason,
+
+            minimumArrivalMinutes,
+
+            maximumArrivalMinutes,
+
+            rawArrivalMinutes:
+                rawArrivalMinutes ??
+                null
+        }
     };
 }
 
@@ -20834,15 +20893,47 @@ estimateRadarRainArrival(
             )
             : 0.5;
 
-    const effectiveSpeedKmh =
-        speedKmh *
+    const minimumDirectionAlignment =
         Math.max(
-            0.15,
-            directionAlignment
+            0,
+            Math.min(
+                1,
+                Number(
+                    options
+                        .minimumRadarDirectionAlignment
+                ) || 0.20
+            )
         );
 
+    const approachingTarget =
+        !Number.isFinite(
+            bearingDifference
+        ) ||
+        directionAlignment >=
+        minimumDirectionAlignment;
+
+    const minimumEffectiveSpeedKmh =
+        Math.max(
+            1,
+            Number(
+                options
+                    .minimumEffectiveRadarSpeedKmh
+            ) || 5
+        );
+
+    const effectiveSpeedKmh =
+        approachingTarget
+            ? speedKmh *
+                Math.max(
+                    minimumDirectionAlignment,
+                    directionAlignment
+                )
+            : 0;
+
     const rawArrivalMinutes =
-        effectiveSpeedKmh > 0
+        approachingTarget &&
+        effectiveSpeedKmh >=
+            minimumEffectiveSpeedKmh
             ? (
                 directDistanceKm /
                 effectiveSpeedKmh
@@ -20865,6 +20956,17 @@ estimateRadarRainArrival(
             ) || 1
         );
 
+    const maximumRadarArrivalMinutes =
+        Math.max(
+            1,
+            Number(
+                options
+                    .maximumRadarArrivalMinutes ??
+                options
+                    .maximumArrivalMinutes
+            ) || 1440
+        );
+
     const arrivalMinutes =
         Number.isFinite(
             rawArrivalMinutes
@@ -20880,15 +20982,48 @@ estimateRadarRainArrival(
             )
             : null;
 
-    if (
+    let radarValidationReason =
+        null;
+
+    if (!approachingTarget) {
+        radarValidationReason =
+            "RADAR_CELL_NOT_APPROACHING_TARGET";
+    } else if (
+        !Number.isFinite(
+            effectiveSpeedKmh
+        ) ||
+        effectiveSpeedKmh <
+            minimumEffectiveSpeedKmh
+    ) {
+        radarValidationReason =
+            "RADAR_EFFECTIVE_SPEED_TOO_LOW";
+    } else if (
         !Number.isFinite(
             arrivalMinutes
-        ) ||
+        )
+    ) {
+        radarValidationReason =
+            "RADAR_ETA_NOT_FINITE";
+    } else if (
         arrivalMinutes < 0
     ) {
+        radarValidationReason =
+            "RADAR_ETA_NEGATIVE";
+    } else if (
+        arrivalMinutes >
+        maximumRadarArrivalMinutes
+    ) {
+        radarValidationReason =
+            "RADAR_ETA_EXCEEDS_FORECAST_HORIZON";
+    }
+
+    if (radarValidationReason) {
         console.warn(
-            "[RainArrival V32] Radar ETA unavailable:",
+            "[RainArrival V32] Radar ETA rejected:",
             {
+                reason:
+                    radarValidationReason,
+
                 directDistanceKm,
                 speedKmh,
                 effectiveSpeedKmh,
@@ -20896,12 +21031,83 @@ estimateRadarRainArrival(
                 targetBearing,
                 bearingDifference,
                 directionAlignment,
+                minimumDirectionAlignment,
+                approachingTarget,
+                arrivalMinutes,
+                maximumRadarArrivalMinutes,
+                speedSource,
+                bearingSource,
+                motionSource:
+                    options.motionSource ??
+                    null,
                 rainCoordinate,
                 target
             }
         );
 
-        return null;
+        return {
+            source:
+                "radar",
+
+            available:
+                false,
+
+            valid:
+                false,
+
+            arrivalMinutes:
+                null,
+
+            confidence:
+                0,
+
+            distanceKm:
+                directDistanceKm,
+
+            speedKmh:
+                effectiveSpeedKmh,
+
+            bearing,
+
+            targetBearing,
+
+            bearingDifference,
+
+            directionAlignment,
+
+            approachingTarget,
+
+            speedSource,
+
+            bearingSource,
+
+            motionSource:
+                options.motionSource ??
+                speedSource,
+
+            validation: {
+                valid:
+                    false,
+
+                reason:
+                    radarValidationReason,
+
+                maximumArrivalMinutes:
+                    maximumRadarArrivalMinutes,
+
+                rawArrivalMinutes:
+                    Number.isFinite(
+                        rawArrivalMinutes
+                    )
+                        ? rawArrivalMinutes
+                        : null
+            },
+
+            rainCoordinate,
+
+            targetCoordinate:
+                target
+        };
     }
 
     const radarQuality =
@@ -21029,7 +21235,13 @@ estimateRadarRainArrival(
                 safeRadar.timestamp ??
                 firstRadarCell?.observedAt ??
                 firstRadarCell?.timestamp ??
-                Date.now()
+                Date.now(),
+
+            minimumArrivalMinutes:
+                0,
+
+            maximumArrivalMinutes:
+                maximumRadarArrivalMinutes
         }
     );
 }
@@ -32793,8 +33005,24 @@ collectPipelineArrivalEstimates(
         ) {
             rejected.push({
                 source,
+
                 reason:
-                    "INVALID_ARRIVAL_ESTIMATE",
+                    estimate
+                        ?.validation
+                        ?.reason ??
+                    (
+                        !Number.isFinite(
+                            arrivalMinutes
+                        )
+                            ? "ARRIVAL_MINUTES_NOT_FINITE"
+                            : "INVALID_ARRIVAL_ESTIMATE"
+                    ),
+
+                validation:
+                    estimate
+                        ?.validation ??
+                    null,
+
                 estimate
             });
 
