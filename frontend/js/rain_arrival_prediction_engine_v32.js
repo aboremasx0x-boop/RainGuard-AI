@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.8.0";
+        "32.9.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -35007,11 +35007,297 @@ generatePredictionPipelineDiagnostics(
  * @param {Object} [options]
  * @returns {Object}
  */
+ensureFinalRainArrivalFusionEnvelope(
+    components,
+    options = {}
+) {
+    const safeComponents =
+        this.isPlainObject(components)
+            ? components
+            : {};
+
+    const collected =
+        this.isPlainObject(
+            safeComponents.sourceCollection
+        )
+            ? safeComponents.sourceCollection
+            : {
+                estimates: [],
+                rejected: [],
+                collectedCount: 0,
+                rejectedCount: 0
+            };
+
+    const sourceMatrix =
+        this.isPlainObject(
+            safeComponents.sourceMatrix
+        )
+            ? safeComponents.sourceMatrix
+            : {
+                matrix: {},
+                availableCount: 0,
+                decisionStatus:
+                    "NO_OPERATIONAL_SOURCE",
+                missingSourcesAreConflict:
+                    false
+            };
+
+    let fused =
+        this.isPlainObject(
+            safeComponents.fusedArrival
+        )
+            ? {
+                ...safeComponents.fusedArrival
+            }
+            : {};
+
+    const estimates =
+        Array.isArray(
+            collected.estimates
+        )
+            ? collected.estimates
+            : [];
+
+    if (
+        (
+            typeof fused.fusionMode !==
+                "string" ||
+            !this.isPlainObject(
+                fused.decision
+            )
+        ) &&
+        estimates.length > 0
+    ) {
+        try {
+            const rebuilt =
+                this.orchestratePipelineArrivalFusion(
+                    safeComponents.normalizedInput ??
+                    {},
+                    collected,
+                    {
+                        ...options,
+                        sourceMatrix
+                    }
+                );
+
+            if (
+                this.isPlainObject(
+                    rebuilt
+                )
+            ) {
+                fused = {
+                    ...fused,
+                    ...rebuilt,
+                    repairedAtFinalPipeline:
+                        true
+                };
+            }
+        } catch (error) {
+            fused.finalPipelineRepairError = {
+                name:
+                    error?.name ??
+                    "Error",
+
+                message:
+                    error?.message ??
+                    String(error)
+            };
+        }
+    }
+
+    const validSourceCount =
+        Array.isArray(
+            fused.estimates
+        )
+            ? fused.estimates.length
+            : estimates.length;
+
+    const sourceAgreement =
+        this.isPlainObject(
+            fused.sourceAgreement
+        )
+            ? fused.sourceAgreement
+            : {
+                status:
+                    validSourceCount === 0
+                        ? "NO_VALID_ESTIMATES"
+                        : (
+                            validSourceCount === 1
+                                ? "SINGLE_SOURCE"
+                                : "SOURCES_AGREE"
+                        ),
+
+                conflict:
+                    false,
+
+                sourceCount:
+                    validSourceCount
+            };
+
+    const realConflict =
+        validSourceCount >= 2 &&
+        sourceAgreement.conflict === true;
+
+    const fusionMode =
+        typeof fused.fusionMode ===
+            "string"
+            ? fused.fusionMode
+            : (
+                validSourceCount === 0
+                    ? "unavailable"
+                    : (
+                        validSourceCount === 1
+                            ? "single_source"
+                            : (
+                                realConflict
+                                    ? "multi_source_conflict_resilient"
+                                    : "multi_source_consensus"
+                            )
+                    )
+            );
+
+    const decision =
+        this.isPlainObject(
+            fused.decision
+        )
+            ? fused.decision
+            : this.buildRainArrivalFusionDecision(
+                {
+                    ...fused,
+                    fusionMode,
+                    sourceAgreement,
+                    sourceConflict:
+                        realConflict
+                },
+                collected,
+                sourceMatrix,
+                options
+            );
+
+    const rawArrivalMinutes =
+        fused.arrivalMinutes;
+
+    const arrivalMinutes =
+        rawArrivalMinutes !== null &&
+        rawArrivalMinutes !== undefined &&
+        rawArrivalMinutes !== "" &&
+        Number.isFinite(
+            Number(
+                rawArrivalMinutes
+            )
+        ) &&
+        Number(
+            rawArrivalMinutes
+        ) >= 0
+            ? Number(
+                rawArrivalMinutes
+            )
+            : null;
+
+    const rawConfidence =
+        Number(
+            fused.confidence ??
+            fused.confidenceScore ??
+            fused.confidenceDetails?.score
+        );
+
+    const confidence =
+        Number.isFinite(
+            rawConfidence
+        )
+            ? Math.max(
+                0,
+                Math.min(
+                    100,
+                    rawConfidence
+                )
+            )
+            : 0;
+
+    const available =
+        fused.available === true &&
+        arrivalMinutes !== null;
+
+    return {
+        ...fused,
+
+        available,
+
+        arrivalMinutes:
+            available
+                ? arrivalMinutes
+                : null,
+
+        confidence,
+
+        fusionMode,
+
+        sourceConflict:
+            realConflict,
+
+        sourceAgreement,
+
+        decision,
+
+        primarySource:
+            decision?.primarySource ??
+            fused.primarySource ??
+            null,
+
+        rankedSources:
+            decision?.rankedSources ??
+            fused.rankedSources ??
+            [],
+
+        coverage: {
+            ...(
+                fused.coverage ??
+                {}
+            ),
+
+            validSourceCount,
+
+            rejectedSourceCount:
+                collected.rejectedCount ??
+                collected.rejected?.length ??
+                0,
+
+            operationalAvailableSourceCount:
+                sourceMatrix
+                    .operationalAvailableCount ??
+                sourceMatrix.availableCount ??
+                0,
+
+            missingSourcesAreConflict:
+                false
+        },
+
+        finalPipelineIntegrated:
+            true,
+
+        finalPipelineIntegratedAt:
+            new Date().toISOString()
+    };
+}
+
+
 buildUnifiedPredictionResult(
     components,
     context,
     options = {}
 ) {
+    const finalFusion =
+        this.ensureFinalRainArrivalFusionEnvelope(
+            components,
+            options
+        );
+
+    components = {
+        ...components,
+        fusedArrival:
+            finalFusion
+    };
+
     const diagnostics =
         this.generatePredictionPipelineDiagnostics(
             context
@@ -35227,6 +35513,30 @@ buildUnifiedPredictionResult(
                     ?.uncertaintyMinutes ??
                 null,
 
+            fusionMode:
+                components
+                    .fusedArrival
+                    ?.fusionMode ??
+                "unavailable",
+
+            sourceConflict:
+                components
+                    .fusedArrival
+                    ?.sourceConflict ===
+                true,
+
+            fusionDecision:
+                components
+                    .fusedArrival
+                    ?.decision ??
+                null,
+
+            primarySource:
+                components
+                    .fusedArrival
+                    ?.primarySource ??
+                null,
+
             quality
         },
 
@@ -35255,6 +35565,36 @@ buildUnifiedPredictionResult(
         temporalCorrection:
             components
                 .temporalCorrection,
+
+        fusionMode:
+            components
+                .fusedArrival
+                ?.fusionMode ??
+            "unavailable",
+
+        sourceConflict:
+            components
+                .fusedArrival
+                ?.sourceConflict ===
+            true,
+
+        fusionDecision:
+            components
+                .fusedArrival
+                ?.decision ??
+            null,
+
+        primarySource:
+            components
+                .fusedArrival
+                ?.primarySource ??
+            null,
+
+        rankedSources:
+            components
+                .fusedArrival
+                ?.rankedSources ??
+            [],
 
         operational: {
             warning:
@@ -35393,6 +35733,28 @@ mapUnifiedPredictionToLegacyFormats(
             result.operational
                 ?.action ??
             'monitor',
+
+        fusionMode:
+            result.fusionMode ??
+            result.prediction
+                ?.fusionMode ??
+            "unavailable",
+
+        sourceConflict:
+            result.sourceConflict ===
+            true,
+
+        fusionDecision:
+            result.fusionDecision ??
+            result.prediction
+                ?.fusionDecision ??
+            null,
+
+        primarySource:
+            result.primarySource ??
+            result.prediction
+                ?.primarySource ??
+            null,
 
         RG30: {
             eta:
@@ -36742,9 +37104,48 @@ console.log(
                     }
                 ),
             {
-                available: false,
-                arrivalMinutes: null,
-                confidence: 0
+                available:
+                    false,
+
+                arrivalMinutes:
+                    null,
+
+                confidence:
+                    0,
+
+                fusionMode:
+                    "unavailable",
+
+                sourceConflict:
+                    false,
+
+                sourceAgreement: {
+                    status:
+                        "NO_VALID_ESTIMATES",
+
+                    conflict:
+                        false,
+
+                    sourceCount:
+                        0
+                },
+
+                decision: {
+                    status:
+                        "NO_VALID_SOURCE",
+
+                    action:
+                        "WAIT_FOR_VALID_SOURCE",
+
+                    sourceConflict:
+                        false,
+
+                    validSourceCount:
+                        0,
+
+                    missingSourcesAreConflict:
+                        false
+                }
             }
         );
 
@@ -37200,7 +37601,27 @@ normalizedInput.forecasts =
                 this.collectPipelineArrivalEstimates(
                     normalizedInput,
                     sourceMatrix,
-                    options
+                    {
+                        ...options,
+
+                        fallbackSpeedKmh:
+                            motionAnalysis
+                                ?.speedKmh ??
+                            options
+                                .fallbackSpeedKmh,
+
+                        fallbackBearing:
+                            motionAnalysis
+                                ?.bearing ??
+                            options
+                                .fallbackBearing,
+
+                        motionConfidence:
+                            motionAnalysis
+                                ?.confidence ??
+                            options
+                                .motionConfidence
+                    }
                 ),
             {
                 estimates: [],
@@ -37216,12 +37637,37 @@ normalizedInput.forecasts =
                 this.orchestratePipelineArrivalFusion(
                     normalizedInput,
                     sourceCollection,
-                    options
+                    {
+                        ...options,
+                        sourceMatrix
+                    }
                 ),
             {
-                available: false,
-                arrivalMinutes: null,
-                confidence: 0
+                available:
+                    false,
+
+                arrivalMinutes:
+                    null,
+
+                confidence:
+                    0,
+
+                fusionMode:
+                    "unavailable",
+
+                sourceConflict:
+                    false,
+
+                decision: {
+                    status:
+                        "NO_VALID_SOURCE",
+
+                    action:
+                        "WAIT_FOR_VALID_SOURCE",
+
+                    sourceConflict:
+                        false
+                }
             }
         );
 
