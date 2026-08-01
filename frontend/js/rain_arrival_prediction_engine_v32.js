@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.3.0";
+        "32.4.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -21715,7 +21715,7 @@ selectRainArrivalStormTrack(
                 }
 
                 const distanceKm =
-                    this.calculateHaversineDistanceKm(
+                    this.calculateDistanceKm(
                         coordinate,
                         normalizedTarget
                     );
@@ -31535,8 +31535,45 @@ collectPipelineArrivalEstimates(
     const rejected =
         [];
 
+    const diagnostics = {
+        stormTrackBranchEntered:
+            false,
+
+        stormTrackCandidateCount:
+            0,
+
+        availableTrackCount:
+            0,
+
+        selectedTrackIndex:
+            null,
+
+        selectedTrackDistanceKm:
+            null,
+
+        selectedTrackCellId:
+            null,
+
+        stormTrackEstimateCreated:
+            false,
+
+        stormTrackFailureReason:
+            null,
+
+        sourceErrors:
+            []
+    };
+
+    const resolvedTargetLocation =
+        safeInput.resolvedTargetLocation ??
+        this.resolveTargetLocation(
+            safeInput,
+            options
+        );
+
     const target =
         this.normalizeCoordinate(
+            resolvedTargetLocation?.coordinate ??
             safeInput.targetCoordinate ??
             safeInput.target?.coordinate ??
             safeInput.target?.coordinates ??
@@ -31599,6 +31636,9 @@ collectPipelineArrivalEstimates(
             ?.predictedStormPaths
     ];
 
+    diagnostics.stormTrackCandidateCount =
+        projectedTrackCandidates.length;
+
     const availableTracks = [];
 
     for (const candidate of projectedTrackCandidates) {
@@ -31626,6 +31666,22 @@ collectPipelineArrivalEstimates(
         selectedTrackResult?.track ??
         availableTracks[0] ??
         [];
+
+    diagnostics.availableTrackCount =
+        availableTracks.length;
+
+    diagnostics.selectedTrackIndex =
+        selectedTrackResult?.index ??
+        null;
+
+    diagnostics.selectedTrackDistanceKm =
+        selectedTrackResult?.distanceKm ??
+        null;
+
+    diagnostics.selectedTrackCellId =
+        projectedTrack[0]?.cellId ??
+        projectedTrack[0]?.sourceCellId ??
+        null;
 
     console.log(
         "[RainArrival V32] Pipeline input diagnostics:",
@@ -31687,6 +31743,55 @@ collectPipelineArrivalEstimates(
                 null
         }
     );
+
+    const executeEstimateSafely = (
+        source,
+        executor
+    ) => {
+        try {
+            return executor();
+        } catch (error) {
+            const normalizedError = {
+                source,
+
+                name:
+                    error?.name ??
+                    "Error",
+
+                message:
+                    error?.message ??
+                    String(error),
+
+                stack:
+                    error?.stack ??
+                    null
+            };
+
+            diagnostics.sourceErrors.push(
+                normalizedError
+            );
+
+            rejected.push({
+                source,
+
+                reason:
+                    "ESTIMATION_EXCEPTION",
+
+                error:
+                    normalizedError
+            });
+
+            if (
+                source ===
+                "storm_track"
+            ) {
+                diagnostics.stormTrackFailureReason =
+                    "ESTIMATION_EXCEPTION";
+            }
+
+            return null;
+        }
+    };
 
     const pushEstimate = (
         source,
@@ -31753,10 +31858,14 @@ collectPipelineArrivalEstimates(
         pushEstimate(
             "radar",
 
-            this.estimateRadarRainArrival(
-                radarSource,
-                target,
-                options
+            executeEstimateSafely(
+                "radar",
+                () =>
+                    this.estimateRadarRainArrival(
+                        radarSource,
+                        target,
+                        options
+                    )
             )
         );
     } else if (!radarSource) {
@@ -31775,10 +31884,14 @@ collectPipelineArrivalEstimates(
         pushEstimate(
             "satellite",
 
-            this.estimateSatelliteRainArrival(
-                satelliteSource,
-                target,
-                options
+            executeEstimateSafely(
+                "satellite",
+                () =>
+                    this.estimateSatelliteRainArrival(
+                        satelliteSource,
+                        target,
+                        options
+                    )
             )
         );
     } else if (!satelliteSource) {
@@ -31797,10 +31910,14 @@ collectPipelineArrivalEstimates(
         pushEstimate(
             "lightning",
 
-            this.estimateLightningRainArrival(
-                lightningSource,
-                target,
-                options
+            executeEstimateSafely(
+                "lightning",
+                () =>
+                    this.estimateLightningRainArrival(
+                        lightningSource,
+                        target,
+                        options
+                    )
             )
         );
     } else if (!lightningSource) {
@@ -31816,40 +31933,229 @@ collectPipelineArrivalEstimates(
         target &&
         projectedTrack.length > 0
     ) {
-        pushEstimate(
-            "storm_track",
+        diagnostics.stormTrackBranchEntered =
+            true;
 
-            this.estimateStormTrackRainArrival(
-                projectedTrack,
-                target,
-                {
-                    ...options,
+        let stormTrackEstimate =
+            executeEstimateSafely(
+                "storm_track",
+                () =>
+                    this.estimateStormTrackRainArrival(
+                        projectedTrack,
+                        target,
+                        {
+                            ...options,
 
-                    trackConfidence:
-                        safeInput
-                            .storm
-                            ?.confidence ??
-                        safeInput
-                            .trackConfidence ??
-                        projectedTrack[0]
-                            ?.confidence ??
-                        75,
+                            trackConfidence:
+                                safeInput
+                                    .storm
+                                    ?.confidence ??
+                                safeInput
+                                    .trackConfidence ??
+                                projectedTrack[0]
+                                    ?.confidence ??
+                                75,
 
-                    selectedTrackIndex:
-                        selectedTrackResult
-                            ?.index ??
-                        null,
+                            selectedTrackIndex:
+                                selectedTrackResult
+                                    ?.index ??
+                                null,
 
-                    selectedTrackDistanceKm:
-                        selectedTrackResult
-                            ?.distanceKm ??
-                        null
+                            selectedTrackDistanceKm:
+                                selectedTrackResult
+                                    ?.distanceKm ??
+                                null
+                        }
+                    )
+            );
+
+        if (!stormTrackEstimate) {
+            let closestPoint =
+                null;
+
+            let closestDistanceKm =
+                Number.POSITIVE_INFINITY;
+
+            for (const point of projectedTrack) {
+                const pointCoordinate =
+                    this.normalizeCoordinate(
+                        point
+                    );
+
+                if (!pointCoordinate) {
+                    continue;
                 }
-            )
-        );
+
+                const distanceKm =
+                    this.calculateDistanceKm(
+                        pointCoordinate,
+                        target
+                    );
+
+                if (
+                    Number.isFinite(
+                        distanceKm
+                    ) &&
+                    distanceKm <
+                    closestDistanceKm
+                ) {
+                    closestDistanceKm =
+                        distanceKm;
+
+                    closestPoint =
+                        point;
+                }
+            }
+
+            const fallbackArrivalMinutes =
+                Number(
+                    closestPoint?.arrivalMinutes ??
+                    closestPoint?.etaMinutes ??
+                    closestPoint?.estimatedArrivalMinutes ??
+                    closestPoint?.minutes
+                );
+
+            if (
+                closestPoint &&
+                Number.isFinite(
+                    fallbackArrivalMinutes
+                ) &&
+                fallbackArrivalMinutes >=
+                0
+            ) {
+                const impactRadiusKm =
+                    Math.max(
+                        1,
+                        Number(
+                            options.impactRadiusKm
+                        ) || 20
+                    );
+
+                const affected =
+                    Number.isFinite(
+                        closestDistanceKm
+                    ) &&
+                    closestDistanceKm <=
+                    impactRadiusKm;
+
+                stormTrackEstimate = {
+                    source:
+                        "storm_track",
+
+                    valid:
+                        true,
+
+                    available:
+                        affected,
+
+                    status:
+                        affected
+                            ? "available"
+                            : "outside_impact_radius",
+
+                    arrivalMinutes:
+                        fallbackArrivalMinutes,
+
+                    arrivalTimestamp:
+                        Number(
+                            closestPoint.arrivalTimestamp ??
+                            closestPoint.estimatedArrivalTimestamp ??
+                            closestPoint.timestamp
+                        ) ||
+                        (
+                            Date.now() +
+                            fallbackArrivalMinutes *
+                            60000
+                        ),
+
+                    confidence:
+                        Math.max(
+                            20,
+                            Math.min(
+                                95,
+                                Number(
+                                    closestPoint.confidence ??
+                                    projectedTrack[0]?.confidence ??
+                                    65
+                                ) || 65
+                            )
+                        ),
+
+                    uncertaintyMinutes:
+                        Math.max(
+                            5,
+                            fallbackArrivalMinutes *
+                            0.2
+                        ),
+
+                    distanceKm:
+                        Number.isFinite(
+                            closestDistanceKm
+                        )
+                            ? closestDistanceKm
+                            : null,
+
+                    impactRadiusKm,
+
+                    affected,
+
+                    closestPoint,
+
+                    fallback:
+                        true,
+
+                    fallbackReason:
+                        "NEAREST_PROJECTED_TRACK_POINT"
+                };
+            }
+        }
+
+        if (stormTrackEstimate) {
+            pushEstimate(
+                "storm_track",
+                stormTrackEstimate
+            );
+
+            diagnostics.stormTrackEstimateCreated =
+                estimates.some(
+                    estimate =>
+                        estimate?.source ===
+                        "storm_track"
+                );
+
+            if (
+                !diagnostics.stormTrackEstimateCreated
+            ) {
+                diagnostics.stormTrackFailureReason =
+                    "INVALID_STORM_TRACK_ESTIMATE";
+            }
+        } else {
+            diagnostics.stormTrackFailureReason =
+                diagnostics.stormTrackFailureReason ??
+                "STORM_TRACK_ESTIMATION_FAILED";
+
+            rejected.push({
+                source:
+                    "storm_track",
+
+                reason:
+                    diagnostics.stormTrackFailureReason,
+
+                trackPointCount:
+                    projectedTrack.length,
+
+                selectedTrackDistanceKm:
+                    selectedTrackResult
+                        ?.distanceKm ??
+                    null
+            });
+        }
     } else if (
         projectedTrack.length === 0
     ) {
+        diagnostics.stormTrackFailureReason =
+            "PROJECTED_TRACK_EMPTY";
+
         rejected.push({
             source:
                 "storm_track",
@@ -31860,6 +32166,9 @@ collectPipelineArrivalEstimates(
             candidateCount:
                 projectedTrackCandidates.length
         });
+    } else if (!target) {
+        diagnostics.stormTrackFailureReason =
+            "INVALID_TARGET_COORDINATE";
     }
 
     const genericSources = [
@@ -31920,17 +32229,21 @@ collectPipelineArrivalEstimates(
         }
 
         const normalized =
-            this._normalizeArrivalEstimate(
-                genericSource.value,
-                {
-                    ...options,
+            executeEstimateSafely(
+                genericSource.source,
+                () =>
+                    this._normalizeArrivalEstimate(
+                        genericSource.value,
+                        {
+                            ...options,
 
-                    source:
-                        genericSource.source,
+                            source:
+                                genericSource.source,
 
-                    referenceTimestamp:
-                        safeInput.timestamp
-                }
+                            referenceTimestamp:
+                                safeInput.timestamp
+                        }
+                    )
             );
 
         pushEstimate(
@@ -32012,11 +32325,76 @@ collectPipelineArrivalEstimates(
         rejectedCount:
             rejected.length,
 
-        sourceDiagnostics: {
+        estimateCount:
+            estimates.length,
+
+        collectionAvailable:
+            estimates.length > 0,
+
+        diagnostics: {
+            ...diagnostics,
+
             targetValid:
                 Boolean(
                     target
                 ),
+
+            targetResolved:
+                Boolean(
+                    resolvedTargetLocation
+                ),
+
+            targetResolutionSource:
+                resolvedTargetLocation
+                    ?.source ??
+                null,
+
+            resolvedTargetCity:
+                resolvedTargetLocation
+                    ?.city ??
+                null,
+
+            radarAvailable:
+                Boolean(
+                    radarSource
+                ),
+
+            satelliteAvailable:
+                Boolean(
+                    satelliteSource
+                ),
+
+            lightningAvailable:
+                Boolean(
+                    lightningSource
+                ),
+
+            projectedTrackLength:
+                projectedTrack.length
+        },
+
+        sourceDiagnostics: {
+            ...diagnostics,
+
+            targetValid:
+                Boolean(
+                    target
+                ),
+
+            targetResolved:
+                Boolean(
+                    resolvedTargetLocation
+                ),
+
+            targetResolutionSource:
+                resolvedTargetLocation
+                    ?.source ??
+                null,
+
+            resolvedTargetCity:
+                resolvedTargetLocation
+                    ?.city ??
+                null,
 
             radarAvailable:
                 Boolean(
@@ -34660,8 +35038,30 @@ console.log(
                 ),
             {
                 estimates: [],
-                rejected: [],
-                collectedCount: 0
+                rejected: [
+                    {
+                        source:
+                            "source_collection",
+                        reason:
+                            "SOURCE_COLLECTION_STAGE_FAILED"
+                    }
+                ],
+                collectedCount:
+                    0,
+                rejectedCount:
+                    1,
+                estimateCount:
+                    0,
+                diagnostics: {
+                    stageFallback:
+                        true,
+                    stormTrackBranchEntered:
+                        false,
+                    stormTrackEstimateCreated:
+                        false,
+                    stormTrackFailureReason:
+                        "SOURCE_COLLECTION_STAGE_FAILED"
+                }
             }
         );
 
