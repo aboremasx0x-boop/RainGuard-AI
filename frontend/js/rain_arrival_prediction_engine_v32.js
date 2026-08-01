@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.2.0";
+        "32.3.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -29497,6 +29497,797 @@ getPart14FMetadata() {
 
 
 /* ==========================================================================
+   SECTION 262A
+   Phase 4 — National Target Location Resolution
+   ========================================================================== */
+
+/**
+ * Normalize a city or location name for reliable matching.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+normalizeTargetLocationName(
+    value
+) {
+    return String(
+        value ??
+        ''
+    )
+        .trim()
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(
+            /[\u064B-\u065F\u0670]/g,
+            ''
+        )
+        .replace(
+            /[إأآٱ]/g,
+            'ا'
+        )
+        .replace(
+            /ة/g,
+            'ه'
+        )
+        .replace(
+            /ى/g,
+            'ي'
+        )
+        .replace(
+            /[^a-z0-9\u0600-\u06FF]+/g,
+            ''
+        );
+}
+
+
+/**
+ * Return a compact internal Saudi city registry used only when no live
+ * national registry or verification record can resolve the requested city.
+ *
+ * @returns {Object[]}
+ */
+getRainArrivalSaudiCityRegistry() {
+    return [
+        {
+            city: 'Riyadh',
+            nameEn: 'Riyadh',
+            nameAr: 'الرياض',
+            aliases: [
+                'riyadh',
+                'الرياض'
+            ],
+            latitude: 24.7136,
+            longitude: 46.6753,
+            region: 'Riyadh'
+        },
+        {
+            city: 'Jeddah',
+            nameEn: 'Jeddah',
+            nameAr: 'جدة',
+            aliases: [
+                'jeddah',
+                'jed',
+                'جده',
+                'جدة'
+            ],
+            latitude: 21.5433,
+            longitude: 39.1728,
+            region: 'Makkah'
+        },
+        {
+            city: 'Makkah',
+            nameEn: 'Makkah',
+            nameAr: 'مكة المكرمة',
+            aliases: [
+                'makkah',
+                'mecca',
+                'مكه',
+                'مكة',
+                'مكة المكرمة'
+            ],
+            latitude: 21.3891,
+            longitude: 39.8579,
+            region: 'Makkah'
+        },
+        {
+            city: 'Madinah',
+            nameEn: 'Madinah',
+            nameAr: 'المدينة المنورة',
+            aliases: [
+                'madinah',
+                'medina',
+                'المدينه',
+                'المدينة',
+                'المدينة المنورة'
+            ],
+            latitude: 24.5247,
+            longitude: 39.5692,
+            region: 'Madinah'
+        },
+        {
+            city: 'Dammam',
+            nameEn: 'Dammam',
+            nameAr: 'الدمام',
+            aliases: [
+                'dammam',
+                'الدمام'
+            ],
+            latitude: 26.4207,
+            longitude: 50.0888,
+            region: 'Eastern Province'
+        },
+        {
+            city: 'Khobar',
+            nameEn: 'Khobar',
+            nameAr: 'الخبر',
+            aliases: [
+                'khobar',
+                'alkhobar',
+                'الخبر'
+            ],
+            latitude: 26.2172,
+            longitude: 50.1971,
+            region: 'Eastern Province'
+        },
+        {
+            city: 'Dhahran',
+            nameEn: 'Dhahran',
+            nameAr: 'الظهران',
+            aliases: [
+                'dhahran',
+                'الظهران'
+            ],
+            latitude: 26.2361,
+            longitude: 50.0393,
+            region: 'Eastern Province'
+        },
+        {
+            city: 'Taif',
+            nameEn: 'Taif',
+            nameAr: 'الطائف',
+            aliases: [
+                'taif',
+                'الطايف',
+                'الطائف'
+            ],
+            latitude: 21.2703,
+            longitude: 40.4158,
+            region: 'Makkah'
+        },
+        {
+            city: 'Abha',
+            nameEn: 'Abha',
+            nameAr: 'أبها',
+            aliases: [
+                'abha',
+                'ابها',
+                'أبها'
+            ],
+            latitude: 18.2164,
+            longitude: 42.5053,
+            region: 'Asir'
+        },
+        {
+            city: 'Khamis Mushait',
+            nameEn: 'Khamis Mushait',
+            nameAr: 'خميس مشيط',
+            aliases: [
+                'khamismushait',
+                'khamis mushait',
+                'خميسمشيط',
+                'خميس مشيط'
+            ],
+            latitude: 18.3064,
+            longitude: 42.7292,
+            region: 'Asir'
+        },
+        {
+            city: 'Najran',
+            nameEn: 'Najran',
+            nameAr: 'نجران',
+            aliases: [
+                'najran',
+                'نجران'
+            ],
+            latitude: 17.5656,
+            longitude: 44.2289,
+            region: 'Najran'
+        },
+        {
+            city: 'Jazan',
+            nameEn: 'Jazan',
+            nameAr: 'جازان',
+            aliases: [
+                'jazan',
+                'jizan',
+                'جازان',
+                'جيزان'
+            ],
+            latitude: 16.8892,
+            longitude: 42.5511,
+            region: 'Jazan'
+        },
+        {
+            city: 'Tabuk',
+            nameEn: 'Tabuk',
+            nameAr: 'تبوك',
+            aliases: [
+                'tabuk',
+                'تبوك'
+            ],
+            latitude: 28.3838,
+            longitude: 36.5550,
+            region: 'Tabuk'
+        },
+        {
+            city: 'Hail',
+            nameEn: 'Hail',
+            nameAr: 'حائل',
+            aliases: [
+                'hail',
+                'ha il',
+                'حايل',
+                'حائل'
+            ],
+            latitude: 27.5114,
+            longitude: 41.7208,
+            region: 'Hail'
+        },
+        {
+            city: 'Buraydah',
+            nameEn: 'Buraydah',
+            nameAr: 'بريدة',
+            aliases: [
+                'buraydah',
+                'buraidah',
+                'بريده',
+                'بريدة'
+            ],
+            latitude: 26.3592,
+            longitude: 43.9818,
+            region: 'Qassim'
+        },
+        {
+            city: 'Sakaka',
+            nameEn: 'Sakaka',
+            nameAr: 'سكاكا',
+            aliases: [
+                'sakaka',
+                'سكاكا'
+            ],
+            latitude: 29.9697,
+            longitude: 40.2064,
+            region: 'Al Jawf'
+        },
+        {
+            city: 'Arar',
+            nameEn: 'Arar',
+            nameAr: 'عرعر',
+            aliases: [
+                'arar',
+                'عرعر'
+            ],
+            latitude: 30.9753,
+            longitude: 41.0381,
+            region: 'Northern Borders'
+        },
+        {
+            city: 'Al Baha',
+            nameEn: 'Al Baha',
+            nameAr: 'الباحة',
+            aliases: [
+                'albaha',
+                'al baha',
+                'الباحه',
+                'الباحة'
+            ],
+            latitude: 20.0129,
+            longitude: 41.4677,
+            region: 'Al Baha'
+        },
+        {
+            city: 'Yanbu',
+            nameEn: 'Yanbu',
+            nameAr: 'ينبع',
+            aliases: [
+                'yanbu',
+                'ينبع'
+            ],
+            latitude: 24.0895,
+            longitude: 38.0618,
+            region: 'Madinah'
+        },
+        {
+            city: 'Al Ahsa',
+            nameEn: 'Al Ahsa',
+            nameAr: 'الأحساء',
+            aliases: [
+                'alahsa',
+                'al ahsa',
+                'hasa',
+                'الاحساء',
+                'الأحساء'
+            ],
+            latitude: 25.3830,
+            longitude: 49.5860,
+            region: 'Eastern Province'
+        }
+    ];
+}
+
+
+/**
+ * Recursively collect location-like records from arrays, maps and objects.
+ *
+ * @param {unknown} value
+ * @param {number} [depth]
+ * @param {Set<object>} [visited]
+ * @returns {Object[]}
+ */
+collectRainArrivalLocationRecords(
+    value,
+    depth = 0,
+    visited = new Set()
+) {
+    if (
+        value === null ||
+        value === undefined ||
+        depth > 8
+    ) {
+        return [];
+    }
+
+    if (value instanceof Map) {
+        return Array.from(
+            value.values()
+        ).flatMap(
+            item =>
+                this.collectRainArrivalLocationRecords(
+                    item,
+                    depth + 1,
+                    visited
+                )
+        );
+    }
+
+    if (Array.isArray(value)) {
+        return value.flatMap(
+            item =>
+                this.collectRainArrivalLocationRecords(
+                    item,
+                    depth + 1,
+                    visited
+                )
+        );
+    }
+
+    if (typeof value !== 'object') {
+        return [];
+    }
+
+    if (visited.has(value)) {
+        return [];
+    }
+
+    visited.add(value);
+
+    const directCoordinate =
+        this.normalizeCoordinate(
+            value.coordinate ??
+            value.coordinates ??
+            value.position ??
+            value.location ??
+            value.currentPosition ??
+            value
+        );
+
+    const directName =
+        value.city ??
+        value.cityName ??
+        value.name ??
+        value.nameEn ??
+        value.nameAr ??
+        value.label ??
+        value.locationName ??
+        null;
+
+    const records = [];
+
+    if (
+        directCoordinate &&
+        directName
+    ) {
+        records.push({
+            ...value,
+            city:
+                value.city ??
+                value.cityName ??
+                value.nameEn ??
+                value.name ??
+                value.nameAr,
+            coordinate:
+                directCoordinate,
+            latitude:
+                directCoordinate.lat,
+            longitude:
+                directCoordinate.lon
+        });
+    }
+
+    const nestedKeys = [
+        'locations',
+        'cities',
+        'cityDatabase',
+        'registry',
+        'records',
+        'items',
+        'results',
+        'latestResults',
+        'latestVerification',
+        'verificationResults',
+        'predictions',
+        'predictedStormPaths',
+        'paths',
+        'data',
+        'result',
+        'state',
+        'latestNationalForecast',
+        'cityForecasts',
+        'activeLocations'
+    ];
+
+    for (const key of nestedKeys) {
+        if (
+            value[key] !== undefined &&
+            value[key] !== value
+        ) {
+            records.push(
+                ...this.collectRainArrivalLocationRecords(
+                    value[key],
+                    depth + 1,
+                    visited
+                )
+            );
+        }
+    }
+
+    return records;
+}
+
+
+/**
+ * Resolve the requested target from direct coordinates, live RG31/V32 data,
+ * national registries, verification records and the internal fallback list.
+ *
+ * @param {string|Object} request
+ * @param {Object} [options]
+ * @returns {Object|null}
+ */
+resolveTargetLocation(
+    request = {},
+    options = {}
+) {
+    const safeRequest =
+        typeof request === 'string'
+            ? {
+                city:
+                    request
+            }
+            : (
+                request &&
+                typeof request === 'object'
+                    ? request
+                    : {}
+            );
+
+    const safeOptions =
+        options &&
+        typeof options === 'object'
+            ? options
+            : {};
+
+    const directCoordinate =
+        this.normalizeCoordinate(
+            safeRequest.targetCoordinate ??
+            safeRequest.coordinate ??
+            safeRequest.coordinates ??
+            safeRequest.position ??
+            safeRequest.location?.coordinate ??
+            safeRequest.location?.position ??
+            safeRequest.target?.coordinate ??
+            safeRequest.target?.coordinates ??
+            safeRequest.target?.position ??
+            safeRequest.target ??
+            (
+                (
+                    safeRequest.latitude ??
+                    safeRequest.lat
+                ) !== undefined
+                    ? safeRequest
+                    : null
+            )
+        );
+
+    const requestedName =
+        safeRequest.city ??
+        safeRequest.cityName ??
+        safeRequest.name ??
+        safeRequest.nameEn ??
+        safeRequest.nameAr ??
+        safeRequest.target?.city ??
+        safeRequest.target?.name ??
+        safeRequest.location?.city ??
+        safeRequest.location?.name ??
+        safeOptions.city ??
+        safeOptions.targetCity ??
+        safeOptions.target?.city ??
+        safeOptions.target?.name ??
+        null;
+
+    if (directCoordinate) {
+        return {
+            found:
+                true,
+            city:
+                requestedName,
+            name:
+                requestedName,
+            latitude:
+                directCoordinate.lat,
+            longitude:
+                directCoordinate.lon,
+            lat:
+                directCoordinate.lat,
+            lon:
+                directCoordinate.lon,
+            lng:
+                directCoordinate.lon,
+            coordinate: {
+                lat:
+                    directCoordinate.lat,
+                lon:
+                    directCoordinate.lon,
+                lng:
+                    directCoordinate.lon,
+                latitude:
+                    directCoordinate.lat,
+                longitude:
+                    directCoordinate.lon
+            },
+            source:
+                'direct_input',
+            confidence:
+                100
+        };
+    }
+
+    if (!requestedName) {
+        return null;
+    }
+
+    const rg31 =
+        globalThis.RG31 ??
+        {};
+
+    const v31 =
+        globalThis.RainGuardAI?.V31 ??
+        {};
+
+    const v32 =
+        globalThis.RainGuardAI?.V32 ??
+        {};
+
+    const nationalRegistryCandidates = [
+        safeRequest.locations,
+        safeRequest.cities,
+        safeRequest.cityDatabase,
+        safeOptions.locations,
+        safeOptions.cities,
+        rg31.locations,
+        rg31.cities,
+        rg31.cityDatabase,
+        rg31.latestVerification,
+        rg31.LatestVerification,
+        rg31.VerificationEngine?.latestResults,
+        rg31.VerificationEngine?.getLatestResults?.(),
+        rg31.predictedStormPaths,
+        rg31.PredictedStormPaths,
+        rg31.StormCellTrackingEngine?.latestTrackingReport,
+        v31.locations,
+        v31.cities,
+        v31.VerificationEngine?.latestResults,
+        v32.locations,
+        v32.cities,
+        v32.recoveryCore,
+        v32.longHorizon,
+        globalThis.RecoveryCoreV32,
+        globalThis.SaudiLocationsRegistryV32,
+        globalThis.SaudiLocationsRegistry,
+        globalThis.saudiLocationsRegistry,
+        globalThis.latestVerificationResults,
+        globalThis.latestNationalForecast,
+        this.getRainArrivalSaudiCityRegistry()
+    ];
+
+    const locationRecords =
+        nationalRegistryCandidates.flatMap(
+            candidate =>
+                this.collectRainArrivalLocationRecords(
+                    candidate
+                )
+        );
+
+    const normalizedRequestedName =
+        this.normalizeTargetLocationName(
+            requestedName
+        );
+
+    let bestMatch =
+        null;
+
+    for (const record of locationRecords) {
+        const coordinate =
+            this.normalizeCoordinate(
+                record.coordinate ??
+                record.position ??
+                record.location ??
+                record
+            );
+
+        if (!coordinate) {
+            continue;
+        }
+
+        const names = [
+            record.city,
+            record.cityName,
+            record.name,
+            record.nameEn,
+            record.nameAr,
+            record.label,
+            record.locationName,
+            ...(
+                Array.isArray(
+                    record.aliases
+                )
+                    ? record.aliases
+                    : []
+            )
+        ]
+            .filter(Boolean)
+            .map(
+                value =>
+                    this.normalizeTargetLocationName(
+                        value
+                    )
+            )
+            .filter(Boolean);
+
+        if (names.length === 0) {
+            continue;
+        }
+
+        let matchScore =
+            0;
+
+        if (
+            names.includes(
+                normalizedRequestedName
+            )
+        ) {
+            matchScore =
+                100;
+        } else if (
+            names.some(
+                name =>
+                    name.includes(
+                        normalizedRequestedName
+                    ) ||
+                    normalizedRequestedName.includes(
+                        name
+                    )
+            )
+        ) {
+            matchScore =
+                80;
+        }
+
+        if (
+            matchScore >
+            (
+                bestMatch?.matchScore ??
+                0
+            )
+        ) {
+            bestMatch = {
+                found:
+                    true,
+                city:
+                    record.city ??
+                    record.cityName ??
+                    record.nameEn ??
+                    record.name ??
+                    requestedName,
+                name:
+                    record.name ??
+                    record.nameEn ??
+                    record.city ??
+                    requestedName,
+                nameEn:
+                    record.nameEn ??
+                    record.city ??
+                    record.name ??
+                    requestedName,
+                nameAr:
+                    record.nameAr ??
+                    null,
+                region:
+                    record.region ??
+                    record.regionName ??
+                    '',
+                latitude:
+                    coordinate.lat,
+                longitude:
+                    coordinate.lon,
+                lat:
+                    coordinate.lat,
+                lon:
+                    coordinate.lon,
+                lng:
+                    coordinate.lon,
+                coordinate: {
+                    lat:
+                        coordinate.lat,
+                    lon:
+                        coordinate.lon,
+                    lng:
+                        coordinate.lon,
+                    latitude:
+                        coordinate.lat,
+                    longitude:
+                        coordinate.lon
+                },
+                source:
+                    record.source ??
+                    (
+                        record.verificationStatus
+                            ? 'verification_record'
+                            : 'national_registry'
+                    ),
+                confidence:
+                    matchScore,
+                matchScore,
+                raw:
+                    record
+            };
+        }
+    }
+
+    return bestMatch;
+}
+
+
+/**
+ * Compatibility alias used by integrations that expect normalized target
+ * coordinates rather than a complete location record.
+ *
+ * @param {string|Object} request
+ * @param {Object} [options]
+ * @returns {Object|null}
+ */
+normalizeTargetCoordinates(
+    request = {},
+    options = {}
+) {
+    return this.resolveTargetLocation(
+        request,
+        options
+    )?.coordinate ??
+    null;
+}
+
+
+/* ==========================================================================
    SECTION 263
    Pipeline Input Normalization
    ========================================================================== */
@@ -29731,7 +30522,15 @@ _normalizePredictionPipelineInput(
         return [];
     };
 
+    const resolvedTargetLocation =
+        this.resolveTargetLocation(
+            safeInput,
+            safeOptions
+        );
+
     const targetCoordinate =
+        resolvedTargetLocation
+            ?.coordinate ??
         this.normalizeCoordinate(
             safeInput.targetCoordinate ??
             safeInput.target?.coordinate ??
@@ -30145,7 +30944,25 @@ _normalizePredictionPipelineInput(
             rawSourceKeys:
                 Object.keys(
                     inputSources
-                )
+                ),
+
+            targetResolved:
+                Boolean(
+                    resolvedTargetLocation
+                ),
+
+            targetResolutionSource:
+                resolvedTargetLocation
+                    ?.source ??
+                null,
+
+            resolvedTargetCity:
+                resolvedTargetLocation
+                    ?.city ??
+                null,
+
+            resolvedTargetCoordinate:
+                targetCoordinate
         }
     );
 
@@ -30153,6 +30970,47 @@ _normalizePredictionPipelineInput(
         ...safeInput,
 
         targetCoordinate,
+
+        target:
+            resolvedTargetLocation ??
+            (
+                safeInput.target &&
+                typeof safeInput.target ===
+                    'object'
+                    ? safeInput.target
+                    : {
+                        city:
+                            safeInput.city ??
+                            safeInput.cityName ??
+                            safeInput.name ??
+                            null,
+                        coordinate:
+                            targetCoordinate
+                    }
+            ),
+
+        resolvedTargetLocation,
+
+        targetResolution: {
+            found:
+                Boolean(
+                    resolvedTargetLocation
+                ),
+            source:
+                resolvedTargetLocation
+                    ?.source ??
+                null,
+            confidence:
+                resolvedTargetLocation
+                    ?.confidence ??
+                0,
+            city:
+                resolvedTargetLocation
+                    ?.city ??
+                safeInput.city ??
+                null
+        },
+
         stormCoordinate,
         timestamp,
         cities,
