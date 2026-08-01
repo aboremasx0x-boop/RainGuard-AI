@@ -61554,9 +61554,9 @@ globalObject
         return;
     }
 
-    const PATCH_VERSION = '32.4.0';
-    const PATCH_BUILD = 3240;
-    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3240';
+    const PATCH_VERSION = '32.5.0';
+    const PATCH_BUILD = 3250;
+    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3250';
 
     function isObject(value) {
         return Boolean(value) && typeof value === 'object';
@@ -61774,6 +61774,50 @@ globalObject
                 result?.source ??
                 'rain_arrival_prediction_engine_v32',
 
+            fusionMode:
+                result?.sources?.fusion
+                    ?.fusionMode ??
+                result?.fusion
+                    ?.fusionMode ??
+                result?.fusionMode ??
+                prediction?.fusionMode ??
+                "unavailable",
+
+            sourceConflict:
+                Boolean(
+                    result?.sources?.fusion
+                        ?.sourceConflict === true ||
+                    result?.sources?.fusion
+                        ?.decision
+                        ?.sourceConflict === true ||
+                    result?.fusion
+                        ?.sourceConflict === true ||
+                    result?.fusion
+                        ?.decision
+                        ?.sourceConflict === true ||
+                    result?.sourceConflict === true ||
+                    prediction
+                        ?.sourceConflict === true
+                ),
+
+            fusionDecision:
+                result?.sources?.fusion
+                    ?.decision ??
+                result?.fusion
+                    ?.decision ??
+                result?.fusionDecision ??
+                prediction?.fusionDecision ??
+                null,
+
+            primarySource:
+                result?.sources?.fusion
+                    ?.primarySource ??
+                result?.fusion
+                    ?.primarySource ??
+                result?.primarySource ??
+                prediction?.primarySource ??
+                null,
+
             clearedStaleArrival:
                 !available,
 
@@ -61910,10 +61954,22 @@ globalObject
                 publication.shouldAlert,
 
             sourceConflict:
-                false,
+                publication.sourceConflict ===
+                true,
+
+            fusionMode:
+                publication.fusionMode,
+
+            fusionDecision:
+                publication.fusionDecision,
+
+            primarySource:
+                publication.primarySource,
 
             sourceConflictOverriddenByValidArrival:
-                publication.available,
+                publication.available &&
+                publication.sourceConflict !==
+                    true,
 
             clearedStaleArrival:
                 publication.clearedStaleArrival,
