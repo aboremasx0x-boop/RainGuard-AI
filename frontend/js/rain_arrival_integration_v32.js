@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.0.0';
+    const SEMANTIC_VERSION = '32.1.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -61535,6 +61535,642 @@ globalObject
                 : this
         )
 );
+/**
+ * RainGuard AI V32
+ * Rain Arrival Integration Engine
+ *
+ * Phase 6 — Prediction Publication Bridge
+ *
+ * Responsibilities:
+ * - Publish successful rain-arrival predictions to the V32 namespace.
+ * - Synchronize the integration runtime prediction store.
+ * - Dispatch full prediction events for dashboard consumers.
+ * - Prevent a stale SOURCE_CONFLICT card from hiding a valid ETA result.
+ */
+(function rainArrivalIntegrationV32PredictionPublicationBridge(globalObject) {
+    'use strict';
 
+    if (!globalObject) {
+        return;
+    }
 
+    const PATCH_VERSION = '32.1.0';
+    const PATCH_BUILD = 3210;
+    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3210';
+
+    function isObject(value) {
+        return Boolean(value) && typeof value === 'object';
+    }
+
+    function finiteNumber(...values) {
+        for (const value of values) {
+            const numeric = Number(value);
+
+            if (Number.isFinite(numeric)) {
+                return numeric;
+            }
+        }
+
+        return null;
+    }
+
+    function clamp(value, minimum, maximum) {
+        const numeric = finiteNumber(value);
+
+        if (numeric === null) {
+            return minimum;
+        }
+
+        return Math.min(maximum, Math.max(minimum, numeric));
+    }
+
+    function resolvePrimaryPrediction(result) {
+        if (!isObject(result)) {
+            return null;
+        }
+
+        const candidates = [
+            result.prediction,
+            result.finalPrediction,
+            result.rainArrivalPrediction,
+            result.output,
+            result.result?.prediction,
+            result.result,
+            Array.isArray(result.predictions)
+                ? result.predictions[0]
+                : null,
+            result
+        ];
+
+        return candidates.find(isObject) || null;
+    }
+
+    function resolveCity(result, prediction, context) {
+        const target =
+            result?.target ??
+            result?.resolvedTargetLocation ??
+            prediction?.target ??
+            context?.target ??
+            null;
+
+        return (
+            prediction?.city ??
+            prediction?.cityName ??
+            result?.city ??
+            result?.cityName ??
+            target?.city ??
+            target?.name ??
+            context?.city ??
+            context?.cityName ??
+            null
+        );
+    }
+
+    function normalizePublication(result, context = {}) {
+        const prediction = resolvePrimaryPrediction(result);
+
+        if (!prediction) {
+            return null;
+        }
+
+        const arrivalMinutes = finiteNumber(
+            prediction.arrivalMinutes,
+            prediction.rainArrivalMinutes,
+            prediction.etaMinutes,
+            prediction.estimatedArrivalMinutes,
+            result?.arrivalMinutes,
+            result?.rainArrivalMinutes,
+            result?.etaMinutes
+        );
+
+        const confidence = clamp(
+            finiteNumber(
+                prediction.confidence,
+                prediction.confidenceScore,
+                result?.confidence,
+                result?.confidenceScore,
+                0
+            ),
+            0,
+            100
+        );
+
+        const available = Boolean(
+            prediction.available === true ||
+            prediction.willRain === true ||
+            prediction.rainExpected === true ||
+            (
+                arrivalMinutes !== null &&
+                arrivalMinutes >= 0
+            )
+        );
+
+        const city = resolveCity(
+            result,
+            prediction,
+            context
+        );
+
+        const warningCode = finiteNumber(
+            result?.warningCode,
+            prediction?.warningCode,
+            0
+        );
+
+        const action =
+            result?.action ??
+            prediction?.action ??
+            (
+                available
+                    ? 'monitor'
+                    : 'none'
+            );
+
+        const status = available
+            ? 'RAIN_ARRIVAL_AVAILABLE'
+            : 'RAIN_ARRIVAL_UNAVAILABLE';
+
+        const publishedAt = Date.now();
+
+        return {
+            id:
+                result?.id ??
+                prediction?.id ??
+                `rain_arrival_${publishedAt}`,
+
+            status,
+            available,
+            success:
+                result?.success !== false,
+
+            city,
+            cityId:
+                prediction?.cityId ??
+                result?.cityId ??
+                city ??
+                null,
+
+            arrivalMinutes,
+            rainArrivalMinutes:
+                arrivalMinutes,
+            etaMinutes:
+                arrivalMinutes,
+
+            confidence,
+            confidenceScore:
+                confidence,
+
+            action,
+            warningCode:
+                warningCode ?? 0,
+            shouldAlert:
+                Boolean(
+                    result?.shouldAlert ??
+                    prediction?.shouldAlert ??
+                    false
+                ),
+
+            reason:
+                prediction?.reason ??
+                result?.reason ??
+                (
+                    available
+                        ? 'VALID_RAIN_ARRIVAL_ESTIMATE'
+                        : 'RAIN_ARRIVAL_NOT_AVAILABLE'
+                ),
+
+            source:
+                prediction?.source ??
+                result?.source ??
+                'rain_arrival_prediction_engine_v32',
+
+            target:
+                result?.target ??
+                result?.resolvedTargetLocation ??
+                prediction?.target ??
+                context?.target ??
+                null,
+
+            prediction,
+            rawResult:
+                result,
+
+            publishedAt,
+            publishedAtIso:
+                new Date(publishedAt).toISOString(),
+
+            integrationVersion:
+                PATCH_VERSION,
+            integrationBuild:
+                PATCH_BUILD
+        };
+    }
+
+    function dispatchEvent(eventName, detail) {
+        if (
+            typeof globalObject.dispatchEvent !== 'function' ||
+            typeof globalObject.CustomEvent !== 'function'
+        ) {
+            return false;
+        }
+
+        try {
+            globalObject.dispatchEvent(
+                new globalObject.CustomEvent(
+                    eventName,
+                    {
+                        detail
+                    }
+                )
+            );
+
+            return true;
+        } catch (error) {
+            globalObject.console?.warn?.(
+                '[RainGuard AI V32] Prediction publication event failed.',
+                error
+            );
+
+            return false;
+        }
+    }
+
+    function publishRainArrivalPrediction(result, context = {}) {
+        const publication = normalizePublication(
+            result,
+            context
+        );
+
+        if (!publication) {
+            return null;
+        }
+
+        const RainGuardAI =
+            globalObject.RainGuardAI =
+                globalObject.RainGuardAI || {};
+
+        const V32 =
+            RainGuardAI.V32 =
+                RainGuardAI.V32 || {};
+
+        const integrationApi =
+            V32.rainArrivalIntegration ??
+            globalObject.RainArrivalIntegrationV32 ??
+            null;
+
+        V32.latestRainArrivalPrediction =
+            publication;
+
+        V32.latestPrediction =
+            publication;
+
+        V32.latestRainArrivalVerification = {
+            status:
+                publication.status,
+            verified:
+                publication.available,
+            city:
+                publication.city,
+            arrivalMinutes:
+                publication.arrivalMinutes,
+            confidence:
+                publication.confidence,
+            source:
+                publication.source,
+            timestamp:
+                publication.publishedAt,
+            timestampIso:
+                publication.publishedAtIso
+        };
+
+        V32.dashboardState = {
+            ...(
+                isObject(V32.dashboardState)
+                    ? V32.dashboardState
+                    : {}
+            ),
+
+            status:
+                publication.status,
+            nationalStatus:
+                publication.status,
+            rainArrivalStatus:
+                publication.status,
+
+            city:
+                publication.city,
+            highestRiskCity:
+                publication.city,
+
+            arrivalMinutes:
+                publication.arrivalMinutes,
+            rainArrivalMinutes:
+                publication.arrivalMinutes,
+
+            confidence:
+                publication.confidence,
+            action:
+                publication.action,
+            warningCode:
+                publication.warningCode,
+            shouldAlert:
+                publication.shouldAlert,
+
+            sourceConflict:
+                false,
+            sourceConflictOverriddenByValidArrival:
+                publication.available,
+
+            latestRainArrivalPrediction:
+                publication,
+
+            updatedAt:
+                publication.publishedAt,
+            updatedAtIso:
+                publication.publishedAtIso
+        };
+
+        globalObject.latestRainArrivalPrediction =
+            publication;
+
+        globalObject.RainArrivalPredictionV32Latest =
+            publication;
+
+        if (integrationApi?._state) {
+            const state = integrationApi._state;
+
+            state.latestRainArrivalPrediction =
+                publication;
+            state.lastPublishedPrediction =
+                publication;
+            state.lastPublishedPredictionAt =
+                publication.publishedAt;
+
+            if (state.latestPredictions instanceof Map) {
+                state.latestPredictions.set(
+                    String(
+                        publication.cityId ??
+                        publication.city ??
+                        publication.id
+                    ),
+                    publication
+                );
+            } else if (Array.isArray(state.latestPredictions)) {
+                const key = String(
+                    publication.cityId ??
+                    publication.city ??
+                    publication.id
+                );
+
+                state.latestPredictions = [
+                    ...state.latestPredictions.filter(
+                        item =>
+                            String(
+                                item?.cityId ??
+                                item?.city ??
+                                item?.id
+                            ) !== key
+                    ),
+                    publication
+                ];
+            }
+        }
+
+        const configuredEventName =
+            integrationApi?.getConfiguration?.()
+                ?.eventNames
+                ?.predictionUpdated ??
+            'rainguard:v32:rain-arrival:prediction-updated';
+
+        const eventDetail = {
+            prediction:
+                publication,
+            result,
+            dashboardState:
+                V32.dashboardState,
+            integrationVersion:
+                PATCH_VERSION,
+            integrationBuild:
+                PATCH_BUILD
+        };
+
+        dispatchEvent(
+            configuredEventName,
+            eventDetail
+        );
+
+        dispatchEvent(
+            'rainguard:v32:rain-arrival:published',
+            eventDetail
+        );
+
+        dispatchEvent(
+            'rainguard:v32:dashboard:update',
+            eventDetail
+        );
+
+        dispatchEvent(
+            'rainguard:dashboard:update',
+            eventDetail
+        );
+
+        globalObject.console?.info?.(
+            '[RainGuard AI V32] Rain-arrival prediction published.',
+            {
+                status:
+                    publication.status,
+                city:
+                    publication.city,
+                arrivalMinutes:
+                    publication.arrivalMinutes,
+                confidence:
+                    publication.confidence
+            }
+        );
+
+        return publication;
+    }
+
+    function wrapEngine(engine) {
+        if (
+            !engine ||
+            typeof engine.runCompleteRainArrivalPrediction !== 'function'
+        ) {
+            return false;
+        }
+
+        if (engine[PATCH_FLAG]) {
+            return true;
+        }
+
+        const original =
+            engine.runCompleteRainArrivalPrediction;
+
+        const wrapped = async function publishedRunCompleteRainArrivalPrediction(
+            input = {},
+            ...remainingArguments
+        ) {
+            const result = await original.call(
+                this,
+                input,
+                ...remainingArguments
+            );
+
+            publishRainArrivalPrediction(
+                result,
+                input
+            );
+
+            return result;
+        };
+
+        try {
+            Object.defineProperty(
+                wrapped,
+                'name',
+                {
+                    configurable:
+                        true,
+                    value:
+                        original.name ||
+                        'runCompleteRainArrivalPrediction'
+                }
+            );
+        } catch (_) {
+            // Function name preservation is optional.
+        }
+
+        engine.runCompleteRainArrivalPrediction =
+            wrapped;
+
+        try {
+            Object.defineProperty(
+                engine,
+                PATCH_FLAG,
+                {
+                    configurable:
+                        false,
+                    enumerable:
+                        false,
+                    writable:
+                        false,
+                    value:
+                        true
+                }
+            );
+        } catch (_) {
+            engine[PATCH_FLAG] = true;
+        }
+
+        return true;
+    }
+
+    function discoverEngine() {
+        const V32 =
+            globalObject.RainGuardAI?.V32;
+
+        return (
+            globalObject.RainArrivalPredictionEngineV32Instance ??
+            V32?.rainArrivalPrediction ??
+            V32?.arrivalPredictionEngine ??
+            V32?.rainArrivalIntegration?.getEngine?.() ??
+            null
+        );
+    }
+
+    function installPredictionPublicationBridge() {
+        const RainGuardAI =
+            globalObject.RainGuardAI =
+                globalObject.RainGuardAI || {};
+
+        const V32 =
+            RainGuardAI.V32 =
+                RainGuardAI.V32 || {};
+
+        const integrationApi =
+            V32.rainArrivalIntegration ??
+            globalObject.RainArrivalIntegrationV32 ??
+            null;
+
+        const engine = discoverEngine();
+        const wrapped = wrapEngine(engine);
+
+        const publicApi = {
+            version:
+                PATCH_VERSION,
+            build:
+                PATCH_BUILD,
+            installed:
+                wrapped,
+            publishRainArrivalPrediction,
+            normalizePublication,
+            install:
+                installPredictionPublicationBridge,
+            getLatest() {
+                return V32.latestRainArrivalPrediction ?? null;
+            }
+        };
+
+        V32.rainArrivalPublicationBridge =
+            publicApi;
+
+        globalObject.RainArrivalPublicationBridgeV32 =
+            publicApi;
+
+        if (integrationApi && Object.isExtensible(integrationApi)) {
+            integrationApi.publishRainArrivalPrediction =
+                publishRainArrivalPrediction;
+            integrationApi.installPredictionPublicationBridge =
+                installPredictionPublicationBridge;
+            integrationApi.getLatestPublishedRainArrivalPrediction =
+                publicApi.getLatest;
+        }
+
+        return {
+            installed:
+                wrapped,
+            engineAvailable:
+                Boolean(engine),
+            version:
+                PATCH_VERSION,
+            build:
+                PATCH_BUILD
+        };
+    }
+
+    let installationAttempts = 0;
+    const maximumInstallationAttempts = 30;
+
+    function installWithRetry() {
+        installationAttempts += 1;
+
+        const result =
+            installPredictionPublicationBridge();
+
+        if (
+            !result.installed &&
+            installationAttempts < maximumInstallationAttempts
+        ) {
+            globalObject.setTimeout(
+                installWithRetry,
+                500
+            );
+        }
+    }
+
+    installWithRetry();
+
+    globalObject.addEventListener?.(
+        'rainguard:v32:rain-arrival:initialized',
+        installPredictionPublicationBridge
+    );
+})(
+    typeof globalThis !== 'undefined'
+        ? globalThis
+        : (
+            typeof window !== 'undefined'
+                ? window
+                : this
+        )
+);
 
