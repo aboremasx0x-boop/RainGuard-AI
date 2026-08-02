@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.16.0";
+        "32.20.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase19-runtime-state-repair-prediction-cache-recovery";
+        "rainguard-v32-phase20-prediction-result-construction-publication";
 
     const ENGINE_STAGE =
         "production";
@@ -75554,3 +75554,438 @@ if (
         )
 );
 
+
+
+/* ==========================================================================
+ * RainGuard AI V32 — Phase 20
+ * Prediction Result Construction & Publication Lifecycle
+ * Engine Version: 32.20.0
+ * ========================================================================== */
+(function installRainArrivalPhase20PredictionLifecycle(globalObject) {
+    "use strict";
+
+    if (!globalObject) {
+        return;
+    }
+
+    const PHASE_VERSION = "32.20.0";
+    const PHASE_BUILD =
+        "rainguard-v32-phase20-prediction-result-construction-publication";
+    const WRAP_FLAG = Symbol.for("RG32_PHASE20_PREDICTION_LIFECYCLE_WRAPPED");
+
+    function nowIso() {
+        return new Date().toISOString();
+    }
+
+    function createPredictionId() {
+        return [
+            "rg32_prediction",
+            Date.now().toString(36),
+            Math.random().toString(36).slice(2, 10)
+        ].join("_");
+    }
+
+    function isObject(value) {
+        return Boolean(value && typeof value === "object" && !Array.isArray(value));
+    }
+
+    function normalizeError(error) {
+        if (!error) {
+            return null;
+        }
+        return {
+            name: error.name || "Error",
+            message: error.message || String(error),
+            code: error.code || null,
+            stack: error.stack || null
+        };
+    }
+
+    function dispatchPredictionEvent(eventName, detail) {
+        try {
+            if (
+                typeof globalObject.dispatchEvent === "function" &&
+                typeof globalObject.CustomEvent === "function"
+            ) {
+                globalObject.dispatchEvent(
+                    new globalObject.CustomEvent(eventName, { detail })
+                );
+            }
+        } catch (_) {
+            // Event publication must never interrupt prediction publication.
+        }
+    }
+
+    function resolveArrivalMinutes(result) {
+        const candidates = [
+            result?.arrivalMinutes,
+            result?.prediction?.arrivalMinutes,
+            result?.etaMinutes,
+            result?.rainArrivalMinutes,
+            result?.arrival_time_minutes
+        ];
+        for (const value of candidates) {
+            if (value === null || value === undefined || value === "") {
+                continue;
+            }
+            const numeric = Number(value);
+            if (Number.isFinite(numeric) && numeric >= 0) {
+                return numeric;
+            }
+        }
+        return null;
+    }
+
+    function resolveConfidence(result) {
+        const candidates = [
+            result?.confidence,
+            result?.confidenceScore,
+            result?.prediction?.confidence
+        ];
+        for (const value of candidates) {
+            const numeric = Number(value);
+            if (Number.isFinite(numeric)) {
+                return Math.max(0, Math.min(100, numeric));
+            }
+        }
+        return 0;
+    }
+
+    function buildLifecycleResult(engine, rawResult, input = {}, options = {}) {
+        const sourceResult = isObject(rawResult) ? rawResult : {};
+        const predictionSource = isObject(sourceResult.prediction)
+            ? sourceResult.prediction
+            : {};
+        const arrivalMinutes = resolveArrivalMinutes(sourceResult);
+        const confidence = resolveConfidence(sourceResult);
+        const available = Number.isFinite(arrivalMinutes) && arrivalMinutes >= 0;
+        const generatedAt = sourceResult.generatedAt || nowIso();
+        const predictionId =
+            sourceResult.predictionId ||
+            predictionSource.id ||
+            sourceResult.id ||
+            createPredictionId();
+        const status = available
+            ? "RAIN_ARRIVAL_AVAILABLE"
+            : (sourceResult.status && sourceResult.status !== "unavailable"
+                ? String(sourceResult.status)
+                : "PREDICTION_PARTIAL");
+        const reason = available
+            ? (sourceResult.reason || predictionSource.reason || "VALID_ARRIVAL_ESTIMATE")
+            : (sourceResult.reason || predictionSource.reason || options.reason || "NO_VALID_ARRIVAL_EVIDENCE");
+        const arrivalTimestamp =
+            sourceResult.arrivalTimestamp ??
+            predictionSource.arrivalTimestamp ??
+            (available ? Date.now() + arrivalMinutes * 60000 : null);
+        const arrivalIso =
+            sourceResult.arrivalIso ??
+            predictionSource.arrivalIso ??
+            (Number.isFinite(Number(arrivalTimestamp))
+                ? new Date(Number(arrivalTimestamp)).toISOString()
+                : null);
+        const constructionStartedAt = Number(options.startedAt) || Date.now();
+        const constructionCompletedAt = Date.now();
+
+        return {
+            ...sourceResult,
+            id: predictionId,
+            predictionId,
+            version: PHASE_VERSION,
+            build: PHASE_BUILD,
+            success: sourceResult.success === true || available,
+            partial: !available,
+            available,
+            status,
+            reason,
+            arrivalMinutes: available ? arrivalMinutes : null,
+            etaMinutes: available ? arrivalMinutes : null,
+            rainArrivalMinutes: available ? arrivalMinutes : null,
+            eta: available ? arrivalIso : null,
+            arrivalTimestamp: available ? Number(arrivalTimestamp) : null,
+            arrivalIso: available ? arrivalIso : null,
+            confidence,
+            cityId:
+                sourceResult.cityId ?? input.cityId ?? input.locationId ?? null,
+            city:
+                sourceResult.city ?? input.city ?? input.location?.name ?? null,
+            stormCellSelection:
+                sourceResult.stormCellSelection ??
+                sourceResult.sources?.collection?.diagnostics?.stormCellSelection ??
+                sourceResult.sources?.collection?.sourceDiagnostics?.stormCellSelection ??
+                null,
+            radarEtaValidation:
+                sourceResult.radarEtaValidation ??
+                sourceResult.sources?.collection?.diagnostics?.radarEtaValidation ??
+                sourceResult.sources?.collection?.sourceDiagnostics?.radarEtaValidation ??
+                null,
+            prediction: {
+                ...predictionSource,
+                id: predictionId,
+                available,
+                status,
+                reason,
+                arrivalMinutes: available ? arrivalMinutes : null,
+                arrivalTimestamp: available ? Number(arrivalTimestamp) : null,
+                arrivalIso: available ? arrivalIso : null,
+                confidence
+            },
+            predictionConstruction: {
+                started: true,
+                completed: true,
+                publicationReady: true,
+                returnedPrediction: true,
+                fallbackConstructed: !isObject(rawResult),
+                predictionId,
+                startedAt: constructionStartedAt,
+                completedAt: constructionCompletedAt,
+                buildDurationMs: Math.max(0, constructionCompletedAt - constructionStartedAt),
+                phase: 20,
+                version: PHASE_VERSION
+            },
+            generatedAt
+        };
+    }
+
+    function ensureLifecycleContainers(engine) {
+        if (!(engine.latestPredictionsMap instanceof Map)) {
+            engine.latestPredictionsMap = new Map();
+        }
+        if (!Array.isArray(engine.predictionSnapshots)) {
+            engine.predictionSnapshots = [];
+        }
+        if (!Array.isArray(engine.predictionTimeline)) {
+            engine.predictionTimeline = [];
+        }
+        if (!(engine.predictionHistory instanceof Map)) {
+            engine.predictionHistory = new Map();
+        }
+    }
+
+    function publishLifecycleResult(engine, rawResult, input = {}, options = {}) {
+        if (!engine) {
+            return rawResult;
+        }
+        ensureLifecycleContainers(engine);
+        const result = buildLifecycleResult(engine, rawResult, input, options);
+        const key = String(
+            result.cityId ??
+            input.locationId ??
+            input.cityId ??
+            result.predictionId
+        );
+
+        engine.currentPrediction = result;
+        engine.lastResult = result;
+        engine.lastPredictionResult = result;
+        engine.lastArrivalResult = result;
+        engine.latestPrediction = result;
+        engine.latestPredictionId = result.predictionId;
+        engine.latestPredictionsMap.set(key, result);
+
+        if (engine.predictions instanceof Map) {
+            engine.predictions.set(key, result);
+        }
+        if (engine.arrivalPredictions instanceof Map) {
+            engine.arrivalPredictions.set(key, result);
+        }
+
+        const history = engine.predictionHistory.get(key) || [];
+        if (Array.isArray(history)) {
+            history.push(result);
+            if (history.length > 120) {
+                history.splice(0, history.length - 120);
+            }
+            engine.predictionHistory.set(key, history);
+        }
+
+        engine.predictionSnapshots.push({
+            predictionId: result.predictionId,
+            status: result.status,
+            arrivalMinutes: result.arrivalMinutes,
+            confidence: result.confidence,
+            generatedAt: result.generatedAt
+        });
+        if (engine.predictionSnapshots.length > 500) {
+            engine.predictionSnapshots.splice(0, engine.predictionSnapshots.length - 500);
+        }
+
+        engine.predictionTimeline.push({
+            predictionId: result.predictionId,
+            timestamp: Date.now(),
+            status: result.status,
+            cityId: result.cityId,
+            arrivalMinutes: result.arrivalMinutes
+        });
+        if (engine.predictionTimeline.length > 500) {
+            engine.predictionTimeline.splice(0, engine.predictionTimeline.length - 500);
+        }
+
+        globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+        globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+        const V32 = globalObject.RainGuardAI.V32;
+        V32.latestPrediction = result;
+        V32.latestArrivalPrediction = result;
+        V32.latestRainArrivalPrediction = result;
+        V32.latestRainArrivalPredictionPhase20 = result;
+
+        dispatchPredictionEvent(
+            result.available
+                ? "rainguard:v32:prediction-published"
+                : "rainguard:v32:prediction-partial",
+            { prediction: result, phase: 20, version: PHASE_VERSION }
+        );
+
+        return result;
+    }
+
+    function buildPartialResult(engine, input = {}, reason = "PREDICTION_RESULT_UNAVAILABLE", error = null) {
+        return buildLifecycleResult(
+            engine,
+            {
+                success: false,
+                partial: true,
+                available: false,
+                status: "PREDICTION_PARTIAL",
+                reason,
+                confidence: 0,
+                diagnostics: {
+                    phase20Fallback: true,
+                    error: normalizeError(error)
+                },
+                generatedAt: nowIso()
+            },
+            input,
+            { reason }
+        );
+    }
+
+    function installOnEngine(engine) {
+        if (!engine || engine[WRAP_FLAG]) {
+            return engine;
+        }
+
+        engine.version = PHASE_VERSION;
+        engine.build = PHASE_BUILD;
+        engine.buildRainArrivalPredictionLifecycleResult = function (rawResult, input = {}, options = {}) {
+            return buildLifecycleResult(this, rawResult, input, options);
+        };
+        engine.publishRainArrivalPredictionLifecycle = function (rawResult, input = {}, options = {}) {
+            return publishLifecycleResult(this, rawResult, input, options);
+        };
+        engine.buildPartialRainArrivalPrediction = function (input = {}, reason, error) {
+            return buildPartialResult(this, input, reason, error);
+        };
+
+        const originalAsync = engine.runCompleteRainArrivalPrediction;
+        if (typeof originalAsync === "function" && !originalAsync[WRAP_FLAG]) {
+            const wrappedAsync = async function phase20CompletePrediction(input = {}, options = {}) {
+                const startedAt = Date.now();
+                try {
+                    const raw = await originalAsync.call(this, input, options);
+                    return publishLifecycleResult(
+                        this,
+                        isObject(raw) ? raw : buildPartialResult(this, input),
+                        input,
+                        { ...options, startedAt }
+                    );
+                } catch (error) {
+                    const partial = buildPartialResult(
+                        this,
+                        input,
+                        error?.code || "PREDICTION_PIPELINE_FAILED",
+                        error
+                    );
+                    return publishLifecycleResult(this, partial, input, { ...options, startedAt });
+                }
+            };
+            wrappedAsync[WRAP_FLAG] = true;
+            engine.runCompleteRainArrivalPrediction = wrappedAsync;
+        }
+
+        const originalSync = engine.runCompleteRainArrivalPredictionSync;
+        if (typeof originalSync === "function" && !originalSync[WRAP_FLAG]) {
+            const wrappedSync = function phase20CompletePredictionSync(input = {}, options = {}) {
+                const startedAt = Date.now();
+                try {
+                    const raw = originalSync.call(this, input, options);
+                    return publishLifecycleResult(
+                        this,
+                        isObject(raw) ? raw : buildPartialResult(this, input),
+                        input,
+                        { ...options, startedAt }
+                    );
+                } catch (error) {
+                    const partial = buildPartialResult(
+                        this,
+                        input,
+                        error?.code || "PREDICTION_PIPELINE_FAILED",
+                        error
+                    );
+                    return publishLifecycleResult(this, partial, input, { ...options, startedAt });
+                }
+            };
+            wrappedSync[WRAP_FLAG] = true;
+            engine.runCompleteRainArrivalPredictionSync = wrappedSync;
+        }
+
+        Object.defineProperty(engine, WRAP_FLAG, {
+            value: true,
+            configurable: false,
+            enumerable: false
+        });
+        ensureLifecycleContainers(engine);
+        return engine;
+    }
+
+    function resolveEngine() {
+        return (
+            globalObject.RainGuardAI?.V32?.rainArrivalPrediction ||
+            globalObject.RainGuardAI?.V32?.arrivalPredictionEngine ||
+            globalObject.RainArrivalPredictionEngineV32Instance ||
+            null
+        );
+    }
+
+    function installWhenReady(attempt = 0) {
+        const engine = resolveEngine();
+        if (engine) {
+            installOnEngine(engine);
+            return;
+        }
+        if (attempt < 120) {
+            globalObject.setTimeout(() => installWhenReady(attempt + 1), 250);
+        }
+    }
+
+    const api = {
+        version: PHASE_VERSION,
+        build: PHASE_BUILD,
+        resolveEngine,
+        installOnEngine,
+        buildLifecycleResult,
+        publishLifecycleResult,
+        buildPartialResult,
+        diagnose() {
+            const engine = resolveEngine();
+            return {
+                version: PHASE_VERSION,
+                build: PHASE_BUILD,
+                engineAvailable: Boolean(engine),
+                installed: Boolean(engine?.[WRAP_FLAG]),
+                currentPredictionAvailable: engine?.currentPrediction != null,
+                lastPredictionResultAvailable: engine?.lastPredictionResult != null,
+                latestPredictionId: engine?.latestPredictionId || null,
+                latestPredictionsCount:
+                    engine?.latestPredictionsMap instanceof Map
+                        ? engine.latestPredictionsMap.size
+                        : 0
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase20PredictionLifecycleV32 = api;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.rainArrivalPhase20PredictionLifecycle = api;
+    installWhenReady();
+})(typeof globalThis !== "undefined" ? globalThis : window);
