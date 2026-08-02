@@ -61554,9 +61554,9 @@ globalObject
         return;
     }
 
-    const PATCH_VERSION = '32.9.0';
-    const PATCH_BUILD = 3290;
-    const PATCH_FLAG = '__rainArrivalPublicationBridgeV3290';
+    const PATCH_VERSION = '32.10.0';
+    const PATCH_BUILD = 32100;
+    const PATCH_FLAG = '__rainArrivalPublicationBridgeV32100';
 
     function isObject(value) {
         return Boolean(value) && typeof value === 'object';
@@ -62297,13 +62297,13 @@ globalObject
     }
 
     const VERSION =
-        '32.9.0';
+        '32.10.0';
 
     const BUILD =
-        3290;
+        32100;
 
     const INSTALL_FLAG =
-        '__rainArrivalVerificationStatusRendererV3290';
+        '__rainArrivalVerificationStatusRendererV32100';
 
     const STATUS_ELEMENT_SELECTORS = [
         '#verificationStatusTop',
@@ -63041,19 +63041,19 @@ globalObject
     }
 
     const VERSION =
-        '32.9.0';
+        '32.10.0';
 
     const BUILD =
-        3290;
+        32100;
 
     const INSTALL_FLAG =
-        '__rainArrivalPublicationPipelineV3290';
+        '__rainArrivalPublicationPipelineV32100';
 
     const ENGINE_WRAP_FLAG =
-        '__rainArrivalPublicationPipelineEngineV3290';
+        '__rainArrivalPublicationPipelineEngineV32100';
 
     const SYNC_WRAP_FLAG =
-        '__rainArrivalPublicationPipelineSyncV3290';
+        '__rainArrivalPublicationPipelineSyncV32100';
 
     const MAX_INSTALL_ATTEMPTS =
         60;
