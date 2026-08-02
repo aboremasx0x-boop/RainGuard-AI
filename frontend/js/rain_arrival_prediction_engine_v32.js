@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.13.0";
+        "32.14.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase16-storm-cell-selection";
+        "rainguard-v32-phase17-eta-acceptance-pipeline-integration";
 
     const ENGINE_STAGE =
         "production";
@@ -33896,6 +33896,81 @@ collectPipelineArrivalEstimates(
 
         diagnostics.radarCellAttempts = radarAttempts;
 
+        const acceptedRadarAttempt =
+            radarAttempts.find(
+                attempt =>
+                    attempt.accepted === true
+            ) ??
+            null;
+
+        diagnostics.radarEtaValidation = {
+            attemptedCellCount:
+                radarAttempts.length,
+
+            accepted:
+                Boolean(
+                    acceptedRadarEstimate
+                ),
+
+            acceptedCellIndex:
+                acceptedRadarAttempt
+                    ?.attemptIndex ??
+                null,
+
+            acceptedCellId:
+                acceptedRadarAttempt
+                    ?.cellId ??
+                null,
+
+            arrivalMinutes:
+                Number.isFinite(
+                    Number(
+                        acceptedRadarEstimate
+                            ?.arrivalMinutes
+                    )
+                )
+                    ? Number(
+                        acceptedRadarEstimate
+                            .arrivalMinutes
+                    )
+                    : null,
+
+            confidence:
+                Number.isFinite(
+                    Number(
+                        acceptedRadarEstimate
+                            ?.confidence
+                    )
+                )
+                    ? Number(
+                        acceptedRadarEstimate
+                            .confidence
+                    )
+                    : 0,
+
+            fallbackUsed:
+                Boolean(
+                    acceptedRadarAttempt &&
+                    acceptedRadarAttempt
+                        .attemptIndex > 0
+                ),
+
+            rejectedAttempts:
+                radarAttempts.filter(
+                    attempt =>
+                        attempt.accepted !== true
+                ),
+
+            reason:
+                acceptedRadarEstimate
+                    ? "RADAR_ETA_ACCEPTED"
+                    : (
+                        radarAttempts.length > 0
+                            ? "ALL_RADAR_ETA_ATTEMPTS_REJECTED"
+                            : "NO_ELIGIBLE_RADAR_CELL_ATTEMPTS"
+                    )
+        };
+
         if (acceptedRadarEstimate) {
             pushEstimate("radar", acceptedRadarEstimate);
         } else {
@@ -37555,8 +37630,61 @@ mapUnifiedPredictionToLegacyFormats(
             ?.cities ??
         [];
 
+    const stormCellSelection =
+        result.sources
+            ?.collection
+            ?.diagnostics
+            ?.stormCellSelection ??
+        result.sources
+            ?.collection
+            ?.sourceDiagnostics
+            ?.stormCellSelection ??
+        null;
+
+    const radarEtaValidation =
+        result.sources
+            ?.collection
+            ?.diagnostics
+            ?.radarEtaValidation ??
+        result.sources
+            ?.collection
+            ?.sourceDiagnostics
+            ?.radarEtaValidation ??
+        null;
+
     return {
         ...result,
+
+        available:
+            prediction.available === true,
+
+        status:
+            prediction.status ??
+            "unavailable",
+
+        reason:
+            prediction.reason ??
+            "NO_VALID_ARRIVAL_EVIDENCE",
+
+        arrivalMinutes:
+            prediction.arrivalMinutes ??
+            null,
+
+        arrivalTimestamp:
+            prediction.arrivalTimestamp ??
+            null,
+
+        arrivalIso:
+            prediction.arrivalIso ??
+            null,
+
+        eta:
+            prediction.arrivalMinutes ??
+            null,
+
+        stormCellSelection,
+
+        radarEtaValidation,
 
         etaMinutes:
             prediction
@@ -37666,6 +37794,133 @@ mapUnifiedPredictionToLegacyFormats(
                 'monitor'
         }
     };
+}
+
+
+/* ==========================================================================
+   SECTION 278A
+   Phase 17 — Latest Result Persistence
+   ========================================================================== */
+
+/**
+ * Persist the latest complete rain-arrival result on the engine instance.
+ *
+ * This guarantees that diagnostics and public APIs can read the result after
+ * asynchronous or synchronous pipeline execution.
+ *
+ * @param {Object} result
+ * @param {Object} [input]
+ * @returns {Object}
+ */
+commitLatestRainArrivalPredictionResult(
+    result,
+    input = {}
+) {
+    const safeResult =
+        this.isPlainObject(result)
+            ? result
+            : {};
+
+    const committedAt =
+        Date.now();
+
+    const committedResult = {
+        ...safeResult,
+
+        committedAt,
+
+        committedAtIso:
+            new Date(
+                committedAt
+            ).toISOString()
+    };
+
+    this.lastResult =
+        committedResult;
+
+    this.lastPredictionResult =
+        committedResult;
+
+    this.lastArrivalResult =
+        committedResult;
+
+    this.currentPrediction =
+        committedResult;
+
+    const predictionKey =
+        input.locationId ??
+        input.cityId ??
+        input.targetId ??
+        input.city ??
+        input.location?.name ??
+        input.location?.city ??
+        committedResult.engine
+            ?.executionId ??
+        `prediction_${committedAt}`;
+
+    if (
+        this.predictions instanceof Map
+    ) {
+        this.predictions.set(
+            String(predictionKey),
+            committedResult
+        );
+    }
+
+    if (
+        this.arrivalPredictions instanceof Map
+    ) {
+        this.arrivalPredictions.set(
+            String(predictionKey),
+            committedResult
+        );
+    }
+
+    if (
+        this.predictionHistory instanceof Map
+    ) {
+        const history =
+            this.predictionHistory.get(
+                String(predictionKey)
+            ) ??
+            [];
+
+        if (Array.isArray(history)) {
+            history.push(
+                committedResult
+            );
+
+            const maximumHistorySize =
+                Math.max(
+                    1,
+                    Number(
+                        this.config
+                            ?.engine
+                            ?.maxHistorySize ??
+                        DEFAULT_TRACK_HISTORY_SIZE
+                    ) ||
+                    DEFAULT_TRACK_HISTORY_SIZE
+                );
+
+            if (
+                history.length >
+                maximumHistorySize
+            ) {
+                history.splice(
+                    0,
+                    history.length -
+                    maximumHistorySize
+                );
+            }
+
+            this.predictionHistory.set(
+                String(predictionKey),
+                history
+            );
+        }
+    }
+
+    return committedResult;
 }
 
 
@@ -39079,8 +39334,14 @@ console.log(
             options
         );
 
-    return this.mapUnifiedPredictionToLegacyFormats(
-        unifiedResult
+    const legacyResult =
+        this.mapUnifiedPredictionToLegacyFormats(
+            unifiedResult
+        );
+
+    return this.commitLatestRainArrivalPredictionResult(
+        legacyResult,
+        normalizedInput
     );
 }
 
@@ -39608,8 +39869,14 @@ normalizedInput.forecasts =
             options
         );
 
-    return this.mapUnifiedPredictionToLegacyFormats(
-        unifiedResult
+    const legacyResult =
+        this.mapUnifiedPredictionToLegacyFormats(
+            unifiedResult
+        );
+
+    return this.commitLatestRainArrivalPredictionResult(
+        legacyResult,
+        normalizedInput
     );
 }
 
