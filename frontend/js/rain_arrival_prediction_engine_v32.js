@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.21.0";
+        "32.21.1";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase21-national-target-resolution-context-injection";
+        "rainguard-v32-phase21-1-target-resolver-null-guard";
 
     const ENGINE_STAGE =
         "production";
@@ -75565,8 +75565,8 @@ if (
 
     if (!globalObject) return;
 
-    const VERSION = '32.21.0';
-    const BUILD = 'rainguard-v32-phase21-national-target-resolution-context-injection';
+    const VERSION = '32.21.1';
+    const BUILD = 'rainguard-v32-phase21-1-target-resolver-null-guard';
 
     const CITY_REGISTRY = Object.freeze([
         { city: 'Riyadh', nameEn: 'Riyadh', nameAr: 'الرياض', latitude: 24.7136, longitude: 46.6753, region: 'Riyadh' },
@@ -75603,9 +75603,47 @@ if (
     }
 
     function findRegistryCity(value) {
-        const key = normalizeName(typeof value === 'object' ? (value.city ?? value.cityName ?? value.name ?? value.nameEn ?? value.nameAr) : value);
-        if (!key) return null;
-        return CITY_REGISTRY.find(item => [item.city,item.nameEn,item.nameAr].some(name => normalizeName(name) === key)) ?? null;
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        let rawValue = value;
+
+        if (typeof value === 'object') {
+            rawValue =
+                value.city ??
+                value.cityName ??
+                value.name ??
+                value.nameEn ??
+                value.nameAr ??
+                value.id ??
+                null;
+        }
+
+        const key = normalizeName(rawValue);
+
+        if (!key) {
+            return null;
+        }
+
+        return CITY_REGISTRY.find((item) => {
+            if (!item || typeof item !== 'object') {
+                return false;
+            }
+
+            return [
+                item.city,
+                item.nameEn,
+                item.nameAr,
+                item.id
+            ].some((name) => {
+                if (name === null || name === undefined) {
+                    return false;
+                }
+
+                return normalizeName(name) === key;
+            });
+        }) ?? null;
     }
 
     function readDashboardCity() {
