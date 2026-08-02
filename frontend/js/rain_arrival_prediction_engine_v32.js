@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.10.0";
+        "32.11.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -20738,47 +20738,100 @@ estimateRadarRainArrival(
             0
         );
 
-    const speedKmh =
-        Number.isFinite(
+    const minimumAcceptedSpeedKmh =
+        Math.max(
+            0.5,
             Number(
-                rawSpeedKmh
-            )
-        ) &&
+                options.minimumAcceptedStormSpeedKmh
+            ) || 1
+        );
+
+    const maximumAcceptedSpeedKmh =
+        Math.max(
+            minimumAcceptedSpeedKmh,
+            Number(
+                options.maximumAcceptedStormSpeedKmh
+            ) || 140
+        );
+
+    const normalizedRawSpeedKmh =
         Number(
             rawSpeedKmh
-        ) > 0
-            ? Math.max(
-                0,
-                Number(
-                    rawSpeedKmh
-                )
-            )
+        );
+
+    const rawSpeedValid =
+        Number.isFinite(
+            normalizedRawSpeedKmh
+        ) &&
+        normalizedRawSpeedKmh >=
+            minimumAcceptedSpeedKmh &&
+        normalizedRawSpeedKmh <=
+            maximumAcceptedSpeedKmh;
+
+    const fallbackSpeedValid =
+        Number.isFinite(
+            fallbackSpeedKmh
+        ) &&
+        fallbackSpeedKmh >=
+            minimumAcceptedSpeedKmh;
+
+    const preferMotionAnalysis =
+        options.preferMotionAnalysis !==
+        false;
+
+    const selectedUnclampedSpeedKmh =
+        preferMotionAnalysis &&
+        fallbackSpeedValid
+            ? fallbackSpeedKmh
             : (
-                Number.isFinite(
-                    fallbackSpeedKmh
-                ) &&
-                fallbackSpeedKmh > 0
-                    ? fallbackSpeedKmh
-                    : 0
+                rawSpeedValid
+                    ? normalizedRawSpeedKmh
+                    : (
+                        fallbackSpeedValid
+                            ? fallbackSpeedKmh
+                            : 0
+                    )
             );
 
-    const speedSource =
-        Number.isFinite(
-            Number(
-                rawSpeedKmh
+    const speedKmh =
+        selectedUnclampedSpeedKmh > 0
+            ? Math.max(
+                minimumAcceptedSpeedKmh,
+                Math.min(
+                    maximumAcceptedSpeedKmh,
+                    selectedUnclampedSpeedKmh
+                )
             )
+            : 0;
+
+    const speedWasClamped =
+        speedKmh > 0 &&
+        Number.isFinite(
+            selectedUnclampedSpeedKmh
         ) &&
-        Number(
-            rawSpeedKmh
-        ) > 0
-            ? "radar"
+        Math.abs(
+            speedKmh -
+            selectedUnclampedSpeedKmh
+        ) > 1e-9;
+
+    const speedSource =
+        speedKmh <= 0
+            ? "unavailable"
             : (
-                speedKmh > 0
+                preferMotionAnalysis &&
+                fallbackSpeedValid
                     ? (
                         options.motionSource ??
-                        "motion_fallback"
+                        "motion_analysis"
                     )
-                    : "unavailable"
+                    : (
+                        rawSpeedValid
+                            ? "radar"
+                            : (
+                                options.motionSource ??
+                                "motion_fallback"
+                            )
+                    )
             );
 
     const rawBearing =
@@ -20802,40 +20855,61 @@ estimateRadarRainArrival(
             options.defaultStormBearing
         );
 
-    const bearing =
+    const normalizedRawBearing =
+        this.normalizeBearing(
+            rawBearing
+        );
+
+    const normalizedFallbackBearing =
+        this.normalizeBearing(
+            fallbackBearing
+        );
+
+    const rawBearingValid =
         Number.isFinite(
-            Number(
-                rawBearing
-            )
-        )
-            ? Number(
-                rawBearing
-            )
+            normalizedRawBearing
+        );
+
+    const fallbackBearingValid =
+        Number.isFinite(
+            normalizedFallbackBearing
+        );
+
+    const bearing =
+        preferMotionAnalysis &&
+        fallbackBearingValid
+            ? normalizedFallbackBearing
             : (
-                Number.isFinite(
-                    fallbackBearing
-                )
-                    ? fallbackBearing
-                    : null
+                rawBearingValid
+                    ? normalizedRawBearing
+                    : (
+                        fallbackBearingValid
+                            ? normalizedFallbackBearing
+                            : null
+                    )
             );
 
     const bearingSource =
         Number.isFinite(
-            Number(
-                rawBearing
-            )
+            bearing
         )
-            ? "radar"
-            : (
-                Number.isFinite(
-                    bearing
-                )
+            ? (
+                preferMotionAnalysis &&
+                fallbackBearingValid
                     ? (
                         options.motionSource ??
-                        "motion_fallback"
+                        "motion_analysis"
                     )
-                    : "unavailable"
-            );
+                    : (
+                        rawBearingValid
+                            ? "radar"
+                            : (
+                                options.motionSource ??
+                                "motion_fallback"
+                            )
+                    )
+            )
+            : "unavailable";
 
     const directDistanceKm =
         this.calculateDistanceKm(
@@ -21037,6 +21111,46 @@ estimateRadarRainArrival(
                 maximumRadarArrivalMinutes,
                 speedSource,
                 bearingSource,
+
+                rawSpeedKmh:
+                    Number.isFinite(
+                        normalizedRawSpeedKmh
+                    )
+                        ? normalizedRawSpeedKmh
+                        : null,
+
+                fallbackSpeedKmh:
+                    Number.isFinite(
+                        fallbackSpeedKmh
+                    )
+                        ? fallbackSpeedKmh
+                        : null,
+
+                selectedUnclampedSpeedKmh:
+                    Number.isFinite(
+                        selectedUnclampedSpeedKmh
+                    )
+                        ? selectedUnclampedSpeedKmh
+                        : null,
+
+                speedWasClamped,
+
+                rawBearing:
+                    Number.isFinite(
+                        normalizedRawBearing
+                    )
+                        ? normalizedRawBearing
+                        : null,
+
+                fallbackBearing:
+                    Number.isFinite(
+                        normalizedFallbackBearing
+                    )
+                        ? normalizedFallbackBearing
+                        : null,
+
+                preferMotionAnalysis,
+
                 motionSource:
                     options.motionSource ??
                     null,
@@ -21100,7 +21214,64 @@ estimateRadarRainArrival(
                         rawArrivalMinutes
                     )
                         ? rawArrivalMinutes
-                        : null
+                        : null,
+
+                speedIntegration: {
+                    rawSpeedKmh:
+                        Number.isFinite(
+                            normalizedRawSpeedKmh
+                        )
+                            ? normalizedRawSpeedKmh
+                            : null,
+
+                    fallbackSpeedKmh:
+                        Number.isFinite(
+                            fallbackSpeedKmh
+                        )
+                            ? fallbackSpeedKmh
+                            : null,
+
+                    selectedSpeedKmh:
+                        speedKmh,
+
+                    selectedUnclampedSpeedKmh:
+                        Number.isFinite(
+                            selectedUnclampedSpeedKmh
+                        )
+                            ? selectedUnclampedSpeedKmh
+                            : null,
+
+                    speedWasClamped,
+
+                    source:
+                        speedSource
+                },
+
+                bearingIntegration: {
+                    rawBearing:
+                        Number.isFinite(
+                            normalizedRawBearing
+                        )
+                            ? normalizedRawBearing
+                            : null,
+
+                    fallbackBearing:
+                        Number.isFinite(
+                            normalizedFallbackBearing
+                        )
+                            ? normalizedFallbackBearing
+                            : null,
+
+                    selectedBearing:
+                        Number.isFinite(
+                            bearing
+                        )
+                            ? bearing
+                            : null,
+
+                    source:
+                        bearingSource
+                }
             },
 
             rainCoordinate,
@@ -33232,7 +33403,20 @@ collectPipelineArrivalEstimates(
 
                             motionSource:
                                 effectiveMotion
-                                    .source
+                                    .source,
+
+                            preferMotionAnalysis:
+                                true,
+
+                            maximumAcceptedStormSpeedKmh:
+                                options
+                                    .maximumAcceptedStormSpeedKmh ??
+                                140,
+
+                            minimumAcceptedStormSpeedKmh:
+                                options
+                                    .minimumAcceptedStormSpeedKmh ??
+                                1
                         }
                     )
             )
@@ -73865,26 +74049,224 @@ if (
                     ?.V32
                     ?.rainArrivalPrediction;
 
-            if (
-                !engine ||
-                typeof engine
-                    .runPhase13MotionDiagnostic !==
-                    "function"
-            ) {
+            if (!engine) {
                 return {
                     passed:
                         false,
 
                     reason:
-                        "PHASE13_ENGINE_NOT_AVAILABLE"
+                        "PHASE14_ENGINE_NOT_AVAILABLE"
                 };
             }
 
-            return engine
-                .runPhase13MotionDiagnostic(
-                    input,
-                    options
-                );
+            if (
+                typeof engine
+                    .runPhase13MotionDiagnostic ===
+                    "function"
+            ) {
+                return engine
+                    .runPhase13MotionDiagnostic(
+                        input,
+                        options
+                    );
+            }
+
+            if (
+                typeof engine
+                    .normalizeCompletePredictionInput ===
+                    "function" &&
+                typeof engine
+                    .recoverPipelineMotionObservations ===
+                    "function" &&
+                typeof engine
+                    .resolvePipelineMultiFrameMotion ===
+                    "function"
+            ) {
+                const normalized =
+                    engine
+                        .normalizeCompletePredictionInput(
+                            input,
+                            options
+                        );
+
+                const recovered =
+                    engine
+                        .recoverPipelineMotionObservations(
+                            normalized,
+                            options
+                        );
+
+                const motion =
+                    engine
+                        .resolvePipelineMultiFrameMotion(
+                            normalized,
+                            recovered,
+                            options
+                        );
+
+                return {
+                    version:
+                        "32.11.0",
+
+                    normalizedTarget:
+                        normalized
+                            ?.targetCoordinate ??
+                        null,
+
+                    recovered,
+
+                    motion,
+
+                    passed:
+                        motion?.available ===
+                            true &&
+                        Number(
+                            motion?.speedKmh
+                        ) > 0 &&
+                        Number.isFinite(
+                            Number(
+                                motion?.bearing
+                            )
+                        ),
+
+                    generatedAt:
+                        new Date()
+                            .toISOString()
+                };
+            }
+
+            return {
+                passed:
+                    false,
+
+                reason:
+                    "PHASE14_MOTION_API_NOT_AVAILABLE"
+            };
+        };
+})(
+    typeof globalThis !== "undefined"
+        ? globalThis
+        : (
+            typeof window !== "undefined"
+                ? window
+                : this
+        )
+);
+
+/* ==========================================================================
+   PHASE 14 GLOBAL RADAR ETA INTEGRATION DIAGNOSTIC
+   ========================================================================== */
+(function installPhase14RadarEtaDiagnostic(globalObject) {
+    'use strict';
+
+    if (!globalObject) {
+        return;
+    }
+
+    globalObject.runRadarEtaIntegrationDiagnosticV32 =
+        async function runRadarEtaIntegrationDiagnosticV32(
+            input = {},
+            options = {}
+        ) {
+            const engine =
+                globalObject
+                    .RainArrivalPredictionEngineV32Instance ??
+                globalObject
+                    .RainGuardAI
+                    ?.V32
+                    ?.rainArrivalPrediction;
+
+            if (
+                !engine ||
+                typeof engine
+                    .runCompleteRainArrivalPrediction !==
+                    "function"
+            ) {
+                return {
+                    passed:
+                        false,
+                    reason:
+                        "PHASE14_ENGINE_NOT_AVAILABLE"
+                };
+            }
+
+            const result =
+                await engine
+                    .runCompleteRainArrivalPrediction(
+                        {
+                            ...input,
+                            preferMotionAnalysis:
+                                true,
+                            maximumAcceptedStormSpeedKmh:
+                                options
+                                    .maximumAcceptedStormSpeedKmh ??
+                                140,
+                            minimumAcceptedStormSpeedKmh:
+                                options
+                                    .minimumAcceptedStormSpeedKmh ??
+                                1
+                        }
+                    );
+
+            const radarRejected =
+                result?.sources
+                    ?.collection
+                    ?.rejected
+                    ?.find(
+                        item =>
+                            item?.source ===
+                            "radar"
+                    ) ??
+                null;
+
+            const radarEstimate =
+                result?.sources
+                    ?.collection
+                    ?.estimates
+                    ?.find(
+                        item =>
+                            item?.source ===
+                            "radar"
+                    ) ??
+                null;
+
+            return {
+                version:
+                    "32.11.0",
+
+                passed:
+                    Boolean(
+                        radarEstimate ||
+                        radarRejected
+                    ),
+
+                motion:
+                    result?.motion ??
+                    null,
+
+                radarEstimate,
+
+                radarRejected,
+
+                arrivalMinutes:
+                    result?.prediction
+                        ?.arrivalMinutes ??
+                    null,
+
+                predictionAvailable:
+                    result?.prediction
+                        ?.available ===
+                    true,
+
+                fusionMode:
+                    result?.fusionMode ??
+                    result?.sources
+                        ?.fusion
+                        ?.fusionMode ??
+                    "unavailable",
+
+                result
+            };
         };
 })(
     typeof globalThis !== "undefined"
