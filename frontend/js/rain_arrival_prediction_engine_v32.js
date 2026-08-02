@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.11.0";
+        "32.12.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -33987,6 +33987,411 @@ collectPipelineArrivalEstimates(
  * @param {Object} [options]
  * @returns {Object}
  */
+collectPhase15StormTrackingSnapshot(
+    normalizedInput = {},
+    options = {}
+) {
+    const now =
+        Date.now();
+
+    const rg31 =
+        globalThis.RG31 ??
+        globalThis.RainGuardAI?.V31 ??
+        {};
+
+    const trackingEngine =
+        rg31.StormCellTrackingEngine ??
+        rg31.stormCellTrackingEngine ??
+        globalThis.StormCellTrackingEngineV31Instance ??
+        globalThis.StormCellTrackingEngineV31 ??
+        null;
+
+    const pathEngine =
+        rg31.StormPathPredictionEngine ??
+        rg31.stormPathPredictionEngine ??
+        globalThis.StormPathPredictionEngineV31Instance ??
+        globalThis.StormPathPredictionEngineV31 ??
+        null;
+
+    const toArray =
+        value => {
+            if (Array.isArray(value)) {
+                return value.filter(Boolean);
+            }
+
+            if (value instanceof Map) {
+                return [
+                    ...value.values()
+                ].filter(Boolean);
+            }
+
+            if (
+                value &&
+                typeof value ===
+                    "object"
+            ) {
+                const nested =
+                    value.activeCells ??
+                    value.trackedCells ??
+                    value.cells ??
+                    value.stormCells ??
+                    value.predictions ??
+                    value.paths ??
+                    value.predictedPaths ??
+                    value.items;
+
+                if (Array.isArray(nested)) {
+                    return nested.filter(Boolean);
+                }
+
+                if (nested instanceof Map) {
+                    return [
+                        ...nested.values()
+                    ].filter(Boolean);
+                }
+            }
+
+            return [];
+        };
+
+    const cells = [
+        ...toArray(
+            normalizedInput.activeStormCells
+        ),
+        ...toArray(
+            normalizedInput.trackedCells
+        ),
+        ...toArray(
+            normalizedInput.sources?.radar
+                ?.activeCells
+        ),
+        ...toArray(
+            normalizedInput.sources?.radar
+                ?.trackedCells
+        ),
+        ...toArray(
+            normalizedInput.sources?.radar
+                ?.cells
+        ),
+        ...toArray(
+            normalizedInput.sources?.radar
+                ?.stormCells
+        ),
+        ...toArray(
+            rg31.activeStormCells
+        ),
+        ...toArray(
+            rg31.trackedCells
+        ),
+        ...toArray(
+            rg31.latestTrackingReport
+        ),
+        ...toArray(
+            trackingEngine?.activeCells
+        ),
+        ...toArray(
+            trackingEngine?.trackedCells
+        ),
+        ...toArray(
+            trackingEngine?.latestTrackingReport
+        ),
+        ...toArray(
+            trackingEngine?.state?.activeCells
+        ),
+        ...toArray(
+            trackingEngine?.state?.trackedCells
+        )
+    ];
+
+    const paths = [
+        ...toArray(
+            normalizedInput.projectedTrack
+        ),
+        ...toArray(
+            normalizedInput.projectedTracks
+        ),
+        ...toArray(
+            normalizedInput.predictedStormPaths
+        ),
+        ...toArray(
+            normalizedInput.sources?.radar
+                ?.predictedStormPaths
+        ),
+        ...toArray(
+            rg31.predictedStormPaths
+        ),
+        ...toArray(
+            rg31.latestStormPathPrediction
+        ),
+        ...toArray(
+            rg31.LatestStormPathPrediction
+        ),
+        ...toArray(
+            pathEngine?.predictedPaths
+        ),
+        ...toArray(
+            pathEngine?.latestPrediction
+        ),
+        ...toArray(
+            pathEngine?.state?.predictedPaths
+        )
+    ];
+
+    const uniqueById =
+        items =>
+            Array.from(
+                new Map(
+                    items.map(
+                        (item, index) => [
+                            String(
+                                item?.cellId ??
+                                item?.trackId ??
+                                item?.id ??
+                                item?.pathId ??
+                                index
+                            ),
+                            item
+                        ]
+                    )
+                ).values()
+            );
+
+    const freshCells =
+        uniqueById(cells);
+
+    const freshPaths =
+        uniqueById(paths);
+
+    const cache =
+        this._phase15StormTrackingCache ??
+        {
+            cells: [],
+            paths: [],
+            updatedAt: 0
+        };
+
+    if (
+        freshCells.length > 0 ||
+        freshPaths.length > 0
+    ) {
+        this._phase15StormTrackingCache = {
+            cells:
+                freshCells.length > 0
+                    ? freshCells
+                    : cache.cells,
+            paths:
+                freshPaths.length > 0
+                    ? freshPaths
+                    : cache.paths,
+            updatedAt:
+                now
+        };
+    }
+
+    const maxCacheAgeMs =
+        Math.max(
+            60_000,
+            Number(
+                options
+                    .stormTrackingCacheMaxAgeMs
+            ) ||
+            30 * 60_000
+        );
+
+    const activeCache =
+        this._phase15StormTrackingCache ??
+        cache;
+
+    const cacheAgeMs =
+        now -
+        Number(
+            activeCache.updatedAt ??
+            0
+        );
+
+    const cacheUsable =
+        activeCache.updatedAt > 0 &&
+        cacheAgeMs <=
+            maxCacheAgeMs;
+
+    const resolvedCells =
+        freshCells.length > 0
+            ? freshCells
+            : (
+                cacheUsable
+                    ? activeCache.cells
+                    : []
+            );
+
+    const resolvedPaths =
+        freshPaths.length > 0
+            ? freshPaths
+            : (
+                cacheUsable
+                    ? activeCache.paths
+                    : []
+            );
+
+    return {
+        cells:
+            resolvedCells,
+
+        paths:
+            resolvedPaths,
+
+        freshCellCount:
+            freshCells.length,
+
+        freshPathCount:
+            freshPaths.length,
+
+        resolvedCellCount:
+            resolvedCells.length,
+
+        resolvedPathCount:
+            resolvedPaths.length,
+
+        cacheUsed:
+            freshCells.length === 0 &&
+            freshPaths.length === 0 &&
+            cacheUsable,
+
+        cacheAgeMs:
+            cacheUsable
+                ? cacheAgeMs
+                : null,
+
+        trackingEngineAvailable:
+            Boolean(
+                trackingEngine
+            ),
+
+        pathEngineAvailable:
+            Boolean(
+                pathEngine
+            ),
+
+        generatedAt:
+            now
+    };
+}
+
+
+normalizePhase15PathPoints(
+    paths,
+    options = {}
+) {
+    const result = [];
+
+    const defaultStepMinutes =
+        Math.max(
+            1,
+            Number(
+                options
+                    .projectedPathStepMinutes
+            ) || 5
+        );
+
+    const now =
+        Date.now();
+
+    const normalizePath =
+        path => {
+            const points =
+                Array.isArray(path)
+                    ? path
+                    : (
+                        path?.projectedTrack ??
+                        path?.track ??
+                        path?.points ??
+                        path?.coordinates ??
+                        path?.forecastPoints ??
+                        []
+                    );
+
+            if (!Array.isArray(points)) {
+                return;
+            }
+
+            points.forEach(
+                (point, index) => {
+                    const coordinate =
+                        this.normalizeCoordinate(
+                            point?.coordinate ??
+                            point?.position ??
+                            point?.location ??
+                            point
+                        );
+
+                    if (!coordinate) {
+                        return;
+                    }
+
+                    const suppliedTimestamp =
+                        this._normalizeMotionTimestamp(
+                            point?.timestamp ??
+                            point?.time ??
+                            point?.observedAt ??
+                            point?.forecastAt
+                        );
+
+                    const forecastMinutes =
+                        Number(
+                            point?.forecastMinutes ??
+                            point?.leadMinutes ??
+                            point?.etaMinutes ??
+                            point?.minutesAhead
+                        );
+
+                    const timestamp =
+                        Number.isFinite(
+                            suppliedTimestamp
+                        )
+                            ? suppliedTimestamp
+                            : (
+                                Number.isFinite(
+                                    forecastMinutes
+                                )
+                                    ? now +
+                                        forecastMinutes *
+                                        60_000
+                                    : now +
+                                        index *
+                                        defaultStepMinutes *
+                                        60_000
+                            );
+
+                    result.push({
+                        coordinate,
+                        timestamp,
+                        source:
+                            "phase15_projected_path",
+                        cellId:
+                            path?.cellId ??
+                            path?.trackId ??
+                            path?.id ??
+                            null,
+                        forecastIndex:
+                            index,
+                        raw:
+                            point
+                    });
+                }
+            );
+        };
+
+    (
+        Array.isArray(paths)
+            ? paths
+            : []
+    ).forEach(
+        normalizePath
+    );
+
+    return result;
+}
+
+
 recoverPipelineMotionObservations(
     normalizedInput,
     options = {}
@@ -33995,6 +34400,12 @@ recoverPipelineMotionObservations(
         this.isPlainObject(normalizedInput)
             ? normalizedInput
             : {};
+
+    const phase15Snapshot =
+        this.collectPhase15StormTrackingSnapshot(
+            safeInput,
+            options
+        );
 
     const target =
         this.normalizeCoordinate(
@@ -34095,6 +34506,7 @@ recoverPipelineMotionObservations(
         {};
 
     const cellCollections = [
+        phase15Snapshot.cells,
         radar.cells,
         radar.activeCells,
         radar.stormCells,
@@ -34275,6 +34687,7 @@ recoverPipelineMotionObservations(
     }
 
     const trackCollections = [
+        phase15Snapshot.paths,
         safeInput.projectedTrack,
         safeInput.projectedTracks,
         globalRG31.predictedStormPaths,
@@ -34313,6 +34726,19 @@ recoverPipelineMotionObservations(
                 );
             }
         }
+    }
+
+    const phase15PathObservations =
+        this.normalizePhase15PathPoints(
+            phase15Snapshot.paths,
+            options
+        );
+
+    for (
+        const item of
+        phase15PathObservations
+    ) {
+        candidates.push(item);
     }
 
     const selectedCell =
@@ -34437,6 +34863,8 @@ recoverPipelineMotionObservations(
         selectedCellId,
 
         selectedCell,
+
+        phase15Snapshot,
 
         sourceCounts:
             deduplicated.reduce(
@@ -34702,6 +35130,10 @@ resolvePipelineMultiFrameMotion(
             sourceCounts:
                 recovered?.sourceCounts ??
                 {},
+
+            phase15Snapshot:
+                recovered?.phase15Snapshot ??
+                null,
 
             vectorSpeedKmh:
                 Number.isFinite(vectorSpeed)
@@ -74266,6 +74698,100 @@ if (
                     "unavailable",
 
                 result
+            };
+        };
+})(
+    typeof globalThis !== "undefined"
+        ? globalThis
+        : (
+            typeof window !== "undefined"
+                ? window
+                : this
+        )
+);
+
+/* ==========================================================================
+   PHASE 15 GLOBAL STORM TRACKING / MOTION RECOVERY DIAGNOSTIC
+   ========================================================================== */
+(function installPhase15StormTrackingDiagnostic(globalObject) {
+    'use strict';
+
+    if (!globalObject) {
+        return;
+    }
+
+    globalObject.runStormTrackingMotionRecoveryDiagnosticV32 =
+        function runStormTrackingMotionRecoveryDiagnosticV32(
+            input = {},
+            options = {}
+        ) {
+            const engine =
+                globalObject
+                    .RainArrivalPredictionEngineV32Instance ??
+                globalObject
+                    .RainGuardAI
+                    ?.V32
+                    ?.rainArrivalPrediction;
+
+            if (
+                !engine ||
+                typeof engine
+                    .normalizeCompletePredictionInput !==
+                    "function"
+            ) {
+                return {
+                    passed:
+                        false,
+                    reason:
+                        "PHASE15_ENGINE_NOT_AVAILABLE"
+                };
+            }
+
+            const normalized =
+                engine
+                    .normalizeCompletePredictionInput(
+                        input,
+                        options
+                    );
+
+            const snapshot =
+                engine
+                    .collectPhase15StormTrackingSnapshot(
+                        normalized,
+                        options
+                    );
+
+            const recovered =
+                engine
+                    .recoverPipelineMotionObservations(
+                        normalized,
+                        options
+                    );
+
+            const motion =
+                engine
+                    .resolvePipelineMultiFrameMotion(
+                        normalized,
+                        recovered,
+                        options
+                    );
+
+            return {
+                version:
+                    "32.12.0",
+
+                passed:
+                    snapshot.resolvedCellCount > 0 ||
+                    snapshot.resolvedPathCount > 0 ||
+                    recovered.observationCount >= 2,
+
+                snapshot,
+                recovered,
+                motion,
+
+                generatedAt:
+                    new Date()
+                        .toISOString()
             };
         };
 })(
