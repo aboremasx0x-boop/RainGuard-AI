@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.12.0";
+        "32.13.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-rain-arrival-production-target-track-compat";
+        "rainguard-v32-phase16-storm-cell-selection";
 
     const ENGINE_STAGE =
         "production";
@@ -32978,6 +32978,424 @@ resolveEffectiveRainArrivalMotion(
 
 
 /* ==========================================================================
+   SECTION 266A
+   Phase 16 — Storm Cell Selection Engine
+   ========================================================================== */
+
+/**
+ * Resolve a usable coordinate from a storm-cell record.
+ *
+ * @param {Object} cell
+ * @returns {Object|null}
+ */
+resolveStormCellSelectionCoordinate(cell) {
+    if (!cell || typeof cell !== "object") {
+        return null;
+    }
+
+    const directCoordinate =
+        Number.isFinite(Number(cell.currentLat ?? cell.latitude ?? cell.lat)) &&
+        Number.isFinite(Number(cell.currentLon ?? cell.currentLng ?? cell.longitude ?? cell.lon ?? cell.lng))
+            ? {
+                latitude: Number(cell.currentLat ?? cell.latitude ?? cell.lat),
+                longitude: Number(cell.currentLon ?? cell.currentLng ?? cell.longitude ?? cell.lon ?? cell.lng)
+            }
+            : null;
+
+    const geometryCoordinate =
+        Array.isArray(cell.geometry?.coordinates) &&
+        cell.geometry.coordinates.length >= 2
+            ? {
+                longitude: Number(cell.geometry.coordinates[0]),
+                latitude: Number(cell.geometry.coordinates[1])
+            }
+            : null;
+
+    const candidates = [
+        cell.coordinate,
+        cell.coordinates,
+        cell.center,
+        cell.centroid,
+        cell.position,
+        cell.currentPosition,
+        directCoordinate,
+        geometryCoordinate,
+        cell
+    ];
+
+    for (const candidate of candidates) {
+        const normalized = this.normalizeCoordinate(candidate);
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Resolve cell-specific motion, falling back to pipeline motion.
+ *
+ * @param {Object} cell
+ * @param {Object} fallbackMotion
+ * @returns {Object}
+ */
+resolveStormCellSelectionMotion(cell, fallbackMotion = {}) {
+    const speedCandidates = [
+        cell?.speedKmh,
+        cell?.motionSpeedKmh,
+        cell?.movementSpeedKmh,
+        cell?.velocityKmh,
+        cell?.speed,
+        cell?.motion?.speedKmh,
+        cell?.motion?.speed,
+        cell?.tracking?.speedKmh,
+        cell?.track?.speedKmh,
+        fallbackMotion?.speedKmh
+    ];
+
+    const bearingCandidates = [
+        cell?.bearing,
+        cell?.directionDegrees,
+        cell?.direction,
+        cell?.heading,
+        cell?.motionBearing,
+        cell?.movementBearing,
+        cell?.motion?.bearing,
+        cell?.motion?.direction,
+        cell?.tracking?.bearing,
+        cell?.track?.bearing,
+        fallbackMotion?.bearing
+    ];
+
+    let speedKmh = null;
+    for (const candidate of speedCandidates) {
+        const numeric = Number(candidate);
+        if (Number.isFinite(numeric) && numeric > 0) {
+            speedKmh = numeric;
+            break;
+        }
+    }
+
+    let bearing = null;
+    for (const candidate of bearingCandidates) {
+        const normalized = this.normalizeBearing(candidate);
+        if (Number.isFinite(normalized)) {
+            bearing = normalized;
+            break;
+        }
+    }
+
+    const confidence = Math.max(
+        0,
+        Math.min(
+            100,
+            Number(
+                cell?.motionConfidence ??
+                cell?.trackingConfidence ??
+                cell?.trackConfidence ??
+                cell?.confidence ??
+                cell?.motion?.confidence ??
+                fallbackMotion?.confidence ??
+                50
+            ) || 0
+        )
+    );
+
+    return {
+        available: Number.isFinite(speedKmh) && speedKmh > 0 && Number.isFinite(bearing),
+        speedKmh,
+        bearing,
+        confidence,
+        source:
+            Number.isFinite(Number(cell?.speedKmh ?? cell?.motionSpeedKmh))
+                ? "cell_motion"
+                : (fallbackMotion?.available ? "pipeline_motion" : "unavailable")
+    };
+}
+
+/**
+ * Collect unique storm-cell candidates from all supported radar collections.
+ *
+ * @param {Object} radarSource
+ * @returns {Object[]}
+ */
+collectStormCellSelectionCandidates(radarSource) {
+    const safeRadar = this.isPlainObject(radarSource) ? radarSource : {};
+    const collections = [
+        safeRadar.rainCells,
+        safeRadar.cells,
+        safeRadar.activeCells,
+        safeRadar.stormCells,
+        safeRadar.trackedCells,
+        safeRadar.features,
+        safeRadar.data?.cells,
+        safeRadar.data?.stormCells
+    ];
+
+    const candidates = [];
+    const seenIds = new Set();
+    const seenCoordinates = new Set();
+
+    for (const collection of collections) {
+        if (!Array.isArray(collection)) {
+            continue;
+        }
+
+        for (const cell of collection) {
+            if (!cell || typeof cell !== "object") {
+                continue;
+            }
+
+            const cellId = cell.id ?? cell.cellId ?? cell.trackId ?? cell.uuid ?? null;
+            const coordinate = this.resolveStormCellSelectionCoordinate(cell);
+            const coordinateKey = coordinate
+                ? `${Number(coordinate.latitude).toFixed(5)}:${Number(coordinate.longitude).toFixed(5)}`
+                : null;
+
+            if (cellId !== null && cellId !== undefined) {
+                const normalizedId = String(cellId);
+                if (seenIds.has(normalizedId)) {
+                    continue;
+                }
+                seenIds.add(normalizedId);
+            } else if (coordinateKey) {
+                if (seenCoordinates.has(coordinateKey)) {
+                    continue;
+                }
+                seenCoordinates.add(coordinateKey);
+            }
+
+            candidates.push(cell);
+        }
+    }
+
+    return candidates;
+}
+
+/**
+ * Score one storm cell for a target city.
+ *
+ * @param {Object} cell
+ * @param {Object} targetCoordinate
+ * @param {Object} pipelineMotion
+ * @param {Object} options
+ * @returns {Object}
+ */
+scoreStormCellForTarget(cell, targetCoordinate, pipelineMotion = {}, options = {}) {
+    const target = this.normalizeCoordinate(targetCoordinate);
+    const coordinate = this.resolveStormCellSelectionCoordinate(cell);
+    const cellId = cell?.id ?? cell?.cellId ?? cell?.trackId ?? cell?.uuid ?? null;
+
+    if (!target || !coordinate) {
+        return {
+            valid: false,
+            eligible: false,
+            approaching: false,
+            cell,
+            cellId,
+            coordinate,
+            distanceKm: null,
+            bearingDifference: null,
+            selectionScore: 0,
+            confidence: 0,
+            reason: !target ? "INVALID_TARGET_COORDINATE" : "INVALID_STORM_CELL_COORDINATE"
+        };
+    }
+
+    const distanceKm = this.calculateDistanceKm(coordinate, target);
+    const targetBearing = this.calculateInitialBearing(coordinate, target);
+    const motion = this.resolveStormCellSelectionMotion(cell, pipelineMotion);
+    const bearingDifference =
+        Number.isFinite(motion.bearing) && Number.isFinite(targetBearing)
+            ? Math.abs(this.calculateBearingDifference(motion.bearing, targetBearing))
+            : null;
+
+    const maximumApproachAngle = Math.max(
+        15,
+        Math.min(120, Number(options.maximumStormCellApproachAngle ?? 75) || 75)
+    );
+
+    const approaching =
+        Number.isFinite(bearingDifference) &&
+        bearingDifference <= maximumApproachAngle;
+
+    const directionScore = Number.isFinite(bearingDifference)
+        ? Math.max(0, 100 - (bearingDifference / 180) * 100)
+        : 0;
+
+    const maximumDistanceKm = Math.max(
+        25,
+        Number(options.maximumStormCellSelectionDistanceKm ?? 500) || 500
+    );
+
+    const distanceScore = Number.isFinite(distanceKm)
+        ? Math.max(0, 100 - (Math.min(distanceKm, maximumDistanceKm) / maximumDistanceKm) * 100)
+        : 0;
+
+    const trackQuality = Math.max(
+        0,
+        Math.min(100, Number(cell?.trackQuality ?? cell?.trackingQuality ?? cell?.quality ?? 50) || 0)
+    );
+
+    const cellConfidence = Math.max(
+        0,
+        Math.min(100, Number(cell?.confidence ?? cell?.cellConfidence ?? cell?.trackingConfidence ?? 50) || 0)
+    );
+
+    const rawIntensity = Math.max(
+        0,
+        Number(cell?.intensity ?? cell?.reflectivity ?? cell?.reflectivityDbz ?? cell?.dbz ?? 0) || 0
+    );
+
+    const normalizedIntensity = rawIntensity <= 1
+        ? rawIntensity * 100
+        : Math.min(100, rawIntensity);
+
+    const selectionScore =
+        directionScore * 0.40 +
+        distanceScore * 0.25 +
+        motion.confidence * 0.15 +
+        trackQuality * 0.10 +
+        cellConfidence * 0.05 +
+        normalizedIntensity * 0.05;
+
+    const confidence = Math.max(
+        0,
+        Math.min(100, selectionScore * 0.70 + cellConfidence * 0.15 + motion.confidence * 0.15)
+    );
+
+    return {
+        valid: Number.isFinite(distanceKm),
+        eligible: Number.isFinite(distanceKm) && motion.available,
+        approaching,
+        cell,
+        cellId,
+        coordinate,
+        distanceKm,
+        targetBearing,
+        motionBearing: motion.bearing,
+        speedKmh: motion.speedKmh,
+        bearingDifference,
+        maximumApproachAngle,
+        selectionScore: Math.round(selectionScore * 100) / 100,
+        confidence: Math.round(confidence * 100) / 100,
+        motionSource: motion.source,
+        reason: !motion.available
+            ? "STORM_CELL_MOTION_UNAVAILABLE"
+            : (approaching ? "STORM_CELL_CANDIDATE_ACCEPTED" : "STORM_CELL_NOT_APPROACHING_TARGET")
+    };
+}
+
+/**
+ * Rank storm cells so an invalid first array item cannot hide a valid cell.
+ *
+ * @param {Object} radarSource
+ * @param {Object} targetCoordinate
+ * @param {Object} pipelineMotion
+ * @param {Object} options
+ * @returns {Object}
+ */
+selectBestStormCellForTarget(radarSource, targetCoordinate, pipelineMotion = {}, options = {}) {
+    const candidates = this.collectStormCellSelectionCandidates(radarSource);
+    const rankedCells = candidates
+        .map((cell, originalIndex) => ({
+            ...this.scoreStormCellForTarget(cell, targetCoordinate, pipelineMotion, options),
+            originalIndex
+        }))
+        .sort((left, right) => {
+            if (left.approaching !== right.approaching) {
+                return left.approaching ? -1 : 1;
+            }
+            if (left.eligible !== right.eligible) {
+                return left.eligible ? -1 : 1;
+            }
+            if (right.selectionScore !== left.selectionScore) {
+                return right.selectionScore - left.selectionScore;
+            }
+            return (left.distanceKm ?? Number.POSITIVE_INFINITY) -
+                (right.distanceKm ?? Number.POSITIVE_INFINITY);
+        });
+
+    const selected =
+        rankedCells.find((item) => item.eligible && item.approaching) ??
+        (options.allowNonApproachingStormCellFallback === true
+            ? rankedCells.find((item) => item.eligible)
+            : null);
+
+    return {
+        available: Boolean(selected),
+        candidateCount: candidates.length,
+        eligibleCount: rankedCells.filter((item) => item.eligible).length,
+        approachingCount: rankedCells.filter((item) => item.eligible && item.approaching).length,
+        selectedCell: selected?.cell ?? null,
+        selectedCellId: selected?.cellId ?? null,
+        selectedCoordinate: selected?.coordinate ?? null,
+        selectionScore: selected?.selectionScore ?? null,
+        confidence: selected?.confidence ?? 0,
+        distanceKm: selected?.distanceKm ?? null,
+        bearingDifference: selected?.bearingDifference ?? null,
+        speedKmh: selected?.speedKmh ?? null,
+        bearing: selected?.motionBearing ?? null,
+        rankedCells,
+        rejectedCells: rankedCells
+            .filter((item) => !selected || item.originalIndex !== selected.originalIndex)
+            .map((item) => ({
+                cellId: item.cellId,
+                distanceKm: item.distanceKm,
+                bearingDifference: item.bearingDifference,
+                selectionScore: item.selectionScore,
+                approaching: item.approaching,
+                reason: item.reason
+            })),
+        reason: selected
+            ? "STORM_CELL_SELECTED"
+            : (candidates.length === 0
+                ? "NO_STORM_CELL_CANDIDATES"
+                : "NO_STORM_CELL_APPROACHING_TARGET"),
+        generatedAt: Date.now(),
+        generatedAtIso: new Date().toISOString()
+    };
+}
+
+/**
+ * Build a radar payload containing only one selected cell.
+ *
+ * @param {Object} radarSource
+ * @param {Object} rankedCell
+ * @returns {Object}
+ */
+buildSelectedStormCellRadarPayload(radarSource, rankedCell) {
+    const safeRadar = this.isPlainObject(radarSource) ? radarSource : {};
+    const cell = rankedCell?.cell ?? null;
+    const coordinate = rankedCell?.coordinate ?? null;
+
+    if (!cell || !coordinate) {
+        return safeRadar;
+    }
+
+    return {
+        ...safeRadar,
+        cells: [cell],
+        activeCells: [cell],
+        stormCells: [cell],
+        rainCells: [cell],
+        features: [],
+        latestCell: cell,
+        activeCell: cell,
+        rainCoordinate: coordinate,
+        cellCoordinate: coordinate,
+        stormCoordinate: coordinate,
+        coordinate,
+        speedKmh: rankedCell.speedKmh ?? safeRadar.speedKmh ?? null,
+        bearing: rankedCell.motionBearing ?? safeRadar.bearing ?? null,
+        selectedStormCellId: rankedCell.cellId ?? null,
+        stormCellSelectionScore: rankedCell.selectionScore ?? null,
+        stormCellSelectionConfidence: rankedCell.confidence ?? null
+    };
+}
+
+/* ==========================================================================
    SECTION 267
    Source Arrival Estimate Collection
    ========================================================================== */
@@ -33369,64 +33787,129 @@ collectPipelineArrivalEstimates(
         target &&
         radarSource
     ) {
-        pushEstimate(
-            "radar",
+        const stormCellSelection =
+            this.selectBestStormCellForTarget(
+                radarSource,
+                target,
+                effectiveMotion,
+                options
+            );
 
-            executeEstimateSafely(
+        diagnostics.stormCellSelection = {
+            available: stormCellSelection.available,
+            candidateCount: stormCellSelection.candidateCount,
+            eligibleCount: stormCellSelection.eligibleCount,
+            approachingCount: stormCellSelection.approachingCount,
+            selectedCellId: stormCellSelection.selectedCellId,
+            selectionScore: stormCellSelection.selectionScore,
+            confidence: stormCellSelection.confidence,
+            distanceKm: stormCellSelection.distanceKm,
+            bearingDifference: stormCellSelection.bearingDifference,
+            reason: stormCellSelection.reason,
+            rejectedCells: stormCellSelection.rejectedCells
+        };
+
+        const radarAttemptCandidates =
+            stormCellSelection.rankedCells.filter(
+                (item) => item.eligible && item.approaching
+            );
+
+        if (
+            radarAttemptCandidates.length === 0 &&
+            options.allowNonApproachingStormCellFallback === true
+        ) {
+            radarAttemptCandidates.push(
+                ...stormCellSelection.rankedCells.filter(
+                    (item) => item.eligible
+                )
+            );
+        }
+
+        let acceptedRadarEstimate = null;
+        const radarAttempts = [];
+
+        for (
+            let attemptIndex = 0;
+            attemptIndex < radarAttemptCandidates.length;
+            attemptIndex += 1
+        ) {
+            const rankedCell = radarAttemptCandidates[attemptIndex];
+            const selectedRadarPayload =
+                this.buildSelectedStormCellRadarPayload(
+                    radarSource,
+                    rankedCell
+                );
+
+            const radarEstimate = executeEstimateSafely(
                 "radar",
-                () =>
-                    this.estimateRadarRainArrival(
-                        radarSource,
-                        target,
-                        {
-                            ...options,
+                () => this.estimateRadarRainArrival(
+                    selectedRadarPayload,
+                    target,
+                    {
+                        ...options,
+                        effectiveSpeedKmh: rankedCell.speedKmh ?? effectiveMotion.speedKmh,
+                        effectiveBearing: rankedCell.motionBearing ?? effectiveMotion.bearing,
+                        fallbackSpeedKmh: rankedCell.speedKmh ?? effectiveMotion.speedKmh,
+                        fallbackBearing: rankedCell.motionBearing ?? effectiveMotion.bearing,
+                        motionConfidence: rankedCell.confidence ?? effectiveMotion.confidence,
+                        motionSource: rankedCell.motionSource ?? effectiveMotion.source,
+                        preferMotionAnalysis: true,
+                        maximumAcceptedStormSpeedKmh:
+                            options.maximumAcceptedStormSpeedKmh ?? 140,
+                        minimumAcceptedStormSpeedKmh:
+                            options.minimumAcceptedStormSpeedKmh ?? 1
+                    }
+                )
+            );
 
-                            effectiveSpeedKmh:
-                                effectiveMotion
-                                    .speedKmh,
+            const radarArrivalMinutes = Number(radarEstimate?.arrivalMinutes);
+            const radarAccepted =
+                radarEstimate?.valid !== false &&
+                Number.isFinite(radarArrivalMinutes) &&
+                radarArrivalMinutes >= 0;
 
-                            effectiveBearing:
-                                effectiveMotion
-                                    .bearing,
+            radarAttempts.push({
+                attemptIndex,
+                cellId: rankedCell.cellId,
+                selectionScore: rankedCell.selectionScore,
+                distanceKm: rankedCell.distanceKm,
+                bearingDifference: rankedCell.bearingDifference,
+                accepted: radarAccepted,
+                reason: radarEstimate?.validation?.reason ??
+                    (radarAccepted ? "RADAR_ETA_ACCEPTED" : "NO_ESTIMATE_RETURNED")
+            });
 
-                            fallbackSpeedKmh:
-                                effectiveMotion
-                                    .speedKmh,
+            if (radarAccepted) {
+                acceptedRadarEstimate = {
+                    ...radarEstimate,
+                    stormCellSelection: {
+                        selectedCellId: rankedCell.cellId,
+                        selectionScore: rankedCell.selectionScore,
+                        confidence: rankedCell.confidence,
+                        candidateCount: stormCellSelection.candidateCount,
+                        fallbackIndex: attemptIndex
+                    }
+                };
+                break;
+            }
+        }
 
-                            fallbackBearing:
-                                effectiveMotion
-                                    .bearing,
+        diagnostics.radarCellAttempts = radarAttempts;
 
-                            motionConfidence:
-                                effectiveMotion
-                                    .confidence,
-
-                            motionSource:
-                                effectiveMotion
-                                    .source,
-
-                            preferMotionAnalysis:
-                                true,
-
-                            maximumAcceptedStormSpeedKmh:
-                                options
-                                    .maximumAcceptedStormSpeedKmh ??
-                                140,
-
-                            minimumAcceptedStormSpeedKmh:
-                                options
-                                    .minimumAcceptedStormSpeedKmh ??
-                                1
-                        }
-                    )
-            )
-        );
+        if (acceptedRadarEstimate) {
+            pushEstimate("radar", acceptedRadarEstimate);
+        } else {
+            rejected.push({
+                source: "radar",
+                reason: stormCellSelection.reason ?? "NO_RADAR_CELL_PRODUCED_VALID_ETA",
+                stormCellSelection: diagnostics.stormCellSelection,
+                attempts: radarAttempts
+            });
+        }
     } else if (!radarSource) {
         rejected.push({
-            source:
-                "radar",
-            reason:
-                "SOURCE_NOT_AVAILABLE"
+            source: "radar",
+            reason: "SOURCE_NOT_AVAILABLE"
         });
     }
 
