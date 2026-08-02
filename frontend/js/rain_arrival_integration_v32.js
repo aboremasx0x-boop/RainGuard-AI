@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.1.0';
+    const SEMANTIC_VERSION = '32.18.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -88,7 +88,7 @@
         enabled: true,
 
         autoInitialize: true,
-        autoStart: false,
+        autoStart: true,
 
         debug: false,
         strictMode: false,
@@ -11361,6 +11361,7 @@ globalObject
      */
     const SINGLE_CITY_PREDICTION_METHODS =
         Object.freeze([
+            'runCompleteRainArrivalPrediction',
             'predictCity',
             'predictForCity',
             'predictRainArrivalForCity',
@@ -13326,11 +13327,17 @@ globalObject
 
             let executionResult;
 
+            const phase18DirectActivation =
+                typeof engine
+                    .runCompleteRainArrivalPrediction ===
+                    'function';
+
             if (
                 capabilities
                     .supportsBatch &&
                 options.forceSingleCity !==
-                    true
+                    true &&
+                !phase18DirectActivation
             ) {
                 try {
                     executionResult =
@@ -64060,3 +64067,297 @@ globalObject
         )
 );
 
+
+
+/* ==========================================================================\n * RainGuard AI V32 — Phase 18\n * Prediction Engine Activation & Orchestrator Bridge\n * Version: 32.18.0\n * ========================================================================== */
+(function installRainArrivalPhase18ActivationBridge(globalObject) {
+    "use strict";
+
+    if (!globalObject) {
+        return;
+    }
+
+    const BRIDGE_VERSION = "32.18.0";
+    const BRIDGE_BUILD =
+        "rainguard-v32-phase18-prediction-engine-activation-orchestrator-bridge";
+
+    const state = {
+        installedAt: Date.now(),
+        initialized: false,
+        running: false,
+        activationAttempts: 0,
+        successfulActivations: 0,
+        failedActivations: 0,
+        lastActivationAt: null,
+        lastCycleResult: null,
+        lastError: null
+    };
+
+    function getV32() {
+        globalObject.RainGuardAI =
+            globalObject.RainGuardAI || {};
+        globalObject.RainGuardAI.V32 =
+            globalObject.RainGuardAI.V32 || {};
+        return globalObject.RainGuardAI.V32;
+    }
+
+    function getIntegration() {
+        const V32 = getV32();
+        return (
+            V32.rainArrivalIntegration ||
+            globalObject.RainArrivalIntegrationV32 ||
+            null
+        );
+    }
+
+    function getEngine() {
+        const V32 = getV32();
+        return (
+            V32.rainArrivalPrediction ||
+            V32.arrivalPredictionEngine ||
+            globalObject.RainArrivalPredictionEngineV32Instance ||
+            null
+        );
+    }
+
+    function normalizeError(error) {
+        return {
+            name: error?.name || "Error",
+            message: error?.message || String(error),
+            code: error?.code || null,
+            stack: error?.stack || null,
+            timestamp: Date.now()
+        };
+    }
+
+    function publishEngineResult(engine, result) {
+        if (!engine || !result || typeof result !== "object") {
+            return result;
+        }
+
+        engine.lastResult = result;
+        engine.lastPredictionResult = result;
+        engine.lastArrivalResult = result;
+        engine.currentPrediction = result;
+
+        const V32 = getV32();
+        V32.latestRainArrivalPrediction = result;
+        V32.latestRainArrivalPredictionPhase18 = result;
+
+        return result;
+    }
+
+    async function runNow(options = {}) {
+        state.activationAttempts += 1;
+        state.lastActivationAt = Date.now();
+
+        try {
+            const integration = getIntegration();
+            if (!integration) {
+                const error = new Error(
+                    "Rain Arrival Integration V32 is unavailable."
+                );
+                error.code = "PHASE18_INTEGRATION_UNAVAILABLE";
+                throw error;
+            }
+
+            if (
+                typeof integration.initialize === "function" &&
+                !integration._state?.initialized
+            ) {
+                await integration.initialize({
+                    ...options,
+                    phase18Activation: true
+                });
+            }
+
+            let cycleResult;
+            if (typeof integration.runNow === "function") {
+                cycleResult = await integration.runNow({
+                    ...options,
+                    manual: true,
+                    ignoreRunningState: true,
+                    forceSingleCity: true,
+                    reason: options.reason || "phase18_activation"
+                });
+            } else if (typeof integration.executeCycle === "function") {
+                cycleResult = await integration.executeCycle({
+                    ...options,
+                    manual: true,
+                    ignoreRunningState: true,
+                    forceSingleCity: true,
+                    reason: options.reason || "phase18_activation"
+                });
+            } else {
+                const error = new Error(
+                    "Integration cycle API is unavailable."
+                );
+                error.code = "PHASE18_CYCLE_API_UNAVAILABLE";
+                throw error;
+            }
+
+            const engine = getEngine();
+            const prediction =
+                cycleResult?.predictionRun?.predictions?.[0] ||
+                cycleResult?.predictions?.[0] ||
+                integration._state?.lastPredictionRun?.predictions?.[0] ||
+                engine?.lastPredictionResult ||
+                engine?.lastArrivalResult ||
+                engine?.lastResult ||
+                null;
+
+            if (prediction) {
+                publishEngineResult(engine, prediction);
+            }
+
+            state.initialized = true;
+            state.running = Boolean(
+                integration._state?.running ||
+                integration.getSchedulerStatus?.().running
+            );
+            state.successfulActivations += 1;
+            state.lastCycleResult = cycleResult;
+            state.lastError = null;
+
+            return {
+                success: true,
+                version: BRIDGE_VERSION,
+                build: BRIDGE_BUILD,
+                cycleResult,
+                prediction,
+                engineState: {
+                    lastResult: engine?.lastResult ?? null,
+                    lastPredictionResult:
+                        engine?.lastPredictionResult ?? null,
+                    lastArrivalResult:
+                        engine?.lastArrivalResult ?? null,
+                    currentPrediction:
+                        engine?.currentPrediction ?? null
+                }
+            };
+        } catch (error) {
+            state.failedActivations += 1;
+            state.lastError = normalizeError(error);
+            throw error;
+        }
+    }
+
+    async function start(options = {}) {
+        const integration = getIntegration();
+        if (!integration) {
+            return runNow(options);
+        }
+
+        if (
+            typeof integration.initialize === "function" &&
+            !integration._state?.initialized
+        ) {
+            await integration.initialize({
+                ...options,
+                phase18Activation: true
+            });
+        }
+
+        let schedulerResult = null;
+        if (typeof integration.start === "function") {
+            schedulerResult = await integration.start({
+                ...options,
+                forceSingleCity: true,
+                reason: options.reason || "phase18_auto_start"
+            });
+        }
+
+        const immediateResult =
+            options.runImmediately === false
+                ? null
+                : await runNow({
+                    ...options,
+                    reason: "phase18_initial_cycle"
+                });
+
+        state.initialized = true;
+        state.running = true;
+
+        return {
+            started: true,
+            version: BRIDGE_VERSION,
+            build: BRIDGE_BUILD,
+            schedulerResult,
+            immediateResult
+        };
+    }
+
+    function diagnose() {
+        const integration = getIntegration();
+        const engine = getEngine();
+        return {
+            version: BRIDGE_VERSION,
+            build: BRIDGE_BUILD,
+            integrationAvailable: Boolean(integration),
+            engineAvailable: Boolean(engine),
+            integrationInitialized:
+                Boolean(integration?._state?.initialized),
+            integrationRunning:
+                Boolean(integration?._state?.running),
+            runCompleteAvailable:
+                typeof engine?.runCompleteRainArrivalPrediction ===
+                "function",
+            lastResultAvailable:
+                engine?.lastResult != null,
+            lastPredictionResultAvailable:
+                engine?.lastPredictionResult != null,
+            lastArrivalResultAvailable:
+                engine?.lastArrivalResult != null,
+            currentPredictionAvailable:
+                engine?.currentPrediction != null,
+            state: { ...state }
+        };
+    }
+
+    const api = {
+        version: BRIDGE_VERSION,
+        build: BRIDGE_BUILD,
+        state,
+        getIntegration,
+        getEngine,
+        publishEngineResult,
+        runNow,
+        start,
+        diagnose
+    };
+
+    const V32 = getV32();
+    V32.rainArrivalPhase18Activation = api;
+    globalObject.RainArrivalPhase18ActivationV32 = api;
+    globalObject.runRainArrivalPhase18 = runNow;
+
+    function autoActivate() {
+        const integration = getIntegration();
+        const engine = getEngine();
+        if (!integration || !engine) {
+            globalObject.setTimeout(autoActivate, 1500);
+            return;
+        }
+
+        start({
+            runImmediately: true,
+            reason: "phase18_dom_ready_activation"
+        }).catch((error) => {
+            state.lastError = normalizeError(error);
+            globalObject.console?.warn?.(
+                "[RainGuard AI V32 Phase 18] Activation failed.",
+                state.lastError
+            );
+        });
+    }
+
+    if (globalObject.document?.readyState === "loading") {
+        globalObject.document.addEventListener(
+            "DOMContentLoaded",
+            autoActivate,
+            { once: true }
+        );
+    } else {
+        globalObject.setTimeout(autoActivate, 0);
+    }
+})(typeof globalThis !== "undefined" ? globalThis : window);
