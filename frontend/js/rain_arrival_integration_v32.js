@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.18.0';
+    const SEMANTIC_VERSION = '32.19.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -13142,31 +13142,136 @@ globalObject
      *
      * @param {Array<Object>} predictions
      */
-    function storeLatestPredictions(
-        predictions
-    ) {
-        runtimeState
-            .latestPredictions
-            .clear();
+    function ensureLatestPredictionsMap() {
+        const current =
+            runtimeState.latestPredictions;
+
+        if (current instanceof Map) {
+            return current;
+        }
+
+        const recovered =
+            new Map();
+
+        const sourceValues =
+            Array.isArray(current)
+                ? current
+                : (
+                    current &&
+                    typeof current === 'object'
+                        ? Object.values(current)
+                        : []
+                );
 
         for (
             const prediction
-            of predictions
+            of sourceValues
         ) {
             if (
                 !prediction ||
-                !prediction.cityId
+                typeof prediction !== 'object'
             ) {
                 continue;
             }
 
-            runtimeState
-                .latestPredictions
-                .set(
-                    prediction.cityId,
-                    prediction
-                );
+            const cityKey =
+                prediction.cityId ??
+                prediction.city?.id ??
+                prediction.locationId ??
+                prediction.id ??
+                null;
+
+            if (
+                cityKey === null ||
+                cityKey === undefined
+            ) {
+                continue;
+            }
+
+            recovered.set(
+                String(cityKey),
+                prediction
+            );
         }
+
+        runtimeState.latestPredictions =
+            recovered;
+
+        runtimeState.latestPredictionsRecovery = {
+            recovered: true,
+            previousType:
+                Array.isArray(current)
+                    ? 'array'
+                    : (
+                        current === null
+                            ? 'null'
+                            : typeof current
+                    ),
+            recoveredCount:
+                recovered.size,
+            recoveredAt:
+                Date.now(),
+            recoveredAtIso:
+                new Date().toISOString()
+        };
+
+        return recovered;
+    }
+
+    function storeLatestPredictions(
+        predictions
+    ) {
+        const predictionMap =
+            ensureLatestPredictionsMap();
+
+        predictionMap.clear();
+
+        for (
+            const prediction
+            of (
+                Array.isArray(predictions)
+                    ? predictions
+                    : []
+            )
+        ) {
+            if (
+                !prediction ||
+                typeof prediction !== 'object'
+            ) {
+                continue;
+            }
+
+            const cityKey =
+                prediction.cityId ??
+                prediction.city?.id ??
+                prediction.locationId ??
+                prediction.id ??
+                null;
+
+            if (
+                cityKey === null ||
+                cityKey === undefined
+            ) {
+                continue;
+            }
+
+            predictionMap.set(
+                String(cityKey),
+                prediction
+            );
+        }
+
+        runtimeState.latestPredictionsAt =
+            Date.now();
+
+        runtimeState.latestPredictionsAtIso =
+            new Date(
+                runtimeState.latestPredictionsAt
+            ).toISOString();
+
+        return Array.from(
+            predictionMap.values()
+        );
     }
 
     /**
@@ -13738,17 +13843,16 @@ globalObject
             return null;
         }
 
-        return runtimeState
-            .latestPredictions
-            .get(
-                String(cityId)
-            ) ||
-            runtimeState
-                .latestPredictions
-                .get(
-                    cityId
-                ) ||
-            null;
+        const predictionMap =
+            ensureLatestPredictionsMap();
+
+        return predictionMap.get(
+            String(cityId)
+        ) ||
+        predictionMap.get(
+            cityId
+        ) ||
+        null;
     }
 
     /**
@@ -13758,8 +13862,7 @@ globalObject
      */
     function getLatestPredictions() {
         return Array.from(
-            runtimeState
-                .latestPredictions
+            ensureLatestPredictionsMap()
                 .values()
         );
     }
@@ -13900,6 +14003,7 @@ globalObject
             findPredictionCity,
             executeBatchPrediction,
             executeSingleCityPredictions,
+            ensureLatestPredictionsMap,
             storeLatestPredictions,
             summarizePredictions
         }
@@ -41953,12 +42057,54 @@ globalObject
     function setLatestPredictions(
         predictions
     ) {
-        runtimeState.latestPredictions =
-            Array.isArray(
-                predictions
+        const ensureMap =
+            integrationApi._internals
+                ?.ensureLatestPredictionsMap;
+
+        const predictionMap =
+            typeof ensureMap === 'function'
+                ? ensureMap()
+                : new Map();
+
+        predictionMap.clear();
+
+        for (
+            const prediction
+            of (
+                Array.isArray(predictions)
+                    ? predictions
+                    : []
             )
-                ? predictions
-                : [];
+        ) {
+            if (
+                !prediction ||
+                typeof prediction !== 'object'
+            ) {
+                continue;
+            }
+
+            const cityKey =
+                prediction.cityId ??
+                prediction.city?.id ??
+                prediction.locationId ??
+                prediction.id ??
+                null;
+
+            if (
+                cityKey === null ||
+                cityKey === undefined
+            ) {
+                continue;
+            }
+
+            predictionMap.set(
+                String(cityKey),
+                prediction
+            );
+        }
+
+        runtimeState.latestPredictions =
+            predictionMap;
 
         runtimeState.latestPredictionsAt =
             Date.now();
@@ -41969,11 +42115,35 @@ globalObject
                     .latestPredictionsAt
             ).toISOString();
 
-        return runtimeState
-            .latestPredictions;
+        return Array.from(
+            predictionMap.values()
+        );
     }
 
     function getLatestPredictions() {
+        const ensureMap =
+            integrationApi._internals
+                ?.ensureLatestPredictionsMap;
+
+        if (
+            typeof ensureMap === 'function'
+        ) {
+            return Array.from(
+                ensureMap().values()
+            );
+        }
+
+        if (
+            runtimeState.latestPredictions
+                instanceof Map
+        ) {
+            return Array.from(
+                runtimeState
+                    .latestPredictions
+                    .values()
+            );
+        }
+
         return Array.isArray(
             runtimeState.latestPredictions
         )
@@ -44180,7 +44350,26 @@ globalObject
                 );
         } else {
             runtimeState.latestPredictions =
-                predictions;
+                new Map(
+                    predictions
+                        .filter(
+                            prediction =>
+                                prediction &&
+                                typeof prediction === 'object'
+                        )
+                        .map(
+                            (prediction, index) => [
+                                String(
+                                    prediction.cityId ??
+                                    prediction.city?.id ??
+                                    prediction.locationId ??
+                                    prediction.id ??
+                                    index
+                                ),
+                                prediction
+                            ]
+                        )
+                );
         }
 
         if (
@@ -64069,7 +64258,91 @@ globalObject
 
 
 
-/* ==========================================================================\n * RainGuard AI V32 — Phase 18\n * Prediction Engine Activation & Orchestrator Bridge\n * Version: 32.18.0\n * ========================================================================== */
+/* ==========================================================================
+ * RainGuard AI V32 — Phase 19
+ * Runtime State Repair & Prediction Cache Recovery
+ * Version: 32.19.0
+ * ========================================================================== */
+(function installRainArrivalPhase19RuntimeRepair(globalObject) {
+    "use strict";
+
+    const integration =
+        globalObject?.RainGuardAI?.V32
+            ?.rainArrivalIntegration;
+
+    if (!integration) {
+        return;
+    }
+
+    function repairLatestPredictions() {
+        const ensureMap =
+            integration._internals
+                ?.ensureLatestPredictionsMap;
+
+        if (typeof ensureMap === "function") {
+            const map = ensureMap();
+            return {
+                repaired: true,
+                type: "Map",
+                size: map.size
+            };
+        }
+
+        const state = integration._state;
+        if (!(state.latestPredictions instanceof Map)) {
+            const values = Array.isArray(state.latestPredictions)
+                ? state.latestPredictions
+                : [];
+            state.latestPredictions = new Map(
+                values.map((prediction, index) => [
+                    String(
+                        prediction?.cityId ??
+                        prediction?.city?.id ??
+                        prediction?.id ??
+                        index
+                    ),
+                    prediction
+                ])
+            );
+        }
+
+        return {
+            repaired: true,
+            type: "Map",
+            size: state.latestPredictions.size
+        };
+    }
+
+    globalObject.RainArrivalPhase19RuntimeRepairV32 = {
+        version: "32.19.0",
+        build: "rainguard-v32-phase19-runtime-state-repair-prediction-cache-recovery",
+        repair: repairLatestPredictions,
+        diagnose() {
+            const state = integration._state;
+            return {
+                version: this.version,
+                build: this.build,
+                latestPredictionsIsMap:
+                    state.latestPredictions instanceof Map,
+                latestPredictionCount:
+                    state.latestPredictions instanceof Map
+                        ? state.latestPredictions.size
+                        : (
+                            Array.isArray(state.latestPredictions)
+                                ? state.latestPredictions.length
+                                : 0
+                        ),
+                recovery:
+                    state.latestPredictionsRecovery ||
+                    null
+            };
+        }
+    };
+
+    repairLatestPredictions();
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ==========================================================================\n * RainGuard AI V32 — Phase 18\n * Prediction Engine Activation & Orchestrator Bridge\n * Version: 32.19.0\n * ========================================================================== */
 (function installRainArrivalPhase18ActivationBridge(globalObject) {
     "use strict";
 
@@ -64077,9 +64350,9 @@ globalObject
         return;
     }
 
-    const BRIDGE_VERSION = "32.18.0";
+    const BRIDGE_VERSION = "32.19.0";
     const BRIDGE_BUILD =
-        "rainguard-v32-phase18-prediction-engine-activation-orchestrator-bridge";
+        "rainguard-v32-phase19-runtime-state-repair-prediction-cache-recovery";
 
     const state = {
         installedAt: Date.now(),
