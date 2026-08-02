@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.21.0';
+    const SEMANTIC_VERSION = '32.21.1';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -64638,13 +64638,13 @@ globalObject
 
 /* ========================================================================== 
    PHASE 21 — INTEGRATION TARGET CONTEXT BRIDGE
-   Version: 32.21.0
+   Version: 32.21.1
    ========================================================================== */
 (function installRainArrivalPhase21IntegrationBridge(globalObject) {
     'use strict';
     if (!globalObject) return;
-    const VERSION = '32.21.0';
-    const BUILD = 'rainguard-v32-phase21-national-target-resolution-context-injection';
+    const VERSION = '32.21.1';
+    const BUILD = 'rainguard-v32-phase21-1-target-resolver-null-guard';
 
     function getResolver() { return globalObject.RainArrivalPhase21TargetResolverV32 ?? globalObject.RainGuardAI?.V32?.phase21TargetResolver ?? null; }
     function getIntegration() { return globalObject.RainGuardAI?.V32?.rainArrivalIntegration ?? null; }
