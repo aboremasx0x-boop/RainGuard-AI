@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.22.0";
+        "32.22.1";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase22-orchestrator-target-injection";
+        "rainguard-v32-phase22b-engine-replacement-live-upgrade";
 
     const ENGINE_STAGE =
         "production";
@@ -75041,16 +75041,14 @@ function createRainArrivalPredictionEngineV32(
         .createRainArrivalPredictionEngine =
         createRainArrivalPredictionEngineV32;
 
+    /* Phase 22B: always publish the newest constructor.
+     * Using nullish assignment kept an older constructor alive after hot reload.
+     */
     root.RainArrivalPredictionEngineV32 =
-        root.RainArrivalPredictionEngineV32 ??
         RainArrivalPredictionEngineV32;
 
-    if (
-        !root.RainArrivalPredictionEngine
-    ) {
-        root.RainArrivalPredictionEngine =
-            RainArrivalPredictionEngineV32;
-    }
+    root.RainArrivalPredictionEngine =
+        RainArrivalPredictionEngineV32;
 
     root.RG31 =
         root.RG31 ??
