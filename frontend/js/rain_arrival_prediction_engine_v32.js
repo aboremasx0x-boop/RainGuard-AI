@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.25.0";
+        "32.26.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase25-motion-intelligence-engine";
+        "rainguard-v32-phase26-national-target-matching-engine";
 
     const ENGINE_STAGE =
         "production";
@@ -76602,3 +76602,134 @@ if (
     globalObject.RainGuardAI=globalObject.RainGuardAI||{};globalObject.RainGuardAI.V32=globalObject.RainGuardAI.V32||{};globalObject.RainGuardAI.V32.phase25=api;
     globalObject.setInterval(install,1500);globalObject.setTimeout(install,0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* ==========================================================================\n * RainGuard AI V32 — Phase 26\n * National Target Matching Engine\n * Version: 32.26.0\n * ========================================================================== */
+(function installRainArrivalPhase26(globalObject){
+    'use strict';
+    const VERSION='32.26.0';
+    const BUILD='rainguard-v32-phase26-national-target-matching-engine';
+    const state={installed:false,installCount:0,lastMatch:null,lastRunAt:null,lastError:null,lastEngine:null};
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,Number(v)||0));
+    const rad=d=>d*Math.PI/180;
+    const deg=r=>r*180/Math.PI;
+    function getEngine(){return globalObject.RainGuardAI?.V32?.rainArrivalPrediction??globalObject.RainArrivalPredictionEngineV32Instance??null;}
+    function coord(v){
+        if(!v||typeof v!=='object')return null;
+        const cands=[v,v.coordinate,v.coordinates,v.position,v.center,v.centroid,v.currentPosition,v.location,v.targetCoordinate,v.targetLocation];
+        for(const c of cands){
+            if(!c)continue;
+            if(Array.isArray(c)&&c.length>=2){const lon=Number(c[0]),lat=Number(c[1]);if(Number.isFinite(lat)&&Number.isFinite(lon))return{latitude:lat,longitude:lon};}
+            const lat=Number(c.latitude??c.lat??c.currentLat);const lon=Number(c.longitude??c.lon??c.lng??c.currentLon??c.currentLng);
+            if(Number.isFinite(lat)&&Number.isFinite(lon))return{latitude:lat,longitude:lon};
+        }
+        return null;
+    }
+    function idOf(v){return v?.id??v?.cellId??v?.trackId??v?.stormCellId??v?.uuid??null;}
+    function pathPoints(path){
+        if(Array.isArray(path))return path;
+        for(const key of ['points','path','projectedPath','predictions','coordinates','track','futurePositions','forecastPath'])if(Array.isArray(path?.[key]))return path[key];
+        return [];
+    }
+    function normalizePoints(path){return pathPoints(path).map(coord).filter(Boolean);}
+    function distanceKm(a,b){
+        if(!a||!b)return null;const R=6371.0088,dLat=rad(b.latitude-a.latitude),dLon=rad(b.longitude-a.longitude);const la1=rad(a.latitude),la2=rad(b.latitude);const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;return 2*R*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+    }
+    function bearing(a,b){
+        if(!a||!b)return null;const p1=rad(a.latitude),p2=rad(b.latitude),dl=rad(b.longitude-a.longitude);const y=Math.sin(dl)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);return(deg(Math.atan2(y,x))+360)%360;
+    }
+    function bearingDiff(a,b){if(!Number.isFinite(a)||!Number.isFinite(b))return null;return Math.abs(((a-b+540)%360)-180);}
+    function localXY(origin,p){const R=6371.0088;return{x:rad(p.longitude-origin.longitude)*Math.cos(rad((p.latitude+origin.latitude)/2))*R,y:rad(p.latitude-origin.latitude)*R};}
+    function projectionOnSegment(a,b,t){
+        const B=localXY(a,b),T=localXY(a,t),den=B.x*B.x+B.y*B.y;if(den<=1e-12)return null;
+        const raw=(T.x*B.x+T.y*B.y)/den,u=Math.max(0,Math.min(1,raw));
+        const px=B.x*u,py=B.y*u,cross=Math.hypot(T.x-px,T.y-py),seg=Math.sqrt(den);
+        return{u,raw,crossTrackKm:cross,alongTrackKm:seg*u,segmentLengthKm:seg,aheadRaw:raw};
+    }
+    function resolveTarget(engine,input={}){return coord(input.targetCoordinate)??coord(input.target)??coord(input.targetCity)??coord(engine?.targetCoordinate)??coord(engine?.targetContext)??coord(engine?.targetCity)??coord(engine?.selectedCity)??coord(engine?.currentCity);}
+    function discoverCollections(input={}){
+        const rg31=globalObject.RainGuardAI?.V31??globalObject.RG31??{};
+        const cells=[],paths=[];
+        const cellSets=[input.cells,input.stormCells,input.activeStormCells,input.trackedCells,input.sources?.radar?.cells,rg31.activeStormCells,rg31.trackedCells,globalObject.activeStormCells,globalObject.trackedStormCells];
+        const pathSets=[input.paths,input.predictedStormPaths,input.stormPaths,input.sources?.radar?.predictedStormPaths,rg31.predictedStormPaths,globalObject.predictedStormPaths,globalObject.stormPaths];
+        for(const arr of cellSets)if(Array.isArray(arr))cells.push(...arr.filter(Boolean));
+        for(const arr of pathSets)if(Array.isArray(arr))paths.push(...arr.filter(Boolean));
+        const uniq=(arr)=>{const seen=new Set();return arr.filter((x,i)=>{const k=String(idOf(x)??('i'+i+'_'+JSON.stringify(coord(x)??{})));if(seen.has(k))return false;seen.add(k);return true;});};
+        return{cells:uniq(cells),paths:uniq(paths)};
+    }
+    function resolveSpeed(cell,path,engine){
+        const vals=[cell?.effectiveSpeedKmh,cell?.speedKmh,cell?.motionSpeedKmh,cell?.velocityKmh,cell?.motion?.speedKmh,path?.speedKmh,path?.motion?.speedKmh,engine?.lastPredictionResult?.phase25MotionIntelligence?.selectedMotion?.speedKmh,engine?.lastPredictionResult?.prediction?.phase25MotionIntelligence?.selectedMotion?.speedKmh];
+        for(const v of vals){const n=Number(v);if(Number.isFinite(n)&&n>=1&&n<=250)return n;}
+        const pts=pathPoints(path);if(pts.length>=2){const a=coord(pts[pts.length-2]),b=coord(pts[pts.length-1]);const ta=Number(pts[pts.length-2]?.timestamp??pts[pts.length-2]?.time),tb=Number(pts[pts.length-1]?.timestamp??pts[pts.length-1]?.time);const d=distanceKm(a,b);if(d&&Number.isFinite(ta)&&Number.isFinite(tb)&&tb>ta){const n=d/((tb-ta)/3600000);if(n>=1&&n<=250)return n;}}
+        return null;
+    }
+    function matchCell(path,cells){const pid=String(path?.cellId??path?.trackId??path?.stormCellId??path?.id??'');let c=cells.find(x=>[x?.id,x?.cellId,x?.trackId,x?.stormCellId].some(v=>v!=null&&String(v)===pid));if(c)return c;const p0=normalizePoints(path)[0];if(!p0)return null;return cells.map(x=>({x,d:distanceKm(coord(x),p0)})).filter(v=>Number.isFinite(v.d)).sort((a,b)=>a.d-b.d)[0]?.x??null;}
+    function evaluatePath(path,cell,target,index,engine,options={}){
+        let pts=normalizePoints(path);const cellCoord=coord(cell);
+        if(cellCoord&&(!pts.length||distanceKm(cellCoord,pts[0])>0.05))pts=[cellCoord,...pts];
+        if(pts.length<2)return{valid:false,eligible:false,index,path,cell,reason:'PATH_POINTS_INSUFFICIENT'};
+        let cumulative=0,best=null;
+        for(let i=0;i<pts.length-1;i++){
+            const pr=projectionOnSegment(pts[i],pts[i+1],target);const seg=distanceKm(pts[i],pts[i+1])??0;
+            if(pr){const candidate={...pr,segmentIndex:i,alongFromStartKm:cumulative+pr.alongTrackKm};if(!best||candidate.crossTrackKm<best.crossTrackKm)best=candidate;}
+            cumulative+=seg;
+        }
+        const current=cellCoord??pts[0], heading=bearing(pts[0],pts[pts.length-1]), targetBearing=bearing(current,target), approachAngle=bearingDiff(heading,targetBearing);
+        const speedKmh=resolveSpeed(cell,path,engine);
+        const corridorKm=Math.max(8,Number(options.maximumCrossTrackKm??path?.corridorWidthKm??35));
+        const currentToTargetKm=distanceKm(current,target);
+        const ahead=Number.isFinite(approachAngle)&&approachAngle<=100;
+        const crossOk=best&&best.crossTrackKm<=corridorKm;
+        const projectedForwardKm=Number.isFinite(currentToTargetKm)&&Number.isFinite(approachAngle)?currentToTargetKm*Math.max(0,Math.cos(rad(approachAngle))):null;
+        const interceptDistanceKm=projectedForwardKm;
+        const arrivalMinutes=Number.isFinite(speedKmh)&&speedKmh>0&&Number.isFinite(interceptDistanceKm)&&interceptDistanceKm>=0?(interceptDistanceKm/speedKmh)*60:null;
+        const withinHorizon=Number.isFinite(arrivalMinutes)&&arrivalMinutes>=0&&arrivalMinutes<=Number(options.maximumEtaMinutes??1440);
+        const eligible=Boolean(ahead&&crossOk&&withinHorizon);
+        const directionScore=Number.isFinite(approachAngle)?clamp(100-approachAngle,0,100):0;
+        const crossScore=best?clamp(100-(best.crossTrackKm/corridorKm)*100,0,100):0;
+        const distanceScore=Number.isFinite(currentToTargetKm)?clamp(100-currentToTargetKm/5,0,100):0;
+        const quality=clamp(cell?.confidence??cell?.trackConfidence??path?.confidence??60,0,100);
+        const score=directionScore*.35+crossScore*.30+distanceScore*.15+quality*.20;
+        let reason='TARGET_MATCH_ACCEPTED';if(!ahead)reason='TARGET_BEHIND_OR_OUTSIDE_APPROACH_ANGLE';else if(!crossOk)reason='CROSS_TRACK_ERROR_TOO_HIGH';else if(!Number.isFinite(speedKmh))reason='MATCHED_PATH_SPEED_UNAVAILABLE';else if(!withinHorizon)reason='MATCHED_PATH_ETA_OUTSIDE_HORIZON';
+        return{valid:Boolean(best&&Number.isFinite(currentToTargetKm)),eligible,index,path,cell,pathId:idOf(path),cellId:idOf(cell),currentCoordinate:current,pathPointCount:pts.length,crossTrackErrorKm:best?.crossTrackKm??null,corridorKm,segmentIndex:best?.segmentIndex??null,approachAngle,targetBearing,heading,ahead,currentToTargetKm,interceptDistanceKm,speedKmh,arrivalMinutes,confidence:clamp(score*.7+quality*.3,0,100),score,reason};
+    }
+    function evaluateCellProjection(cell,target,index,engine,options={}){
+        const c=coord(cell);if(!c)return{valid:false,eligible:false,index,cell,reason:'CELL_COORDINATE_UNAVAILABLE'};
+        const phase25=engine?.lastPredictionResult?.phase25MotionIntelligence??engine?.lastPredictionResult?.prediction?.phase25MotionIntelligence;
+        const ranked=phase25?.rankedCandidates?.find(x=>String(x.id)===String(idOf(cell)))??phase25?.rankedCandidates?.[0];
+        const heading=Number(ranked?.bearing??cell?.bearing??cell?.motionBearing),speedKmh=Number(ranked?.speedKmh??cell?.speedKmh??cell?.motionSpeedKmh);
+        const tb=bearing(c,target),angle=bearingDiff(heading,tb),d=distanceKm(c,target),ahead=Number.isFinite(angle)&&angle<=85;
+        const forward=Number.isFinite(d)&&Number.isFinite(angle)?d*Math.max(0,Math.cos(rad(angle))):null;
+        const lateral=Number.isFinite(d)&&Number.isFinite(angle)?d*Math.abs(Math.sin(rad(angle))):null;
+        const corridor=Math.max(10,Number(options.maximumProjectionCrossTrackKm??45));
+        const arrival=Number.isFinite(speedKmh)&&speedKmh>=1&&Number.isFinite(forward)?forward/speedKmh*60:null;
+        const eligible=Boolean(ahead&&lateral<=corridor&&Number.isFinite(arrival)&&arrival<=Number(options.maximumEtaMinutes??1440));
+        return{valid:Number.isFinite(d)&&Number.isFinite(heading),eligible,index,cell,path:null,pathId:null,cellId:idOf(cell),crossTrackErrorKm:lateral,corridorKm:corridor,approachAngle:angle,targetBearing:tb,heading,ahead,currentToTargetKm:d,interceptDistanceKm:forward,speedKmh,arrivalMinutes:arrival,confidence:eligible?clamp(60+(85-angle)*.3,0,95):0,score:eligible?70:0,reason:eligible?'CELL_PROJECTION_ACCEPTED':(!ahead?'CELL_TARGET_BEHIND':(lateral>corridor?'CELL_PROJECTION_CROSS_TRACK_TOO_HIGH':'CELL_PROJECTION_ETA_UNAVAILABLE'))};
+    }
+    function build(engine,input={}){
+        const target=resolveTarget(engine,input),{cells,paths}=discoverCollections(input),evaluations=[];
+        if(target){paths.forEach((p,i)=>evaluations.push(evaluatePath(p,matchCell(p,cells),target,i,engine,input)));if(!evaluations.some(e=>e.eligible))cells.forEach((c,i)=>evaluations.push(evaluateCellProjection(c,target,i,engine,input)));}
+        const ranked=evaluations.filter(e=>e.valid).sort((a,b)=>(Number(b.eligible)-Number(a.eligible))||(b.score-a.score)||((a.crossTrackErrorKm??Infinity)-(b.crossTrackErrorKm??Infinity)));
+        const selected=ranked.find(e=>e.eligible)??null,arrival=selected?Math.round(selected.arrivalMinutes*10)/10:null;
+        return{phase:'26',version:VERSION,build:BUILD,target,cellCount:cells.length,pathCount:paths.length,evaluatedCount:evaluations.length,eligibleCount:ranked.filter(e=>e.eligible).length,available:Boolean(selected),reason:selected?'PHASE26_TARGET_PATH_MATCH_AVAILABLE':(!target?'TARGET_COORDINATE_UNAVAILABLE':(!paths.length&&!cells.length?'NO_STORM_PATHS_OR_CELLS':'NO_PATH_MATCHING_TARGET')),selectedPathId:selected?.pathId??null,selectedCellId:selected?.cellId??null,arrivalMinutes:arrival,eta:arrival!==null?new Date(Date.now()+arrival*60000).toISOString():null,confidence:selected?Math.round(selected.confidence):0,selectedMatch:selected?{pathId:selected.pathId,cellId:selected.cellId,crossTrackErrorKm:selected.crossTrackErrorKm,corridorKm:selected.corridorKm,approachAngle:selected.approachAngle,interceptDistanceKm:selected.interceptDistanceKm,currentToTargetKm:selected.currentToTargetKm,speedKmh:selected.speedKmh,heading:selected.heading,targetBearing:selected.targetBearing,score:selected.score,confidence:selected.confidence,reason:selected.reason}:null,rankedMatches:ranked.slice(0,12).map(e=>({pathId:e.pathId,cellId:e.cellId,eligible:e.eligible,crossTrackErrorKm:e.crossTrackErrorKm,corridorKm:e.corridorKm,approachAngle:e.approachAngle,distanceKm:e.currentToTargetKm,interceptDistanceKm:e.interceptDistanceKm,speedKmh:e.speedKmh,arrivalMinutes:e.arrivalMinutes,score:e.score,reason:e.reason})),generatedAt:new Date().toISOString()};
+    }
+    function publish(engine,result,matching){
+        const wrapper=result&&typeof result==='object'?result:{};const prediction=wrapper.prediction&&typeof wrapper.prediction==='object'?wrapper.prediction:wrapper;
+        prediction.phase26NationalTargetMatching=matching;wrapper.phase26NationalTargetMatching=matching;
+        if(matching.available){prediction.arrivalMinutes=matching.arrivalMinutes;prediction.eta=matching.eta;prediction.arrivalTime=matching.eta;prediction.confidence=matching.confidence;prediction.available=true;prediction.status='RAIN_ARRIVAL_AVAILABLE';prediction.reason='PHASE26_NATIONAL_TARGET_MATCHING';prediction.city=prediction.city??engine.targetCity??engine.selectedCity??null;prediction.targetMatch=matching.selectedMatch;wrapper.success=true;wrapper.partial=false;}
+        engine.currentPrediction=prediction;engine.lastPredictionResult=wrapper;engine.lastArrivalResult=prediction;engine.lastResult=wrapper;engine.latestPrediction=prediction;
+        globalObject.RainGuardAI=globalObject.RainGuardAI||{};globalObject.RainGuardAI.V32=globalObject.RainGuardAI.V32||{};globalObject.RainGuardAI.V32.latestPrediction=prediction;globalObject.RainGuardAI.V32.latestRainArrivalPrediction=prediction;
+        state.lastMatch=matching;state.lastRunAt=new Date().toISOString();return wrapper;
+    }
+    function install(){
+        const engine=getEngine();if(!engine)return{installed:false,reason:'ENGINE_UNAVAILABLE'};
+        if(engine.__phase26Installed){state.installed=true;state.lastEngine=engine;return{installed:true,reused:true};}
+        const runner=['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict'].find(n=>typeof engine[n]==='function');
+        if(runner){const original=engine[runner].bind(engine);engine[runner]=async function phase26WrappedRun(input={},options={}){const result=await original(input,options);return publish(this,result,build(this,input));};}
+        if(typeof engine.runCompleteRainArrivalPredictionSync==='function'){const originalSync=engine.runCompleteRainArrivalPredictionSync.bind(engine);engine.runCompleteRainArrivalPredictionSync=function phase26WrappedSync(input={},options={}){return publish(this,originalSync(input,options),build(this,input));};}
+        engine.version=VERSION;engine.build=BUILD;engine.__phase26Installed=true;state.installed=true;state.installCount++;state.lastEngine=engine;return{installed:true,version:VERSION,build:BUILD,wrappedMethod:runner};
+    }
+    async function runNow(options={}){install();const engine=getEngine();if(!engine)return{success:false,reason:'ENGINE_UNAVAILABLE'};const target=engine.targetContext??engine.targetCity??engine.selectedCity??{};const input={...options,targetCity:options.targetCity??target,targetCoordinate:options.targetCoordinate??engine.targetCoordinate??coord(target),target:options.target??target};const runner=['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict'].find(n=>typeof engine[n]==='function');if(!runner)return{success:false,reason:'PREDICTION_RUNNER_UNAVAILABLE'};try{const result=await engine[runner](input,options);return{success:true,version:VERSION,build:BUILD,runner,result,targetMatching:state.lastMatch};}catch(error){state.lastError={message:error?.message??String(error),stack:error?.stack??null};return{success:false,reason:'PHASE26_EXECUTION_FAILED',error:state.lastError};}}
+    const api={version:VERSION,build:BUILD,state,install,run:runNow,analyze(input={}){return build(getEngine(),input);},diagnose(){const engine=getEngine();return{version:VERSION,build:BUILD,installed:Boolean(engine?.__phase26Installed),engineAvailable:Boolean(engine),selectedCity:engine?.selectedCity??null,targetCity:engine?.targetCity??null,targetCoordinate:engine?.targetCoordinate??null,lastMatch:state.lastMatch,lastError:state.lastError};}};
+    globalObject.RainArrivalPhase26V32=api;globalObject.runRainArrivalPhase26=runNow;globalObject.RainGuardAI=globalObject.RainGuardAI||{};globalObject.RainGuardAI.V32=globalObject.RainGuardAI.V32||{};globalObject.RainGuardAI.V32.phase26=api;globalObject.setInterval(install,1500);globalObject.setTimeout(install,0);
+})(typeof globalThis!=='undefined'?globalThis:(typeof window!=='undefined'?window:this));
