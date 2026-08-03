@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.24.0';
+    const SEMANTIC_VERSION = '32.25.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -65853,3 +65853,18 @@ globalObject
         return {success:false,reason:'PHASE24_ENGINE_API_UNAVAILABLE'};
     });
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* PHASE 25 — Motion Intelligence Integration Release */
+(function publishPhase25Integration(globalObject){
+    'use strict';
+    const VERSION='32.25.0';
+    const BUILD='rainguard-v32-phase25-motion-intelligence-engine';
+    globalObject.RainGuardAI=globalObject.RainGuardAI||{};
+    globalObject.RainGuardAI.V32=globalObject.RainGuardAI.V32||{};
+    globalObject.RainGuardAI.V32.phase25Integration=Object.freeze({version:VERSION,build:BUILD});
+    globalObject.runRainArrivalPhase25Integration=async function(options={}){
+        if(typeof globalObject.runRainArrivalPhase25==='function') return globalObject.runRainArrivalPhase25(options);
+        return {success:false,version:VERSION,build:BUILD,reason:'PHASE25_ENGINE_API_UNAVAILABLE'};
+    };
+})(typeof globalThis!=='undefined'?globalThis:(typeof window!=='undefined'?window:this));
