@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.22.1';
+    const SEMANTIC_VERSION = '32.23.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -65137,4 +65137,360 @@ globalObject
     globalObject.RainGuardAI.V32.phase22B = api;
 
     globalObject.setTimeout(() => replace({ initialize: true }), 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* ==========================================================================
+   PHASE 23 — NATIONAL TARGET INJECTION ENGINE
+   ========================================================================== */
+(function installRainArrivalPhase23NationalTargetInjection(globalObject) {
+    'use strict';
+
+    const VERSION = '32.23.0';
+    const BUILD = 'rainguard-v32-phase23-national-target-injection-engine';
+
+    const CITY_REGISTRY = Object.freeze([
+        { city: 'Riyadh', name: 'Riyadh', nameAr: 'الرياض', latitude: 24.7136, longitude: 46.6753 },
+        { city: 'Jeddah', name: 'Jeddah', nameAr: 'جدة', latitude: 21.5433, longitude: 39.1728 },
+        { city: 'Makkah', name: 'Makkah', nameAr: 'مكة', latitude: 21.3891, longitude: 39.8579 },
+        { city: 'Madinah', name: 'Madinah', nameAr: 'المدينة', latitude: 24.5247, longitude: 39.5692 },
+        { city: 'Dammam', name: 'Dammam', nameAr: 'الدمام', latitude: 26.4207, longitude: 50.0888 },
+        { city: 'Abha', name: 'Abha', nameAr: 'أبها', latitude: 18.2164, longitude: 42.5053 },
+        { city: 'Najran', name: 'Najran', nameAr: 'نجران', latitude: 17.5650, longitude: 44.2289 },
+        { city: 'Taif', name: 'Taif', nameAr: 'الطائف', latitude: 21.2703, longitude: 40.4158 },
+        { city: 'Tabuk', name: 'Tabuk', nameAr: 'تبوك', latitude: 28.3838, longitude: 36.5550 },
+        { city: 'Jazan', name: 'Jazan', nameAr: 'جازان', latitude: 16.8892, longitude: 42.5511 },
+        { city: 'Hail', name: 'Hail', nameAr: 'حائل', latitude: 27.5114, longitude: 41.7208 },
+        { city: 'Buraidah', name: 'Buraidah', nameAr: 'بريدة', latitude: 26.3592, longitude: 43.9818 },
+        { city: 'Al Bahah', name: 'Al Bahah', nameAr: 'الباحة', latitude: 20.0129, longitude: 41.4677 },
+        { city: 'Sakaka', name: 'Sakaka', nameAr: 'سكاكا', latitude: 29.9697, longitude: 40.2064 },
+        { city: 'Arar', name: 'Arar', nameAr: 'عرعر', latitude: 30.9753, longitude: 41.0381 }
+    ]);
+
+    const state = {
+        installed: false,
+        installCount: 0,
+        injectionCount: 0,
+        lastTarget: null,
+        lastContext: null,
+        lastError: null,
+        lastInstalledAt: null,
+        lastInjectedAt: null
+    };
+
+    function normalizeText(value) {
+        return String(value ?? '')
+            .trim().toLowerCase()
+            .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+            .replace(/[^a-z0-9\u0600-\u06FF]+/g, '');
+    }
+
+    function finite(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
+
+    function coordinateOf(value) {
+        if (!value || typeof value !== 'object') return null;
+        const latitude = finite(value.latitude ?? value.lat ?? value.coordinate?.latitude ?? value.coordinates?.latitude);
+        const longitude = finite(value.longitude ?? value.lon ?? value.lng ?? value.coordinate?.longitude ?? value.coordinates?.longitude);
+        return latitude !== null && longitude !== null ? { latitude, longitude } : null;
+    }
+
+    function registryMatch(value) {
+        if (!value) return null;
+        const raw = typeof value === 'object'
+            ? (value.city ?? value.cityName ?? value.name ?? value.nameEn ?? value.nameAr ?? value.id)
+            : value;
+        const key = normalizeText(raw);
+        if (!key) return null;
+        return CITY_REGISTRY.find(item => [item.city, item.name, item.nameAr].some(name => normalizeText(name) === key)) ?? null;
+    }
+
+    function normalizeCity(value, index = 0) {
+        if (!value) return null;
+        const object = typeof value === 'object' ? value : { city: value, name: value };
+        const known = registryMatch(object);
+        const coordinate = coordinateOf(object) ?? coordinateOf(known);
+        if (!coordinate) return null;
+        const name = object.name ?? object.city ?? object.cityName ?? known?.name ?? known?.city ?? `city-${index}`;
+        const city = object.city ?? known?.city ?? name;
+        return {
+            ...(known ?? {}),
+            ...object,
+            id: object.id ?? object.cityId ?? normalizeText(name) ?? `city-${index}`,
+            city,
+            name,
+            nameAr: object.nameAr ?? known?.nameAr ?? name,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            coordinate,
+            hasCoordinates: true,
+            phase23Normalized: true
+        };
+    }
+
+    function dashboardCity() {
+        const selectors = [
+            '[data-highest-risk-city]', '[data-city]', '#highestRiskCity', '#topRiskCity',
+            '#highest-risk-city', '.highest-risk-city', '.top-risk-city'
+        ];
+        for (const selector of selectors) {
+            const element = globalObject.document?.querySelector?.(selector);
+            const raw = element?.dataset?.highestRiskCity ?? element?.dataset?.city ?? element?.textContent;
+            const match = registryMatch(raw);
+            if (match) return normalizeCity(match);
+        }
+        const text = globalObject.document?.body?.innerText ?? '';
+        for (const item of CITY_REGISTRY) {
+            if (text.includes(item.nameAr) || new RegExp(`\\b${item.name}\\b`, 'i').test(text)) {
+                return normalizeCity(item);
+            }
+        }
+        return null;
+    }
+
+    function riskOf(city) {
+        return finite(city?.risk ?? city?.riskScore ?? city?.weather?.risk ?? city?.score ?? city?.confidence) ?? 0;
+    }
+
+    function resolveTarget(input = {}, options = {}) {
+        const engine = globalObject.RainGuardAI?.V32?.rainArrivalPrediction ?? globalObject.RainArrivalPredictionEngineV32Instance;
+        const explicitCandidates = [
+            options.target, options.targetCity, options.city, options.selectedCity,
+            input.target, input.targetCity, input.city, input.selectedCity,
+            engine?.selectedCity, engine?.targetCity, engine?.currentCity, engine?.activeCity,
+            globalObject.RainGuardAI?.V32?.phase22TargetContext?.target,
+            globalObject.RainGuardAI?.V32?.latestPrediction?.city
+        ];
+        for (const candidate of explicitCandidates) {
+            const normalized = normalizeCity(candidate);
+            if (normalized) return { target: normalized, source: 'explicit_or_existing_context' };
+        }
+
+        const cities = Array.isArray(input.cities) ? input.cities.map(normalizeCity).filter(Boolean) : [];
+        const fromDashboard = dashboardCity();
+        if (fromDashboard) {
+            const matched = cities.find(city => normalizeText(city.city) === normalizeText(fromDashboard.city));
+            return { target: matched ?? fromDashboard, source: 'dashboard_highest_risk_city' };
+        }
+
+        if (cities.length) {
+            const ranked = [...cities].sort((a, b) => riskOf(b) - riskOf(a));
+            return { target: ranked[0], source: 'highest_risk_input_city' };
+        }
+
+        return { target: null, source: 'target_unresolved' };
+    }
+
+    function applyTarget(engine, target, source) {
+        if (!engine || !target) return null;
+        const coordinate = { latitude: target.latitude, longitude: target.longitude };
+        const context = {
+            resolved: true,
+            injected: true,
+            city: target.city ?? target.name,
+            target,
+            coordinate,
+            source,
+            version: VERSION,
+            build: BUILD,
+            generatedAt: Date.now(),
+            generatedAtIso: new Date().toISOString()
+        };
+        engine.selectedCity = target;
+        engine.targetCity = target;
+        engine.currentCity = target;
+        engine.activeCity = target;
+        engine.targetLocation = coordinate;
+        engine.selectedLocation = coordinate;
+        engine.targetCoordinate = coordinate;
+        engine.targetContext = context;
+        engine.phase23TargetContext = context;
+        globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+        globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+        globalObject.RainGuardAI.V32.phase23TargetContext = context;
+        state.lastTarget = target;
+        state.lastContext = context;
+        state.injectionCount += 1;
+        state.lastInjectedAt = context.generatedAtIso;
+        return context;
+    }
+
+    function injectInput(input = {}, options = {}) {
+        const resolved = resolveTarget(input, options);
+        const target = resolved.target;
+        const coordinate = target ? { latitude: target.latitude, longitude: target.longitude } : null;
+        let cities = Array.isArray(input.cities) ? input.cities.map(normalizeCity).filter(Boolean) : [];
+        if (target && !cities.some(city => normalizeText(city.city) === normalizeText(target.city))) cities.unshift(target);
+        if (target && options.forceSingleCity === true) cities = [target];
+        const context = target ? {
+            resolved: true, injected: true, target, city: target.city ?? target.name,
+            coordinate, source: resolved.source, version: VERSION, build: BUILD,
+            generatedAt: Date.now(), generatedAtIso: new Date().toISOString()
+        } : {
+            resolved: false, injected: false, target: null, city: null, coordinate: null,
+            source: resolved.source, version: VERSION, build: BUILD,
+            generatedAt: Date.now(), generatedAtIso: new Date().toISOString()
+        };
+        return {
+            input: {
+                ...input,
+                cities,
+                cityCount: cities.length,
+                city: target ?? input.city ?? null,
+                selectedCity: target ?? input.selectedCity ?? null,
+                targetCity: target ?? input.targetCity ?? null,
+                target: target ?? input.target ?? null,
+                targetCoordinate: coordinate ?? input.targetCoordinate ?? null,
+                coordinate: coordinate ?? input.coordinate ?? null,
+                location: coordinate ?? input.location ?? null,
+                phase23TargetContext: context
+            },
+            target,
+            context
+        };
+    }
+
+    function patchEngine(engine) {
+        if (!engine || typeof engine !== 'object') return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase23TargetInjectionInstalled) return { installed: true, reused: true };
+
+        const methods = [
+            'runCompleteRainArrivalPrediction',
+            'predictRainArrival',
+            'runRainArrivalPrediction',
+            'runPrediction',
+            'predict'
+        ];
+        for (const methodName of methods) {
+            const original = engine[methodName];
+            if (typeof original !== 'function' || original.__phase23Wrapped) continue;
+            const wrapped = async function phase23TargetAwarePrediction(input = {}, options = {}) {
+                const injected = injectInput(input, options);
+                if (injected.target) applyTarget(this, injected.target, injected.context.source);
+                const result = await original.call(this, injected.input, {
+                    ...options,
+                    target: injected.target,
+                    targetCity: injected.target,
+                    selectedCity: injected.target,
+                    targetCoordinate: injected.context.coordinate,
+                    phase23TargetContext: injected.context
+                });
+                if (result && typeof result === 'object') {
+                    result.city = result.city ?? injected.target?.city ?? injected.target?.name ?? null;
+                    result.target = result.target ?? injected.target ?? null;
+                    result.targetCoordinate = result.targetCoordinate ?? injected.context.coordinate;
+                    result.phase23TargetContext = injected.context;
+                    const prediction = result.prediction;
+                    if (prediction && typeof prediction === 'object') {
+                        prediction.city = prediction.city ?? injected.target?.city ?? injected.target?.name ?? null;
+                        prediction.target = prediction.target ?? injected.target ?? null;
+                        prediction.targetCoordinate = prediction.targetCoordinate ?? injected.context.coordinate;
+                        prediction.phase23TargetContext = injected.context;
+                    }
+                }
+                return result;
+            };
+            wrapped.__phase23Wrapped = true;
+            wrapped.__phase23Original = original;
+            engine[methodName] = wrapped;
+        }
+        engine.__phase23TargetInjectionInstalled = true;
+        engine.phase23Version = VERSION;
+        engine.phase23Build = BUILD;
+        return { installed: true, version: VERSION, build: BUILD };
+    }
+
+    function patchIntegration(integration) {
+        if (!integration || typeof integration !== 'object') return { installed: false, reason: 'INTEGRATION_UNAVAILABLE' };
+        if (!integration.__phase23RunCycleInstalled && typeof integration.runCycle === 'function') {
+            const originalRunCycle = integration.runCycle.bind(integration);
+            integration.runCycle = async function phase23RunCycle(options = {}) {
+                const engine = globalObject.RainGuardAI?.V32?.rainArrivalPrediction ?? globalObject.RainArrivalPredictionEngineV32Instance;
+                patchEngine(engine);
+                const resolved = resolveTarget({}, options);
+                if (resolved.target) applyTarget(engine, resolved.target, resolved.source);
+                return originalRunCycle({
+                    ...options,
+                    target: resolved.target,
+                    targetCity: resolved.target,
+                    selectedCity: resolved.target,
+                    targetCoordinate: resolved.target ? { latitude: resolved.target.latitude, longitude: resolved.target.longitude } : null,
+                    phase23TargetContext: state.lastContext
+                });
+            };
+            integration.__phase23RunCycleInstalled = true;
+        }
+        integration.phase23Version = VERSION;
+        integration.phase23Build = BUILD;
+        return { installed: true };
+    }
+
+    function install() {
+        try {
+            const engine = globalObject.RainGuardAI?.V32?.rainArrivalPrediction ?? globalObject.RainArrivalPredictionEngineV32Instance;
+            const integration = globalObject.RainGuardAI?.V32?.rainArrivalIntegration;
+            const engineInstall = patchEngine(engine);
+            const integrationInstall = patchIntegration(integration);
+            const resolved = resolveTarget({}, {});
+            if (resolved.target) applyTarget(engine, resolved.target, resolved.source);
+            state.installed = Boolean(engineInstall.installed && integrationInstall.installed);
+            state.installCount += 1;
+            state.lastInstalledAt = new Date().toISOString();
+            state.lastError = null;
+            return { installed: state.installed, version: VERSION, build: BUILD, engineInstall, integrationInstall, target: resolved.target };
+        } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { installed: false, reason: 'PHASE23_INSTALL_FAILED', error: state.lastError };
+        }
+    }
+
+    async function runNow(options = {}) {
+        const installation = install();
+        const integration = globalObject.RainGuardAI?.V32?.rainArrivalIntegration;
+        if (!integration || typeof integration.runCycle !== 'function') {
+            return { success: false, version: VERSION, build: BUILD, installation, reason: 'INTEGRATION_RUN_CYCLE_UNAVAILABLE' };
+        }
+        const cycleResult = await integration.runCycle({ ...options, forceSingleCity: options.forceSingleCity ?? true, reason: options.reason ?? 'phase23_manual_cycle' });
+        return { success: true, version: VERSION, build: BUILD, installation, cycleResult, target: state.lastTarget, context: state.lastContext };
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        runNow,
+        resolveTarget,
+        injectInput,
+        diagnose() {
+            const engine = globalObject.RainGuardAI?.V32?.rainArrivalPrediction ?? globalObject.RainArrivalPredictionEngineV32Instance;
+            const integration = globalObject.RainGuardAI?.V32?.rainArrivalIntegration;
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: state.installed,
+                engineAvailable: Boolean(engine),
+                integrationAvailable: Boolean(integration),
+                enginePatched: Boolean(engine?.__phase23TargetInjectionInstalled),
+                runCyclePatched: Boolean(integration?.__phase23RunCycleInstalled),
+                selectedCity: engine?.selectedCity ?? null,
+                targetCity: engine?.targetCity ?? null,
+                currentCity: engine?.currentCity ?? null,
+                targetContext: engine?.targetContext ?? null,
+                lastTarget: state.lastTarget,
+                state: { ...state }
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase23V32 = api;
+    globalObject.runRainArrivalPhase23 = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase23 = api;
+
+    globalObject.setInterval(install, 1000);
+    globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
