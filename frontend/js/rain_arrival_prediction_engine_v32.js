@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.23.1";
+        "32.24.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase23b-integration-adapter";
+        "rainguard-v32-phase24-rain-arrival-intelligence";
 
     const ENGINE_STAGE =
         "production";
@@ -76051,4 +76051,276 @@ if (
         version: '32.23.1',
         build: 'rainguard-v32-phase23b-integration-adapter'
     });
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* ========================================================================== 
+ * PHASE 24 — Rain Arrival Intelligence
+ * Version: 32.24.0
+ * Build: rainguard-v32-phase24-rain-arrival-intelligence
+ * ========================================================================== */
+(function installRainArrivalPhase24(globalObject) {
+    'use strict';
+
+    const VERSION = '32.24.0';
+    const BUILD = 'rainguard-v32-phase24-rain-arrival-intelligence';
+    const state = {
+        installed: false,
+        installCount: 0,
+        lastRunAt: null,
+        lastIntelligence: null,
+        lastError: null,
+        lastEngine: null
+    };
+
+    const finite = (value) => Number.isFinite(Number(value));
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, Number(value) || 0));
+    const normalizeBearing = (value) => {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? ((numeric % 360) + 360) % 360 : null;
+    };
+    const bearingDifference = (a, b) => {
+        if (!finite(a) || !finite(b)) return null;
+        const d = Math.abs(normalizeBearing(a) - normalizeBearing(b));
+        return d > 180 ? 360 - d : d;
+    };
+    const coord = (value) => {
+        if (!value) return null;
+        if (Array.isArray(value) && finite(value[0]) && finite(value[1])) {
+            return { latitude: Number(value[1]), longitude: Number(value[0]) };
+        }
+        const latitude = value.latitude ?? value.lat ?? value.currentLat ?? value.y;
+        const longitude = value.longitude ?? value.lon ?? value.lng ?? value.currentLon ?? value.currentLng ?? value.x;
+        if (finite(latitude) && finite(longitude)) return { latitude: Number(latitude), longitude: Number(longitude) };
+        if (value.coordinate) return coord(value.coordinate);
+        if (value.center) return coord(value.center);
+        if (value.centroid) return coord(value.centroid);
+        if (value.position) return coord(value.position);
+        if (value.currentPosition) return coord(value.currentPosition);
+        if (value.geometry?.coordinates) return coord(value.geometry.coordinates);
+        return null;
+    };
+    const distanceKm = (a, b) => {
+        const p1=coord(a), p2=coord(b); if (!p1 || !p2) return null;
+        const r=6371.0088, toRad=Math.PI/180;
+        const dLat=(p2.latitude-p1.latitude)*toRad;
+        const dLon=(p2.longitude-p1.longitude)*toRad;
+        const x=Math.sin(dLat/2)**2 + Math.cos(p1.latitude*toRad)*Math.cos(p2.latitude*toRad)*Math.sin(dLon/2)**2;
+        return 2*r*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+    };
+    const initialBearing = (a,b) => {
+        const p1=coord(a),p2=coord(b); if(!p1||!p2)return null;
+        const r=Math.PI/180, y=Math.sin((p2.longitude-p1.longitude)*r)*Math.cos(p2.latitude*r);
+        const x=Math.cos(p1.latitude*r)*Math.sin(p2.latitude*r)-Math.sin(p1.latitude*r)*Math.cos(p2.latitude*r)*Math.cos((p2.longitude-p1.longitude)*r);
+        return normalizeBearing(Math.atan2(y,x)*180/Math.PI);
+    };
+    const flatten = (items) => items.flatMap((item) => Array.isArray(item) ? item : (item ? [item] : []));
+    const uniqueObjects = (items) => {
+        const seen=new Set(), output=[];
+        for (const item of items) {
+            if (!item || typeof item !== 'object') continue;
+            const c=coord(item);
+            const key=String(item.id ?? item.cellId ?? item.trackId ?? (c ? `${c.latitude.toFixed(4)}:${c.longitude.toFixed(4)}` : ''));
+            if (!key || seen.has(key)) continue;
+            seen.add(key); output.push(item);
+        }
+        return output;
+    };
+
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function resolveTarget(engine, input={}) {
+        const candidates=[
+            input.targetCoordinate, input.target?.coordinate, input.target,
+            input.city, input.targetCity,
+            engine?.targetCoordinate, engine?.targetLocation, engine?.targetContext?.coordinate,
+            engine?.targetCity, engine?.selectedCity, engine?.currentCity,
+            globalObject.RainGuardAI?.V32?.latestPrediction?.target,
+            globalObject.RainGuardAI?.V32?.latestPrediction?.city
+        ];
+        for (const candidate of candidates) {
+            const c=coord(candidate); if(c) return c;
+        }
+        return null;
+    }
+
+    function discoverCells(input={}) {
+        const rg31=globalObject.RG31 ?? {};
+        const v31=globalObject.RainGuardAI?.V31 ?? {};
+        const sources=input.sources ?? {};
+        return uniqueObjects(flatten([
+            sources.radar?.cells, sources.radar?.activeCells, sources.radar?.stormCells,
+            sources.rainViewer?.cells, input.cells, input.activeCells, input.stormCells,
+            rg31.activeStormCells, rg31.stormCells, rg31.trackedCells,
+            rg31.StormCellTrackingEngine?.activeCells, rg31.StormCellTrackingEngine?.trackedCells,
+            v31.activeStormCells, v31.stormCells, v31.trackedCells,
+            globalObject.activeStormCells, globalObject.stormCells, globalObject.trackedStormCells
+        ]));
+    }
+
+    function discoverPaths(input={}) {
+        const rg31=globalObject.RG31 ?? {};
+        const v31=globalObject.RainGuardAI?.V31 ?? {};
+        return flatten([
+            input.predictedStormPaths, input.projectedTracks, input.stormPaths,
+            input.sources?.predictedStormPaths, input.sources?.projectedTracks,
+            rg31.predictedStormPaths, rg31.PredictedStormPaths,
+            rg31.StormPathPredictionEngine?.predictedPaths,
+            rg31.StormPathPredictionEngine?.latestPredictionReport?.paths,
+            v31.predictedStormPaths, globalObject.predictedStormPaths,
+            globalObject.RainGuardAI?.V32?.predictedStormPaths
+        ]).filter(Boolean);
+    }
+
+    function resolveMotion(item, fallback={}) {
+        const speedCandidates=[item?.speedKmh,item?.motionSpeedKmh,item?.velocityKmh,item?.speed,item?.motion?.speedKmh,item?.motion?.speed,fallback.speedKmh];
+        const bearingCandidates=[item?.bearing,item?.directionDegrees,item?.direction,item?.heading,item?.motionBearing,item?.motion?.bearing,item?.motion?.direction,fallback.bearing];
+        let speedKmh=null,bearing=null;
+        for(const value of speedCandidates){const n=Number(value);if(Number.isFinite(n)&&n>=1&&n<=160){speedKmh=n;break;}}
+        for(const value of bearingCandidates){const n=normalizeBearing(value);if(Number.isFinite(n)){bearing=n;break;}}
+        const history=item?.history ?? item?.positions ?? item?.trackHistory ?? [];
+        if((!speedKmh || bearing===null) && Array.isArray(history) && history.length>=2){
+            const a=history[history.length-2], b=history[history.length-1];
+            const ca=coord(a), cb=coord(b), d=distanceKm(ca,cb);
+            const ta=Number(a.timestamp ?? a.time ?? a.observedAt), tb=Number(b.timestamp ?? b.time ?? b.observedAt);
+            const hours=Number.isFinite(ta)&&Number.isFinite(tb)&&tb>ta ? (tb-ta)/3600000 : null;
+            if(!speedKmh && d!==null && hours && hours>0) speedKmh=clamp(d/hours,1,160);
+            if(bearing===null && ca&&cb) bearing=initialBearing(ca,cb);
+        }
+        return { speedKmh, bearing, available:Number.isFinite(speedKmh)&&Number.isFinite(bearing) };
+    }
+
+    function pathPoints(path) {
+        if(Array.isArray(path)) return path;
+        for(const key of ['points','path','projectedPath','predictions','coordinates','track']) if(Array.isArray(path?.[key])) return path[key];
+        return [];
+    }
+
+    function evaluateCandidate(item,target,index,kind='cell') {
+        const c=coord(item) ?? coord(pathPoints(item)[0]);
+        if(!c) return {valid:false,index,kind,item,reason:'INVALID_CELL_COORDINATE'};
+        const d=distanceKm(c,target), targetBearing=initialBearing(c,target);
+        const points=pathPoints(item);
+        const fallbackMotion={};
+        if(points.length>=2){fallbackMotion.bearing=initialBearing(points[0],points[points.length-1]);}
+        const motion=resolveMotion(item,fallbackMotion);
+        const diff=bearingDifference(motion.bearing,targetBearing);
+        const maximumAngle=95;
+        const approaching=motion.available && diff!==null && diff<=maximumAngle;
+        const speed=motion.speedKmh;
+        const arrivalMinutes=approaching && d!==null && speed>0 ? (d/speed)*60 : null;
+        const distanceScore=d===null?0:Math.max(0,100-Math.min(d,500)/5);
+        const directionScore=diff===null?0:Math.max(0,100-diff/1.8);
+        const quality=clamp(item?.confidence ?? item?.trackConfidence ?? item?.quality ?? 55,0,100);
+        const score=directionScore*.45+distanceScore*.25+quality*.2+(motion.available?10:0);
+        const confidence=clamp(score*.75+quality*.25,0,100);
+        return {valid:Boolean(motion.available&&d!==null),eligible:Boolean(approaching&&arrivalMinutes!==null&&arrivalMinutes>=0&&arrivalMinutes<=360),index,kind,item,coordinate:c,distanceKm:d,targetBearing,motionBearing:motion.bearing,bearingDifference:diff,speedKmh:speed,approaching,arrivalMinutes,score,confidence,reason:approaching?'APPROACHING_TARGET':'NOT_APPROACHING_TARGET'};
+    }
+
+    function buildIntelligence(engine,input={}) {
+        const target=resolveTarget(engine,input);
+        const cells=discoverCells(input), paths=discoverPaths(input);
+        const candidates=[];
+        if(target){
+            cells.forEach((item,index)=>candidates.push(evaluateCandidate(item,target,index,'cell')));
+            paths.forEach((item,index)=>candidates.push(evaluateCandidate(item,target,index,'path')));
+        }
+        const ranked=candidates.filter(c=>c.valid).sort((a,b)=>(Number(b.eligible)-Number(a.eligible))||(b.score-a.score)||((a.distanceKm??Infinity)-(b.distanceKm??Infinity)));
+        const selected=ranked.find(c=>c.eligible) ?? null;
+        const arrivalMinutes=selected ? Math.round(selected.arrivalMinutes*10)/10 : null;
+        return {
+            phase:'24',version:VERSION,build:BUILD,target,
+            cellCount:cells.length,pathCount:paths.length,candidateCount:candidates.length,
+            eligibleCount:ranked.filter(c=>c.eligible).length,
+            selectedCellId:selected?.item?.id ?? selected?.item?.cellId ?? selected?.item?.trackId ?? null,
+            selectedKind:selected?.kind ?? null,
+            arrivalMinutes,
+            eta:arrivalMinutes!==null?new Date(Date.now()+arrivalMinutes*60000).toISOString():null,
+            confidence:selected?Math.round(selected.confidence):0,
+            available:Boolean(selected),
+            reason:selected?'PHASE24_ARRIVAL_INTELLIGENCE_AVAILABLE':(!target?'TARGET_COORDINATE_UNAVAILABLE':(candidates.length===0?'NO_STORM_CANDIDATES':'NO_APPROACHING_STORM_CANDIDATE')),
+            selectedCandidate:selected ? {distanceKm:selected.distanceKm,speedKmh:selected.speedKmh,motionBearing:selected.motionBearing,targetBearing:selected.targetBearing,bearingDifference:selected.bearingDifference,score:selected.score,confidence:selected.confidence} : null,
+            rankedCandidates:ranked.slice(0,10).map(c=>({kind:c.kind,id:c.item?.id??c.item?.cellId??c.item?.trackId??null,eligible:c.eligible,distanceKm:c.distanceKm,speedKmh:c.speedKmh,bearingDifference:c.bearingDifference,arrivalMinutes:c.arrivalMinutes,score:c.score,reason:c.reason})),
+            generatedAt:new Date().toISOString()
+        };
+    }
+
+    function publish(engine,result,intelligence) {
+        if(!engine || !intelligence) return result;
+        const wrapper=result && typeof result==='object'?result:{};
+        const prediction=wrapper.prediction && typeof wrapper.prediction==='object'?wrapper.prediction:wrapper;
+        prediction.phase24RainArrivalIntelligence=intelligence;
+        wrapper.phase24RainArrivalIntelligence=intelligence;
+        if(intelligence.available && !Number.isFinite(Number(prediction.arrivalMinutes))){
+            prediction.arrivalMinutes=intelligence.arrivalMinutes;
+            prediction.eta=intelligence.eta;
+            prediction.arrivalTime=intelligence.eta;
+            prediction.confidence=intelligence.confidence;
+            prediction.available=true;
+            prediction.status='RAIN_ARRIVAL_AVAILABLE';
+            prediction.reason='PHASE24_RAIN_ARRIVAL_INTELLIGENCE';
+            prediction.city=prediction.city ?? engine.targetCity ?? engine.selectedCity ?? null;
+            wrapper.success=true; wrapper.partial=false;
+        }
+        engine.currentPrediction=prediction;
+        engine.lastPredictionResult=wrapper;
+        engine.lastArrivalResult=prediction;
+        engine.lastResult=wrapper;
+        engine.latestPrediction=prediction;
+        globalObject.RainGuardAI=globalObject.RainGuardAI||{};
+        globalObject.RainGuardAI.V32=globalObject.RainGuardAI.V32||{};
+        globalObject.RainGuardAI.V32.latestPrediction=prediction;
+        globalObject.RainGuardAI.V32.latestRainArrivalPrediction=prediction;
+        state.lastIntelligence=intelligence; state.lastRunAt=new Date().toISOString();
+        return wrapper;
+    }
+
+    function install() {
+        const engine=getEngine();
+        if(!engine) return {installed:false,reason:'ENGINE_UNAVAILABLE'};
+        if(engine.__phase24Installed) { state.installed=true; state.lastEngine=engine; return {installed:true,reused:true}; }
+        const asyncName=['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict'].find(name=>typeof engine[name]==='function');
+        if(asyncName){
+            const original=engine[asyncName].bind(engine);
+            engine[asyncName]=async function phase24WrappedRun(input={},options={}){
+                let result=await original(input,options);
+                const intelligence=buildIntelligence(this,input);
+                return publish(this,result,intelligence);
+            };
+        }
+        if(typeof engine.runCompleteRainArrivalPredictionSync==='function'){
+            const originalSync=engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync=function phase24WrappedSync(input={},options={}){
+                const result=originalSync(input,options);
+                return publish(this,result,buildIntelligence(this,input));
+            };
+        }
+        engine.version=VERSION; engine.build=BUILD; engine.__phase24Installed=true;
+        state.installed=true;state.installCount+=1;state.lastEngine=engine;
+        return {installed:true,version:VERSION,build:BUILD,wrappedMethod:asyncName};
+    }
+
+    async function runNow(options={}) {
+        install();
+        const engine=getEngine();
+        if(!engine) return {success:false,reason:'ENGINE_UNAVAILABLE'};
+        const target=engine.targetContext ?? engine.targetCity ?? engine.selectedCity ?? {};
+        const input={...options,targetCity:options.targetCity??target,targetCoordinate:options.targetCoordinate??engine.targetCoordinate??coord(target),target:options.target??target};
+        const runner=['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict'].find(name=>typeof engine[name]==='function');
+        if(!runner) return {success:false,reason:'PREDICTION_RUNNER_UNAVAILABLE'};
+        try { const result=await engine[runner](input,options); return {success:true,version:VERSION,build:BUILD,runner,result,intelligence:state.lastIntelligence}; }
+        catch(error){state.lastError={message:error?.message??String(error),stack:error?.stack??null};return {success:false,reason:'PHASE24_EXECUTION_FAILED',error:state.lastError};}
+    }
+
+    const api={version:VERSION,build:BUILD,state,install,run:runNow,analyze(input={}){return buildIntelligence(getEngine(),input);},diagnose(){const engine=getEngine();return {version:VERSION,build:BUILD,installed:Boolean(engine?.__phase24Installed),engineAvailable:Boolean(engine),selectedCity:engine?.selectedCity??null,targetCity:engine?.targetCity??null,targetCoordinate:engine?.targetCoordinate??null,lastIntelligence:state.lastIntelligence,lastError:state.lastError};}};
+    globalObject.RainArrivalPhase24V32=api;
+    globalObject.runRainArrivalPhase24=runNow;
+    globalObject.RainGuardAI=globalObject.RainGuardAI||{};
+    globalObject.RainGuardAI.V32=globalObject.RainGuardAI.V32||{};
+    globalObject.RainGuardAI.V32.phase24=api;
+    globalObject.setInterval(install,1500);
+    globalObject.setTimeout(install,0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
