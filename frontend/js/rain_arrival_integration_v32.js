@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.23.0';
+    const SEMANTIC_VERSION = '32.23.1';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -65146,8 +65146,8 @@ globalObject
 (function installRainArrivalPhase23NationalTargetInjection(globalObject) {
     'use strict';
 
-    const VERSION = '32.23.0';
-    const BUILD = 'rainguard-v32-phase23-national-target-injection-engine';
+    const VERSION = '32.23.1';
+    const BUILD = 'rainguard-v32-phase23b-integration-adapter';
 
     const CITY_REGISTRY = Object.freeze([
         { city: 'Riyadh', name: 'Riyadh', nameAr: 'الرياض', latitude: 24.7136, longitude: 46.6753 },
@@ -65492,5 +65492,347 @@ globalObject
     globalObject.RainGuardAI.V32.phase23 = api;
 
     globalObject.setInterval(install, 1000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* ==========================================================================
+   PHASE 23B — INTEGRATION ADAPTER
+   ========================================================================== */
+(function installRainArrivalPhase23BIntegrationAdapter(globalObject) {
+    'use strict';
+
+    const VERSION = '32.23.1';
+    const BUILD = 'rainguard-v32-phase23b-integration-adapter';
+
+    const state = {
+        installed: false,
+        installCount: 0,
+        adapterCount: 0,
+        activeRunner: null,
+        availableRunners: [],
+        lastTarget: null,
+        lastRunAt: null,
+        lastResult: null,
+        lastError: null
+    };
+
+    function getIntegration() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalIntegration ?? null;
+    }
+
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function getPhase23() {
+        return globalObject.RainArrivalPhase23V32 ??
+            globalObject.RainGuardAI?.V32?.phase23 ?? null;
+    }
+
+    function coordinateOf(target) {
+        if (!target || typeof target !== 'object') return null;
+        const latitude = Number(target.latitude ?? target.lat);
+        const longitude = Number(target.longitude ?? target.lon ?? target.lng);
+        return Number.isFinite(latitude) && Number.isFinite(longitude)
+            ? { latitude, longitude }
+            : null;
+    }
+
+    function injectTarget(input = {}, options = {}) {
+        const phase23 = getPhase23();
+        let injected = null;
+
+        if (phase23 && typeof phase23.injectInput === 'function') {
+            injected = phase23.injectInput(
+                input && typeof input === 'object' ? input : {},
+                options && typeof options === 'object' ? options : {}
+            );
+        }
+
+        const target = injected?.target ??
+            phase23?.state?.lastTarget ??
+            getEngine()?.targetCity ??
+            getEngine()?.selectedCity ??
+            null;
+
+        const coordinate = coordinateOf(target);
+        const context = injected?.context ?? {
+            resolved: Boolean(target && coordinate),
+            injected: Boolean(target && coordinate),
+            target,
+            city: target?.city ?? target?.name ?? null,
+            coordinate,
+            source: 'phase23b_integration_adapter',
+            version: VERSION,
+            build: BUILD,
+            generatedAt: Date.now(),
+            generatedAtIso: new Date().toISOString()
+        };
+
+        const engine = getEngine();
+        if (engine && target && coordinate) {
+            engine.selectedCity = target;
+            engine.targetCity = target;
+            engine.currentCity = target;
+            engine.activeCity = target;
+            engine.targetLocation = coordinate;
+            engine.selectedLocation = coordinate;
+            engine.targetCoordinate = coordinate;
+            engine.targetContext = context;
+            engine.phase23TargetContext = context;
+            engine.phase23BTargetContext = context;
+        }
+
+        state.lastTarget = target;
+
+        return {
+            input: {
+                ...(injected?.input ?? input ?? {}),
+                city: target ?? input?.city ?? null,
+                selectedCity: target ?? input?.selectedCity ?? null,
+                targetCity: target ?? input?.targetCity ?? null,
+                target: target ?? input?.target ?? null,
+                targetCoordinate: coordinate ?? input?.targetCoordinate ?? null,
+                coordinate: coordinate ?? input?.coordinate ?? null,
+                location: coordinate ?? input?.location ?? null,
+                phase23TargetContext: context,
+                phase23BTargetContext: context
+            },
+            options: {
+                ...(options ?? {}),
+                city: target ?? options?.city ?? null,
+                selectedCity: target ?? options?.selectedCity ?? null,
+                targetCity: target ?? options?.targetCity ?? null,
+                target: target ?? options?.target ?? null,
+                targetCoordinate: coordinate ?? options?.targetCoordinate ?? null,
+                phase23TargetContext: context,
+                phase23BTargetContext: context
+            },
+            target,
+            coordinate,
+            context
+        };
+    }
+
+    function discoverRunners(integration) {
+        if (!integration || typeof integration !== 'object') return [];
+
+        const definitions = [
+            { name: 'executeCycle', mode: 'options' },
+            { name: 'runCycle', mode: 'options' },
+            { name: 'runIntegrationPipeline', mode: 'options' },
+            { name: 'executePredictions', mode: 'input-options' },
+            { name: 'run', mode: 'options' },
+            { name: 'execute', mode: 'options' },
+            { name: 'process', mode: 'input-options' },
+            { name: 'predict', mode: 'input-options' },
+            { name: 'start', mode: 'options' }
+        ];
+
+        return definitions.filter(item => typeof integration[item.name] === 'function');
+    }
+
+    function patchRunner(integration, definition) {
+        const methodName = definition.name;
+        const original = integration[methodName];
+        if (typeof original !== 'function') return false;
+        if (original.__phase23BWrapped) return true;
+
+        let wrapped;
+        if (definition.mode === 'input-options') {
+            wrapped = async function phase23BInputOptionsRunner(input = {}, options = {}) {
+                const injected = injectTarget(input, options);
+                return original.call(this, injected.input, injected.options);
+            };
+        } else {
+            wrapped = async function phase23BOptionsRunner(options = {}) {
+                const injected = injectTarget({}, options);
+                return original.call(this, injected.options);
+            };
+        }
+
+        wrapped.__phase23BWrapped = true;
+        wrapped.__phase23BOriginal = original;
+        wrapped.__phase23BMode = definition.mode;
+        integration[methodName] = wrapped;
+        state.adapterCount += 1;
+        return true;
+    }
+
+    function install() {
+        try {
+            const phase23 = getPhase23();
+            phase23?.install?.();
+
+            const integration = getIntegration();
+            const engine = getEngine();
+            const runners = discoverRunners(integration);
+
+            state.availableRunners = runners.map(item => item.name);
+
+            if (!integration) {
+                state.installed = false;
+                return { installed: false, reason: 'INTEGRATION_UNAVAILABLE' };
+            }
+
+            for (const definition of runners) {
+                patchRunner(integration, definition);
+            }
+
+            const preferredOrder = [
+                'executeCycle',
+                'runCycle',
+                'runIntegrationPipeline',
+                'executePredictions',
+                'run',
+                'execute',
+                'process',
+                'predict',
+                'start'
+            ];
+
+            state.activeRunner = preferredOrder.find(name =>
+                runners.some(item => item.name === name)
+            ) ?? null;
+
+            integration.__phase23BIntegrationAdapterInstalled = Boolean(state.activeRunner);
+            integration.phase23BVersion = VERSION;
+            integration.phase23BBuild = BUILD;
+
+            if (engine) {
+                engine.__phase23BIntegrationAdapterInstalled = Boolean(state.activeRunner);
+                engine.phase23BVersion = VERSION;
+                engine.phase23BBuild = BUILD;
+            }
+
+            const injected = injectTarget({}, { forceSingleCity: true });
+            state.installed = Boolean(state.activeRunner && injected.target);
+            state.installCount += 1;
+            state.lastError = null;
+
+            return {
+                installed: state.installed,
+                version: VERSION,
+                build: BUILD,
+                activeRunner: state.activeRunner,
+                availableRunners: [...state.availableRunners],
+                target: injected.target,
+                coordinate: injected.coordinate
+            };
+        } catch (error) {
+            state.installed = false;
+            state.lastError = {
+                message: error?.message ?? String(error),
+                stack: error?.stack ?? null
+            };
+            return {
+                installed: false,
+                reason: 'PHASE23B_INSTALL_FAILED',
+                error: state.lastError
+            };
+        }
+    }
+
+    async function runNow(options = {}) {
+        const installation = install();
+        const integration = getIntegration();
+        const runnerName = state.activeRunner;
+
+        if (!integration || !runnerName || typeof integration[runnerName] !== 'function') {
+            return {
+                success: false,
+                version: VERSION,
+                build: BUILD,
+                installation,
+                reason: 'INTEGRATION_RUNNER_UNAVAILABLE',
+                availableRunners: [...state.availableRunners]
+            };
+        }
+
+        try {
+            const injected = injectTarget({}, {
+                ...options,
+                forceSingleCity: options.forceSingleCity ?? true,
+                reason: options.reason ?? 'phase23b_manual_cycle'
+            });
+
+            let cycleResult;
+            if (runnerName === 'executePredictions' || runnerName === 'process' || runnerName === 'predict') {
+                cycleResult = await integration[runnerName](injected.input, injected.options);
+            } else {
+                cycleResult = await integration[runnerName](injected.options);
+            }
+
+            state.lastRunAt = new Date().toISOString();
+            state.lastResult = cycleResult ?? null;
+            state.lastError = null;
+
+            return {
+                success: true,
+                version: VERSION,
+                build: BUILD,
+                installation,
+                runner: runnerName,
+                target: injected.target,
+                context: injected.context,
+                cycleResult
+            };
+        } catch (error) {
+            state.lastError = {
+                message: error?.message ?? String(error),
+                stack: error?.stack ?? null
+            };
+            return {
+                success: false,
+                version: VERSION,
+                build: BUILD,
+                installation,
+                runner: runnerName,
+                reason: 'PHASE23B_RUN_FAILED',
+                error: state.lastError
+            };
+        }
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        runNow,
+        discoverRunners: () => discoverRunners(getIntegration()),
+        diagnose() {
+            const integration = getIntegration();
+            const engine = getEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: state.installed,
+                integrationAvailable: Boolean(integration),
+                engineAvailable: Boolean(engine),
+                activeRunner: state.activeRunner,
+                availableRunners: [...state.availableRunners],
+                integrationPatched: Boolean(integration?.__phase23BIntegrationAdapterInstalled),
+                enginePatched: Boolean(engine?.__phase23BIntegrationAdapterInstalled),
+                selectedCity: engine?.selectedCity ?? null,
+                targetCity: engine?.targetCity ?? null,
+                currentCity: engine?.currentCity ?? null,
+                targetCoordinate: engine?.targetCoordinate ?? null,
+                targetContext: engine?.targetContext ?? null,
+                lastTarget: state.lastTarget,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase23BV32 = api;
+    globalObject.runRainArrivalPhase23B = runNow;
+    globalObject.runRainArrivalPhase23 = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase23B = api;
+
+    globalObject.setInterval(install, 1500);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
