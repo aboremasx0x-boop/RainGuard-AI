@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.22.0';
+    const SEMANTIC_VERSION = '32.22.1';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -1420,8 +1420,32 @@
     function createEngineInstance(
         options = {}
     ) {
+        const requiredVersion =
+            SEMANTIC_VERSION;
+
         if (runtimeState.engine) {
-            return runtimeState.engine;
+            const activeVersion =
+                String(
+                    runtimeState.engine.version ??
+                    runtimeState.engine.metadata?.version ??
+                    ''
+                );
+
+            if (activeVersion === requiredVersion) {
+                return runtimeState.engine;
+            }
+
+            try {
+                if (typeof runtimeState.engine.destroy === 'function') {
+                    runtimeState.engine.destroy();
+                } else if (typeof runtimeState.engine.stop === 'function') {
+                    runtimeState.engine.stop();
+                }
+            } catch (_) {}
+
+            runtimeState.engine = null;
+            runtimeState.engineConstructor = null;
+            runtimeState.engineSource = null;
         }
 
         const discovery =
@@ -64946,4 +64970,171 @@ globalObject
 
     globalObject.setInterval(install, 750);
     globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* ==========================================================================
+   PHASE 22B — ENGINE REPLACEMENT & LIVE UPGRADE
+   ========================================================================== */
+(function installRainArrivalPhase22BLiveUpgrade(globalObject) {
+    'use strict';
+
+    if (!globalObject) return;
+
+    const VERSION = '32.22.1';
+    const BUILD = 'rainguard-v32-phase22b-engine-replacement-live-upgrade';
+    const state = {
+        replacementCount: 0,
+        lastReplacementAt: null,
+        previousVersion: null,
+        activeVersion: null,
+        lastError: null
+    };
+
+    function constructorRef() {
+        return globalObject.RainGuardAI?.V32?.RainArrivalPredictionEngineV32 ??
+            globalObject.RainArrivalPredictionEngineV32 ?? null;
+    }
+
+    function activeEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function versionOf(value) {
+        return String(value?.version ?? value?.metadata?.version ?? '');
+    }
+
+    function captureContext(engine) {
+        return {
+            selectedCity: engine?.selectedCity ?? null,
+            targetCity: engine?.targetCity ?? null,
+            currentCity: engine?.currentCity ?? null,
+            activeCity: engine?.activeCity ?? null,
+            targetLocation: engine?.targetLocation ?? null,
+            selectedLocation: engine?.selectedLocation ?? null,
+            targetContext: engine?.targetContext ?? null,
+            lastResult: engine?.lastResult ?? null,
+            lastPredictionResult: engine?.lastPredictionResult ?? null,
+            lastArrivalResult: engine?.lastArrivalResult ?? null,
+            currentPrediction: engine?.currentPrediction ?? null
+        };
+    }
+
+    function restoreContext(engine, context) {
+        if (!engine || !context) return;
+        for (const [key, value] of Object.entries(context)) {
+            if (value !== undefined) engine[key] = value;
+        }
+    }
+
+    async function replace(options = {}) {
+        const Constructor = constructorRef();
+        const previous = activeEngine();
+        const previousVersion = versionOf(previous);
+
+        if (!Constructor) {
+            return { replaced: false, reason: 'PHASE22B_CONSTRUCTOR_UNAVAILABLE' };
+        }
+
+        if (previous && previousVersion === VERSION && options.force !== true) {
+            state.activeVersion = previousVersion;
+            return { replaced: false, reused: true, version: previousVersion, engine: previous };
+        }
+
+        const context = captureContext(previous);
+        let replacement;
+        try {
+            replacement = new Constructor(options.engineOptions ?? {});
+            restoreContext(replacement, context);
+
+            if (typeof replacement.initializeRainArrivalEngine === 'function' && options.initialize !== false) {
+                await Promise.resolve(replacement.initializeRainArrivalEngine({
+                    integrationMode: true,
+                    enableLegacyCompatibility: true,
+                    phase22BLiveUpgrade: true
+                })).catch(() => null);
+            }
+
+            globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+            globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+            globalObject.RainGuardAI.V32.rainArrivalPrediction = replacement;
+            globalObject.RainGuardAI.V32.arrivalPredictionEngine = replacement;
+            globalObject.RainArrivalPredictionEngineV32Instance = replacement;
+
+            const integration = globalObject.RainGuardAI.V32.rainArrivalIntegration;
+            if (integration?.runtimeState) {
+                integration.runtimeState.engine = replacement;
+                integration.runtimeState.engineConstructor = Constructor;
+                integration.runtimeState.engineSource = 'Phase22BLiveUpgrade';
+            }
+
+            globalObject.RainArrivalPhase22TargetGateV32?.install?.();
+            globalObject.RainArrivalPhase22V32?.install?.();
+
+            state.replacementCount += 1;
+            state.lastReplacementAt = new Date().toISOString();
+            state.previousVersion = previousVersion || null;
+            state.activeVersion = versionOf(replacement);
+            state.lastError = null;
+
+            try {
+                globalObject.dispatchEvent?.(new CustomEvent('rainguard:v32:phase22b:engine-replaced', {
+                    detail: { previousVersion, activeVersion: state.activeVersion, build: BUILD }
+                }));
+            } catch (_) {}
+
+            return {
+                replaced: true,
+                version: state.activeVersion,
+                build: BUILD,
+                previousVersion,
+                engine: replacement
+            };
+        } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { replaced: false, reason: 'PHASE22B_REPLACEMENT_FAILED', error: state.lastError };
+        }
+    }
+
+    async function runNow(options = {}) {
+        const replacement = await replace(options);
+        const runner = globalObject.runRainArrivalPhase22 ?? globalObject.runRainArrivalPhase21;
+        const cycleResult = typeof runner === 'function'
+            ? await runner({ ...options, forceSingleCity: options.forceSingleCity ?? true })
+            : null;
+        return { success: true, version: VERSION, build: BUILD, replacement, cycleResult };
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        replace,
+        runNow,
+        diagnose() {
+            const Constructor = constructorRef();
+            const engine = activeEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                constructorAvailable: typeof Constructor === 'function',
+                constructorVersion: Constructor ? VERSION : null,
+                engineAvailable: Boolean(engine),
+                activeEngineVersion: versionOf(engine) || null,
+                replacementRequired: versionOf(engine) !== VERSION,
+                phase22Installed: Boolean(globalObject.RainArrivalPhase22V32),
+                targetGateInstalled: Boolean(engine?.__phase22TargetGateInstalled),
+                state: { ...state }
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase22BV32 = api;
+    globalObject.runRainArrivalPhase22B = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase22B = api;
+
+    globalObject.setTimeout(() => replace({ initialize: true }), 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
