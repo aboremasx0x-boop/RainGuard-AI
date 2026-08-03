@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.23.0";
+        "32.23.1";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase23-national-target-injection-engine";
+        "rainguard-v32-phase23b-integration-adapter";
 
     const ENGINE_STAGE =
         "production";
@@ -76048,7 +76048,7 @@ if (
     globalObject.RainGuardAI = globalObject.RainGuardAI || {};
     globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
     globalObject.RainGuardAI.V32.phase23EngineRelease = Object.freeze({
-        version: '32.23.0',
-        build: 'rainguard-v32-phase23-national-target-injection-engine'
+        version: '32.23.1',
+        build: 'rainguard-v32-phase23b-integration-adapter'
     });
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
