@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.26.0';
+    const SEMANTIC_VERSION = '32.26.1';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -65881,3 +65881,29 @@ globalObject
     };
     globalObject.RainArrivalPhase26IntegrationV32={version:VERSION,build:BUILD,diagnose(){return{version:VERSION,build:BUILD,engineApiAvailable:typeof globalObject.runRainArrivalPhase26==='function',integrationAvailable:Boolean(globalObject.RainGuardAI?.V32?.rainArrivalIntegration)};}};
 })(typeof globalThis!=='undefined'?globalThis:(typeof window!=='undefined'?window:this));
+
+/* Phase 26B Integration Bridge — Storm Runtime State Recovery */
+(function phase26BIntegrationBridge(globalObject) {
+    'use strict';
+    const VERSION = '32.26.1';
+    const BUILD = 'rainguard-v32-phase26b-storm-runtime-state-recovery';
+    globalObject.runRainArrivalPhase26BIntegration = async function(options = {}) {
+        if (typeof globalObject.runRainArrivalPhase26B === 'function') {
+            return globalObject.runRainArrivalPhase26B(options);
+        }
+        return { success: false, version: VERSION, build: BUILD, reason: 'PHASE26B_ENGINE_API_UNAVAILABLE' };
+    };
+    globalObject.RainArrivalPhase26BIntegrationV32 = {
+        version: VERSION,
+        build: BUILD,
+        diagnose() {
+            return {
+                version: VERSION,
+                build: BUILD,
+                engineApiAvailable: typeof globalObject.runRainArrivalPhase26B === 'function',
+                integrationAvailable: Boolean(globalObject.RainGuardAI?.V32?.rainArrivalIntegration),
+                runtimeRecoveryAvailable: Boolean(globalObject.RainArrivalPhase26BV32)
+            };
+        }
+    };
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
