@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.27.0";
+        "32.28.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase27-arrival-evidence-publisher";
+        "rainguard-v32-phase28-final-arrival-validation-engine";
 
     const ENGINE_STAGE =
         "production";
@@ -78204,6 +78204,387 @@ if (
     globalObject.RainGuardAI = globalObject.RainGuardAI || {};
     globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
     globalObject.RainGuardAI.V32.phase27 = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* ==========================================================================\n   PHASE 28 — Final Arrival Validation Engine\n   Version: 32.28.0\n   ========================================================================== */
+(function phase28FinalArrivalValidationEngine(globalObject) {
+    'use strict';
+
+    const VERSION = '32.28.0';
+    const BUILD = 'rainguard-v32-phase28-final-arrival-validation-engine';
+    const state = {
+        installed: false,
+        installCount: 0,
+        validationCount: 0,
+        acceptedCount: 0,
+        lowConfidenceAcceptedCount: 0,
+        retainedUnavailableCount: 0,
+        lastValidation: null,
+        lastError: null
+    };
+
+    const finite = value => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    };
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value) || 0));
+    const normalizeBearing = value => {
+        const n = finite(value);
+        return n === null ? null : ((n % 360) + 360) % 360;
+    };
+    const bearingDifference = (a, b) => {
+        const left = normalizeBearing(a);
+        const right = normalizeBearing(b);
+        if (left === null || right === null) return null;
+        const delta = Math.abs(left - right);
+        return Math.min(delta, 360 - delta);
+    };
+    const getEngine = () =>
+        globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+        globalObject.RainArrivalPredictionEngineV32Instance ??
+        null;
+
+    function resolveEvidence(engine, result) {
+        const prediction = result?.prediction && typeof result.prediction === 'object'
+            ? result.prediction
+            : (result && typeof result === 'object' ? result : {});
+        return prediction.phase27ArrivalEvidence ??
+            result?.phase27ArrivalEvidence ??
+            engine?.phase27ArrivalEvidence ??
+            globalObject.RainArrivalPhase27V32?.diagnose?.()?.lastEvidence ??
+            null;
+    }
+
+    function candidatePool(engine, result, evidence) {
+        const prediction = result?.prediction && typeof result.prediction === 'object'
+            ? result.prediction
+            : (result && typeof result === 'object' ? result : {});
+        const candidates = [];
+        const pushMany = value => {
+            if (Array.isArray(value)) candidates.push(...value.filter(Boolean));
+        };
+        pushMany(evidence?.rankedCandidates);
+        pushMany(prediction?.phase26NationalTargetMatching?.rankedMatches);
+        pushMany(result?.phase26NationalTargetMatching?.rankedMatches);
+        pushMany(engine?.phase26NationalTargetMatching?.rankedMatches);
+        const decision = prediction?.phase26DEtaDecision ?? result?.phase26DEtaDecision ?? engine?.phase26DEtaDecision;
+        if (decision?.candidate) candidates.push(decision.candidate);
+        if (decision?.selectedCandidate) candidates.push(decision.selectedCandidate);
+        return candidates;
+    }
+
+    function normalizeCandidate(candidate, options = {}) {
+        if (!candidate || typeof candidate !== 'object') {
+            return { usable: false, reason: 'CANDIDATE_UNAVAILABLE' };
+        }
+        const arrivalMinutes = finite(
+            candidate.arrivalMinutes ??
+            candidate.etaMinutes ??
+            candidate.minutesToArrival ??
+            candidate.interceptMinutes
+        );
+        const distanceKm = finite(
+            candidate.distanceKm ??
+            candidate.interceptDistanceKm ??
+            candidate.targetDistanceKm
+        );
+        const speedKmh = finite(
+            candidate.effectiveSpeedKmh ??
+            candidate.speedKmh ??
+            candidate.motionSpeedKmh
+        );
+        const angle = finite(
+            candidate.bearingDifference ??
+            candidate.approachAngle ??
+            candidate.directionDifference
+        );
+        const evidenceScore = clamp(
+            candidate.evidenceScore ??
+            candidate.matchScore ??
+            candidate.score ??
+            candidate.confidence ?? 0,
+            0,
+            100
+        );
+        const motionConfidence = clamp(
+            candidate.motionConfidence ??
+            candidate.confidence ??
+            candidate.trackingConfidence ?? 0,
+            0,
+            100
+        );
+        const maxMinutes = Math.max(30, finite(options.phase28MaximumArrivalMinutes) ?? 1440);
+        const maxAngle = Math.max(45, finite(options.phase28MaximumApproachAngle) ?? 125);
+        const minEvidence = clamp(options.phase28MinimumEvidenceScore ?? 22, 0, 100);
+
+        const positiveSpeed = speedKmh !== null && speedKmh > 0;
+        const validArrival = arrivalMinutes !== null && arrivalMinutes >= 0 && arrivalMinutes <= maxMinutes;
+        const validDirection = angle === null || angle <= maxAngle;
+        const validDistance = distanceKm === null || distanceKm >= 0;
+        const evidenceEnough = evidenceScore >= minEvidence || motionConfidence >= minEvidence;
+        const usable = positiveSpeed && validArrival && validDirection && validDistance && evidenceEnough;
+
+        let reason = 'FINAL_CANDIDATE_ACCEPTED';
+        if (!positiveSpeed) reason = 'FINAL_SPEED_UNUSABLE';
+        else if (!validArrival) reason = 'FINAL_ETA_OUTSIDE_HORIZON';
+        else if (!validDirection) reason = 'FINAL_TARGET_OUTSIDE_APPROACH_SECTOR';
+        else if (!validDistance) reason = 'FINAL_DISTANCE_UNUSABLE';
+        else if (!evidenceEnough) reason = 'FINAL_EVIDENCE_SCORE_TOO_LOW';
+
+        const confidence = clamp(
+            evidenceScore * 0.52 +
+            motionConfidence * 0.28 +
+            (validDirection ? 12 : 0) +
+            (validArrival ? 8 : 0),
+            0,
+            100
+        );
+
+        return {
+            ...candidate,
+            usable,
+            reason,
+            arrivalMinutes,
+            distanceKm,
+            speedKmh,
+            bearingDifference: angle,
+            evidenceScore,
+            motionConfidence,
+            finalConfidence: Math.round(confidence * 100) / 100
+        };
+    }
+
+    function validate(engine, result, input = {}, options = {}) {
+        const evidence = resolveEvidence(engine, result);
+        const originalPrediction = result?.prediction && typeof result.prediction === 'object'
+            ? result.prediction
+            : (result && typeof result === 'object' ? result : {});
+
+        if (
+            originalPrediction?.available === true &&
+            finite(originalPrediction?.arrivalMinutes) !== null &&
+            finite(originalPrediction?.confidence) > 0
+        ) {
+            return {
+                phase: '28', version: VERSION, build: BUILD,
+                accepted: true,
+                lowConfidence: false,
+                retainedExistingPrediction: true,
+                status: originalPrediction.status ?? 'RAIN_ARRIVAL_AVAILABLE',
+                reason: 'EXISTING_VALID_ARRIVAL_RETAINED',
+                arrivalMinutes: finite(originalPrediction.arrivalMinutes),
+                eta: originalPrediction.eta ?? originalPrediction.arrivalTime ?? null,
+                confidence: finite(originalPrediction.confidence),
+                selectedCandidate: evidence?.selectedCandidate ?? null,
+                rankedCandidates: evidence?.rankedCandidates ?? [],
+                generatedAt: new Date().toISOString()
+            };
+        }
+
+        const ranked = candidatePool(engine, result, evidence)
+            .map(candidate => normalizeCandidate(candidate, options))
+            .sort((a, b) =>
+                (Number(b.usable) - Number(a.usable)) ||
+                ((b.finalConfidence ?? 0) - (a.finalConfidence ?? 0)) ||
+                ((a.arrivalMinutes ?? Infinity) - (b.arrivalMinutes ?? Infinity))
+            );
+        const selected = ranked.find(item => item.usable) ?? null;
+        const minimumFinalConfidence = clamp(options.phase28MinimumFinalConfidence ?? 24, 0, 100);
+        const highConfidenceThreshold = clamp(options.phase28HighConfidenceThreshold ?? 65, minimumFinalConfidence, 100);
+        const accepted = Boolean(selected && selected.finalConfidence >= minimumFinalConfidence);
+        const lowConfidence = accepted && selected.finalConfidence < highConfidenceThreshold;
+        const arrivalMinutes = accepted ? selected.arrivalMinutes : null;
+        const eta = accepted ? new Date(Date.now() + arrivalMinutes * 60000).toISOString() : null;
+
+        return {
+            phase: '28', version: VERSION, build: BUILD,
+            accepted,
+            lowConfidence,
+            retainedExistingPrediction: false,
+            status: accepted
+                ? (lowConfidence ? 'LOW_CONFIDENCE_RAIN_ARRIVAL_AVAILABLE' : 'RAIN_ARRIVAL_AVAILABLE')
+                : 'RAIN_ARRIVAL_UNAVAILABLE',
+            reason: accepted
+                ? (lowConfidence ? 'FINAL_PARTIAL_EVIDENCE_VALIDATED' : 'FINAL_ARRIVAL_EVIDENCE_VALIDATED')
+                : (ranked.length ? 'NO_PHYSICALLY_USABLE_FINAL_CANDIDATE' : 'FINAL_CANDIDATE_POOL_EMPTY'),
+            arrivalMinutes,
+            eta,
+            confidence: accepted ? selected.finalConfidence : 0,
+            uncertaintyMinutes: accepted
+                ? Math.max(10, Math.round(arrivalMinutes * (1 - selected.finalConfidence / 100)))
+                : null,
+            evidence,
+            selectedCandidate: selected,
+            rankedCandidates: ranked,
+            candidateCount: ranked.length,
+            usableCandidateCount: ranked.filter(item => item.usable).length,
+            generatedAt: new Date().toISOString()
+        };
+    }
+
+    function publish(engine, result, validation) {
+        if (!result || typeof result !== 'object') result = { success: true, prediction: {} };
+        const prediction = result.prediction && typeof result.prediction === 'object'
+            ? result.prediction
+            : result;
+        prediction.phase28FinalArrivalValidation = validation;
+        result.phase28FinalArrivalValidation = validation;
+        engine.phase28FinalArrivalValidation = validation;
+        state.lastValidation = validation;
+        state.validationCount += 1;
+
+        if (!validation.accepted) {
+            state.retainedUnavailableCount += 1;
+            return result;
+        }
+
+        prediction.available = true;
+        prediction.success = true;
+        prediction.partial = validation.lowConfidence;
+        prediction.status = validation.status;
+        prediction.reason = validation.reason;
+        prediction.arrivalMinutes = validation.arrivalMinutes;
+        prediction.eta = validation.eta;
+        prediction.arrivalTime = validation.eta;
+        prediction.confidence = validation.confidence;
+        prediction.uncertaintyMinutes = validation.uncertaintyMinutes;
+        prediction.finalArrivalValidated = true;
+        prediction.finalArrivalCandidate = validation.selectedCandidate;
+
+        state.acceptedCount += 1;
+        if (validation.lowConfidence) state.lowConfidenceAcceptedCount += 1;
+
+        engine.currentPrediction = prediction;
+        engine.lastPredictionResult = result;
+        engine.lastArrivalResult = result;
+        engine.lastResult = result;
+        engine.latestPrediction = prediction;
+        globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+        globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+        globalObject.RainGuardAI.V32.latestPrediction = prediction;
+        try {
+            if (typeof globalObject.dispatchEvent === 'function' && typeof globalObject.CustomEvent === 'function') {
+                globalObject.dispatchEvent(new globalObject.CustomEvent(
+                    'rainguard:v32:final-arrival-validated',
+                    { detail: validation }
+                ));
+            }
+        } catch (_) {}
+        return result;
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase28Installed) {
+            state.installed = true;
+            return { installed: true, reused: true, version: VERSION, build: BUILD };
+        }
+
+        const runners = [
+            'runCompleteRainArrivalPrediction',
+            'predictRainArrival',
+            'runRainArrivalPrediction',
+            'runPrediction',
+            'predict'
+        ];
+        const runner = runners.find(name => typeof engine[name] === 'function');
+        if (runner) {
+            const original = engine[runner].bind(engine);
+            engine[runner] = async function phase28Run(input = {}, options = {}) {
+                const result = await original(input, options);
+                return publish(this, result, validate(this, result, input, options));
+            };
+        }
+        if (typeof engine.runCompleteRainArrivalPredictionSync === 'function') {
+            const originalSync = engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync = function phase28RunSync(input = {}, options = {}) {
+                const result = originalSync(input, options);
+                return publish(this, result, validate(this, result, input, options));
+            };
+        }
+
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase28Installed = true;
+        state.installed = true;
+        state.installCount += 1;
+        return { installed: true, version: VERSION, build: BUILD, runner: runner ?? null };
+    }
+
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        try { globalObject.RainArrivalPhase26CV32?.publish?.(options); } catch (_) {}
+        try { globalObject.RainArrivalPhase26BV32?.recover?.(options); } catch (_) {}
+        try { globalObject.RainArrivalPhase27V32?.publish?.(options); } catch (_) {}
+
+        const runner = [
+            'runCompleteRainArrivalPrediction',
+            'predictRainArrival',
+            'runRainArrivalPrediction',
+            'runPrediction',
+            'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE' };
+        try {
+            const result = await engine[runner](options, options);
+            return {
+                success: true,
+                version: VERSION,
+                build: BUILD,
+                runner,
+                validation: state.lastValidation,
+                result
+            };
+        } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE28_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        run: runNow,
+        validate(options = {}) {
+            const engine = getEngine();
+            if (!engine) return null;
+            const result = engine.lastPredictionResult ?? { success: true, prediction: {} };
+            const validation = validate(engine, result, options, options);
+            return publish(engine, result, validation);
+        },
+        diagnose() {
+            const engine = getEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase28Installed),
+                engineAvailable: Boolean(engine),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                validationCount: state.validationCount,
+                acceptedCount: state.acceptedCount,
+                lowConfidenceAcceptedCount: state.lowConfidenceAcceptedCount,
+                retainedUnavailableCount: state.retainedUnavailableCount,
+                lastValidation: state.lastValidation,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase28V32 = api;
+    globalObject.runRainArrivalPhase28 = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase28 = api;
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
