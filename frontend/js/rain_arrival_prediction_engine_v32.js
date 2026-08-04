@@ -80136,3 +80136,524 @@ if (
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* RainGuard AI V32 — Phase 32: Adaptive Arrival Evidence Selection Engine */
+(function phase32AdaptiveArrivalEvidenceSelection(globalObject) {
+    'use strict';
+
+    const VERSION = '32.32.0';
+    const BUILD = 'rainguard-v32-phase32-adaptive-arrival-evidence-selection-engine';
+
+    const state = {
+        installed: false,
+        installCount: 0,
+        executionCount: 0,
+        selectionCount: 0,
+        strictSelectionCount: 0,
+        adaptiveSelectionCount: 0,
+        unavailableCount: 0,
+        lastSelection: null,
+        lastError: null
+    };
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, Number(value) || 0));
+    const finite = value => Number.isFinite(Number(value));
+    const number = (...values) => {
+        for (const value of values) {
+            const parsed = Number(value);
+            if (Number.isFinite(parsed)) return parsed;
+        }
+        return null;
+    };
+    const normalizeAngle = value => {
+        if (!finite(value)) return null;
+        return ((Number(value) % 360) + 360) % 360;
+    };
+    const angleDifference = (a, b) => {
+        const x = normalizeAngle(a);
+        const y = normalizeAngle(b);
+        if (x === null || y === null) return null;
+        const difference = Math.abs(x - y);
+        return Math.min(difference, 360 - difference);
+    };
+    const toArray = value => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        if (value instanceof Map || value instanceof Set) return [...value.values()];
+        if (typeof value === 'object') return Object.values(value);
+        return [];
+    };
+    const idOf = value => value?.evidenceId ?? value?.phase31CandidateId ?? value?.candidateId ??
+        value?.cellId ?? value?.stormCellId ?? value?.trackId ?? value?.id ?? null;
+
+    function getEngine() {
+        return globalObject?.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject?.rainArrivalPredictionEngineV32 ??
+            globalObject?.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function getPrediction(result) {
+        if (!result || typeof result !== 'object') return null;
+        return result.prediction && typeof result.prediction === 'object'
+            ? result.prediction
+            : result;
+    }
+
+    function coordinateOf(value) {
+        if (!value || typeof value !== 'object') return null;
+        const latitude = number(
+            value.latitude, value.lat, value.center?.latitude, value.center?.lat,
+            value.coordinate?.latitude, value.coordinate?.lat,
+            value.location?.latitude, value.location?.lat,
+            value.position?.latitude, value.position?.lat,
+            value.centroid?.latitude, value.centroid?.lat
+        );
+        const longitude = number(
+            value.longitude, value.lon, value.lng, value.center?.longitude, value.center?.lon,
+            value.center?.lng, value.coordinate?.longitude, value.coordinate?.lon,
+            value.coordinate?.lng, value.location?.longitude, value.location?.lon,
+            value.location?.lng, value.position?.longitude, value.position?.lon,
+            value.position?.lng, value.centroid?.longitude, value.centroid?.lon,
+            value.centroid?.lng
+        );
+        return finite(latitude) && finite(longitude)
+            ? { latitude: Number(latitude), longitude: Number(longitude) }
+            : null;
+    }
+
+    function distanceKm(a, b) {
+        if (!a || !b) return null;
+        const radians = value => value * Math.PI / 180;
+        const earthRadiusKm = 6371.0088;
+        const dLat = radians(b.latitude - a.latitude);
+        const dLon = radians(b.longitude - a.longitude);
+        const lat1 = radians(a.latitude);
+        const lat2 = radians(b.latitude);
+        const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    }
+
+    function bearing(a, b) {
+        if (!a || !b) return null;
+        const radians = value => value * Math.PI / 180;
+        const degrees = value => value * 180 / Math.PI;
+        const lat1 = radians(a.latitude);
+        const lat2 = radians(b.latitude);
+        const deltaLon = radians(b.longitude - a.longitude);
+        const y = Math.sin(deltaLon) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+        return normalizeAngle(degrees(Math.atan2(y, x)));
+    }
+
+    function targetCoordinate(engine, prediction) {
+        const candidates = [
+            prediction?.targetCoordinate, prediction?.targetLocation, prediction?.city,
+            engine?.targetCoordinate, engine?.targetLocation, engine?.selectedLocation,
+            engine?.targetContext?.coordinate, engine?.targetContext?.location,
+            engine?.selectedCity, engine?.targetCity, engine?.currentCity
+        ];
+        for (const candidate of candidates) {
+            const coordinate = coordinateOf(candidate);
+            if (coordinate) return coordinate;
+        }
+        return null;
+    }
+
+    function motionOf(candidate, engine) {
+        const key = idOf(candidate);
+        const sources = [
+            candidate?.motion, candidate?.fusedMotion, candidate,
+            key && engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.get(key) : null,
+            key && engine?.motionStates instanceof Map ? engine.motionStates.get(key) : null
+        ].filter(Boolean);
+        for (const source of sources) {
+            const speedKmh = number(
+                source.effectiveSpeedKmh, source.speedKmh, source.velocityKmh,
+                source.speed, source.motion?.speedKmh, source.motion?.speed,
+                source.fusedSpeedKmh, source.estimatedSpeedKmh
+            );
+            const motionBearing = number(
+                source.motionBearing, source.bearing, source.heading, source.directionDegrees,
+                source.motion?.bearing, source.motion?.heading, source.fusedBearing
+            );
+            if (finite(speedKmh) || finite(motionBearing)) {
+                return {
+                    speedKmh: finite(speedKmh) ? Number(speedKmh) : null,
+                    bearing: finite(motionBearing) ? normalizeAngle(motionBearing) : null,
+                    source
+                };
+            }
+        }
+        return { speedKmh: null, bearing: null, source: null };
+    }
+
+    function collectCandidates(engine, result) {
+        const prediction = getPrediction(result ?? engine?.lastPredictionResult);
+        const values = [];
+        const push = value => { for (const item of toArray(value)) if (item && typeof item === 'object') values.push(item); };
+
+        push(engine?.phase31ArrivalEvidenceRanking?.rankedCandidates);
+        push(engine?.latestArrivalEvidenceRanking?.rankedCandidates);
+        push(prediction?.phase31ArrivalEvidenceRanking?.rankedCandidates);
+        push(prediction?.phase30ArrivalEtaExecution?.rankedCandidates);
+        push(engine?.latestEtaExecution?.rankedCandidates);
+        push(prediction?.phase29ArrivalEvidenceBuilder?.evidence);
+        push(engine?.arrivalEvidence);
+        if (engine?.latestArrivalEvidence) values.push(engine.latestArrivalEvidence);
+        if (engine?.selectedArrivalEvidence) values.push(engine.selectedArrivalEvidence);
+        push(engine?.cells);
+
+        const seen = new Set();
+        return values.filter(item => {
+            const key = idOf(item) ?? JSON.stringify([
+                coordinateOf(item)?.latitude ?? null,
+                coordinateOf(item)?.longitude ?? null,
+                item?.arrivalMinutes ?? null
+            ]);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function evaluateCandidate(candidate, engine, prediction, options) {
+        const target = targetCoordinate(engine, prediction);
+        const origin = coordinateOf(candidate);
+        const motion = motionOf(candidate, engine);
+        const calculatedDistance = origin && target ? distanceKm(origin, target) : null;
+        const distance = number(candidate.distanceKm, candidate.distanceToTargetKm, calculatedDistance);
+        const targetBearing = number(candidate.targetBearing, origin && target ? bearing(origin, target) : null);
+        const motionBearing = number(candidate.motionBearing, candidate.heading, candidate.bearing, motion.bearing);
+        const bearingDiff = number(candidate.bearingDifference, angleDifference(motionBearing, targetBearing));
+        const speed = number(candidate.effectiveSpeedKmh, candidate.speedKmh, motion.speedKmh);
+        let arrivalMinutes = number(candidate.arrivalMinutes, candidate.etaMinutes, candidate.minutesToArrival);
+        if (!finite(arrivalMinutes) && finite(distance) && finite(speed) && Number(speed) > 0) {
+            const directionalFactor = finite(bearingDiff)
+                ? Math.max(0.08, Math.cos(Number(bearingDiff) * Math.PI / 180))
+                : 1;
+            const effectiveSpeed = Number(speed) * directionalFactor;
+            if (effectiveSpeed > 0) arrivalMinutes = Number(distance) / effectiveSpeed * 60;
+        }
+
+        const confidence = clamp(number(candidate.confidence, candidate.motionConfidence, candidate.score, 0), 0, 100);
+        const sourceCount = Math.max(1, toArray(candidate.evidenceSources ?? candidate.sources).length || number(candidate.sourceCount, 1));
+        const maxHorizonMinutes = number(options.phase32MaxHorizonMinutes, 720);
+        const strictMaxBearing = number(options.phase32StrictMaxBearingDifference, 75);
+        const balancedMaxBearing = number(options.phase32BalancedMaxBearingDifference, 100);
+        const guardedMaxBearing = number(options.phase32GuardedMaxBearingDifference, 120);
+        const minimumSpeed = number(options.phase32MinimumSpeedKmh, 0.3);
+
+        const validDistance = finite(distance) && Number(distance) >= 0;
+        const validSpeed = finite(speed) && Number(speed) >= minimumSpeed;
+        const validEta = finite(arrivalMinutes) && Number(arrivalMinutes) >= 0 && Number(arrivalMinutes) <= maxHorizonMinutes;
+        const validDirection = !finite(bearingDiff) || Number(bearingDiff) <= guardedMaxBearing;
+        const physicallyUsable = validDistance && validSpeed && validEta && validDirection;
+
+        let selectionMode = 'rejected';
+        if (physicallyUsable && (!finite(bearingDiff) || Number(bearingDiff) <= strictMaxBearing) && confidence >= 45) {
+            selectionMode = 'strict';
+        } else if (physicallyUsable && (!finite(bearingDiff) || Number(bearingDiff) <= balancedMaxBearing) && confidence >= 20) {
+            selectionMode = 'balanced';
+        } else if (physicallyUsable) {
+            selectionMode = 'guarded';
+        }
+
+        const directionScore = finite(bearingDiff) ? clamp(100 - Number(bearingDiff) * 0.75, 0, 100) : 50;
+        const etaScore = finite(arrivalMinutes) ? clamp(100 - Number(arrivalMinutes) / maxHorizonMinutes * 70, 0, 100) : 0;
+        const speedScore = finite(speed) ? clamp(Number(speed) * 4, 0, 100) : 0;
+        const proximityScore = finite(distance) ? clamp(100 - Number(distance) * 1.8, 0, 100) : 0;
+        const corroborationScore = clamp(sourceCount * 14, 0, 100);
+        const adaptiveScore = clamp(
+            confidence * 0.26 + directionScore * 0.24 + etaScore * 0.18 +
+            speedScore * 0.12 + proximityScore * 0.12 + corroborationScore * 0.08,
+            0,
+            100
+        );
+
+        return {
+            ...candidate,
+            phase32CandidateId: `phase32_${idOf(candidate) ?? Math.random().toString(36).slice(2)}`,
+            originCoordinate: origin,
+            targetCoordinate: target,
+            distanceKm: finite(distance) ? Number(distance) : null,
+            speedKmh: finite(speed) ? Number(speed) : null,
+            targetBearing: finite(targetBearing) ? normalizeAngle(targetBearing) : null,
+            motionBearing: finite(motionBearing) ? normalizeAngle(motionBearing) : null,
+            bearingDifference: finite(bearingDiff) ? Number(bearingDiff) : null,
+            arrivalMinutes: finite(arrivalMinutes) ? Math.max(0, Math.round(Number(arrivalMinutes))) : null,
+            confidence,
+            sourceCount,
+            physicallyUsable,
+            selectionMode,
+            adaptiveScore: Math.round(adaptiveScore * 100) / 100,
+            rejectionReasons: [
+                !validDistance ? 'DISTANCE_UNAVAILABLE' : null,
+                !validSpeed ? 'SPEED_UNUSABLE' : null,
+                !validEta ? 'ETA_UNUSABLE' : null,
+                !validDirection ? 'NOT_APPROACHING_TARGET' : null
+            ].filter(Boolean)
+        };
+    }
+
+    function selectAdaptive(engine, result, options = {}) {
+        const prediction = getPrediction(result ?? engine?.lastPredictionResult);
+        const rankedCandidates = collectCandidates(engine, result)
+            .map(candidate => evaluateCandidate(candidate, engine, prediction, options))
+            .sort((a, b) => {
+                const tier = { strict: 3, balanced: 2, guarded: 1, rejected: 0 };
+                return (tier[b.selectionMode] - tier[a.selectionMode]) ||
+                    (b.adaptiveScore - a.adaptiveScore) ||
+                    ((a.arrivalMinutes ?? Infinity) - (b.arrivalMinutes ?? Infinity));
+            });
+
+        const minimumAdaptiveScore = number(options.phase32MinimumAdaptiveScore, 28);
+        const selected = rankedCandidates.find(candidate =>
+            candidate.physicallyUsable && candidate.adaptiveScore >= minimumAdaptiveScore
+        ) ?? null;
+        const now = Date.now();
+        const accepted = Boolean(selected);
+        const adaptive = accepted && selected.selectionMode !== 'strict';
+        const finalConfidence = selected
+            ? Math.round(clamp(selected.confidence * 0.55 + selected.adaptiveScore * 0.45, 1, 100))
+            : 0;
+        const eta = accepted
+            ? new Date(now + selected.arrivalMinutes * 60000).toISOString()
+            : null;
+
+        const selection = {
+            phase: '32',
+            version: VERSION,
+            build: BUILD,
+            accepted,
+            available: accepted,
+            adaptive,
+            selectionMode: selected?.selectionMode ?? 'none',
+            selectionReason: accepted
+                ? (adaptive ? 'ADAPTIVE_PHYSICALLY_VALID_EVIDENCE_SELECTED' : 'STRICT_EVIDENCE_SELECTED')
+                : 'NO_PHYSICALLY_USABLE_EVIDENCE',
+            candidateCount: rankedCandidates.length,
+            physicallyUsableCount: rankedCandidates.filter(item => item.physicallyUsable).length,
+            selectedCandidate: selected,
+            selectedCandidateId: selected?.phase32CandidateId ?? null,
+            selectedCellId: selected ? idOf(selected) : null,
+            selectionScore: selected?.adaptiveScore ?? 0,
+            city: selected?.city ?? prediction?.city ?? engine?.selectedCity ?? engine?.targetCity ?? engine?.currentCity ?? null,
+            arrivalMinutes: selected?.arrivalMinutes ?? null,
+            eta,
+            confidence: finalConfidence,
+            uncertaintyMinutes: accepted
+                ? Math.max(8, Math.round(selected.arrivalMinutes * (1 - finalConfidence / 100)))
+                : null,
+            status: accepted
+                ? (adaptive || finalConfidence < 65
+                    ? 'LOW_CONFIDENCE_RAIN_ARRIVAL_AVAILABLE'
+                    : 'RAIN_ARRIVAL_AVAILABLE')
+                : 'RAIN_ARRIVAL_UNAVAILABLE',
+            rankedCandidates,
+            generatedAt: new Date(now).toISOString()
+        };
+
+        engine.phase32AdaptiveArrivalEvidenceSelection = selection;
+        engine.latestAdaptiveArrivalSelection = selection;
+        engine.selectedArrivalEvidence = selected;
+        state.lastSelection = selection;
+        state.executionCount += 1;
+        if (accepted) {
+            state.selectionCount += 1;
+            if (adaptive) state.adaptiveSelectionCount += 1;
+            else state.strictSelectionCount += 1;
+        } else {
+            state.unavailableCount += 1;
+        }
+        return selection;
+    }
+
+    function publish(engine, result, selection) {
+        const wrapper = result && typeof result === 'object'
+            ? result
+            : { success: true, prediction: {} };
+        const prediction = wrapper.prediction && typeof wrapper.prediction === 'object'
+            ? wrapper.prediction
+            : wrapper;
+        prediction.phase32AdaptiveArrivalEvidenceSelection = selection;
+        wrapper.phase32AdaptiveArrivalEvidenceSelection = selection;
+
+        if (selection.accepted) {
+            prediction.success = true;
+            prediction.available = true;
+            prediction.partial = selection.status === 'LOW_CONFIDENCE_RAIN_ARRIVAL_AVAILABLE';
+            prediction.status = selection.status;
+            prediction.reason = selection.selectionReason;
+            prediction.city = selection.city ?? prediction.city;
+            prediction.arrivalMinutes = selection.arrivalMinutes;
+            prediction.eta = selection.eta;
+            prediction.arrivalTime = selection.eta;
+            prediction.confidence = selection.confidence;
+            prediction.uncertaintyMinutes = selection.uncertaintyMinutes;
+            prediction.arrivalEvidenceScore = selection.selectionScore;
+            prediction.selectedArrivalEvidence = selection.selectedCandidate;
+            prediction.selectionMode = selection.selectionMode;
+            prediction.etaSource = 'phase32_adaptive_arrival_evidence_selection';
+            wrapper.success = true;
+            engine.currentPrediction = prediction;
+            engine.lastPredictionResult = wrapper;
+            engine.lastArrivalResult = wrapper;
+            engine.lastResult = wrapper;
+            engine.latestPrediction = prediction;
+            globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+            globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+            globalObject.RainGuardAI.V32.latestPrediction = prediction;
+            try {
+                if (typeof globalObject.dispatchEvent === 'function' && typeof globalObject.CustomEvent === 'function') {
+                    globalObject.dispatchEvent(new globalObject.CustomEvent(
+                        'rainguard:v32:adaptive-arrival-evidence-selected',
+                        { detail: selection }
+                    ));
+                }
+            } catch (_) {}
+        }
+        return wrapper;
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase32Installed) {
+            engine.version = VERSION;
+            engine.build = BUILD;
+            state.installed = true;
+            return { installed: true, reused: true, version: VERSION, build: BUILD };
+        }
+        const runner = [
+            'runCompleteRainArrivalPrediction', 'predictRainArrival',
+            'runRainArrivalPrediction', 'runPrediction', 'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (runner) {
+            const original = engine[runner].bind(engine);
+            engine[runner] = async function phase32Run(input = {}, options = {}) {
+                let result;
+                try {
+                    result = await original(input, options);
+                } catch (error) {
+                    result = {
+                        success: false,
+                        prediction: {
+                            status: 'RAIN_ARRIVAL_UNAVAILABLE',
+                            reason: error?.message ?? 'UPSTREAM_EXECUTION_FAILED'
+                        },
+                        upstreamError: {
+                            name: error?.name ?? 'Error',
+                            message: error?.message ?? String(error),
+                            stack: error?.stack ?? null
+                        }
+                    };
+                }
+                return publish(this, result, selectAdaptive(this, result, { ...input, ...options }));
+            };
+        }
+        if (typeof engine.runCompleteRainArrivalPredictionSync === 'function') {
+            const originalSync = engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync = function phase32RunSync(input = {}, options = {}) {
+                let result;
+                try { result = originalSync(input, options); }
+                catch (error) {
+                    result = { success: false, prediction: { status: 'RAIN_ARRIVAL_UNAVAILABLE', reason: error?.message ?? 'UPSTREAM_EXECUTION_FAILED' } };
+                }
+                return publish(this, result, selectAdaptive(this, result, { ...input, ...options }));
+            };
+        }
+        engine.selectAdaptiveArrivalEvidencePhase32 = function(result = null, options = {}) {
+            return selectAdaptive(this, result ?? this.lastPredictionResult, options);
+        };
+        engine.publishAdaptiveArrivalEvidencePhase32 = function(result = null, options = {}) {
+            const actual = result ?? this.lastPredictionResult ?? { success: true, prediction: {} };
+            return publish(this, actual, selectAdaptive(this, actual, options));
+        };
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase32Installed = true;
+        state.installed = true;
+        state.installCount += 1;
+        return { installed: true, version: VERSION, build: BUILD, runner: runner ?? null };
+    }
+
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        const runner = [
+            'runCompleteRainArrivalPrediction', 'predictRainArrival',
+            'runRainArrivalPrediction', 'runPrediction', 'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE' };
+        try {
+            const result = await engine[runner](options, options);
+            return {
+                success: Boolean(state.lastSelection?.accepted),
+                version: VERSION,
+                build: BUILD,
+                runner,
+                selection: state.lastSelection,
+                result
+            };
+        } catch (error) {
+            state.lastError = {
+                name: error?.name ?? 'Error',
+                message: error?.message ?? String(error),
+                stack: error?.stack ?? null
+            };
+            return { success: false, reason: 'PHASE32_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        run: runNow,
+        select(result = null, options = {}) {
+            const engine = getEngine();
+            return engine ? selectAdaptive(engine, result ?? engine.lastPredictionResult, options) : null;
+        },
+        publish(result = null, options = {}) {
+            const engine = getEngine();
+            if (!engine) return null;
+            const actual = result ?? engine.lastPredictionResult ?? { success: true, prediction: {} };
+            return publish(engine, actual, selectAdaptive(engine, actual, options));
+        },
+        diagnose() {
+            const engine = getEngine();
+            const prediction = engine?.lastPredictionResult?.prediction ?? engine?.lastPredictionResult ?? null;
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase32Installed),
+                engineAvailable: Boolean(engine),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                executionCount: state.executionCount,
+                selectionCount: state.selectionCount,
+                strictSelectionCount: state.strictSelectionCount,
+                adaptiveSelectionCount: state.adaptiveSelectionCount,
+                unavailableCount: state.unavailableCount,
+                status: prediction?.status ?? null,
+                arrivalMinutes: prediction?.arrivalMinutes ?? null,
+                eta: prediction?.eta ?? null,
+                confidence: prediction?.confidence ?? 0,
+                lastSelection: state.lastSelection,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase32V32 = api;
+    globalObject.runRainArrivalPhase32 = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase32 = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
