@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.36.0';
+    const SEMANTIC_VERSION = '32.36.1';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -66794,7 +66794,7 @@ globalObject
     'use strict';
     if (!globalObject) return;
     const VERSION = '32.36.0';
-    const BUILD = 'rainguard-v32-phase36-motion-reconstruction-from-historical-track-engine';
+    const BUILD = 'rainguard-v32-phase36.1-phase35-trackstore-bridge-repair';
     const integration = globalObject.RainGuardAI?.V32?.rainArrivalIntegration ?? globalObject.RainArrivalIntegrationV32Instance ?? null;
     if (integration) {
         integration.version = VERSION;
