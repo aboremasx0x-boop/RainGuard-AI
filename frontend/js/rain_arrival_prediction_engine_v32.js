@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.26.0";
+        "32.26.1";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase26-national-target-matching-engine";
+        "rainguard-v32-phase26b-storm-runtime-state-recovery";
 
     const ENGINE_STAGE =
         "production";
@@ -76733,3 +76733,522 @@ if (
     const api={version:VERSION,build:BUILD,state,install,run:runNow,analyze(input={}){return build(getEngine(),input);},diagnose(){const engine=getEngine();return{version:VERSION,build:BUILD,installed:Boolean(engine?.__phase26Installed),engineAvailable:Boolean(engine),selectedCity:engine?.selectedCity??null,targetCity:engine?.targetCity??null,targetCoordinate:engine?.targetCoordinate??null,lastMatch:state.lastMatch,lastError:state.lastError};}};
     globalObject.RainArrivalPhase26V32=api;globalObject.runRainArrivalPhase26=runNow;globalObject.RainGuardAI=globalObject.RainGuardAI||{};globalObject.RainGuardAI.V32=globalObject.RainGuardAI.V32||{};globalObject.RainGuardAI.V32.phase26=api;globalObject.setInterval(install,1500);globalObject.setTimeout(install,0);
 })(typeof globalThis!=='undefined'?globalThis:(typeof window!=='undefined'?window:this));
+
+/* ==========================================================================
+ * RainGuard AI V32 — Phase 26B
+ * Storm Runtime State Recovery
+ * Version: 32.26.1
+ * ========================================================================== */
+(function installRainArrivalPhase26B(globalObject) {
+    'use strict';
+
+    const VERSION = '32.26.1';
+    const BUILD = 'rainguard-v32-phase26b-storm-runtime-state-recovery';
+    const state = {
+        installed: false,
+        installCount: 0,
+        recoveryCount: 0,
+        lastRecovery: null,
+        lastMatch: null,
+        lastError: null,
+        lastEngine: null
+    };
+
+    const toArray = value => {
+        if (Array.isArray(value)) return value.filter(Boolean);
+        if (value instanceof Map) return [...value.values()].filter(Boolean);
+        if (value instanceof Set) return [...value.values()].filter(Boolean);
+        if (value && typeof value === 'object') return Object.values(value).filter(Boolean);
+        return [];
+    };
+
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function coordinate(value) {
+        if (!value || typeof value !== 'object') return null;
+        const candidates = [
+            value,
+            value.coordinate,
+            value.coordinates,
+            value.position,
+            value.center,
+            value.centroid,
+            value.currentPosition,
+            value.location,
+            value.geometry?.coordinates
+        ];
+        for (const item of candidates) {
+            if (!item) continue;
+            if (Array.isArray(item) && item.length >= 2) {
+                const longitude = Number(item[0]);
+                const latitude = Number(item[1]);
+                if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+                    return { latitude, longitude };
+                }
+            }
+            const latitude = Number(item.latitude ?? item.lat ?? item.currentLat);
+            const longitude = Number(item.longitude ?? item.lon ?? item.lng ?? item.currentLon ?? item.currentLng);
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+                return { latitude, longitude };
+            }
+        }
+        return null;
+    }
+
+    function idOf(value, fallback = null) {
+        return value?.id ?? value?.cellId ?? value?.trackId ?? value?.stormCellId ??
+            value?.uuid ?? value?.key ?? fallback;
+    }
+
+    function radians(value) { return Number(value) * Math.PI / 180; }
+    function degrees(value) { return Number(value) * 180 / Math.PI; }
+
+    function distanceKm(a, b) {
+        if (!a || !b) return null;
+        const radius = 6371.0088;
+        const dLat = radians(b.latitude - a.latitude);
+        const dLon = radians(b.longitude - a.longitude);
+        const lat1 = radians(a.latitude);
+        const lat2 = radians(b.latitude);
+        const h = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return 2 * radius * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+    }
+
+    function bearing(a, b) {
+        if (!a || !b) return null;
+        const lat1 = radians(a.latitude);
+        const lat2 = radians(b.latitude);
+        const dLon = radians(b.longitude - a.longitude);
+        const y = Math.sin(dLon) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) -
+            Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+        return (degrees(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    function timestampOf(value) {
+        const raw = value?.timestamp ?? value?.time ?? value?.observedAt ??
+            value?.updatedAt ?? value?.createdAt ?? value?.dateTime ?? null;
+        if (raw === null || raw === undefined) return null;
+        if (typeof raw === 'number') return raw < 1e12 ? raw * 1000 : raw;
+        const parsed = Date.parse(raw);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function pointList(value) {
+        const keys = [
+            'history', 'trackHistory', 'trackingHistory', 'positions', 'points',
+            'samples', 'observations', 'track', 'path', 'projectedPath',
+            'predictions', 'futurePositions', 'forecastPath', 'coordinates'
+        ];
+        if (Array.isArray(value)) return value;
+        for (const key of keys) {
+            if (Array.isArray(value?.[key])) return value[key];
+        }
+        return [];
+    }
+
+    function normalizePoints(value) {
+        return pointList(value)
+            .map(item => ({
+                coordinate: coordinate(item),
+                timestamp: timestampOf(item),
+                raw: item
+            }))
+            .filter(item => item.coordinate);
+    }
+
+    function directMotion(...values) {
+        for (const value of values) {
+            if (!value || typeof value !== 'object') continue;
+            const speedKmh = Number(
+                value.effectiveSpeedKmh ?? value.speedKmh ?? value.motionSpeedKmh ??
+                value.velocityKmh ?? value.speed ?? value.motion?.speedKmh ?? value.motion?.speed
+            );
+            const direction = Number(
+                value.bearing ?? value.heading ?? value.direction ?? value.motionBearing ??
+                value.motion?.bearing ?? value.motion?.heading ?? value.motion?.direction
+            );
+            if (Number.isFinite(speedKmh) && speedKmh > 0 && speedKmh <= 250 &&
+                Number.isFinite(direction)) {
+                return {
+                    available: true,
+                    speedKmh,
+                    bearing: ((direction % 360) + 360) % 360,
+                    confidence: Number(value.confidence ?? value.motionConfidence ?? value.trackConfidence ?? 60),
+                    source: 'direct_motion'
+                };
+            }
+        }
+        return null;
+    }
+
+    function motionFromPoints(...values) {
+        for (const value of values) {
+            const points = normalizePoints(value);
+            if (points.length < 2) continue;
+            const segments = [];
+            for (let index = Math.max(1, points.length - 6); index < points.length; index += 1) {
+                const previous = points[index - 1];
+                const current = points[index];
+                const distance = distanceKm(previous.coordinate, current.coordinate);
+                if (!Number.isFinite(distance) || distance < 0.03) continue;
+                const segmentBearing = bearing(previous.coordinate, current.coordinate);
+                let speedKmh = null;
+                if (Number.isFinite(previous.timestamp) && Number.isFinite(current.timestamp) &&
+                    current.timestamp > previous.timestamp) {
+                    const hours = (current.timestamp - previous.timestamp) / 3600000;
+                    speedKmh = distance / hours;
+                }
+                if (Number.isFinite(segmentBearing)) {
+                    segments.push({ distance, bearing: segmentBearing, speedKmh });
+                }
+            }
+            if (!segments.length) continue;
+            const validSpeeds = segments.map(item => item.speedKmh)
+                .filter(value => Number.isFinite(value) && value >= 0.5 && value <= 250)
+                .sort((a, b) => a - b);
+            const speedKmh = validSpeeds.length
+                ? validSpeeds[Math.floor(validSpeeds.length / 2)]
+                : null;
+            const weighted = segments.reduce((accumulator, item) => {
+                const weight = Math.max(0.01, item.distance);
+                accumulator.x += Math.cos(radians(item.bearing)) * weight;
+                accumulator.y += Math.sin(radians(item.bearing)) * weight;
+                accumulator.weight += weight;
+                return accumulator;
+            }, { x: 0, y: 0, weight: 0 });
+            const motionBearing = weighted.weight > 0
+                ? (degrees(Math.atan2(weighted.y, weighted.x)) + 360) % 360
+                : null;
+            if (Number.isFinite(motionBearing)) {
+                return {
+                    available: Number.isFinite(speedKmh),
+                    speedKmh,
+                    bearing: motionBearing,
+                    confidence: Math.min(95, 50 + segments.length * 8),
+                    source: 'tracking_history',
+                    segmentCount: segments.length
+                };
+            }
+        }
+        return null;
+    }
+
+    function ensureMaps(engine) {
+        for (const key of ['cells', 'trackingStates', 'motionStates', 'fusedMotionStates', 'predictions', 'arrivalPredictions']) {
+            if (!(engine[key] instanceof Map)) engine[key] = new Map();
+        }
+    }
+
+    function collectRuntimeData(engine, input = {}) {
+        const rg31 = globalObject.RainGuardAI?.V31 ?? globalObject.RG31 ?? {};
+        const cache = engine?._phase15StormTrackingCache ?? {};
+        const cells = [];
+        const paths = [];
+
+        const cellSources = [
+            input.cells, input.stormCells, input.activeStormCells, input.trackedCells,
+            cache.cells, rg31.activeStormCells, rg31.trackedCells,
+            rg31.stormCells, rg31.latestStormCells,
+            globalObject.activeStormCells, globalObject.trackedStormCells,
+            engine.cells, engine.trackingStates
+        ];
+        const pathSources = [
+            input.paths, input.predictedStormPaths, input.stormPaths,
+            cache.paths, rg31.predictedStormPaths, rg31.latestStormPathPrediction,
+            rg31.stormPaths, globalObject.predictedStormPaths, globalObject.stormPaths,
+            engine.predictions
+        ];
+
+        for (const source of cellSources) {
+            for (const item of toArray(source)) {
+                const candidate = item?.cell ?? item?.currentCell ?? item?.stormCell ?? item;
+                if (coordinate(candidate)) cells.push(candidate);
+            }
+        }
+        for (const source of pathSources) {
+            for (const item of toArray(source)) {
+                const candidate = item?.path ?? item?.predictedPath ?? item;
+                if (normalizePoints(candidate).length >= 2) paths.push(candidate);
+            }
+        }
+
+        const unique = values => {
+            const output = new Map();
+            values.forEach((value, index) => {
+                const key = String(idOf(value, `runtime_${index}`));
+                if (!output.has(key)) output.set(key, value);
+            });
+            return [...output.values()];
+        };
+
+        return { cells: unique(cells), paths: unique(paths) };
+    }
+
+    function matchRecordById(records, id) {
+        const normalized = id === null || id === undefined ? null : String(id);
+        if (normalized === null) return null;
+        return records.find(item => [
+            item?.id, item?.cellId, item?.trackId, item?.stormCellId, item?.pathId
+        ].some(value => value !== null && value !== undefined && String(value) === normalized)) ?? null;
+    }
+
+    function recover(engine, input = {}) {
+        if (!engine) return { available: false, reason: 'ENGINE_UNAVAILABLE' };
+        ensureMaps(engine);
+        const runtime = collectRuntimeData(engine, input);
+        const trackingRecords = [...engine.trackingStates.values()];
+
+        runtime.cells.forEach((cell, index) => {
+            const key = String(idOf(cell, `cell_${index}`));
+            engine.cells.set(key, cell);
+        });
+
+        let motionRecovered = 0;
+        let fusedRecovered = 0;
+        const motionDetails = [];
+
+        runtime.cells.forEach((cell, index) => {
+            const id = idOf(cell, `cell_${index}`);
+            const key = String(id);
+            const tracking = matchRecordById(trackingRecords, id);
+            const path = matchRecordById(runtime.paths, id) ?? runtime.paths[index] ?? null;
+            const existing = engine.fusedMotionStates.get(key) ?? engine.motionStates.get(key) ?? null;
+            const derived = directMotion(existing, tracking, cell, path) ??
+                motionFromPoints(tracking, cell, path);
+            if (!derived || !Number.isFinite(derived.bearing)) return;
+
+            const motionRecord = {
+                id: key,
+                cellId: id,
+                trackId: tracking?.trackId ?? cell?.trackId ?? id,
+                available: Boolean(derived.available),
+                speedKmh: Number.isFinite(derived.speedKmh) ? derived.speedKmh : null,
+                effectiveSpeedKmh: Number.isFinite(derived.speedKmh) ? derived.speedKmh : null,
+                bearing: derived.bearing,
+                heading: derived.bearing,
+                direction: derived.bearing,
+                confidence: Math.max(0, Math.min(100, Number(derived.confidence) || 0)),
+                source: derived.source,
+                segmentCount: derived.segmentCount ?? null,
+                coordinate: coordinate(cell),
+                updatedAt: Date.now(),
+                updatedAtIso: new Date().toISOString()
+            };
+            engine.motionStates.set(key, motionRecord);
+            motionRecovered += 1;
+
+            const fusedRecord = {
+                ...motionRecord,
+                source: 'phase26b_runtime_fusion',
+                inputs: [derived.source],
+                fused: true
+            };
+            engine.fusedMotionStates.set(key, fusedRecord);
+            fusedRecovered += 1;
+            motionDetails.push(fusedRecord);
+        });
+
+        engine._phase15StormTrackingCache = {
+            cells: runtime.cells,
+            paths: runtime.paths,
+            updatedAt: Date.now()
+        };
+        engine.phase26BRuntimeData = {
+            cells: runtime.cells,
+            trackedCells: trackingRecords,
+            motionStates: [...engine.motionStates.values()],
+            fusedMotionStates: [...engine.fusedMotionStates.values()],
+            predictedPaths: runtime.paths
+        };
+
+        const recovery = {
+            phase: '26B',
+            version: VERSION,
+            build: BUILD,
+            available: runtime.cells.length > 0 || runtime.paths.length > 0,
+            cellCount: runtime.cells.length,
+            trackingStateCount: engine.trackingStates.size,
+            motionStateCount: engine.motionStates.size,
+            fusedMotionStateCount: engine.fusedMotionStates.size,
+            pathCount: runtime.paths.length,
+            motionRecovered,
+            fusedRecovered,
+            motionDetails,
+            generatedAt: new Date().toISOString()
+        };
+        engine.phase26BStormRuntimeRecovery = recovery;
+        state.lastRecovery = recovery;
+        state.recoveryCount += 1;
+        return recovery;
+    }
+
+    function publishResult(engine, result, recovery, matching) {
+        const wrapper = result && typeof result === 'object' ? result : {};
+        const prediction = wrapper.prediction && typeof wrapper.prediction === 'object'
+            ? wrapper.prediction : wrapper;
+        prediction.phase26BStormRuntimeRecovery = recovery;
+        wrapper.phase26BStormRuntimeRecovery = recovery;
+        if (matching) {
+            prediction.phase26NationalTargetMatching = matching;
+            wrapper.phase26NationalTargetMatching = matching;
+            if (matching.available) {
+                prediction.arrivalMinutes = matching.arrivalMinutes;
+                prediction.eta = matching.eta;
+                prediction.arrivalTime = matching.eta;
+                prediction.confidence = matching.confidence;
+                prediction.available = true;
+                prediction.status = 'RAIN_ARRIVAL_AVAILABLE';
+                prediction.reason = 'PHASE26B_RUNTIME_RECOVERY_TARGET_MATCH';
+                prediction.targetMatch = matching.selectedMatch;
+                prediction.city = prediction.city ?? engine.targetCity ?? engine.selectedCity ?? null;
+                wrapper.success = true;
+                wrapper.partial = false;
+            }
+        }
+        engine.currentPrediction = prediction;
+        engine.lastPredictionResult = wrapper;
+        engine.lastArrivalResult = prediction;
+        engine.lastResult = wrapper;
+        engine.latestPrediction = prediction;
+        globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+        globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+        globalObject.RainGuardAI.V32.latestPrediction = prediction;
+        globalObject.RainGuardAI.V32.latestRainArrivalPrediction = prediction;
+        state.lastMatch = matching ?? null;
+        return wrapper;
+    }
+
+    function enrichInput(engine, input, recovery) {
+        return {
+            ...(input && typeof input === 'object' ? input : {}),
+            cells: recovery ? engine.phase26BRuntimeData?.cells : [],
+            stormCells: recovery ? engine.phase26BRuntimeData?.cells : [],
+            activeStormCells: recovery ? engine.phase26BRuntimeData?.cells : [],
+            trackedCells: recovery ? engine.phase26BRuntimeData?.trackedCells : [],
+            paths: recovery ? engine.phase26BRuntimeData?.predictedPaths : [],
+            predictedStormPaths: recovery ? engine.phase26BRuntimeData?.predictedPaths : [],
+            motionStates: recovery ? engine.phase26BRuntimeData?.motionStates : [],
+            fusedMotionStates: recovery ? engine.phase26BRuntimeData?.fusedMotionStates : [],
+            targetCity: input?.targetCity ?? engine.targetCity ?? engine.selectedCity ?? null,
+            targetCoordinate: input?.targetCoordinate ?? engine.targetCoordinate ?? null,
+            target: input?.target ?? engine.targetContext ?? engine.targetCity ?? engine.selectedCity ?? null
+        };
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase26BInstalled) {
+            recover(engine, {});
+            state.installed = true;
+            state.lastEngine = engine;
+            return { installed: true, reused: true, recovery: state.lastRecovery };
+        }
+
+        const runner = [
+            'runCompleteRainArrivalPrediction', 'predictRainArrival',
+            'runRainArrivalPrediction', 'runPrediction', 'predict'
+        ].find(name => typeof engine[name] === 'function');
+
+        if (runner) {
+            const original = engine[runner].bind(engine);
+            engine[runner] = async function phase26BRuntimeRecoveryRun(input = {}, options = {}) {
+                const recovery = recover(this, input);
+                const enriched = enrichInput(this, input, recovery);
+                const result = await original(enriched, options);
+                const matching = globalObject.RainArrivalPhase26V32?.analyze
+                    ? globalObject.RainArrivalPhase26V32.analyze(enriched)
+                    : null;
+                return publishResult(this, result, recovery, matching);
+            };
+        }
+
+        if (typeof engine.runCompleteRainArrivalPredictionSync === 'function') {
+            const originalSync = engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync = function phase26BRuntimeRecoverySync(input = {}, options = {}) {
+                const recovery = recover(this, input);
+                const enriched = enrichInput(this, input, recovery);
+                const result = originalSync(enriched, options);
+                const matching = globalObject.RainArrivalPhase26V32?.analyze
+                    ? globalObject.RainArrivalPhase26V32.analyze(enriched)
+                    : null;
+                return publishResult(this, result, recovery, matching);
+            };
+        }
+
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase26BInstalled = true;
+        recover(engine, {});
+        state.installed = true;
+        state.installCount += 1;
+        state.lastEngine = engine;
+        return { installed: true, version: VERSION, build: BUILD, wrappedMethod: runner, recovery: state.lastRecovery };
+    }
+
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        const recovery = recover(engine, options);
+        const input = enrichInput(engine, options, recovery);
+        const runner = [
+            'runCompleteRainArrivalPrediction', 'predictRainArrival',
+            'runRainArrivalPrediction', 'runPrediction', 'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE', recovery };
+        try {
+            const result = await engine[runner](input, options);
+            return { success: true, version: VERSION, build: BUILD, runner, recovery: state.lastRecovery, targetMatching: state.lastMatch, result };
+        } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE26B_EXECUTION_FAILED', error: state.lastError, recovery };
+        }
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        recover(input = {}) { return recover(getEngine(), input); },
+        run: runNow,
+        diagnose() {
+            const engine = getEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase26BInstalled),
+                engineAvailable: Boolean(engine),
+                cellsIsMap: engine?.cells instanceof Map,
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                predictionsSize: engine?.predictions instanceof Map ? engine.predictions.size : null,
+                arrivalPredictionsSize: engine?.arrivalPredictions instanceof Map ? engine.arrivalPredictions.size : null,
+                pathCount: engine?.phase26BRuntimeData?.predictedPaths?.length ?? 0,
+                lastRecovery: state.lastRecovery,
+                lastMatch: state.lastMatch,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase26BV32 = api;
+    globalObject.runRainArrivalPhase26B = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase26B = api;
+    globalObject.setInterval(() => {
+        try { install(); recover(getEngine(), {}); } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+        }
+    }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
