@@ -79712,3 +79712,427 @@ if (
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* ========================================================================== *
+ * RainGuard AI V32 — Phase 31
+ * Arrival Evidence Ranking & Selection Engine
+ * Version: 32.31.0
+ * ========================================================================== */
+(function phase31ArrivalEvidenceRanking(globalObject) {
+    'use strict';
+
+    const VERSION = '32.31.0';
+    const BUILD = 'rainguard-v32-phase31-arrival-evidence-ranking-selection-engine';
+    const state = {
+        installed: false,
+        installCount: 0,
+        executionCount: 0,
+        selectionCount: 0,
+        unavailableCount: 0,
+        lastRanking: null,
+        lastError: null
+    };
+
+    const finite = value => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    };
+    const clamp = (value, minimum, maximum) =>
+        Math.min(maximum, Math.max(minimum, finite(value) ?? minimum));
+
+    function getEngine() {
+        return globalObject?.RainGuardAI?.V32?.rainArrivalPrediction ?? null;
+    }
+
+    function normalizeCity(value) {
+        if (!value) return null;
+        if (typeof value === 'string') return value.trim() || null;
+        return value.name ?? value.city ?? value.cityName ?? value.nameEn ?? value.nameAr ?? value.id ?? null;
+    }
+
+    function getPrediction(result) {
+        if (!result || typeof result !== 'object') return {};
+        return result.prediction && typeof result.prediction === 'object'
+            ? result.prediction
+            : result;
+    }
+
+    function collectCandidateSources(engine, result) {
+        const prediction = getPrediction(result);
+        const sources = [
+            engine?.phase30ArrivalEtaExecution?.rankedCandidates,
+            engine?.latestEtaExecution?.rankedCandidates,
+            prediction?.phase30ArrivalEtaExecution?.rankedCandidates,
+            result?.phase30ArrivalEtaExecution?.rankedCandidates,
+            prediction?.phase29ArrivalEvidenceBuilder?.rankedCandidates,
+            prediction?.phase28FinalArrivalValidation?.rankedCandidates,
+            prediction?.phase27ArrivalEvidence?.rankedCandidates,
+            engine?.arrivalEvidence instanceof Map
+                ? [...engine.arrivalEvidence.values()]
+                : engine?.arrivalEvidence,
+            engine?.latestArrivalEvidence ? [engine.latestArrivalEvidence] : null
+        ];
+        const candidates = [];
+        const seen = new Set();
+        for (const source of sources) {
+            if (!source) continue;
+            const values = source instanceof Map
+                ? [...source.values()]
+                : Array.isArray(source)
+                    ? source
+                    : [source];
+            for (const raw of values) {
+                if (!raw || typeof raw !== 'object') continue;
+                const id = raw.cellId ?? raw.trackId ?? raw.evidenceId ?? raw.id ?? `candidate_${candidates.length}`;
+                const key = String(id);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                candidates.push({ ...raw, phase31CandidateId: key });
+            }
+        }
+        return candidates;
+    }
+
+    function scoreCandidate(candidate, options = {}) {
+        const speedKmh = finite(candidate.effectiveSpeedKmh ?? candidate.speedKmh);
+        const arrivalMinutes = finite(candidate.arrivalMinutes);
+        const bearingDifference = finite(candidate.bearingDifference);
+        const distanceKm = finite(candidate.distanceKm);
+        const confidence = clamp(candidate.confidence ?? candidate.motionConfidence ?? 0, 0, 100);
+        const sourceCount = Math.max(0, finite(candidate.sourceCount) ?? 0);
+        const strictMaximumAngle = clamp(options.phase31StrictMaximumApproachAngle ?? 135, 45, 175);
+        const relaxedMaximumAngle = clamp(options.phase31RelaxedMaximumApproachAngle ?? 165, strictMaximumAngle, 179);
+        const minimumSpeed = Math.max(0.1, finite(options.phase31MinimumSpeedKmh) ?? 0.2);
+        const maximumMinutes = Math.max(30, finite(options.phase31MaximumArrivalMinutes) ?? 2880);
+
+        const speedUsable = speedKmh !== null && speedKmh >= minimumSpeed;
+        const etaUsable = arrivalMinutes !== null && arrivalMinutes >= 0 && arrivalMinutes <= maximumMinutes;
+        const directionStrict = bearingDifference !== null && bearingDifference <= strictMaximumAngle;
+        const directionRelaxed = bearingDifference !== null && bearingDifference <= relaxedMaximumAngle;
+        const distanceUsable = distanceKm === null || distanceKm >= 0;
+        const physicallyUsable = speedUsable && etaUsable && directionRelaxed && distanceUsable;
+        const strictlyValid = Boolean(candidate.valid) || (speedUsable && etaUsable && directionStrict && distanceUsable);
+
+        const directionScore = bearingDifference === null
+            ? 0
+            : clamp(100 - (bearingDifference / relaxedMaximumAngle) * 100, 0, 100);
+        const speedScore = speedKmh === null
+            ? 0
+            : clamp((speedKmh / 45) * 100, 0, 100);
+        const etaScore = arrivalMinutes === null
+            ? 0
+            : clamp(100 - (arrivalMinutes / maximumMinutes) * 70, 0, 100);
+        const corroborationScore = clamp(sourceCount * 20, 0, 100);
+        const physicalBonus = strictlyValid ? 12 : physicallyUsable ? 5 : 0;
+        const rankingScore = clamp(
+            confidence * 0.34 +
+            directionScore * 0.25 +
+            etaScore * 0.18 +
+            speedScore * 0.10 +
+            corroborationScore * 0.13 +
+            physicalBonus,
+            0,
+            100
+        );
+
+        let reason = 'CANDIDATE_PHYSICALLY_UNUSABLE';
+        if (!speedUsable) reason = 'CANDIDATE_SPEED_UNUSABLE';
+        else if (!etaUsable) reason = 'CANDIDATE_ETA_UNUSABLE';
+        else if (!directionRelaxed) reason = 'CANDIDATE_NOT_APPROACHING_TARGET';
+        else if (strictlyValid) reason = 'CANDIDATE_STRICTLY_VALID';
+        else if (physicallyUsable) reason = 'CANDIDATE_RELAXED_VALID';
+
+        return {
+            ...candidate,
+            speedKmh,
+            arrivalMinutes,
+            bearingDifference,
+            distanceKm,
+            confidence,
+            sourceCount,
+            speedUsable,
+            etaUsable,
+            directionStrict,
+            directionRelaxed,
+            physicallyUsable,
+            strictlyValid,
+            rankingScore: Math.round(rankingScore * 100) / 100,
+            phase31Reason: reason
+        };
+    }
+
+    function rankAndSelect(engine, result = null, options = {}) {
+        const rawCandidates = collectCandidateSources(engine, result ?? engine?.lastPredictionResult);
+        const ranked = rawCandidates
+            .map(candidate => scoreCandidate(candidate, options))
+            .sort((left, right) => {
+                if (left.strictlyValid !== right.strictlyValid) return left.strictlyValid ? -1 : 1;
+                if (left.physicallyUsable !== right.physicallyUsable) return left.physicallyUsable ? -1 : 1;
+                if (right.rankingScore !== left.rankingScore) return right.rankingScore - left.rankingScore;
+                const leftEta = left.arrivalMinutes ?? Number.POSITIVE_INFINITY;
+                const rightEta = right.arrivalMinutes ?? Number.POSITIVE_INFINITY;
+                return leftEta - rightEta;
+            });
+
+        const minimumRankingScore = clamp(options.phase31MinimumRankingScore ?? 20, 1, 100);
+        const selected = ranked.find(candidate =>
+            candidate.physicallyUsable && candidate.rankingScore >= minimumRankingScore
+        ) ?? null;
+        const strictSelected = Boolean(selected?.strictlyValid);
+        const prediction = getPrediction(result ?? engine?.lastPredictionResult);
+        const city = normalizeCity(
+            selected?.city ?? prediction?.city ?? engine?.selectedCity ?? engine?.targetCity ?? engine?.currentCity
+        );
+        const now = Date.now();
+        const accepted = Boolean(selected);
+        const confidence = selected
+            ? clamp(selected.confidence * 0.65 + selected.rankingScore * 0.35, 1, 100)
+            : 0;
+        const highConfidenceThreshold = clamp(options.phase31HighConfidenceThreshold ?? 65, 1, 100);
+        const lowConfidence = accepted && (!strictSelected || confidence < highConfidenceThreshold);
+        const ranking = {
+            phase: '31',
+            version: VERSION,
+            build: BUILD,
+            available: accepted,
+            accepted,
+            lowConfidence,
+            city,
+            candidateCount: ranked.length,
+            physicallyUsableCount: ranked.filter(item => item.physicallyUsable).length,
+            strictlyValidCount: ranked.filter(item => item.strictlyValid).length,
+            selectedCandidate: selected,
+            selectedCandidateId: selected?.phase31CandidateId ?? null,
+            rankingScore: selected?.rankingScore ?? 0,
+            arrivalMinutes: selected?.arrivalMinutes ?? null,
+            eta: selected?.arrivalMinutes !== null && selected?.arrivalMinutes !== undefined
+                ? new Date(now + selected.arrivalMinutes * 60000).toISOString()
+                : null,
+            confidence: Math.round(confidence),
+            uncertaintyMinutes: selected?.arrivalMinutes !== null && selected?.arrivalMinutes !== undefined
+                ? Math.max(8, Math.round(selected.arrivalMinutes * (1 - confidence / 100)))
+                : null,
+            status: accepted
+                ? (lowConfidence
+                    ? 'LOW_CONFIDENCE_RAIN_ARRIVAL_AVAILABLE'
+                    : 'RAIN_ARRIVAL_AVAILABLE')
+                : 'RAIN_ARRIVAL_UNAVAILABLE',
+            reason: accepted
+                ? (lowConfidence
+                    ? 'BEST_ARRIVAL_EVIDENCE_SELECTED_LOW_CONFIDENCE'
+                    : 'BEST_ARRIVAL_EVIDENCE_SELECTED')
+                : 'NO_RANKED_ARRIVAL_EVIDENCE_ACCEPTED',
+            rankedCandidates: ranked,
+            generatedAt: new Date(now).toISOString()
+        };
+        engine.phase31ArrivalEvidenceRanking = ranking;
+        engine.latestArrivalEvidenceRanking = ranking;
+        engine.selectedArrivalEvidence = selected;
+        state.lastRanking = ranking;
+        state.executionCount += 1;
+        if (accepted) state.selectionCount += 1;
+        else state.unavailableCount += 1;
+        return ranking;
+    }
+
+    function publish(engine, result, ranking) {
+        const wrapper = result && typeof result === 'object'
+            ? result
+            : { success: true, prediction: {} };
+        const prediction = wrapper.prediction && typeof wrapper.prediction === 'object'
+            ? wrapper.prediction
+            : wrapper;
+        prediction.phase31ArrivalEvidenceRanking = ranking;
+        wrapper.phase31ArrivalEvidenceRanking = ranking;
+        if (!ranking.accepted) {
+            engine.lastArrivalEvidenceRanking = ranking;
+            return wrapper;
+        }
+        prediction.success = true;
+        prediction.available = true;
+        prediction.partial = ranking.lowConfidence;
+        prediction.status = ranking.status;
+        prediction.reason = ranking.reason;
+        prediction.city = ranking.city ?? prediction.city;
+        prediction.arrivalMinutes = ranking.arrivalMinutes;
+        prediction.eta = ranking.eta;
+        prediction.arrivalTime = ranking.eta;
+        prediction.confidence = ranking.confidence;
+        prediction.uncertaintyMinutes = ranking.uncertaintyMinutes;
+        prediction.arrivalEvidenceScore = ranking.rankingScore;
+        prediction.selectedArrivalEvidence = ranking.selectedCandidate;
+        prediction.etaSource = 'phase31_arrival_evidence_ranking_selection';
+        engine.currentPrediction = prediction;
+        engine.lastPredictionResult = wrapper;
+        engine.lastArrivalResult = wrapper;
+        engine.lastResult = wrapper;
+        engine.latestPrediction = prediction;
+        engine.lastArrivalEvidenceRanking = ranking;
+        globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+        globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+        globalObject.RainGuardAI.V32.latestPrediction = prediction;
+        try {
+            if (typeof globalObject.dispatchEvent === 'function' && typeof globalObject.CustomEvent === 'function') {
+                globalObject.dispatchEvent(new globalObject.CustomEvent(
+                    'rainguard:v32:arrival-evidence-selected',
+                    { detail: ranking }
+                ));
+            }
+        } catch (_) {}
+        return wrapper;
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase31Installed) {
+            engine.version = VERSION;
+            engine.build = BUILD;
+            state.installed = true;
+            return { installed: true, reused: true, version: VERSION, build: BUILD };
+        }
+        const runner = [
+            'runCompleteRainArrivalPrediction',
+            'predictRainArrival',
+            'runRainArrivalPrediction',
+            'runPrediction',
+            'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (runner) {
+            const original = engine[runner].bind(engine);
+            engine[runner] = async function phase31Run(input = {}, options = {}) {
+                let result;
+                try {
+                    result = await original(input, options);
+                } catch (error) {
+                    result = {
+                        success: false,
+                        prediction: {
+                            status: 'RAIN_ARRIVAL_UNAVAILABLE',
+                            reason: error?.message ?? 'UPSTREAM_EXECUTION_FAILED'
+                        },
+                        upstreamError: {
+                            name: error?.name ?? 'Error',
+                            message: error?.message ?? String(error),
+                            stack: error?.stack ?? null
+                        }
+                    };
+                }
+                return publish(this, result, rankAndSelect(this, result, options));
+            };
+        }
+        if (typeof engine.runCompleteRainArrivalPredictionSync === 'function') {
+            const originalSync = engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync = function phase31RunSync(input = {}, options = {}) {
+                let result;
+                try {
+                    result = originalSync(input, options);
+                } catch (error) {
+                    result = {
+                        success: false,
+                        prediction: {
+                            status: 'RAIN_ARRIVAL_UNAVAILABLE',
+                            reason: error?.message ?? 'UPSTREAM_EXECUTION_FAILED'
+                        }
+                    };
+                }
+                return publish(this, result, rankAndSelect(this, result, options));
+            };
+        }
+        engine.rankArrivalEvidencePhase31 = function rankArrivalEvidencePhase31(result = null, options = {}) {
+            return rankAndSelect(this, result ?? this.lastPredictionResult, options);
+        };
+        engine.selectBestArrivalEvidencePhase31 = function selectBestArrivalEvidencePhase31(result = null, options = {}) {
+            const ranking = rankAndSelect(this, result ?? this.lastPredictionResult, options);
+            return ranking.selectedCandidate;
+        };
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase31Installed = true;
+        state.installed = true;
+        state.installCount += 1;
+        return { installed: true, version: VERSION, build: BUILD, runner: runner ?? null };
+    }
+
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        const runner = [
+            'runCompleteRainArrivalPrediction',
+            'predictRainArrival',
+            'runRainArrivalPrediction',
+            'runPrediction',
+            'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE' };
+        try {
+            const result = await engine[runner](options, options);
+            const prediction = getPrediction(result);
+            return {
+                success: Boolean(prediction?.available || state.lastRanking?.accepted),
+                version: VERSION,
+                build: BUILD,
+                runner,
+                ranking: state.lastRanking,
+                result
+            };
+        } catch (error) {
+            state.lastError = {
+                name: error?.name ?? 'Error',
+                message: error?.message ?? String(error),
+                stack: error?.stack ?? null
+            };
+            return { success: false, reason: 'PHASE31_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        run: runNow,
+        rank(result = null, options = {}) {
+            const engine = getEngine();
+            return engine ? rankAndSelect(engine, result ?? engine.lastPredictionResult, options) : null;
+        },
+        publish(result = null, options = {}) {
+            const engine = getEngine();
+            if (!engine) return null;
+            const actualResult = result ?? engine.lastPredictionResult ?? { success: true, prediction: {} };
+            return publish(engine, actualResult, rankAndSelect(engine, actualResult, options));
+        },
+        diagnose() {
+            const engine = getEngine();
+            const prediction = engine?.lastPredictionResult?.prediction ?? engine?.lastPredictionResult ?? null;
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase31Installed),
+                engineAvailable: Boolean(engine),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                executionCount: state.executionCount,
+                selectionCount: state.selectionCount,
+                unavailableCount: state.unavailableCount,
+                status: prediction?.status ?? null,
+                arrivalMinutes: prediction?.arrivalMinutes ?? null,
+                eta: prediction?.eta ?? null,
+                confidence: prediction?.confidence ?? 0,
+                lastRanking: state.lastRanking,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase31V32 = api;
+    globalObject.runRainArrivalPhase31 = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase31 = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
