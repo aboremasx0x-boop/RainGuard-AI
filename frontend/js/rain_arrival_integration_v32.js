@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.29.0';
+    const SEMANTIC_VERSION = '32.29.1';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -43688,6 +43688,207 @@ globalObject
         log
     } = internal;
 
+    /**
+     * Convert runtime values to JSON-safe data without throwing.
+     * Handles Maps, Sets, Errors, BigInt values and circular references.
+     *
+     * @param {*} value
+     * @param {number} maximumDepth
+     * @returns {*}
+     */
+    function toPersistenceSafeValue(
+        value,
+        maximumDepth = 6
+    ) {
+        const seen = new WeakSet();
+
+        function visit(
+            current,
+            depth
+        ) {
+            if (
+                current === null ||
+                current === undefined
+            ) {
+                return current ?? null;
+            }
+
+            const valueType =
+                typeof current;
+
+            if (
+                valueType === 'string' ||
+                valueType === 'boolean'
+            ) {
+                return current;
+            }
+
+            if (valueType === 'number') {
+                return Number.isFinite(current)
+                    ? current
+                    : null;
+            }
+
+            if (valueType === 'bigint') {
+                return current.toString();
+            }
+
+            if (
+                valueType === 'function' ||
+                valueType === 'symbol'
+            ) {
+                return undefined;
+            }
+
+            if (current instanceof Date) {
+                return Number.isFinite(
+                    current.getTime()
+                )
+                    ? current.toISOString()
+                    : null;
+            }
+
+            if (current instanceof Error) {
+                return {
+                    name:
+                        current.name ||
+                        'Error',
+
+                    message:
+                        current.message ||
+                        String(current),
+
+                    code:
+                        current.code ??
+                        null,
+
+                    stack:
+                        current.stack ||
+                        null
+                };
+            }
+
+            if (depth >= maximumDepth) {
+                return '[MaximumDepth]';
+            }
+
+            if (
+                current &&
+                typeof current === 'object'
+            ) {
+                if (seen.has(current)) {
+                    return '[Circular]';
+                }
+
+                seen.add(current);
+            }
+
+            if (current instanceof Map) {
+                return Array.from(
+                    current.entries()
+                ).slice(0, 250).map(
+                    ([key, mapValue]) => [
+                        visit(key, depth + 1),
+                        visit(mapValue, depth + 1)
+                    ]
+                );
+            }
+
+            if (current instanceof Set) {
+                return Array.from(
+                    current.values()
+                ).slice(0, 250).map(
+                    (item) =>
+                        visit(
+                            item,
+                            depth + 1
+                        )
+                );
+            }
+
+            if (Array.isArray(current)) {
+                return current
+                    .slice(0, 500)
+                    .map(
+                        (item) =>
+                            visit(
+                                item,
+                                depth + 1
+                            )
+                    )
+                    .filter(
+                        (item) =>
+                            item !== undefined
+                    );
+            }
+
+            const output = {};
+
+            for (
+                const [key, child]
+                of Object.entries(current)
+            ) {
+                const safeChild =
+                    visit(
+                        child,
+                        depth + 1
+                    );
+
+                if (safeChild !== undefined) {
+                    output[key] =
+                        safeChild;
+                }
+            }
+
+            return output;
+        }
+
+        return visit(value, 0);
+    }
+
+    /**
+     * Normalize any supported prediction collection to an array.
+     *
+     * @param {*} value
+     * @returns {Array}
+     */
+    function normalizePredictionCollection(
+        value
+    ) {
+        if (Array.isArray(value)) {
+            return value;
+        }
+
+        if (value instanceof Map) {
+            return Array.from(
+                value.values()
+            );
+        }
+
+        if (value instanceof Set) {
+            return Array.from(
+                value.values()
+            );
+        }
+
+        if (
+            value &&
+            typeof value === 'object'
+        ) {
+            if (
+                Array.isArray(
+                    value.predictions
+                )
+            ) {
+                return value.predictions;
+            }
+
+            return Object.values(value);
+        }
+
+        return [];
+    }
+
     function sanitizePersistedPrediction(
         prediction
     ) {
@@ -43699,53 +43900,117 @@ globalObject
             return null;
         }
 
+        const city =
+            prediction.city &&
+            typeof prediction.city ===
+                'object'
+                ? prediction.city
+                : null;
+
+        const arrivalMinutes =
+            Number(
+                prediction.arrivalMinutes ??
+                prediction.etaMinutes ??
+                prediction.minutesToArrival
+            );
+
+        const confidence =
+            Number(
+                prediction.confidence ??
+                prediction.confidenceScore
+            );
+
+        const probability =
+            Number(
+                prediction.probability ??
+                prediction.rainProbability
+            );
+
+        const intensity =
+            Number(
+                prediction.intensity ??
+                prediction.rainIntensity
+            );
+
+        const latitude =
+            Number(
+                prediction.latitude ??
+                prediction.lat ??
+                city?.latitude ??
+                city?.lat
+            );
+
+        const longitude =
+            Number(
+                prediction.longitude ??
+                prediction.lon ??
+                prediction.lng ??
+                city?.longitude ??
+                city?.lon ??
+                city?.lng
+            );
+
         return {
             id:
                 prediction.id ||
                 null,
 
             cityId:
-                prediction.cityId ||
+                prediction.cityId ??
+                city?.id ??
+                prediction.locationId ??
                 null,
 
             cityName:
-                prediction.cityName ||
+                prediction.cityName ??
+                city?.name ??
+                city?.nameEn ??
                 null,
 
             cityNameAr:
-                prediction.cityNameAr ||
+                prediction.cityNameAr ??
+                city?.nameAr ??
+                null,
+
+            status:
+                prediction.status ??
+                null,
+
+            reason:
+                prediction.reason ??
                 null,
 
             arrivalMinutes:
                 Number.isFinite(
-                    prediction.arrivalMinutes
+                    arrivalMinutes
                 )
-                    ? prediction.arrivalMinutes
+                    ? arrivalMinutes
                     : null,
 
             arrivalTime:
-                prediction.arrivalTime ||
+                prediction.arrivalTime ??
+                prediction.eta ??
                 null,
 
             confidence:
                 Number.isFinite(
-                    prediction.confidence
+                    confidence
                 )
-                    ? prediction.confidence
+                    ? confidence
                     : 0,
 
             probability:
                 Number.isFinite(
-                    prediction.probability
+                    probability
                 )
-                    ? prediction.probability
+                    ? probability
                     : 0,
 
             intensity:
                 Number.isFinite(
-                    prediction.intensity
+                    intensity
                 )
-                    ? prediction.intensity
+                    ? intensity
                     : 0,
 
             riskLevel:
@@ -43756,22 +44021,26 @@ globalObject
                 prediction.willRain ===
                 true,
 
+            available:
+                prediction.available ===
+                true,
+
             accepted:
                 prediction.accepted !==
                 false,
 
             latitude:
                 Number.isFinite(
-                    prediction.latitude
+                    latitude
                 )
-                    ? prediction.latitude
+                    ? latitude
                     : null,
 
             longitude:
                 Number.isFinite(
-                    prediction.longitude
+                    longitude
                 )
-                    ? prediction.longitude
+                    ? longitude
                     : null,
 
             source:
@@ -43785,7 +44054,33 @@ globalObject
                     ? prediction.sources
                         .filter(Boolean)
                         .slice(0, 10)
-                    : []
+                        .map(
+                            (source) =>
+                                toPersistenceSafeValue(
+                                    source,
+                                    3
+                                )
+                        )
+                    : [],
+
+            evidenceScore:
+                Number.isFinite(
+                    Number(
+                        prediction.arrivalEvidenceScore ??
+                        prediction.evidenceScore
+                    )
+                )
+                    ? Number(
+                        prediction.arrivalEvidenceScore ??
+                        prediction.evidenceScore
+                    )
+                    : null,
+
+            updatedAt:
+                prediction.updatedAt ??
+                prediction.generatedAt ??
+                prediction.timestamp ??
+                null
         };
     }
 
@@ -43803,6 +44098,12 @@ globalObject
         const payload = {
             schemaVersion:
                 normalized.schemaVersion,
+
+            semanticVersion:
+                integrationApi
+                    .metadata
+                    ?.semanticVersion ??
+                '32.29.1',
 
             savedAt:
                 Date.now(),
@@ -43824,24 +44125,42 @@ globalObject
         if (
             normalized.persistPredictions
         ) {
-            const predictions =
-                typeof integrationApi
-                    .getLatestPredictions ===
-                    'function'
-                    ? integrationApi
-                        .getLatestPredictions()
-                    : (
-                        Array.isArray(
-                            runtimeState
-                                .latestPredictions
-                        )
-                            ? runtimeState
-                                .latestPredictions
-                            : []
-                    );
+            let rawPredictions = [];
+
+            try {
+                rawPredictions =
+                    typeof integrationApi
+                        .getLatestPredictions ===
+                        'function'
+                        ? integrationApi
+                            .getLatestPredictions()
+                        : runtimeState
+                            .latestPredictions;
+            } catch (error) {
+                rawPredictions =
+                    runtimeState
+                        .latestPredictions;
+
+                log(
+                    'warn',
+                    'Latest prediction collection failed; using runtime fallback.',
+                    {
+                        error:
+                            normalizeError(
+                                error,
+                                {
+                                    phase:
+                                        'persistence_prediction_collection'
+                                }
+                            )
+                    }
+                );
+            }
 
             payload.predictions =
-                predictions
+                normalizePredictionCollection(
+                    rawPredictions
+                )
                     .map(
                         sanitizePersistedPrediction
                     )
@@ -43857,50 +44176,65 @@ globalObject
             normalized.persistDashboard &&
             runtimeState.dashboard
         ) {
-            payload.dashboard = {
-                lastSummary:
-                    runtimeState
-                        .dashboard
-                        .lastSummary ||
-                    null,
+            payload.dashboard =
+                toPersistenceSafeValue(
+                    {
+                        lastSummary:
+                            runtimeState
+                                .dashboard
+                                .lastSummary ??
+                            null,
 
-                renderCount:
-                    runtimeState
-                        .dashboard
-                        .renderCount ||
-                    0,
+                        renderCount:
+                            runtimeState
+                                .dashboard
+                                .renderCount ??
+                            0,
 
-                lastRenderAt:
-                    runtimeState
-                        .dashboard
-                        .lastRenderAt ||
-                    null
-            };
+                        lastRenderAt:
+                            runtimeState
+                                .dashboard
+                                .lastRenderAt ??
+                            null
+                    },
+                    5
+                );
         }
 
         if (
             normalized.persistMetadata
         ) {
-            payload.metadata = {
-                latestPredictionsAt:
-                    runtimeState
-                        .latestPredictionsAt ||
-                    null,
+            payload.metadata =
+                toPersistenceSafeValue(
+                    {
+                        latestPredictionsAt:
+                            runtimeState
+                                .latestPredictionsAt ??
+                            null,
 
-                latestPredictionsAtIso:
-                    runtimeState
-                        .latestPredictionsAtIso ||
-                    null,
+                        latestPredictionsAtIso:
+                            runtimeState
+                                .latestPredictionsAtIso ??
+                            null,
 
-                integrationMetadata:
-                    integrationApi
-                        .metadata
-                        ? {
-                            ...integrationApi
-                                .metadata
+                        integrationMetadata:
+                            integrationApi
+                                .metadata ??
+                            null,
+
+                        persistenceStatus: {
+                            writes:
+                                state.writes,
+
+                            reads:
+                                state.reads,
+
+                            failures:
+                                state.failures
                         }
-                        : null
-            };
+                    },
+                    5
+                );
         }
 
         state.lastPayload =
@@ -43920,12 +44254,13 @@ globalObject
                 options
             );
 
-        if (
-            !normalized.enabled
-        ) {
+        if (!normalized.enabled) {
             return {
                 persisted:
                     false,
+
+                nonFatal:
+                    true,
 
                 reason:
                     'persistence_disabled'
@@ -43941,82 +44276,205 @@ globalObject
                 persisted:
                     false,
 
+                nonFatal:
+                    true,
+
                 reason:
                     'storage_unavailable'
             };
         }
 
+        let payload = null;
+        let serialized = null;
+
         try {
-            const payload =
+            payload =
                 buildPersistencePayload(
                     normalized
                 );
 
-            const serialized =
-                JSON.stringify(
-                    payload
-                );
+            serialized =
+                JSON.stringify(payload);
 
             storage.setItem(
                 normalized.storageKey,
                 serialized
             );
 
-            state.writes +=
-                1;
-
+            state.writes += 1;
             state.lastWriteAt =
                 Date.now();
-
+            state.lastWriteAtIso =
+                new Date(
+                    state.lastWriteAt
+                ).toISOString();
+            state.lastBytes =
+                serialized.length;
             state.lastError =
                 null;
-
-            return {
+            state.lastResult = {
                 persisted:
                     true,
-
                 bytes:
                     serialized.length,
-
                 predictionCount:
-                    payload.predictions
-                        .length,
-
+                    payload.predictions.length,
                 savedAt:
                     payload.savedAt,
-
                 savedAtIso:
                     payload.savedAtIso
             };
-        } catch (error) {
-            state.failures +=
-                1;
-
-            state.lastError =
-                normalizeError(
-                    error
-                );
-
-            log(
-                'error',
-                'Integration snapshot persistence failed.',
-                {
-                    error:
-                        state.lastError
-                }
-            );
 
             return {
+                ...state.lastResult
+            };
+        } catch (error) {
+            state.failures += 1;
+
+            const normalizedError =
+                normalizeError(
+                    error,
+                    {
+                        phase:
+                            'integration_snapshot_persistence',
+
+                        storageType:
+                            normalized.storageType,
+
+                        storageKey:
+                            normalized.storageKey,
+
+                        serializedBytes:
+                            typeof serialized ===
+                                'string'
+                                ? serialized.length
+                                : null,
+
+                        predictionCount:
+                            Array.isArray(
+                                payload?.predictions
+                            )
+                                ? payload.predictions.length
+                                : null
+                    }
+                );
+
+            state.lastError =
+                normalizedError;
+
+            state.lastFailedPayloadSummary = {
+                schemaVersion:
+                    payload?.schemaVersion ??
+                    null,
+
+                predictionCount:
+                    Array.isArray(
+                        payload?.predictions
+                    )
+                        ? payload.predictions.length
+                        : null,
+
+                serializedBytes:
+                    typeof serialized ===
+                        'string'
+                        ? serialized.length
+                        : null
+            };
+
+            state.lastResult = {
                 persisted:
                     false,
+
+                nonFatal:
+                    true,
 
                 reason:
                     'persistence_write_failed',
 
                 error:
-                    state.lastError
+                    normalizedError
+            };
+
+            log(
+                'error',
+                'Integration snapshot persistence failed.',
+                {
+                    errorName:
+                        normalizedError.name,
+
+                    errorMessage:
+                        normalizedError.message,
+
+                    errorCode:
+                        normalizedError.code,
+
+                    errorStack:
+                        normalizedError.stack,
+
+                    context:
+                        normalizedError.context
+                }
+            );
+
+            /*
+             * Persistence is an optional side effect. A storage failure must
+             * never invalidate an already computed rain-arrival prediction.
+             */
+            return {
+                ...state.lastResult
             };
         }
+    }
+
+    function getPersistenceDiagnostics() {
+        const state =
+            ensurePersistenceState();
+
+        return {
+            available:
+                state.available,
+
+            writes:
+                state.writes,
+
+            reads:
+                state.reads,
+
+            failures:
+                state.failures,
+
+            lastWriteAt:
+                state.lastWriteAt,
+
+            lastWriteAtIso:
+                state.lastWriteAtIso ??
+                null,
+
+            lastBytes:
+                state.lastBytes ??
+                null,
+
+            lastError:
+                state.lastError,
+
+            lastResult:
+                state.lastResult ??
+                null,
+
+            lastFailedPayloadSummary:
+                state.lastFailedPayloadSummary ??
+                null,
+
+            storageType:
+                state.options
+                    ?.storageType ??
+                null,
+
+            storageKey:
+                state.options
+                    ?.storageKey ??
+                null
+        };
     }
 
     integrationApi
@@ -44031,11 +44489,15 @@ globalObject
         .persistIntegrationSnapshot =
         persistIntegrationSnapshot;
 
+    integrationApi
+        .getPersistenceDiagnostics =
+        getPersistenceDiagnostics;
+
     integrationApi.metadata = {
         ...integrationApi.metadata,
 
         currentPart:
-            '2.3A-2',
+            '2.3A-2-PATCH-29.1',
 
         nextPart:
             '2.3B-1',
@@ -44054,7 +44516,10 @@ globalObject
         integrationApi._internals,
         {
             sanitizePersistedPrediction,
-            buildPersistencePayload
+            buildPersistencePayload,
+            normalizePredictionCollection,
+            toPersistenceSafeValue,
+            getPersistenceDiagnostics
         }
     );
 
@@ -66011,11 +66476,72 @@ globalObject
     globalObject.RainGuardAI.V32.phase28Integration = globalObject.RainArrivalPhase28IntegrationV32;
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
 
+/* Phase 29.1 — Snapshot Persistence & Execution Error Recovery */
+(function phase291SnapshotPersistenceRecovery(globalObject) {
+    'use strict';
+
+    const integration =
+        globalObject?.RainGuardAI?.V32
+            ?.rainArrivalIntegration;
+
+    if (!integration) {
+        return;
+    }
+
+    integration.version =
+        '32.29.1';
+
+    integration.build =
+        'rainguard-v32-phase29.1-snapshot-persistence-recovery';
+
+    integration.metadata = {
+        ...(integration.metadata || {}),
+        semanticVersion:
+            '32.29.1',
+        build:
+            'rainguard-v32-phase29.1-snapshot-persistence-recovery',
+        currentPart:
+            '2.3A-2-PATCH-29.1',
+        persistenceFailureIsFatal:
+            false
+    };
+
+    globalObject.RainArrivalPhase291V32 = {
+        version:
+            '32.29.1',
+        build:
+            'rainguard-v32-phase29.1-snapshot-persistence-recovery',
+        installed:
+            true,
+        diagnose() {
+            return {
+                version:
+                    this.version,
+                build:
+                    this.build,
+                integrationAvailable:
+                    Boolean(integration),
+                persistence:
+                    typeof integration
+                        .getPersistenceDiagnostics ===
+                        'function'
+                        ? integration
+                            .getPersistenceDiagnostics()
+                        : null
+            };
+        }
+    };
+})(
+    typeof globalThis !== 'undefined'
+        ? globalThis
+        : window
+);
+
 /* Phase 29 Integration Bridge — Arrival Evidence Builder Engine */
 (function phase29IntegrationBridge(globalObject) {
     'use strict';
-    const VERSION = '32.29.0';
-    const BUILD = 'rainguard-v32-phase29-arrival-evidence-builder-engine';
+    const VERSION = '32.29.1';
+    const BUILD = 'rainguard-v32-phase29.1-snapshot-persistence-recovery';
     globalObject.runRainArrivalPhase29Integration = async function(options = {}) {
         if (typeof globalObject.runRainArrivalPhase29 === 'function') {
             return globalObject.runRainArrivalPhase29(options);
