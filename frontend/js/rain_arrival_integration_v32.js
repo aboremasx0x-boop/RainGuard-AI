@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.35.0';
+    const SEMANTIC_VERSION = '32.36.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -66787,4 +66787,43 @@ globalObject
     globalObject.RainArrivalPhase35IntegrationV32 = { version: VERSION, build: BUILD, install };
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* Phase 36 Integration Adapter */
+(function phase36IntegrationAdapter(globalObject) {
+    'use strict';
+    if (!globalObject) return;
+    const VERSION = '32.36.0';
+    const BUILD = 'rainguard-v32-phase36-motion-reconstruction-from-historical-track-engine';
+    const integration = globalObject.RainGuardAI?.V32?.rainArrivalIntegration ?? globalObject.RainArrivalIntegrationV32Instance ?? null;
+    if (integration) {
+        integration.version = VERSION;
+        integration.build = BUILD;
+        integration.phase36 = globalObject.RainArrivalPhase36V32 ?? null;
+        integration.__phase36Installed = true;
+        integration.metadata = {
+            ...(integration.metadata || {}),
+            semanticVersion: VERSION,
+            build: BUILD,
+            phase36: true,
+            productionReady: true
+        };
+    }
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase36Integration = {
+        version: VERSION,
+        build: BUILD,
+        installed: true,
+        diagnose() {
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: true,
+                integrationAvailable: Boolean(integration),
+                phase36Available: Boolean(globalObject.RainArrivalPhase36V32),
+                engineAvailable: Boolean(globalObject.RainGuardAI?.V32?.rainArrivalPrediction)
+            };
+        }
+    };
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
