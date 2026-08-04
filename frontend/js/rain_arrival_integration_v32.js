@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.26.2';
+    const SEMANTIC_VERSION = '32.26.3';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -65919,4 +65919,35 @@ globalObject
         get engine() { return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ?? null; },
         diagnose() { return globalObject.RainArrivalPhase26CV32?.diagnose?.() ?? { available: false }; }
     };
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* Phase 26D Integration Bridge — ETA Decision Engine Recovery */
+(function phase26DIntegrationBridge(globalObject) {
+    'use strict';
+    const VERSION = '32.26.3';
+    const BUILD = 'rainguard-v32-phase26d-eta-decision-engine-recovery';
+    globalObject.runRainArrivalPhase26DIntegration = async function(options = {}) {
+        if (typeof globalObject.runRainArrivalPhase26D === 'function') {
+            return globalObject.runRainArrivalPhase26D(options);
+        }
+        return { success: false, version: VERSION, build: BUILD, reason: 'PHASE26D_ENGINE_API_UNAVAILABLE' };
+    };
+    globalObject.RainArrivalPhase26DIntegrationV32 = {
+        version: VERSION,
+        build: BUILD,
+        diagnose() {
+            return {
+                version: VERSION,
+                build: BUILD,
+                engineApiAvailable: typeof globalObject.runRainArrivalPhase26D === 'function',
+                integrationAvailable: Boolean(globalObject.RainGuardAI?.V32?.rainArrivalIntegration),
+                etaDecisionRecoveryAvailable: Boolean(globalObject.RainArrivalPhase26DV32),
+                decision: globalObject.RainArrivalPhase26DV32?.diagnose?.()?.lastDecision ?? null
+            };
+        }
+    };
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase26DIntegration = globalObject.RainArrivalPhase26DIntegrationV32;
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
