@@ -66625,3 +66625,30 @@ globalObject
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* RainGuard AI V32 — Phase 31 Integration Adapter */
+(function phase31IntegrationAdapter(globalObject) {
+    'use strict';
+    const VERSION = '32.31.0';
+    const BUILD = 'rainguard-v32-phase31-arrival-evidence-ranking-selection-engine';
+    function install() {
+        const v32 = globalObject?.RainGuardAI?.V32;
+        const integration = v32?.rainArrivalIntegration ?? globalObject?.RainArrivalIntegrationV32Instance;
+        if (!integration) return { installed: false, reason: 'INTEGRATION_UNAVAILABLE' };
+        integration.version = VERSION;
+        integration.build = BUILD;
+        integration.metadata = {
+            ...(integration.metadata || {}),
+            phase31: true,
+            currentPhase: '31',
+            currentPart: 'arrival-evidence-ranking-selection',
+            status: 'ready'
+        };
+        integration.phase31 = globalObject.RainArrivalPhase31V32 ?? null;
+        integration.__phase31Installed = true;
+        return { installed: true, version: VERSION, build: BUILD };
+    }
+    globalObject.RainArrivalPhase31IntegrationV32 = { version: VERSION, build: BUILD, install };
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
