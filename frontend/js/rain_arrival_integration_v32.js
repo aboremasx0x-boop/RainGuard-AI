@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.33.0';
+    const SEMANTIC_VERSION = '32.35.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -66746,6 +66746,45 @@ globalObject
         return { installed: true, version: VERSION, build: BUILD };
     }
     globalObject.RainArrivalPhase34IntegrationV32 = { version: VERSION, build: BUILD, install };
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* RainGuard AI V32 — Phase 35 Integration Adapter */
+(function phase35IntegrationAdapter(globalObject) {
+    'use strict';
+    const VERSION = '32.35.0';
+    const BUILD = 'rainguard-v32-phase35-storm-history-continuity-motion-reconstruction-engine';
+    function install() {
+        const v32 = globalObject?.RainGuardAI?.V32;
+        const integration = v32?.rainArrivalIntegration ?? globalObject?.RainArrivalIntegrationV32Instance;
+        if (!integration) return { installed: false, reason: 'INTEGRATION_UNAVAILABLE' };
+        integration.version = VERSION;
+        integration.build = BUILD;
+        integration.metadata = {
+            ...(integration.metadata || {}),
+            semanticVersion: VERSION,
+            phase35: true,
+            currentPhase: '35',
+            currentPart: 'storm-history-continuity-motion-reconstruction',
+            status: 'ready',
+            productionReady: true
+        };
+        integration.phase35 = globalObject.RainArrivalPhase35V32 ?? null;
+        integration.reconstructStormHistoryContinuity = function(options = {}) {
+            return globalObject.RainArrivalPhase35V32?.run(options) ?? Promise.resolve({ success: false, reason: 'PHASE35_UNAVAILABLE' });
+        };
+        integration.getStormHistoryContinuityDiagnostics = function() {
+            return globalObject.RainArrivalPhase35V32?.diagnose() ?? null;
+        };
+        integration.getStormContinuityTrack = function(trackId) {
+            return globalObject.RainArrivalPhase35V32?.getTrack(trackId) ?? null;
+        };
+        integration.__phase35Installed = true;
+        return { installed: true, version: VERSION, build: BUILD };
+    }
+    globalObject.RainArrivalPhase35IntegrationV32 = { version: VERSION, build: BUILD, install };
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
