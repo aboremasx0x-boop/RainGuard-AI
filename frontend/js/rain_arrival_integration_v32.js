@@ -66565,3 +66565,63 @@ globalObject
     globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
     globalObject.RainGuardAI.V32.phase29Integration = globalObject.RainArrivalPhase29IntegrationV32;
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* ==========================================================================\n   PHASE 30 — Integration Metadata and ETA Snapshot Extension\n   Version: 32.30.0\n   ========================================================================== */
+(function phase30IntegrationExtension(globalObject) {
+    'use strict';
+    const VERSION = '32.30.0';
+    const BUILD = 'rainguard-v32-phase30-arrival-eta-execution-engine';
+
+    function getIntegration() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalIntegration ??
+            globalObject.RainArrivalIntegrationV32Instance ?? null;
+    }
+
+    function install() {
+        const integration = getIntegration();
+        if (!integration) return { installed: false, reason: 'INTEGRATION_UNAVAILABLE' };
+        if (integration.__phase30IntegrationInstalled) {
+            integration.version = VERSION;
+            integration.build = BUILD;
+            return { installed: true, reused: true, version: VERSION, build: BUILD };
+        }
+        integration.version = VERSION;
+        integration.build = BUILD;
+        integration.metadata = {
+            ...(integration.metadata && typeof integration.metadata === 'object'
+                ? integration.metadata
+                : {}),
+            phase: '30',
+            currentPart: 'phase30-arrival-eta-execution',
+            status: 'active',
+            productionReady: false
+        };
+        integration.__phase30IntegrationInstalled = true;
+        return { installed: true, version: VERSION, build: BUILD };
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        install,
+        diagnose() {
+            const integration = getIntegration();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(integration?.__phase30IntegrationInstalled),
+                integrationAvailable: Boolean(integration),
+                persistence: typeof integration?.getPersistenceDiagnostics === 'function'
+                    ? integration.getPersistenceDiagnostics()
+                    : null
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase30IntegrationV32 = api;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase30Integration = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
