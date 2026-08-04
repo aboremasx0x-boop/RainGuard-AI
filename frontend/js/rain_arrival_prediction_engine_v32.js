@@ -81141,3 +81141,358 @@ if (
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* ========================================================================== 
+ * RainGuard AI V32 — Phase 34
+ * Storm Motion Validation & Speed Recovery Engine
+ * Version: 32.34.0
+ * ========================================================================== */
+(function installRainArrivalPhase34(globalObject) {
+    'use strict';
+
+    const VERSION = '32.34.0';
+    const BUILD = 'rainguard-v32-phase34-storm-motion-validation-speed-recovery-engine';
+    const EARTH_RADIUS_KM = 6371.0088;
+
+    const state = {
+        installed: false,
+        executionCount: 0,
+        recoveredCount: 0,
+        rejectedCount: 0,
+        lastRecovery: null,
+        lastError: null
+    };
+
+    const finite = value => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    };
+    const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
+    const radians = degrees => degrees * Math.PI / 180;
+    const degrees = radiansValue => radiansValue * 180 / Math.PI;
+    const normalizeBearing = value => ((value % 360) + 360) % 360;
+
+    function getEngine() {
+        return globalObject?.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject?.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function toArray(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        if (value instanceof Map || value instanceof Set) return [...value.values()];
+        if (typeof value === 'object') return Object.values(value);
+        return [];
+    }
+
+    function coordinateOf(value) {
+        if (!value || typeof value !== 'object') return null;
+        const candidates = [
+            value.coordinate, value.coordinates, value.location, value.position,
+            value.centroid, value.center, value.cellCoordinate, value.currentCoordinate,
+            value.latestCoordinate, value.geometry?.coordinates
+        ];
+        candidates.unshift(value);
+        for (const item of candidates) {
+            if (!item) continue;
+            if (Array.isArray(item) && item.length >= 2) {
+                const first = finite(item[0]);
+                const second = finite(item[1]);
+                if (first !== null && second !== null) {
+                    const lat = Math.abs(first) <= 90 ? first : second;
+                    const lon = Math.abs(first) <= 90 ? second : first;
+                    if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) return { lat, lon };
+                }
+            }
+            const lat = finite(item.lat ?? item.latitude ?? item.y);
+            const lon = finite(item.lon ?? item.lng ?? item.longitude ?? item.x);
+            if (lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+                return { lat, lon };
+            }
+        }
+        return null;
+    }
+
+    function timestampOf(value) {
+        if (!value || typeof value !== 'object') return null;
+        const raw = value.timestamp ?? value.timestampMs ?? value.time ?? value.observedAt ??
+            value.updatedAt ?? value.createdAt ?? value.frameTime ?? value.datetime ?? value.date;
+        if (raw === undefined || raw === null) return null;
+        if (typeof raw === 'number') return raw < 1e12 ? raw * 1000 : raw;
+        const parsed = Date.parse(raw);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function identityOf(value) {
+        return String(value?.cellId ?? value?.trackId ?? value?.id ?? value?.candidateId ?? value?.entity?.cellId ?? '').trim();
+    }
+
+    function haversineKm(a, b) {
+        const dLat = radians(b.lat - a.lat);
+        const dLon = radians(b.lon - a.lon);
+        const lat1 = radians(a.lat);
+        const lat2 = radians(b.lat);
+        const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+    }
+
+    function bearingBetween(a, b) {
+        const lat1 = radians(a.lat);
+        const lat2 = radians(b.lat);
+        const dLon = radians(b.lon - a.lon);
+        const y = Math.sin(dLon) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+        return normalizeBearing(degrees(Math.atan2(y, x)));
+    }
+
+    function collectObservations(engine, candidate) {
+        const id = identityOf(candidate);
+        const sources = [
+            candidate?.history, candidate?.positions, candidate?.observations, candidate?.frames,
+            candidate?.trackHistory, candidate?.motionHistory,
+            engine?.cellHistory, engine?.trackingHistory, engine?.motionHistory,
+            engine?._phase15StormTrackingCache, engine?.trackingStates, engine?.cells
+        ];
+        const observations = [];
+        const visit = item => {
+            if (!item || typeof item !== 'object') return;
+            const itemId = identityOf(item);
+            if (id && itemId && itemId !== id) return;
+            const coordinate = coordinateOf(item);
+            const timestamp = timestampOf(item);
+            if (coordinate && timestamp !== null) observations.push({ ...coordinate, timestamp, source: item.source ?? item.type ?? 'runtime' });
+            for (const nested of [item.history, item.positions, item.observations, item.frames, item.samples, item.points]) {
+                for (const entry of toArray(nested)) visit(entry);
+            }
+        };
+        for (const source of sources) {
+            if (source instanceof Map && id && source.has(id)) visit(source.get(id));
+            else for (const item of toArray(source)) visit(item);
+        }
+        const current = coordinateOf(candidate);
+        const currentTime = timestampOf(candidate) ?? Date.now();
+        if (current) observations.push({ ...current, timestamp: currentTime, source: 'candidate' });
+        const unique = new Map();
+        for (const observation of observations) {
+            const key = `${observation.timestamp}:${observation.lat.toFixed(5)}:${observation.lon.toFixed(5)}`;
+            unique.set(key, observation);
+        }
+        return [...unique.values()].sort((a, b) => a.timestamp - b.timestamp);
+    }
+
+    function median(values) {
+        if (!values.length) return null;
+        const sorted = [...values].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function recoverMotion(candidate, engine, options = {}) {
+        const observations = collectObservations(engine, candidate);
+        const segments = [];
+        const minDisplacementKm = finite(options.minDisplacementKm) ?? 0.15;
+        const minElapsedSeconds = finite(options.minElapsedSeconds) ?? 30;
+        const maxElapsedSeconds = finite(options.maxElapsedSeconds) ?? 10800;
+        const maxSpeedKmh = finite(options.maxSpeedKmh) ?? 180;
+
+        for (let index = 1; index < observations.length; index += 1) {
+            const previous = observations[index - 1];
+            const current = observations[index];
+            const elapsedSeconds = (current.timestamp - previous.timestamp) / 1000;
+            if (elapsedSeconds < minElapsedSeconds || elapsedSeconds > maxElapsedSeconds) continue;
+            const distanceKm = haversineKm(previous, current);
+            if (distanceKm < minDisplacementKm) continue;
+            const speedKmh = distanceKm / (elapsedSeconds / 3600);
+            if (!(speedKmh > 0) || speedKmh > maxSpeedKmh) continue;
+            segments.push({
+                from: previous,
+                to: current,
+                elapsedSeconds,
+                distanceKm,
+                speedKmh,
+                bearing: bearingBetween(previous, current)
+            });
+        }
+
+        if (!segments.length) {
+            return {
+                recovered: false,
+                reason: observations.length < 2 ? 'INSUFFICIENT_TIMED_OBSERVATIONS' : 'NO_VALID_MOTION_SEGMENT',
+                observationCount: observations.length,
+                segmentCount: 0
+            };
+        }
+
+        const recent = segments.slice(-5);
+        const speedKmh = median(recent.map(segment => segment.speedKmh));
+        const bearing = recent[recent.length - 1].bearing;
+        const spread = median(recent.map(segment => Math.abs(segment.speedKmh - speedKmh))) ?? 0;
+        const confidence = clamp(35 + recent.length * 10 - Math.min(25, spread * 1.5), 25, 88);
+
+        return {
+            recovered: true,
+            method: recent.length >= 2 ? 'MULTI_FRAME_MEDIAN_DISPLACEMENT' : 'TWO_FRAME_DISPLACEMENT',
+            speedKmh: Number(speedKmh.toFixed(3)),
+            effectiveSpeedKmh: Number(speedKmh.toFixed(3)),
+            bearing: Number(bearing.toFixed(2)),
+            confidence: Number(confidence.toFixed(2)),
+            observationCount: observations.length,
+            segmentCount: segments.length,
+            segments: recent
+        };
+    }
+
+    function publishRecoveredMotion(engine, candidate, recovery) {
+        const id = identityOf(candidate) || `phase34-${Date.now()}`;
+        const motion = {
+            cellId: candidate?.cellId ?? id,
+            trackId: candidate?.trackId ?? id,
+            speedKmh: recovery.speedKmh,
+            effectiveSpeedKmh: recovery.effectiveSpeedKmh,
+            bearing: recovery.bearing,
+            direction: recovery.bearing,
+            confidence: recovery.confidence,
+            source: 'phase34_displacement_recovery',
+            recovered: true,
+            recoveredAt: new Date().toISOString(),
+            phase34: recovery
+        };
+        if (!(engine.motionStates instanceof Map)) engine.motionStates = new Map();
+        if (!(engine.fusedMotionStates instanceof Map)) engine.fusedMotionStates = new Map();
+        engine.motionStates.set(id, motion);
+        engine.fusedMotionStates.set(id, motion);
+        candidate.speedKmh = recovery.speedKmh;
+        candidate.effectiveSpeedKmh = recovery.effectiveSpeedKmh;
+        candidate.motionBearing = recovery.bearing;
+        candidate.bearing = recovery.bearing;
+        candidate.motion = { ...(candidate.motion || {}), ...motion };
+        return motion;
+    }
+
+    function getCandidates(engine) {
+        const diagnostics = globalObject.RainArrivalPhase33V32?.getCandidateDiagnostics?.();
+        const raw = [
+            ...(diagnostics?.candidateDiagnostics ?? []).map(item => item.rawCandidate ?? item.candidate ?? item.entity).filter(Boolean),
+            ...toArray(engine?.cells),
+            ...toArray(engine?.trackingStates),
+            ...toArray(engine?.predictions)
+        ];
+        const byId = new Map();
+        raw.forEach((candidate, index) => byId.set(identityOf(candidate) || `candidate-${index}`, candidate));
+        return [...byId.values()];
+    }
+
+    async function run(options = {}) {
+        const engine = getEngine();
+        state.executionCount += 1;
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        try {
+            const candidates = getCandidates(engine);
+            const results = candidates.map(candidate => {
+                const existingSpeed = finite(candidate?.effectiveSpeedKmh ?? candidate?.speedKmh ?? candidate?.motion?.speedKmh);
+                if (existingSpeed !== null && existingSpeed > 0) {
+                    return { candidateId: identityOf(candidate), recovered: false, retained: true, reason: 'VALID_EXISTING_SPEED', speedKmh: existingSpeed };
+                }
+                const recovery = recoverMotion(candidate, engine, options);
+                if (recovery.recovered) publishRecoveredMotion(engine, candidate, recovery);
+                return { candidateId: identityOf(candidate), ...recovery };
+            });
+            state.recoveredCount = results.filter(item => item.recovered).length;
+            state.rejectedCount = results.filter(item => !item.recovered && !item.retained).length;
+            state.lastRecovery = {
+                version: VERSION,
+                build: BUILD,
+                timestamp: new Date().toISOString(),
+                candidateCount: candidates.length,
+                recoveredCount: state.recoveredCount,
+                retainedCount: results.filter(item => item.retained).length,
+                rejectedCount: state.rejectedCount,
+                results
+            };
+            engine.version = VERSION;
+            engine.build = BUILD;
+            engine.__phase34Installed = true;
+            engine.phase34StormMotionRecovery = state.lastRecovery;
+            engine.latestStormMotionRecovery = state.lastRecovery;
+
+            let downstream = null;
+            if (options.rerunPrediction !== false) {
+                const runner = engine.runCompleteRainArrivalPrediction ?? engine.predictRainArrival;
+                if (typeof runner === 'function') {
+                    try { downstream = await runner.call(engine, options.input ?? {}, options); } catch (_) {}
+                }
+                try { await globalObject.runRainArrivalPhase32?.(options); } catch (_) {}
+                try { await globalObject.runRainArrivalPhase33?.(options); } catch (_) {}
+            }
+            return { success: state.recoveredCount > 0 || results.some(item => item.retained), version: VERSION, build: BUILD, recovery: state.lastRecovery, downstream };
+        } catch (error) {
+            state.lastError = { name: error?.name ?? 'Error', message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE34_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase34Installed = true;
+        engine.validateAndRecoverStormMotion = (candidate, options = {}) => recoverMotion(candidate, engine, options);
+        engine.runPhase34StormMotionRecovery = run;
+        state.installed = true;
+        return { installed: true, version: VERSION, build: BUILD };
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        run,
+        recoverMotion(candidate, options = {}) {
+            const engine = getEngine();
+            return engine ? recoverMotion(candidate, engine, options) : null;
+        },
+        diagnose() {
+            const engine = getEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase34Installed),
+                engineAvailable: Boolean(engine),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                executionCount: state.executionCount,
+                recoveredCount: state.recoveredCount,
+                rejectedCount: state.rejectedCount,
+                lastRecovery: state.lastRecovery,
+                lastError: state.lastError
+            };
+        },
+        printTable() {
+            const rows = (state.lastRecovery?.results ?? []).map(item => ({
+                candidateId: item.candidateId,
+                recovered: item.recovered,
+                retained: item.retained ?? false,
+                reason: item.reason ?? item.method,
+                speedKmh: item.speedKmh ?? null,
+                bearing: item.bearing ?? null,
+                confidence: item.confidence ?? null,
+                observations: item.observationCount ?? null,
+                segments: item.segmentCount ?? null
+            }));
+            globalObject.console?.table?.(rows);
+            return rows;
+        }
+    };
+
+    globalObject.RainArrivalPhase34V32 = api;
+    globalObject.runRainArrivalPhase34 = run;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase34 = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
