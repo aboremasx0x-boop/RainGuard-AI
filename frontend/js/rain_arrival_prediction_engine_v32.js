@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.36.1";
+        "32.37.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase36.1-phase35-trackstore-bridge-repair";
+        "rainguard-v32-phase37-historical-motion-cache-track-replay-engine";
 
     const ENGINE_STAGE =
         "production";
@@ -82529,4 +82529,345 @@ if (
         engine.version = VERSION;
         engine.build = BUILD;
     }
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* ==========================================================================
+ * RainGuard AI V32 — Phase 37
+ * Historical Motion Cache & Track Replay Engine
+ * Version: 32.37.0
+ * ========================================================================== */
+(function installRainArrivalPhase37(globalObject) {
+    'use strict';
+
+    if (!globalObject) return;
+
+    const VERSION = '32.37.0';
+    const BUILD = 'rainguard-v32-phase37-historical-motion-cache-track-replay-engine';
+    const STORAGE_KEY = 'rainguard_ai_v32_phase37_motion_cache';
+
+    const state = {
+        installed: false,
+        executionCount: 0,
+        cache: new Map(),
+        replayResults: [],
+        lastRun: null,
+        lastError: null,
+        restoredFromStorage: false,
+        persistedAt: null
+    };
+
+    const finite = value => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    };
+
+    const toArray = value => {
+        if (Array.isArray(value)) return value;
+        if (value instanceof Map || value instanceof Set) return [...value.values()];
+        if (value && typeof value === 'object') return Object.values(value);
+        return [];
+    };
+
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ??
+            globalObject.rainArrivalPredictionEngineV32 ?? null;
+    }
+
+    function identityOf(value) {
+        return String(value?.trackId ?? value?.cellId ?? value?.id ?? value?.stormCellId ?? '').trim();
+    }
+
+    function coordinateOf(value) {
+        const candidates = [
+            value?.coordinate, value?.center, value?.centroid, value?.location,
+            value?.position, value?.currentCoordinate, value?.latestCoordinate, value
+        ];
+        for (const item of candidates) {
+            const lat = finite(item?.lat ?? item?.latitude ?? item?.y);
+            const lon = finite(item?.lon ?? item?.lng ?? item?.longitude ?? item?.x);
+            if (lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+                return { lat, lon };
+            }
+        }
+        return null;
+    }
+
+    function timestampOf(value, fallback = Date.now()) {
+        const raw = value?.timestamp ?? value?.time ?? value?.observedAt ?? value?.updatedAt ?? value?.createdAt;
+        if (Number.isFinite(Number(raw))) {
+            const n = Number(raw);
+            return n < 1e12 ? n * 1000 : n;
+        }
+        const parsed = Date.parse(raw);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function haversineKm(a, b) {
+        const r = 6371;
+        const rad = d => d * Math.PI / 180;
+        const dLat = rad(b.lat - a.lat);
+        const dLon = rad(b.lon - a.lon);
+        const q = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+        return 2 * r * Math.asin(Math.sqrt(q));
+    }
+
+    function bearingDeg(a, b) {
+        const rad = d => d * Math.PI / 180;
+        const deg = r => r * 180 / Math.PI;
+        const y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
+        const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) -
+            Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lon - a.lon));
+        return (deg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    function normalizeObservation(value, fallbackTrackId = '') {
+        const coordinate = coordinateOf(value);
+        if (!coordinate) return null;
+        return {
+            trackId: identityOf(value) || fallbackTrackId,
+            cellId: String(value?.cellId ?? value?.id ?? fallbackTrackId),
+            coordinate,
+            timestamp: timestampOf(value),
+            intensity: finite(value?.intensity ?? value?.reflectivity ?? value?.dbz ?? value?.score),
+            source: value?.source ?? 'phase37_runtime',
+            rawSpeedKmh: finite(value?.effectiveSpeedKmh ?? value?.speedKmh ?? value?.motion?.speedKmh),
+            rawBearing: finite(value?.bearing ?? value?.motionBearing ?? value?.motion?.bearing)
+        };
+    }
+
+    function ensureEntry(trackId) {
+        let entry = state.cache.get(trackId);
+        if (!entry) {
+            entry = { trackId, observations: [], replayCount: 0, aliases: [], createdAt: Date.now(), updatedAt: Date.now() };
+            state.cache.set(trackId, entry);
+        }
+        return entry;
+    }
+
+    function appendObservation(trackId, observation, options = {}) {
+        if (!trackId || !observation) return false;
+        const entry = ensureEntry(trackId);
+        const last = entry.observations[entry.observations.length - 1];
+        const minGapMs = finite(options.minimumObservationGapMs) ?? 1000;
+        const samePoint = last &&
+            Math.abs(last.coordinate.lat - observation.coordinate.lat) < 1e-7 &&
+            Math.abs(last.coordinate.lon - observation.coordinate.lon) < 1e-7;
+        const tooSoon = last && observation.timestamp - last.timestamp < minGapMs;
+        if (samePoint && tooSoon) return false;
+        entry.observations.push(observation);
+        entry.observations.sort((a, b) => a.timestamp - b.timestamp);
+        const maximumPoints = Math.max(10, finite(options.maximumCachePoints) ?? 60);
+        if (entry.observations.length > maximumPoints) {
+            entry.observations.splice(0, entry.observations.length - maximumPoints);
+        }
+        entry.updatedAt = Date.now();
+        return true;
+    }
+
+    function importPhase35Tracks(engine, options = {}) {
+        const store = globalObject.RainArrivalPhase35V32?.getTrackStore?.() ??
+            engine?.phase35TrackStore ?? engine?.trackStore;
+        if (!(store instanceof Map)) return 0;
+        let count = 0;
+        for (const [key, track] of store.entries()) {
+            const trackId = String(track?.trackId ?? key);
+            const sources = [track?.observations, track?.history, track?.positions, track?.points, track?.frames, track?.trajectory];
+            for (const source of sources) {
+                for (const item of toArray(source)) {
+                    const observation = normalizeObservation(item, trackId);
+                    if (appendObservation(trackId, observation, options)) count += 1;
+                }
+            }
+            const direct = normalizeObservation(track, trackId);
+            if (appendObservation(trackId, direct, options)) count += 1;
+        }
+        return count;
+    }
+
+    function captureRuntime(engine, options = {}) {
+        const entities = []
+            .concat(toArray(engine?.cells))
+            .concat(toArray(engine?.trackingStates))
+            .concat(toArray(engine?.motionStates))
+            .concat(toArray(engine?.fusedMotionStates));
+        let count = 0;
+        for (const entity of entities) {
+            const trackId = identityOf(entity);
+            const observation = normalizeObservation(entity, trackId);
+            if (trackId && appendObservation(trackId, observation, options)) count += 1;
+        }
+        return count;
+    }
+
+    function reconstruct(entry, options = {}) {
+        const points = entry?.observations ?? [];
+        if (points.length < 2) return { reconstructed: false, reason: 'INSUFFICIENT_HISTORICAL_POINTS', pointCount: points.length };
+        const maxAgeMinutes = finite(options.maximumReplayAgeMinutes) ?? 180;
+        const cutoff = Date.now() - maxAgeMinutes * 60000;
+        const recent = points.filter(point => point.timestamp >= cutoff).slice(-12);
+        if (recent.length < 2) return { reconstructed: false, reason: 'HISTORICAL_POINTS_EXPIRED', pointCount: recent.length };
+        const segments = [];
+        for (let i = 1; i < recent.length; i += 1) {
+            const a = recent[i - 1];
+            const b = recent[i];
+            const dtHours = (b.timestamp - a.timestamp) / 3600000;
+            if (!(dtHours > 0)) continue;
+            const distanceKm = haversineKm(a.coordinate, b.coordinate);
+            const speedKmh = distanceKm / dtHours;
+            if (!Number.isFinite(speedKmh) || speedKmh < 0.2 || speedKmh > (finite(options.maximumSpeedKmh) ?? 180)) continue;
+            segments.push({ speedKmh, bearing: bearingDeg(a.coordinate, b.coordinate), distanceKm, dtHours, from: a, to: b });
+        }
+        if (!segments.length) return { reconstructed: false, reason: 'NO_VALID_REPLAY_SEGMENTS', pointCount: recent.length, segmentCount: 0 };
+        const sortedSpeeds = segments.map(s => s.speedKmh).sort((a, b) => a - b);
+        const median = sortedSpeeds[Math.floor(sortedSpeeds.length / 2)];
+        const weighted = segments.reduce((sum, s, index) => sum + s.speedKmh * (index + 1), 0) /
+            segments.reduce((sum, _, index) => sum + index + 1, 0);
+        const speedKmh = Math.max(0.2, Math.min(180, median * 0.55 + weighted * 0.45));
+        const sin = segments.reduce((sum, s) => sum + Math.sin(s.bearing * Math.PI / 180), 0);
+        const cos = segments.reduce((sum, s) => sum + Math.cos(s.bearing * Math.PI / 180), 0);
+        const bearing = (Math.atan2(sin, cos) * 180 / Math.PI + 360) % 360;
+        const confidence = Math.min(0.95, 0.35 + Math.min(0.35, segments.length * 0.07) + Math.min(0.25, recent.length * 0.025));
+        return {
+            reconstructed: true,
+            reason: 'HISTORICAL_TRACK_REPLAY',
+            trackId: entry.trackId,
+            speedKmh: Number(speedKmh.toFixed(3)),
+            effectiveSpeedKmh: Number(speedKmh.toFixed(3)),
+            bearing: Number(bearing.toFixed(2)),
+            confidence: Number(confidence.toFixed(2)),
+            pointCount: recent.length,
+            segmentCount: segments.length,
+            latestCoordinate: recent[recent.length - 1].coordinate,
+            latestTimestamp: recent[recent.length - 1].timestamp,
+            segments
+        };
+    }
+
+    function publish(engine, result) {
+        if (!result?.reconstructed) return null;
+        for (const key of ['trackingStates', 'motionStates', 'fusedMotionStates', 'motionHistory']) {
+            if (!(engine[key] instanceof Map)) engine[key] = new Map();
+        }
+        const motion = {
+            trackId: result.trackId, cellId: result.trackId, coordinate: result.latestCoordinate,
+            speedKmh: result.speedKmh, effectiveSpeedKmh: result.effectiveSpeedKmh,
+            bearing: result.bearing, motionBearing: result.bearing, direction: result.bearing,
+            confidence: result.confidence, reconstructed: true, replayed: true,
+            source: 'phase37_historical_motion_cache_replay', replayedAt: new Date().toISOString(), phase37: result
+        };
+        engine.motionStates.set(result.trackId, motion);
+        engine.fusedMotionStates.set(result.trackId, motion);
+        engine.trackingStates.set(result.trackId, { ...(engine.trackingStates.get(result.trackId) || {}), ...motion });
+        engine.motionHistory.set(result.trackId, [...toArray(engine.motionHistory.get(result.trackId)), motion].slice(-120));
+        return motion;
+    }
+
+    function persist() {
+        try {
+            const serializable = [...state.cache.entries()].map(([key, value]) => [key, value]);
+            globalObject.localStorage?.setItem(STORAGE_KEY, JSON.stringify({ version: VERSION, savedAt: Date.now(), entries: serializable }));
+            state.persistedAt = Date.now();
+            return true;
+        } catch (_) { return false; }
+    }
+
+    function restore() {
+        try {
+            const raw = globalObject.localStorage?.getItem(STORAGE_KEY);
+            if (!raw) return 0;
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed?.entries)) return 0;
+            state.cache = new Map(parsed.entries);
+            state.restoredFromStorage = true;
+            return state.cache.size;
+        } catch (_) { return 0; }
+    }
+
+    async function run(options = {}) {
+        state.executionCount += 1;
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE', version: VERSION, build: BUILD };
+        try {
+            if (!state.restoredFromStorage && options.restore !== false) restore();
+            const importedPoints = importPhase35Tracks(engine, options);
+            const capturedPoints = captureRuntime(engine, options);
+            const results = [];
+            const motions = [];
+            for (const entry of state.cache.values()) {
+                const result = reconstruct(entry, options);
+                results.push(result);
+                if (result.reconstructed) {
+                    entry.replayCount = (entry.replayCount || 0) + 1;
+                    const motion = publish(engine, result);
+                    if (motion) motions.push(motion);
+                }
+            }
+            persist();
+            state.replayResults = results;
+            state.lastRun = {
+                version: VERSION, build: BUILD, timestamp: new Date().toISOString(),
+                cacheTrackCount: state.cache.size, importedPoints, capturedPoints,
+                reconstructedCount: motions.length, rejectedCount: results.length - motions.length, results
+            };
+            engine.version = VERSION;
+            engine.build = BUILD;
+            engine.__phase37Installed = true;
+            engine.phase37HistoricalMotionCache = state.cache;
+            engine.phase37TrackReplay = state.lastRun;
+            engine.latestHistoricalMotionReplay = state.lastRun;
+
+            let phase36Result = null;
+            let phase34Result = null;
+            if (options.rerunDownstream !== false) {
+                try { phase36Result = await globalObject.runRainArrivalPhase36?.({ ...options, rerunDownstream: false }); } catch (_) {}
+                try { phase34Result = await globalObject.runRainArrivalPhase34?.({ ...options, rerunPrediction: false }); } catch (_) {}
+            }
+            return { success: motions.length > 0, version: VERSION, build: BUILD, replay: state.lastRun, phase36Result, phase34Result };
+        } catch (error) {
+            state.lastError = { name: error?.name ?? 'Error', message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE37_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    function diagnose() {
+        const engine = getEngine();
+        return {
+            version: VERSION, build: BUILD, installed: Boolean(engine?.__phase37Installed), engineAvailable: Boolean(engine),
+            cacheTrackCount: state.cache.size, cachedPointCount: [...state.cache.values()].reduce((n, e) => n + (e.observations?.length || 0), 0),
+            reconstructedCount: state.lastRun?.reconstructedCount ?? 0, rejectedCount: state.lastRun?.rejectedCount ?? 0,
+            restoredFromStorage: state.restoredFromStorage, persistedAt: state.persistedAt, lastRun: state.lastRun, lastError: state.lastError
+        };
+    }
+
+    function printTable() {
+        const rows = (state.replayResults || []).map((item, index) => ({
+            index, trackId: item.trackId ?? null, reconstructed: item.reconstructed, reason: item.reason,
+            speedKmh: item.speedKmh ?? null, bearing: item.bearing ?? null, confidence: item.confidence ?? null,
+            points: item.pointCount ?? 0, segments: item.segmentCount ?? 0
+        }));
+        if (globalObject.console?.table) globalObject.console.table(rows);
+        return rows;
+    }
+
+    const api = {
+        version: VERSION, build: BUILD, state, run, diagnose, printTable, restore, persist, reconstruct,
+        getCache: () => state.cache, getTrack: trackId => state.cache.get(trackId) ?? null,
+        clearCache() { state.cache.clear(); try { globalObject.localStorage?.removeItem(STORAGE_KEY); } catch (_) {} return true; }
+    };
+
+    globalObject.RainArrivalPhase37V32 = api;
+    globalObject.runRainArrivalPhase37 = run;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase37 = api;
+
+    const engine = getEngine();
+    if (engine) {
+        engine.__phase37Installed = true;
+        engine.version = VERSION;
+        engine.build = BUILD;
+    }
+    state.installed = true;
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
