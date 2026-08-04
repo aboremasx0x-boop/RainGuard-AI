@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.26.1";
+        "32.26.2";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase26b-storm-runtime-state-recovery";
+        "rainguard-v32-phase26c-tracking-state-publisher-recovery";
 
     const ENGINE_STAGE =
         "production";
@@ -77247,6 +77247,354 @@ if (
     globalObject.RainGuardAI.V32.phase26B = api;
     globalObject.setInterval(() => {
         try { install(); recover(getEngine(), {}); } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+        }
+    }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* ==========================================================================
+ * RainGuard AI V32 — Phase 26C
+ * Tracking State Publisher Recovery
+ * Version: 32.26.2
+ * ========================================================================== */
+(function installRainArrivalPhase26C(globalObject) {
+    'use strict';
+
+    const VERSION = '32.26.2';
+    const BUILD = 'rainguard-v32-phase26c-tracking-state-publisher-recovery';
+    const state = {
+        installed: false,
+        installCount: 0,
+        publishCount: 0,
+        lastPublication: null,
+        lastError: null,
+        lastEngine: null
+    };
+
+    const toArray = value => {
+        if (Array.isArray(value)) return value.filter(Boolean);
+        if (value instanceof Map || value instanceof Set) return [...value.values()].filter(Boolean);
+        if (value && typeof value === 'object') {
+            for (const key of ['activeCells','trackedCells','cells','stormCells','tracks','items','data','results']) {
+                const nested = value[key];
+                if (Array.isArray(nested)) return nested.filter(Boolean);
+                if (nested instanceof Map || nested instanceof Set) return [...nested.values()].filter(Boolean);
+            }
+            return Object.values(value).filter(item => item && typeof item === 'object');
+        }
+        return [];
+    };
+
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function getTracker() {
+        const rg31 = globalObject.RainGuardAI?.V31 ?? globalObject.RG31 ?? {};
+        return rg31.StormCellTrackingEngine ?? rg31.stormCellTrackingEngine ??
+            globalObject.StormCellTrackingEngineV31Instance ??
+            globalObject.stormCellTrackingEngineV31 ??
+            globalObject.StormCellTrackingEngineV31 ?? null;
+    }
+
+    function coord(value) {
+        if (!value || typeof value !== 'object') return null;
+        const candidates = [value, value.coordinate, value.coordinates, value.position,
+            value.currentPosition, value.center, value.centroid, value.location,
+            value.geometry?.coordinates];
+        for (const item of candidates) {
+            if (!item) continue;
+            if (Array.isArray(item) && item.length >= 2) {
+                const longitude = Number(item[0]);
+                const latitude = Number(item[1]);
+                if (Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
+            }
+            const latitude = Number(item.latitude ?? item.lat ?? item.currentLat);
+            const longitude = Number(item.longitude ?? item.lon ?? item.lng ?? item.currentLon ?? item.currentLng);
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
+        }
+        return null;
+    }
+
+    function idOf(value, fallback = null) {
+        return value?.trackId ?? value?.cellId ?? value?.stormCellId ?? value?.id ?? value?.uuid ?? fallback;
+    }
+
+    function timeOf(value) {
+        const raw = value?.timestamp ?? value?.time ?? value?.observedAt ?? value?.updatedAt ?? value?.createdAt ?? null;
+        if (raw === null || raw === undefined) return null;
+        if (typeof raw === 'number') return raw < 1e12 ? raw * 1000 : raw;
+        const parsed = Date.parse(raw);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function historyOf(value) {
+        if (!value || typeof value !== 'object') return [];
+        for (const key of ['history','trackHistory','trackingHistory','positions','observations','samples','points','track']) {
+            if (Array.isArray(value[key])) return value[key].filter(Boolean);
+        }
+        return [];
+    }
+
+    function collectTrackerRecords() {
+        const tracker = getTracker();
+        const rg31 = globalObject.RainGuardAI?.V31 ?? globalObject.RG31 ?? {};
+        const sources = [
+            rg31.activeStormCells, rg31.trackedCells, rg31.latestTrackingReport,
+            tracker?.activeCells, tracker?.trackedCells, tracker?.latestTrackingReport,
+            tracker?.state?.activeCells, tracker?.state?.trackedCells,
+            tracker?.runtimeState?.activeCells, tracker?.runtimeState?.trackedCells
+        ];
+        if (tracker && typeof tracker.getActiveCells === 'function') {
+            try { sources.push(tracker.getActiveCells()); } catch (_) {}
+        }
+        if (tracker && typeof tracker.getTrackedCells === 'function') {
+            try { sources.push(tracker.getTrackedCells()); } catch (_) {}
+        }
+        const map = new Map();
+        for (const source of sources) {
+            for (const raw of toArray(source)) {
+                const item = raw?.cell ?? raw?.track ?? raw?.trackedCell ?? raw;
+                const id = idOf(item, idOf(raw));
+                if (id === null || id === undefined) continue;
+                const key = String(id);
+                const current = map.get(key);
+                const candidateHistory = historyOf(raw).length ? historyOf(raw) : historyOf(item);
+                const score = (coord(item) ? 4 : 0) + candidateHistory.length + (timeOf(raw) ? 1 : 0);
+                const currentScore = current ? ((coord(current) ? 4 : 0) + historyOf(current).length + (timeOf(current) ? 1 : 0)) : -1;
+                if (!current || score >= currentScore) map.set(key, raw);
+            }
+        }
+        return map;
+    }
+
+    function previousHistory(engine, id) {
+        const candidates = [
+            engine?.trackingHistory?.get?.(String(id)),
+            engine?.cellHistory?.get?.(String(id)),
+            engine?._phase15StormTrackingCache?.history?.[String(id)]
+        ];
+        for (const value of candidates) {
+            const array = toArray(value);
+            if (array.length) return array;
+        }
+        return [];
+    }
+
+    function normalizeTrackingRecord(engine, cell, trackerRecord, index) {
+        const id = idOf(trackerRecord, idOf(cell, `track_${index}`));
+        const key = String(id);
+        const rawCell = trackerRecord?.cell ?? trackerRecord?.trackedCell ?? trackerRecord?.currentCell ?? cell;
+        const currentCoordinate = coord(rawCell) ?? coord(cell) ?? coord(trackerRecord);
+        const rawHistory = historyOf(trackerRecord).length
+            ? historyOf(trackerRecord)
+            : (historyOf(rawCell).length ? historyOf(rawCell) : previousHistory(engine, key));
+        const normalizedHistory = rawHistory
+            .map(point => ({
+                ...(point && typeof point === 'object' ? point : {}),
+                coordinate: coord(point),
+                timestamp: timeOf(point)
+            }))
+            .filter(point => point.coordinate)
+            .slice(-120);
+        if (currentCoordinate) {
+            const last = normalizedHistory[normalizedHistory.length - 1];
+            const same = last && Math.abs(last.coordinate.latitude - currentCoordinate.latitude) < 1e-7 &&
+                Math.abs(last.coordinate.longitude - currentCoordinate.longitude) < 1e-7;
+            if (!same) normalizedHistory.push({ coordinate: currentCoordinate, timestamp: Date.now(), source: 'phase26c_current' });
+        }
+        const confidence = Math.max(0, Math.min(100, Number(
+            trackerRecord?.confidence ?? trackerRecord?.trackConfidence ?? rawCell?.confidence ?? 55
+        ) || 0));
+        return {
+            ...(trackerRecord && typeof trackerRecord === 'object' ? trackerRecord : {}),
+            id: key,
+            trackId: trackerRecord?.trackId ?? rawCell?.trackId ?? key,
+            cellId: trackerRecord?.cellId ?? rawCell?.cellId ?? rawCell?.id ?? key,
+            stormCellId: trackerRecord?.stormCellId ?? rawCell?.stormCellId ?? key,
+            cell: rawCell,
+            currentCell: rawCell,
+            coordinate: currentCoordinate,
+            currentPosition: currentCoordinate,
+            history: normalizedHistory,
+            trackHistory: normalizedHistory,
+            trackingHistory: normalizedHistory,
+            confidence,
+            trackConfidence: confidence,
+            active: trackerRecord?.active !== false,
+            status: trackerRecord?.status ?? 'active',
+            source: trackerRecord ? 'v31_storm_tracker' : 'phase26c_recovered_from_cell',
+            synthetic: !trackerRecord,
+            publishedAt: Date.now(),
+            publishedAtIso: new Date().toISOString()
+        };
+    }
+
+    function publish(engine, input = {}) {
+        if (!engine) return { available: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (!(engine.cells instanceof Map)) engine.cells = new Map();
+        if (!(engine.trackingStates instanceof Map)) engine.trackingStates = new Map();
+        if (!(engine.trackingHistory instanceof Map)) engine.trackingHistory = new Map();
+
+        if (globalObject.RainArrivalPhase26BV32?.recover) {
+            try { globalObject.RainArrivalPhase26BV32.recover(input); } catch (_) {}
+        }
+
+        const trackerRecords = collectTrackerRecords();
+        const cells = [...engine.cells.values()];
+        let realPublished = 0;
+        let recoveredPublished = 0;
+        const published = [];
+
+        cells.forEach((cell, index) => {
+            const id = String(idOf(cell, `cell_${index}`));
+            const record = trackerRecords.get(id) ??
+                [...trackerRecords.values()].find(item => String(idOf(item?.cell ?? item)) === id) ?? null;
+            const normalized = normalizeTrackingRecord(engine, cell, record, index);
+            engine.trackingStates.set(id, normalized);
+            engine.trackingHistory.set(id, normalized.history);
+            published.push(normalized);
+            if (record) realPublished += 1; else recoveredPublished += 1;
+        });
+
+        for (const [id, record] of trackerRecords.entries()) {
+            if (engine.trackingStates.has(id)) continue;
+            const cell = record?.cell ?? record?.trackedCell ?? record?.currentCell ?? record;
+            if (coord(cell)) engine.cells.set(id, cell);
+            const normalized = normalizeTrackingRecord(engine, cell, record, published.length);
+            engine.trackingStates.set(id, normalized);
+            engine.trackingHistory.set(id, normalized.history);
+            published.push(normalized);
+            realPublished += 1;
+        }
+
+        engine._phase15StormTrackingCache = {
+            ...(engine._phase15StormTrackingCache ?? {}),
+            cells: [...engine.cells.values()],
+            trackedCells: published,
+            trackingStates: published,
+            updatedAt: Date.now()
+        };
+
+        const publication = {
+            phase: '26C', version: VERSION, build: BUILD,
+            available: published.length > 0,
+            trackerAvailable: Boolean(getTracker()),
+            trackerRecordCount: trackerRecords.size,
+            cellsSize: engine.cells.size,
+            trackingStatesSize: engine.trackingStates.size,
+            realPublished,
+            recoveredPublished,
+            syntheticFallbackUsed: recoveredPublished > 0,
+            records: published,
+            generatedAt: new Date().toISOString()
+        };
+        engine.phase26CTrackingStatePublication = publication;
+        state.lastPublication = publication;
+        state.publishCount += 1;
+        return publication;
+    }
+
+    function attachToResult(engine, result, publication) {
+        const wrapper = result && typeof result === 'object' ? result : {};
+        const prediction = wrapper.prediction && typeof wrapper.prediction === 'object' ? wrapper.prediction : wrapper;
+        prediction.phase26CTrackingStatePublication = publication;
+        wrapper.phase26CTrackingStatePublication = publication;
+        return wrapper;
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase26CInstalled) {
+            publish(engine, {});
+            state.installed = true;
+            state.lastEngine = engine;
+            return { installed: true, reused: true, publication: state.lastPublication };
+        }
+        const runner = ['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict']
+            .find(name => typeof engine[name] === 'function');
+        if (runner) {
+            const original = engine[runner].bind(engine);
+            engine[runner] = async function phase26CTrackingPublisherRun(input = {}, options = {}) {
+                const publication = publish(this, input);
+                if (globalObject.RainArrivalPhase26BV32?.recover) {
+                    try { globalObject.RainArrivalPhase26BV32.recover(input); } catch (_) {}
+                }
+                const result = await original(input, options);
+                return attachToResult(this, result, publication);
+            };
+        }
+        if (typeof engine.runCompleteRainArrivalPredictionSync === 'function') {
+            const originalSync = engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync = function phase26CTrackingPublisherSync(input = {}, options = {}) {
+                const publication = publish(this, input);
+                if (globalObject.RainArrivalPhase26BV32?.recover) {
+                    try { globalObject.RainArrivalPhase26BV32.recover(input); } catch (_) {}
+                }
+                return attachToResult(this, originalSync(input, options), publication);
+            };
+        }
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase26CInstalled = true;
+        publish(engine, {});
+        state.installed = true;
+        state.installCount += 1;
+        state.lastEngine = engine;
+        return { installed: true, version: VERSION, build: BUILD, wrappedMethod: runner, publication: state.lastPublication };
+    }
+
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        const publication = publish(engine, options);
+        if (globalObject.RainArrivalPhase26BV32?.recover) {
+            try { globalObject.RainArrivalPhase26BV32.recover(options); } catch (_) {}
+        }
+        const runner = ['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict']
+            .find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE', publication };
+        try {
+            const result = await engine[runner](options, options);
+            return { success: true, version: VERSION, build: BUILD, runner, publication: state.lastPublication, result };
+        } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE26C_EXECUTION_FAILED', error: state.lastError, publication };
+        }
+    }
+
+    const api = {
+        version: VERSION, build: BUILD, state, install,
+        publish(input = {}) { return publish(getEngine(), input); },
+        run: runNow,
+        diagnose() {
+            const engine = getEngine();
+            return {
+                version: VERSION, build: BUILD,
+                installed: Boolean(engine?.__phase26CInstalled),
+                engineAvailable: Boolean(engine),
+                trackerAvailable: Boolean(getTracker()),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                lastPublication: state.lastPublication,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase26CV32 = api;
+    globalObject.runRainArrivalPhase26C = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase26C = api;
+    globalObject.setInterval(() => {
+        try { install(); publish(getEngine(), {}); } catch (error) {
             state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
         }
     }, 2000);
