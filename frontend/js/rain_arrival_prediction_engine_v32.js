@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.26.2";
+        "32.26.3";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase26c-tracking-state-publisher-recovery";
+        "rainguard-v32-phase26d-eta-decision-engine-recovery";
 
     const ENGINE_STAGE =
         "production";
@@ -77598,5 +77598,309 @@ if (
             state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
         }
     }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* ==========================================================================\n * PHASE 26D — ETA Decision Engine Recovery\n * Version: 32.26.3\n * ========================================================================== */
+(function phase26DEtaDecisionEngineRecovery(globalObject) {
+    'use strict';
+
+    const VERSION = '32.26.3';
+    const BUILD = 'rainguard-v32-phase26d-eta-decision-engine-recovery';
+    const state = {
+        installed: false,
+        installCount: 0,
+        decisionCount: 0,
+        recoveredCount: 0,
+        retainedRejectCount: 0,
+        lastDecision: null,
+        lastError: null,
+        lastEngine: null
+    };
+
+    const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
+    const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, Number(value) || 0));
+
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function valuesOf(value) {
+        if (value instanceof Map) return [...value.values()];
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === 'object') return Object.values(value);
+        return [];
+    }
+
+    function motionSpeed(record) {
+        if (!record || typeof record !== 'object') return null;
+        const candidates = [
+            record.effectiveSpeedKmh, record.speedKmh, record.motionSpeedKmh,
+            record.velocityKmh, record.speed, record.motion?.speedKmh,
+            record.fusedSpeedKmh, record.estimatedSpeedKmh
+        ];
+        for (const candidate of candidates) {
+            const number = finite(candidate);
+            if (number !== null && number > 0 && number <= 250) return number;
+        }
+        return null;
+    }
+
+    function resolveRuntimeSpeed(engine, rejectedEstimate, options = {}) {
+        const direct = [
+            rejectedEstimate?.validation?.speedIntegration?.selectedUnclampedSpeedKmh,
+            rejectedEstimate?.validation?.speedIntegration?.selectedSpeedKmh,
+            rejectedEstimate?.speedKmh,
+            rejectedEstimate?.rawSpeedKmh,
+            options.motionSpeedKmh,
+            options.speedKmh
+        ].map(finite).filter(value => value !== null && value > 0 && value <= 250);
+
+        const runtime = [
+            ...valuesOf(engine?.fusedMotionStates),
+            ...valuesOf(engine?.motionStates)
+        ].map(motionSpeed).filter(value => value !== null);
+
+        const all = [...direct, ...runtime].sort((a, b) => a - b);
+        if (!all.length) return { speedKmh: null, source: 'unavailable', sampleCount: 0 };
+        const middle = Math.floor(all.length / 2);
+        const median = all.length % 2 ? all[middle] : (all[middle - 1] + all[middle]) / 2;
+        return {
+            speedKmh: median,
+            source: runtime.length ? 'runtime_motion_median' : 'rejected_estimate_speed',
+            sampleCount: all.length,
+            samples: all
+        };
+    }
+
+    function buildDecision(engine, rejectedEstimate, options = {}) {
+        const reason = rejectedEstimate?.validation?.reason ?? rejectedEstimate?.reason ?? null;
+        const distanceKm = finite(rejectedEstimate?.distanceKm);
+        const alignment = finite(rejectedEstimate?.directionAlignment);
+        const bearingDifference = finite(rejectedEstimate?.bearingDifference);
+        const approaching = rejectedEstimate?.approachingTarget !== false;
+        const speedResolution = resolveRuntimeSpeed(engine, rejectedEstimate, options);
+        const speedKmh = speedResolution.speedKmh;
+        const maximumMinutes = Math.max(1, finite(options.maximumRadarArrivalMinutes ?? options.maximumArrivalMinutes) ?? 1440);
+        const minimumSoftSpeed = Math.max(0.5, finite(options.phase26DMinimumSoftSpeedKmh) ?? 1);
+        const maximumSoftBearingDifference = Math.max(30, finite(options.phase26DMaximumSoftBearingDifference) ?? 90);
+        const directionAllowed = approaching || (bearingDifference !== null && bearingDifference <= maximumSoftBearingDifference);
+
+        const physicallyUsable = distanceKm !== null && distanceKm >= 0 && speedKmh !== null &&
+            speedKmh >= minimumSoftSpeed && directionAllowed;
+        const arrivalMinutes = physicallyUsable ? (distanceKm / speedKmh) * 60 : null;
+        const insideHorizon = arrivalMinutes !== null && arrivalMinutes >= 0 && arrivalMinutes <= maximumMinutes;
+
+        const speedScore = speedKmh === null ? 0 : clamp((speedKmh / 20) * 100, 10, 100);
+        const directionScore = alignment !== null ? clamp(alignment * 100, 5, 100) :
+            (bearingDifference !== null ? clamp(100 - bearingDifference, 5, 100) : 25);
+        const distanceScore = distanceKm === null ? 0 : clamp(100 - (distanceKm / 300) * 100, 5, 100);
+        const trackingScore = clamp(
+            finite(rejectedEstimate?.confidence) ??
+            finite(engine?.phase26CTrackingStatePublication?.records?.[0]?.confidence) ?? 45,
+            0, 100
+        );
+        let confidence = clamp(
+            speedScore * 0.25 + directionScore * 0.35 + distanceScore * 0.20 + trackingScore * 0.20,
+            0, 100
+        );
+        if (reason === 'RADAR_EFFECTIVE_SPEED_TOO_LOW') confidence *= 0.72;
+        if (!approaching) confidence *= 0.55;
+        confidence = Math.round(clamp(confidence, 0, 100) * 100) / 100;
+
+        const recovered = reason === 'RADAR_EFFECTIVE_SPEED_TOO_LOW' && physicallyUsable && insideHorizon;
+        return {
+            phase: '26D', version: VERSION, build: BUILD,
+            recovered,
+            accepted: recovered,
+            originalReason: reason,
+            decisionReason: recovered ? 'LOW_SPEED_ETA_ACCEPTED_WITH_CONFIDENCE_PENALTY' :
+                (!physicallyUsable ? 'ETA_PHYSICALLY_UNUSABLE' :
+                    (!insideHorizon ? 'ETA_OUTSIDE_FORECAST_HORIZON' : 'ORIGINAL_REJECTION_RETAINED')),
+            distanceKm,
+            speedKmh,
+            speedSource: speedResolution.source,
+            speedSamples: speedResolution.samples ?? [],
+            directionAlignment: alignment,
+            bearingDifference,
+            approachingTarget: approaching,
+            arrivalMinutes: insideHorizon ? Math.max(0, arrivalMinutes) : null,
+            confidence,
+            uncertaintyMinutes: insideHorizon ? Math.max(8, arrivalMinutes * (1 - confidence / 100)) : null,
+            maximumArrivalMinutes: maximumMinutes,
+            hardRejectRetained: !recovered,
+            generatedAt: new Date().toISOString()
+        };
+    }
+
+    function recoverEstimate(engine, estimate, options = {}) {
+        if (!estimate || typeof estimate !== 'object' || estimate.available === true) return estimate;
+        const decision = buildDecision(engine, estimate, options);
+        state.decisionCount += 1;
+        state.lastDecision = decision;
+        engine.phase26DEtaDecision = decision;
+        if (!decision.recovered) {
+            state.retainedRejectCount += 1;
+            return { ...estimate, phase26DEtaDecision: decision };
+        }
+        state.recoveredCount += 1;
+        const etaTimestamp = Date.now() + decision.arrivalMinutes * 60000;
+        return {
+            ...estimate,
+            available: true,
+            valid: true,
+            success: true,
+            status: 'LOW_CONFIDENCE_RAIN_ARRIVAL_AVAILABLE',
+            reason: decision.decisionReason,
+            arrivalMinutes: decision.arrivalMinutes,
+            eta: new Date(etaTimestamp).toISOString(),
+            arrivalTime: new Date(etaTimestamp).toISOString(),
+            confidence: decision.confidence,
+            uncertaintyMinutes: decision.uncertaintyMinutes,
+            speedKmh: decision.speedKmh,
+            effectiveSpeedKmh: decision.speedKmh,
+            phase26DEtaDecision: decision,
+            validation: {
+                ...(estimate.validation ?? {}),
+                valid: true,
+                acceptedByPhase26D: true,
+                originalReason: decision.originalReason,
+                reason: decision.decisionReason
+            }
+        };
+    }
+
+    function attachDecisionToResult(engine, result) {
+        if (!result || typeof result !== 'object') return result;
+        const prediction = result.prediction && typeof result.prediction === 'object' ? result.prediction : result;
+        const decision = engine.phase26DEtaDecision ?? state.lastDecision;
+        if (!decision) return result;
+        prediction.phase26DEtaDecision = decision;
+        result.phase26DEtaDecision = decision;
+        if (decision.recovered && !Number.isFinite(Number(prediction.arrivalMinutes))) {
+            const eta = new Date(Date.now() + decision.arrivalMinutes * 60000).toISOString();
+            prediction.available = true;
+            prediction.success = true;
+            prediction.partial = decision.confidence < 60;
+            prediction.status = decision.confidence >= 60 ? 'RAIN_ARRIVAL_AVAILABLE' : 'LOW_CONFIDENCE_RAIN_ARRIVAL_AVAILABLE';
+            prediction.reason = decision.decisionReason;
+            prediction.arrivalMinutes = decision.arrivalMinutes;
+            prediction.eta = eta;
+            prediction.arrivalTime = eta;
+            prediction.confidence = decision.confidence;
+            prediction.uncertaintyMinutes = decision.uncertaintyMinutes;
+            engine.currentPrediction = prediction;
+            engine.lastPredictionResult = result;
+            engine.lastArrivalResult = result;
+            engine.lastResult = result;
+            engine.latestPrediction = prediction;
+            if (globalObject.RainGuardAI?.V32) globalObject.RainGuardAI.V32.latestPrediction = prediction;
+        }
+        return result;
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase26DInstalled) {
+            state.installed = true;
+            state.lastEngine = engine;
+            return { installed: true, reused: true, version: VERSION, build: BUILD };
+        }
+
+        if (typeof engine.estimateRadarRainArrival === 'function') {
+            const originalEstimate = engine.estimateRadarRainArrival.bind(engine);
+            engine.estimateRadarRainArrival = function phase26DEstimateRadarRainArrival(radarSource = {}, targetCoordinate = null, options = {}) {
+                const value = originalEstimate(radarSource, targetCoordinate, options);
+                if (value && typeof value.then === 'function') {
+                    return value.then(result => recoverEstimate(this, result, options));
+                }
+                return recoverEstimate(this, value, options);
+            };
+        }
+
+        for (const name of ['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict']) {
+            if (typeof engine[name] !== 'function') continue;
+            const original = engine[name].bind(engine);
+            engine[name] = async function phase26DRun(input = {}, options = {}) {
+                const result = await original(input, options);
+                return attachDecisionToResult(this, result);
+            };
+            break;
+        }
+
+        if (typeof engine.runCompleteRainArrivalPredictionSync === 'function') {
+            const originalSync = engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync = function phase26DRunSync(input = {}, options = {}) {
+                return attachDecisionToResult(this, originalSync(input, options));
+            };
+        }
+
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase26DInstalled = true;
+        state.installed = true;
+        state.installCount += 1;
+        state.lastEngine = engine;
+        return { installed: true, version: VERSION, build: BUILD };
+    }
+
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (globalObject.RainArrivalPhase26CV32?.publish) {
+            try { globalObject.RainArrivalPhase26CV32.publish(options); } catch (_) {}
+        }
+        if (globalObject.RainArrivalPhase26BV32?.recover) {
+            try { globalObject.RainArrivalPhase26BV32.recover(options); } catch (_) {}
+        }
+        const runner = ['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict']
+            .find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE' };
+        try {
+            const result = await engine[runner](options, options);
+            return { success: true, version: VERSION, build: BUILD, runner, decision: state.lastDecision, result };
+        } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE26D_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        run: runNow,
+        recoverEstimate(estimate, options = {}) { return recoverEstimate(getEngine(), estimate, options); },
+        diagnose() {
+            const engine = getEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase26DInstalled),
+                engineAvailable: Boolean(engine),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                decisionCount: state.decisionCount,
+                recoveredCount: state.recoveredCount,
+                retainedRejectCount: state.retainedRejectCount,
+                lastDecision: state.lastDecision,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase26DV32 = api;
+    globalObject.runRainArrivalPhase26D = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase26D = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
