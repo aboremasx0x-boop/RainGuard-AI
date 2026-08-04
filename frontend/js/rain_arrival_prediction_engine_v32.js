@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.36.0";
+        "32.36.1";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase36-motion-reconstruction-from-historical-track-engine";
+        "rainguard-v32-phase36.1-phase35-trackstore-bridge-repair";
 
     const ENGINE_STAGE =
         "production";
@@ -81938,8 +81938,20 @@ if (
             engine.__phase35Installed = true;
             engine.phase35StormHistoryContinuity = state.lastRun;
             engine.latestStormHistoryContinuity = state.lastRun;
+
+            /* Phase 35 -> Phase 36 shared TrackStore bridge. */
             engine.phase35TrackStore = state.trackStore;
+            engine.trackStore = state.trackStore;
             engine.phase35AliasMap = state.aliasMap;
+            engine.trackAliasMap = state.aliasMap;
+            engine.latestPhase35Result = {
+                ...(engine.latestPhase35Result || {}),
+                ...state.lastRun,
+                trackStore: state.trackStore,
+                aliasMap: state.aliasMap,
+                executionCount: state.executionCount,
+                reconstructedCount: state.reconstructedCount
+            };
 
             let phase34Result = null;
             let downstream = null;
@@ -81971,6 +81983,13 @@ if (
         const engine = getEngine();
         if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
         ensureHistoryContainers(engine);
+
+        /* Keep one canonical store reference across Phase 35 and Phase 36. */
+        engine.phase35TrackStore = state.trackStore;
+        engine.trackStore = state.trackStore;
+        engine.phase35AliasMap = state.aliasMap;
+        engine.trackAliasMap = state.aliasMap;
+
         engine.version = VERSION;
         engine.build = BUILD;
         engine.__phase35Installed = true;
@@ -82047,15 +82066,15 @@ if (
 /* ========================================================================== 
  * RainGuard AI V32 — Phase 36
  * Motion Reconstruction From Historical Track Engine
- * Version: 32.36.0
+ * Version: 32.36.1
  * ========================================================================== */
 (function installRainArrivalPhase36(globalObject) {
     'use strict';
 
     if (!globalObject) return;
 
-    const VERSION = '32.36.0';
-    const BUILD = 'rainguard-v32-phase36-motion-reconstruction-from-historical-track-engine';
+    const VERSION = '32.36.1';
+    const BUILD = 'rainguard-v32-phase36.1-phase35-trackstore-bridge-repair';
     const EARTH_RADIUS_KM = 6371.0088;
 
     const state = {
@@ -82065,7 +82084,10 @@ if (
         publicationCount: 0,
         lastRun: null,
         lastError: null,
-        diagnostics: []
+        diagnostics: [],
+        trackStore: null,
+        trackStoreSource: null,
+        trackStoreShared: false
     };
 
     const finite = value => {
@@ -82331,10 +82353,48 @@ if (
         return motion;
     }
 
+    function resolveSharedTrackStore(engine) {
+        const phase35Api = globalObject.RainArrivalPhase35V32 ??
+            globalObject.RainGuardAI?.V32?.phase35 ?? null;
+
+        const candidates = [
+            { source: 'phase35_api_getTrackStore', value: phase35Api?.getTrackStore?.() },
+            { source: 'engine_phase35TrackStore', value: engine?.phase35TrackStore },
+            { source: 'engine_latestPhase35Result', value: engine?.latestPhase35Result?.trackStore },
+            { source: 'engine_trackStore', value: engine?.trackStore },
+            { source: 'phase35_state_trackStore', value: phase35Api?.state?.trackStore }
+        ];
+
+        let selected = candidates.find(item => item.value instanceof Map && item.value.size > 0) ??
+            candidates.find(item => item.value instanceof Map) ?? null;
+
+        if (!selected) {
+            selected = { source: 'phase36_empty_fallback', value: new Map() };
+        }
+
+        const trackStore = selected.value;
+        state.trackStore = trackStore;
+        state.trackStoreSource = selected.source;
+
+        if (engine) {
+            engine.phase35TrackStore = trackStore;
+            engine.trackStore = trackStore;
+            engine.phase36TrackStore = trackStore;
+        }
+
+        const phase35Store = phase35Api?.getTrackStore?.();
+        state.trackStoreShared = Boolean(
+            trackStore instanceof Map &&
+            phase35Store instanceof Map &&
+            trackStore === phase35Store &&
+            (!engine || (engine.phase35TrackStore === trackStore && engine.phase36TrackStore === trackStore))
+        );
+
+        return trackStore;
+    }
+
     function collectTracks(engine) {
-        const phase35Store = globalObject.RainArrivalPhase35V32?.getTrackStore?.() ?? engine?.phase35TrackStore;
-        if (phase35Store instanceof Map) return [...phase35Store.values()];
-        return toArray(phase35Store);
+        return [...resolveSharedTrackStore(engine).values()];
     }
 
     async function run(options = {}) {
@@ -82359,6 +82419,8 @@ if (
                 build: BUILD,
                 timestamp: new Date().toISOString(),
                 trackCount: tracks.length,
+                trackStoreSource: state.trackStoreSource,
+                trackStoreShared: state.trackStoreShared,
                 reconstructedCount: reconstructed.length,
                 rejectedCount: results.length - reconstructed.length,
                 results
@@ -82369,6 +82431,7 @@ if (
             engine.__phase36Installed = true;
             engine.phase36HistoricalTrackMotion = state.lastRun;
             engine.latestHistoricalMotionReconstruction = state.lastRun;
+            engine.phase36TrackStore = state.trackStore;
 
             let phase34Result = null;
             let downstream = null;
@@ -82403,6 +82466,16 @@ if (
             installed: true,
             engineAvailable: Boolean(engine),
             trackCount: collectTracks(engine).length,
+            trackStoreSource: state.trackStoreSource,
+            trackStoreShared: state.trackStoreShared,
+            sameReference: Boolean(
+                state.trackStore instanceof Map &&
+                state.trackStore === globalObject.RainArrivalPhase35V32?.getTrackStore?.() &&
+                state.trackStore === engine?.phase35TrackStore &&
+                state.trackStore === engine?.phase36TrackStore
+            ),
+            phase35Available: Boolean(globalObject.RainArrivalPhase35V32),
+            engineTrackStoreAvailable: engine?.trackStore instanceof Map,
             reconstructedCount: state.lastRun?.reconstructedCount ?? 0,
             motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
             fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
@@ -82437,6 +82510,8 @@ if (
         diagnose,
         printTable,
         reconstructTrack,
+        resolveSharedTrackStore: () => resolveSharedTrackStore(getEngine()),
+        getTrackStore: () => resolveSharedTrackStore(getEngine()),
         getDiagnostics: () => state.diagnostics,
         getLastRun: () => state.lastRun
     };
@@ -82449,6 +82524,7 @@ if (
 
     const engine = getEngine();
     if (engine) {
+        resolveSharedTrackStore(engine);
         engine.__phase36Installed = true;
         engine.version = VERSION;
         engine.build = BUILD;
