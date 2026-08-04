@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.26.1';
+    const SEMANTIC_VERSION = '32.26.2';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -65905,5 +65905,18 @@ globalObject
                 runtimeRecoveryAvailable: Boolean(globalObject.RainArrivalPhase26BV32)
             };
         }
+    };
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* Phase 26C integration compatibility metadata. */
+(function publishPhase26CIntegrationMetadata(globalObject) {
+    'use strict';
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase26CIntegration = {
+        version: '32.26.2',
+        build: 'rainguard-v32-phase26c-tracking-state-publisher-recovery',
+        get engine() { return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ?? null; },
+        diagnose() { return globalObject.RainArrivalPhase26CV32?.diagnose?.() ?? { available: false }; }
     };
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
