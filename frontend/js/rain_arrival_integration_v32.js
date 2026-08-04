@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.27.0';
+    const SEMANTIC_VERSION = '32.28.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -65979,4 +65979,34 @@ globalObject
     globalObject.RainGuardAI = globalObject.RainGuardAI || {};
     globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
     globalObject.RainGuardAI.V32.phase27Integration = globalObject.RainArrivalPhase27IntegrationV32;
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* Phase 28 Integration Bridge — Final Arrival Validation Engine */
+(function phase28IntegrationBridge(globalObject) {
+    'use strict';
+    const VERSION = '32.28.0';
+    const BUILD = 'rainguard-v32-phase28-final-arrival-validation-engine';
+    globalObject.runRainArrivalPhase28Integration = async function(options = {}) {
+        if (typeof globalObject.runRainArrivalPhase28 === 'function') {
+            return globalObject.runRainArrivalPhase28(options);
+        }
+        return { success: false, version: VERSION, build: BUILD, reason: 'PHASE28_ENGINE_API_UNAVAILABLE' };
+    };
+    globalObject.RainArrivalPhase28IntegrationV32 = {
+        version: VERSION,
+        build: BUILD,
+        diagnose() {
+            return {
+                version: VERSION,
+                build: BUILD,
+                engineApiAvailable: typeof globalObject.runRainArrivalPhase28 === 'function',
+                integrationAvailable: Boolean(globalObject.RainGuardAI?.V32?.rainArrivalIntegration),
+                finalValidationAvailable: Boolean(globalObject.RainArrivalPhase28V32),
+                validation: globalObject.RainArrivalPhase28V32?.diagnose?.()?.lastValidation ?? null
+            };
+        }
+    };
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase28Integration = globalObject.RainArrivalPhase28IntegrationV32;
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
