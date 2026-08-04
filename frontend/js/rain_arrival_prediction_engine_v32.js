@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.28.0";
+        "32.29.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase28-final-arrival-validation-engine";
+        "rainguard-v32-phase29-arrival-evidence-builder-engine";
 
     const ENGINE_STAGE =
         "production";
@@ -78585,6 +78585,486 @@ if (
     globalObject.RainGuardAI = globalObject.RainGuardAI || {};
     globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
     globalObject.RainGuardAI.V32.phase28 = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* ==========================================================================
+   PHASE 29 — Arrival Evidence Builder Engine
+   Version: 32.29.0
+   ========================================================================== */
+(function phase29ArrivalEvidenceBuilderEngine(globalObject) {
+    'use strict';
+
+    const VERSION = '32.29.0';
+    const BUILD = 'rainguard-v32-phase29-arrival-evidence-builder-engine';
+    const state = {
+        installed: false,
+        installCount: 0,
+        buildCount: 0,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        lastBuild: null,
+        lastError: null
+    };
+
+    const finite = value => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    };
+    const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, Number(value) || 0));
+    const valuesOf = value => {
+        if (value instanceof Map) return [...value.values()];
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === 'object') return Object.values(value);
+        return [];
+    };
+    const normalizeBearing = value => {
+        const number = finite(value);
+        return number === null ? null : ((number % 360) + 360) % 360;
+    };
+    const bearingDifference = (left, right) => {
+        const a = normalizeBearing(left), b = normalizeBearing(right);
+        if (a === null || b === null) return null;
+        const difference = Math.abs(a - b);
+        return Math.min(difference, 360 - difference);
+    };
+    const idOf = (value, fallback = null) => String(
+        value?.trackId ?? value?.cellId ?? value?.stormCellId ?? value?.id ??
+        value?.candidateId ?? value?.predictionId ?? fallback ?? ''
+    );
+    function coordinate(value, depth = 0) {
+        if (!value || typeof value !== 'object' || depth > 4) return null;
+        const latitude = finite(
+            value.latitude ?? value.lat ?? value.currentLat ?? value.centerLat ??
+            value.centroidLat ?? value.location?.latitude ?? value.location?.lat ??
+            value.center?.latitude ?? value.center?.lat ??
+            value.coordinate?.latitude ?? value.coordinate?.lat ??
+            value.position?.latitude ?? value.position?.lat
+        );
+        const longitude = finite(
+            value.longitude ?? value.lon ?? value.lng ?? value.currentLon ?? value.currentLng ??
+            value.centerLon ?? value.centerLng ?? value.centroidLon ?? value.centroidLng ??
+            value.location?.longitude ?? value.location?.lon ?? value.location?.lng ??
+            value.center?.longitude ?? value.center?.lon ?? value.center?.lng ??
+            value.coordinate?.longitude ?? value.coordinate?.lon ?? value.coordinate?.lng ??
+            value.position?.longitude ?? value.position?.lon ?? value.position?.lng
+        );
+        if (latitude !== null && longitude !== null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
+            return { latitude, longitude };
+        }
+        const pair = value.geometry?.coordinates ?? value.coordinates;
+        if (Array.isArray(pair) && pair.length >= 2 && !Array.isArray(pair[0])) {
+            const x = finite(pair[0]), y = finite(pair[1]);
+            if (x !== null && y !== null && Math.abs(y) <= 90 && Math.abs(x) <= 180) {
+                return { latitude: y, longitude: x };
+            }
+        }
+        for (const key of ['current','latest','lastPosition','centroid','location','coordinate','position','cell','trackedCell']) {
+            const nested = coordinate(value[key], depth + 1);
+            if (nested) return nested;
+        }
+        return null;
+    }
+    function timestamp(value) {
+        const candidate = value?.timestamp ?? value?.time ?? value?.observedAt ?? value?.updatedAt ??
+            value?.createdAt ?? value?.validTime ?? value?.frameTime ?? value?.datetime ?? null;
+        if (candidate === null || candidate === undefined) return null;
+        const numeric = finite(candidate);
+        if (numeric !== null) return numeric < 1e12 ? numeric * 1000 : numeric;
+        const parsed = Date.parse(candidate);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    function haversine(first, second) {
+        const radius = 6371;
+        const radians = degrees => degrees * Math.PI / 180;
+        const deltaLatitude = radians(second.latitude - first.latitude);
+        const deltaLongitude = radians(second.longitude - first.longitude);
+        const a = Math.sin(deltaLatitude / 2) ** 2 +
+            Math.cos(radians(first.latitude)) * Math.cos(radians(second.latitude)) *
+            Math.sin(deltaLongitude / 2) ** 2;
+        return 2 * radius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    function initialBearing(first, second) {
+        const radians = degrees => degrees * Math.PI / 180;
+        const degrees = radiansValue => radiansValue * 180 / Math.PI;
+        const latitude1 = radians(first.latitude);
+        const latitude2 = radians(second.latitude);
+        const deltaLongitude = radians(second.longitude - first.longitude);
+        const y = Math.sin(deltaLongitude) * Math.cos(latitude2);
+        const x = Math.cos(latitude1) * Math.sin(latitude2) -
+            Math.sin(latitude1) * Math.cos(latitude2) * Math.cos(deltaLongitude);
+        return normalizeBearing(degrees(Math.atan2(y, x)));
+    }
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+    function targetOf(engine, input = {}) {
+        return coordinate(
+            input.targetCoordinate ?? input.target ?? input.location ?? input.city ??
+            engine?.targetCoordinate ?? engine?.targetLocation ?? engine?.targetContext ??
+            engine?.targetCity ?? engine?.selectedCity ?? engine?.currentCity
+        );
+    }
+    function extractPointArray(value) {
+        if (!value || typeof value !== 'object') return [];
+        const arrays = [
+            value.history, value.trackHistory, value.positions, value.points, value.path,
+            value.predictedPath, value.trajectory, value.coordinatesHistory,
+            value.motionHistory, value.samples, value.frames
+        ];
+        for (const array of arrays) {
+            if (Array.isArray(array) && array.length) return array;
+        }
+        return [];
+    }
+    function matchedRuntimeRecord(collection, identifier) {
+        const records = valuesOf(collection);
+        return records.find(record => idOf(record) === identifier) ?? null;
+    }
+    function deriveMotionFromPoints(points) {
+        const normalized = points.map(point => ({ point, coordinate: coordinate(point), timestamp: timestamp(point) }))
+            .filter(item => item.coordinate);
+        if (normalized.length < 2) return null;
+        const recent = normalized.slice(-6);
+        const segments = [];
+        for (let index = 1; index < recent.length; index += 1) {
+            const previous = recent[index - 1];
+            const current = recent[index];
+            const distanceKm = haversine(previous.coordinate, current.coordinate);
+            const durationHours = previous.timestamp !== null && current.timestamp !== null && current.timestamp > previous.timestamp
+                ? (current.timestamp - previous.timestamp) / 3600000
+                : null;
+            if (distanceKm < 0.02) continue;
+            const speedKmh = durationHours && durationHours > 0 ? distanceKm / durationHours : null;
+            const bearing = initialBearing(previous.coordinate, current.coordinate);
+            segments.push({ distanceKm, durationHours, speedKmh, bearing });
+        }
+        if (!segments.length) return null;
+        const validSpeeds = segments.map(segment => segment.speedKmh).filter(speed => speed !== null && speed > 0.2 && speed <= 250).sort((a, b) => a - b);
+        const speedKmh = validSpeeds.length
+            ? validSpeeds[Math.floor(validSpeeds.length / 2)]
+            : null;
+        const lastBearing = [...segments].reverse().find(segment => segment.bearing !== null)?.bearing ?? null;
+        return {
+            speedKmh,
+            bearing: lastBearing,
+            segmentCount: segments.length,
+            source: speedKmh !== null ? 'tracking_history' : 'tracking_geometry_only'
+        };
+    }
+    function resolveMotion(engine, cell, trackingRecord, predictionRecord) {
+        const identifier = idOf(cell ?? trackingRecord ?? predictionRecord);
+        const fused = matchedRuntimeRecord(engine?.fusedMotionStates, identifier);
+        const motion = matchedRuntimeRecord(engine?.motionStates, identifier);
+        const direct = fused ?? motion ?? trackingRecord?.motion ?? cell?.motion ?? predictionRecord?.motion ?? null;
+        const speedKmh = finite(
+            direct?.effectiveSpeedKmh ?? direct?.speedKmh ?? direct?.velocityKmh ??
+            direct?.motionSpeedKmh ?? direct?.fusedSpeedKmh ?? direct?.estimatedSpeedKmh ?? direct?.speed
+        );
+        const bearing = normalizeBearing(
+            direct?.bearing ?? direct?.heading ?? direct?.direction ?? direct?.motionBearing ?? direct?.azimuth
+        );
+        const directConfidence = clamp(direct?.confidence ?? direct?.motionConfidence ?? direct?.quality ?? 0, 0, 100);
+        if (speedKmh !== null && speedKmh > 0 && speedKmh <= 250 && bearing !== null) {
+            return { speedKmh, bearing, confidence: directConfidence || 55, source: fused ? 'fused_motion_state' : (motion ? 'motion_state' : 'direct_motion') };
+        }
+        const pointSources = [
+            ...extractPointArray(trackingRecord),
+            ...extractPointArray(predictionRecord),
+            ...extractPointArray(cell),
+            ...extractPointArray(engine?.trackingHistory instanceof Map ? engine.trackingHistory.get(identifier) : null)
+        ];
+        const derived = deriveMotionFromPoints(pointSources);
+        if (derived?.speedKmh !== null && derived?.bearing !== null) {
+            return { ...derived, confidence: clamp(35 + derived.segmentCount * 8, 35, 72) };
+        }
+        return {
+            speedKmh: speedKmh !== null && speedKmh > 0 ? speedKmh : null,
+            bearing,
+            confidence: directConfidence,
+            source: 'motion_unavailable'
+        };
+    }
+    function collectEntities(engine) {
+        const byId = new Map();
+        const ingest = (value, role, index) => {
+            if (!value || typeof value !== 'object') return;
+            const identifier = idOf(value, `${role}_${index}`);
+            const entry = byId.get(identifier) ?? { id: identifier, cell: null, tracking: null, prediction: null };
+            if (role === 'cell') entry.cell = value;
+            if (role === 'tracking') entry.tracking = value;
+            if (role === 'prediction') entry.prediction = value;
+            byId.set(identifier, entry);
+        };
+        valuesOf(engine?.cells).forEach((value, index) => ingest(value, 'cell', index));
+        valuesOf(engine?.trackingStates).forEach((value, index) => ingest(value, 'tracking', index));
+        valuesOf(engine?.predictions).forEach((value, index) => ingest(value, 'prediction', index));
+        if (!byId.size) {
+            valuesOf(engine?._phase15StormTrackingCache?.cells).forEach((value, index) => ingest(value, 'cell', index));
+            valuesOf(engine?._phase15StormTrackingCache?.trackedCells).forEach((value, index) => ingest(value, 'tracking', index));
+        }
+        return [...byId.values()];
+    }
+    function buildCandidate(engine, entity, target, options = {}) {
+        const current = coordinate(entity.cell) ?? coordinate(entity.tracking) ?? coordinate(entity.prediction);
+        const motion = resolveMotion(engine, entity.cell, entity.tracking, entity.prediction);
+        if (!current) return { id: entity.id, valid: false, reason: 'CELL_COORDINATE_UNAVAILABLE' };
+        if (!target) return { id: entity.id, valid: false, reason: 'TARGET_COORDINATE_UNAVAILABLE', current };
+        if (motion.speedKmh === null || motion.speedKmh <= 0 || motion.bearing === null) {
+            return { id: entity.id, valid: false, reason: 'MOTION_VECTOR_UNAVAILABLE', current, motion };
+        }
+        const distanceKm = haversine(current, target);
+        const targetBearing = initialBearing(current, target);
+        const angle = bearingDifference(motion.bearing, targetBearing);
+        const maximumApproachAngle = Math.max(45, finite(options.phase29MaximumApproachAngle) ?? 125);
+        const directionFactor = angle === null ? 0 : Math.max(0, Math.cos(angle * Math.PI / 180));
+        const softDirectionFactor = angle !== null && angle <= maximumApproachAngle ? Math.max(0.12, directionFactor) : 0;
+        const effectiveSpeedKmh = motion.speedKmh * softDirectionFactor;
+        const arrivalMinutes = effectiveSpeedKmh > 0 ? distanceKm / effectiveSpeedKmh * 60 : null;
+        const maximumMinutes = Math.max(30, finite(options.phase29MaximumArrivalMinutes ?? options.maximumArrivalMinutes) ?? 1440);
+        const insideHorizon = arrivalMinutes !== null && arrivalMinutes >= 0 && arrivalMinutes <= maximumMinutes;
+        const approaching = angle !== null && angle <= maximumApproachAngle;
+        const directionScore = angle === null ? 0 : clamp(100 - (angle / maximumApproachAngle) * 100, 0, 100);
+        const motionScore = clamp(motion.confidence || 35, 0, 100);
+        const speedScore = clamp((motion.speedKmh / 35) * 100, 5, 100);
+        const distanceScore = clamp(100 - (distanceKm / 500) * 100, 0, 100);
+        const trackingBonus = entity.tracking ? 8 : 0;
+        const predictionBonus = entity.prediction ? 7 : 0;
+        const evidenceScore = clamp(
+            directionScore * 0.38 + motionScore * 0.27 + speedScore * 0.18 + distanceScore * 0.17 + trackingBonus + predictionBonus,
+            0, 100
+        );
+        const valid = approaching && insideHorizon && evidenceScore >= Math.max(15, finite(options.phase29MinimumEvidenceScore) ?? 24);
+        return {
+            id: entity.id,
+            valid,
+            reason: !approaching ? 'TARGET_OUTSIDE_APPROACH_SECTOR' : (!insideHorizon ? 'ETA_OUTSIDE_FORECAST_HORIZON' : (valid ? 'ARRIVAL_EVIDENCE_BUILT' : 'EVIDENCE_SCORE_TOO_LOW')),
+            cellId: idOf(entity.cell ?? entity.tracking ?? entity.prediction, entity.id),
+            currentCoordinate: current,
+            targetCoordinate: target,
+            distanceKm,
+            targetBearing,
+            motionBearing: motion.bearing,
+            bearingDifference: angle,
+            speedKmh: motion.speedKmh,
+            effectiveSpeedKmh,
+            arrivalMinutes,
+            motionConfidence: motion.confidence,
+            motionSource: motion.source,
+            evidenceScore,
+            sourceFlags: {
+                cell: Boolean(entity.cell),
+                tracking: Boolean(entity.tracking),
+                prediction: Boolean(entity.prediction),
+                fusedMotion: motion.source === 'fused_motion_state'
+            }
+        };
+    }
+    function buildEvidence(engine, input = {}, options = {}) {
+        if (!engine) return { phase: '29', version: VERSION, build: BUILD, available: false, reason: 'ENGINE_UNAVAILABLE', records: [] };
+        const target = targetOf(engine, input);
+        const entities = collectEntities(engine);
+        const candidates = entities.map(entity => buildCandidate(engine, entity, target, options))
+            .sort((left, right) => (right.valid - left.valid) || ((right.evidenceScore ?? 0) - (left.evidenceScore ?? 0)) || ((left.arrivalMinutes ?? Infinity) - (right.arrivalMinutes ?? Infinity)));
+        const selected = candidates.find(candidate => candidate.valid) ?? null;
+        const minimumPublishConfidence = clamp(options.phase29MinimumPublishConfidence ?? 22, 0, 100);
+        const highConfidenceThreshold = clamp(options.phase29HighConfidenceThreshold ?? 65, minimumPublishConfidence, 100);
+        const corroboration = clamp(
+            (engine.cells instanceof Map ? Math.min(12, engine.cells.size * 4) : 0) +
+            (engine.trackingStates instanceof Map ? Math.min(18, engine.trackingStates.size * 6) : 0) +
+            (engine.motionStates instanceof Map ? Math.min(15, engine.motionStates.size * 5) : 0) +
+            (engine.fusedMotionStates instanceof Map ? Math.min(15, engine.fusedMotionStates.size * 5) : 0) +
+            (engine.predictions instanceof Map ? Math.min(10, engine.predictions.size * 5) : 0), 0, 70
+        );
+        const confidence = selected
+            ? Math.round(clamp(selected.evidenceScore * 0.78 + corroboration * 0.22, 0, 100) * 100) / 100
+            : 0;
+        const accepted = Boolean(selected && confidence >= minimumPublishConfidence);
+        const lowConfidence = accepted && confidence < highConfidenceThreshold;
+        const now = Date.now();
+        const evidenceId = `rg32_ev_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        const record = accepted ? {
+            evidenceId,
+            phase: '29',
+            version: VERSION,
+            build: BUILD,
+            cellId: selected.cellId,
+            cityId: engine.targetCity?.id ?? engine.selectedCity?.id ?? engine.currentCity?.id ?? null,
+            city: engine.targetCity ?? engine.selectedCity ?? engine.currentCity ?? null,
+            targetCoordinate: target,
+            distanceKm: selected.distanceKm,
+            speedKmh: selected.speedKmh,
+            effectiveSpeedKmh: selected.effectiveSpeedKmh,
+            heading: selected.motionBearing,
+            targetBearing: selected.targetBearing,
+            bearingDifference: selected.bearingDifference,
+            arrivalMinutes: selected.arrivalMinutes,
+            eta: new Date(now + selected.arrivalMinutes * 60000).toISOString(),
+            confidence,
+            evidenceScore: selected.evidenceScore,
+            corroborationScore: corroboration,
+            uncertaintyMinutes: Math.max(8, selected.arrivalMinutes * (1 - confidence / 100)),
+            evidenceSources: selected.sourceFlags,
+            motionSource: selected.motionSource,
+            generatedAt: new Date(now).toISOString()
+        } : null;
+        if (!(engine.arrivalEvidence instanceof Map)) engine.arrivalEvidence = new Map();
+        if (!Array.isArray(engine.arrivalEvidenceHistory)) engine.arrivalEvidenceHistory = [];
+        if (record) {
+            engine.arrivalEvidence.set(record.evidenceId, record);
+            engine.arrivalEvidenceHistory.push(record);
+            if (engine.arrivalEvidenceHistory.length > 500) engine.arrivalEvidenceHistory.splice(0, engine.arrivalEvidenceHistory.length - 500);
+        }
+        const buildResult = {
+            phase: '29', version: VERSION, build: BUILD,
+            available: accepted,
+            accepted,
+            lowConfidence,
+            status: accepted ? (lowConfidence ? 'LOW_CONFIDENCE_RAIN_ARRIVAL_AVAILABLE' : 'RAIN_ARRIVAL_AVAILABLE') : 'RAIN_ARRIVAL_UNAVAILABLE',
+            reason: accepted ? (lowConfidence ? 'ARRIVAL_EVIDENCE_BUILT_LOW_CONFIDENCE' : 'ARRIVAL_EVIDENCE_BUILT') : (target ? 'NO_PHYSICALLY_VALID_EVIDENCE_CANDIDATE' : 'TARGET_UNAVAILABLE'),
+            target,
+            entityCount: entities.length,
+            candidateCount: candidates.length,
+            validCandidateCount: candidates.filter(candidate => candidate.valid).length,
+            selectedCandidate: selected,
+            rankedCandidates: candidates,
+            record,
+            confidence,
+            evidenceScore: selected?.evidenceScore ?? 0,
+            corroborationScore: corroboration,
+            generatedAt: new Date().toISOString()
+        };
+        engine.phase29ArrivalEvidenceBuilder = buildResult;
+        engine.latestArrivalEvidence = record;
+        state.lastBuild = buildResult;
+        state.buildCount += 1;
+        if (accepted) state.acceptedCount += 1; else state.rejectedCount += 1;
+        return buildResult;
+    }
+    function publish(engine, result, evidence) {
+        const wrapper = result && typeof result === 'object' ? result : { success: true, prediction: {} };
+        const prediction = wrapper.prediction && typeof wrapper.prediction === 'object' ? wrapper.prediction : wrapper;
+        prediction.phase29ArrivalEvidenceBuilder = evidence;
+        wrapper.phase29ArrivalEvidenceBuilder = evidence;
+        if (!evidence.accepted || !evidence.record) return wrapper;
+        const record = evidence.record;
+        prediction.available = true;
+        prediction.success = true;
+        prediction.partial = evidence.lowConfidence;
+        prediction.status = evidence.status;
+        prediction.reason = evidence.reason;
+        prediction.arrivalMinutes = record.arrivalMinutes;
+        prediction.eta = record.eta;
+        prediction.arrivalTime = record.eta;
+        prediction.confidence = record.confidence;
+        prediction.uncertaintyMinutes = record.uncertaintyMinutes;
+        prediction.arrivalEvidenceScore = record.evidenceScore;
+        prediction.evidenceSources = record.evidenceSources;
+        prediction.arrivalEvidence = record;
+        engine.currentPrediction = prediction;
+        engine.lastPredictionResult = wrapper;
+        engine.lastArrivalResult = wrapper;
+        engine.lastResult = wrapper;
+        engine.latestPrediction = prediction;
+        globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+        globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+        globalObject.RainGuardAI.V32.latestPrediction = prediction;
+        try {
+            if (typeof globalObject.dispatchEvent === 'function' && typeof globalObject.CustomEvent === 'function') {
+                globalObject.dispatchEvent(new globalObject.CustomEvent('rainguard:v32:arrival-evidence-built', { detail: record }));
+            }
+        } catch (_) {}
+        return wrapper;
+    }
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase29Installed) {
+            state.installed = true;
+            return { installed: true, reused: true, version: VERSION, build: BUILD };
+        }
+        const runner = ['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict']
+            .find(name => typeof engine[name] === 'function');
+        if (runner) {
+            const original = engine[runner].bind(engine);
+            engine[runner] = async function phase29Run(input = {}, options = {}) {
+                try { globalObject.RainArrivalPhase26CV32?.publish?.(input); } catch (_) {}
+                try { globalObject.RainArrivalPhase26BV32?.recover?.(input); } catch (_) {}
+                const result = await original(input, options);
+                const evidence = buildEvidence(this, input, options);
+                return publish(this, result, evidence);
+            };
+        }
+        if (typeof engine.runCompleteRainArrivalPredictionSync === 'function') {
+            const originalSync = engine.runCompleteRainArrivalPredictionSync.bind(engine);
+            engine.runCompleteRainArrivalPredictionSync = function phase29RunSync(input = {}, options = {}) {
+                const result = originalSync(input, options);
+                return publish(this, result, buildEvidence(this, input, options));
+            };
+        }
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase29Installed = true;
+        state.installed = true;
+        state.installCount += 1;
+        return { installed: true, version: VERSION, build: BUILD, runner: runner ?? null };
+    }
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        const runner = ['runCompleteRainArrivalPrediction','predictRainArrival','runRainArrivalPrediction','runPrediction','predict']
+            .find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE' };
+        try {
+            const result = await engine[runner](options, options);
+            return { success: true, version: VERSION, build: BUILD, runner, evidence: state.lastBuild, result };
+        } catch (error) {
+            state.lastError = { message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE29_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        run: runNow,
+        build(options = {}) { return buildEvidence(getEngine(), options, options); },
+        publish(options = {}) {
+            const engine = getEngine();
+            if (!engine) return null;
+            const result = engine.lastPredictionResult ?? { success: true, prediction: {} };
+            return publish(engine, result, buildEvidence(engine, options, options));
+        },
+        diagnose() {
+            const engine = getEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase29Installed),
+                engineAvailable: Boolean(engine),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                predictionsSize: engine?.predictions instanceof Map ? engine.predictions.size : null,
+                arrivalEvidenceSize: engine?.arrivalEvidence instanceof Map ? engine.arrivalEvidence.size : null,
+                buildCount: state.buildCount,
+                acceptedCount: state.acceptedCount,
+                rejectedCount: state.rejectedCount,
+                lastBuild: state.lastBuild,
+                lastError: state.lastError
+            };
+        }
+    };
+    globalObject.RainArrivalPhase29V32 = api;
+    globalObject.runRainArrivalPhase29 = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase29 = api;
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
