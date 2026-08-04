@@ -66714,3 +66714,38 @@ globalObject
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* RainGuard AI V32 — Phase 34 Integration Adapter */
+(function phase34IntegrationAdapter(globalObject) {
+    'use strict';
+    const VERSION = '32.34.0';
+    const BUILD = 'rainguard-v32-phase34-storm-motion-validation-speed-recovery-engine';
+    function install() {
+        const v32 = globalObject?.RainGuardAI?.V32;
+        const integration = v32?.rainArrivalIntegration ?? globalObject?.RainArrivalIntegrationV32Instance;
+        if (!integration) return { installed: false, reason: 'INTEGRATION_UNAVAILABLE' };
+        integration.version = VERSION;
+        integration.build = BUILD;
+        integration.metadata = {
+            ...(integration.metadata || {}),
+            semanticVersion: VERSION,
+            phase34: true,
+            currentPhase: '34',
+            currentPart: 'storm-motion-validation-speed-recovery',
+            status: 'ready',
+            productionReady: true
+        };
+        integration.phase34 = globalObject.RainArrivalPhase34V32 ?? null;
+        integration.recoverStormMotion = function(options = {}) {
+            return globalObject.RainArrivalPhase34V32?.run(options) ?? Promise.resolve({ success: false, reason: 'PHASE34_UNAVAILABLE' });
+        };
+        integration.getStormMotionRecoveryDiagnostics = function() {
+            return globalObject.RainArrivalPhase34V32?.diagnose() ?? null;
+        };
+        integration.__phase34Installed = true;
+        return { installed: true, version: VERSION, build: BUILD };
+    }
+    globalObject.RainArrivalPhase34IntegrationV32 = { version: VERSION, build: BUILD, install };
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
