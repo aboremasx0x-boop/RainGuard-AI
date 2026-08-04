@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.29.0";
+        "32.33.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase29-arrival-evidence-builder-engine";
+        "rainguard-v32-phase33-arrival-candidate-diagnostic-engine";
 
     const ENGINE_STAGE =
         "production";
@@ -80654,6 +80654,490 @@ if (
     globalObject.RainGuardAI = globalObject.RainGuardAI || {};
     globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
     globalObject.RainGuardAI.V32.phase32 = api;
+    globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
+    globalObject.setTimeout(install, 0);
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+/* RainGuard AI V32 — Phase 33: Arrival Candidate Diagnostic Engine */
+(function phase33ArrivalCandidateDiagnosticEngine(globalObject) {
+    'use strict';
+
+    const VERSION = '32.33.0';
+    const BUILD = 'rainguard-v32-phase33-arrival-candidate-diagnostic-engine';
+
+    const state = {
+        installed: false,
+        installCount: 0,
+        executionCount: 0,
+        candidateCount: 0,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        lastDiagnostics: null,
+        history: [],
+        lastError: null
+    };
+
+    const finite = value => Number.isFinite(Number(value));
+    const number = (...values) => {
+        for (const value of values) {
+            const parsed = Number(value);
+            if (Number.isFinite(parsed)) return parsed;
+        }
+        return null;
+    };
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, Number(value) || 0));
+    const normalizeAngle = value => finite(value) ? ((Number(value) % 360) + 360) % 360 : null;
+    const angleDifference = (a, b) => {
+        const x = normalizeAngle(a);
+        const y = normalizeAngle(b);
+        if (x === null || y === null) return null;
+        const difference = Math.abs(x - y);
+        return Math.min(difference, 360 - difference);
+    };
+    const toArray = value => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        if (value instanceof Map || value instanceof Set) return [...value.values()];
+        if (typeof value === 'object') return Object.values(value);
+        return [];
+    };
+    const idOf = value => value?.evidenceId ?? value?.phase31CandidateId ?? value?.candidateId ??
+        value?.cellId ?? value?.stormCellId ?? value?.trackId ?? value?.id ?? null;
+
+    function getEngine() {
+        return globalObject?.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject?.rainArrivalPredictionEngineV32 ??
+            globalObject?.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function getPrediction(result) {
+        if (!result || typeof result !== 'object') return null;
+        return result.prediction && typeof result.prediction === 'object' ? result.prediction : result;
+    }
+
+    function coordinateOf(value) {
+        if (!value || typeof value !== 'object') return null;
+        const latitude = number(
+            value.latitude, value.lat, value.center?.latitude, value.center?.lat,
+            value.coordinate?.latitude, value.coordinate?.lat,
+            value.location?.latitude, value.location?.lat,
+            value.position?.latitude, value.position?.lat,
+            value.centroid?.latitude, value.centroid?.lat
+        );
+        const longitude = number(
+            value.longitude, value.lon, value.lng, value.center?.longitude, value.center?.lon,
+            value.center?.lng, value.coordinate?.longitude, value.coordinate?.lon,
+            value.coordinate?.lng, value.location?.longitude, value.location?.lon,
+            value.location?.lng, value.position?.longitude, value.position?.lon,
+            value.position?.lng, value.centroid?.longitude, value.centroid?.lon,
+            value.centroid?.lng
+        );
+        return finite(latitude) && finite(longitude)
+            ? { latitude: Number(latitude), longitude: Number(longitude) }
+            : null;
+    }
+
+    function distanceKm(a, b) {
+        if (!a || !b) return null;
+        const radians = value => value * Math.PI / 180;
+        const dLat = radians(b.latitude - a.latitude);
+        const dLon = radians(b.longitude - a.longitude);
+        const lat1 = radians(a.latitude);
+        const lat2 = radians(b.latitude);
+        const h = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return 6371.0088 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+    }
+
+    function bearing(a, b) {
+        if (!a || !b) return null;
+        const radians = value => value * Math.PI / 180;
+        const degrees = value => value * 180 / Math.PI;
+        const lat1 = radians(a.latitude);
+        const lat2 = radians(b.latitude);
+        const deltaLon = radians(b.longitude - a.longitude);
+        const y = Math.sin(deltaLon) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) -
+            Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+        return normalizeAngle(degrees(Math.atan2(y, x)));
+    }
+
+    function resolveTarget(engine, prediction) {
+        const candidates = [
+            prediction?.targetCoordinate, prediction?.targetLocation, prediction?.city,
+            engine?.targetCoordinate, engine?.targetLocation, engine?.selectedLocation,
+            engine?.targetContext?.coordinate, engine?.targetContext?.location,
+            engine?.selectedCity, engine?.targetCity, engine?.currentCity
+        ];
+        for (const candidate of candidates) {
+            const coordinate = coordinateOf(candidate);
+            if (coordinate) return { entity: candidate, coordinate };
+        }
+        return { entity: null, coordinate: null };
+    }
+
+    function resolveMotion(candidate, engine) {
+        const key = idOf(candidate);
+        const sources = [
+            candidate?.motion, candidate?.fusedMotion, candidate,
+            key && engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.get(key) : null,
+            key && engine?.motionStates instanceof Map ? engine.motionStates.get(key) : null,
+            key && engine?.trackingStates instanceof Map ? engine.trackingStates.get(key) : null
+        ].filter(Boolean);
+        for (const source of sources) {
+            const speedKmh = number(
+                source.effectiveSpeedKmh, source.speedKmh, source.velocityKmh, source.speed,
+                source.motion?.speedKmh, source.motion?.speed, source.fusedSpeedKmh,
+                source.estimatedSpeedKmh, source.velocity?.speedKmh
+            );
+            const motionBearing = number(
+                source.motionBearing, source.bearing, source.heading, source.directionDegrees,
+                source.motion?.bearing, source.motion?.heading, source.fusedBearing,
+                source.velocity?.bearing
+            );
+            if (finite(speedKmh) || finite(motionBearing)) {
+                return {
+                    speedKmh: finite(speedKmh) ? Number(speedKmh) : null,
+                    bearing: finite(motionBearing) ? normalizeAngle(motionBearing) : null,
+                    source
+                };
+            }
+        }
+        return { speedKmh: null, bearing: null, source: null };
+    }
+
+    function collectCandidates(engine, result) {
+        const prediction = getPrediction(result ?? engine?.lastPredictionResult);
+        const phase32 = engine?.phase32AdaptiveArrivalEvidenceSelection ??
+            prediction?.phase32AdaptiveArrivalEvidenceSelection ??
+            globalObject?.RainArrivalPhase32V32?.state?.lastSelection ?? null;
+        const values = [];
+        const push = value => {
+            for (const item of toArray(value)) {
+                if (item && typeof item === 'object') values.push(item);
+            }
+        };
+        push(phase32?.rankedCandidates);
+        push(engine?.phase31ArrivalEvidenceRanking?.rankedCandidates);
+        push(engine?.latestArrivalEvidenceRanking?.rankedCandidates);
+        push(prediction?.phase31ArrivalEvidenceRanking?.rankedCandidates);
+        push(prediction?.phase30ArrivalEtaExecution?.rankedCandidates);
+        push(engine?.latestEtaExecution?.rankedCandidates);
+        push(prediction?.phase29ArrivalEvidenceBuilder?.evidence);
+        push(engine?.arrivalEvidence);
+        if (engine?.latestArrivalEvidence) values.push(engine.latestArrivalEvidence);
+        push(engine?.cells);
+
+        const seen = new Set();
+        return values.filter(item => {
+            const coordinate = coordinateOf(item);
+            const key = idOf(item) ?? JSON.stringify([
+                coordinate?.latitude ?? null,
+                coordinate?.longitude ?? null,
+                item?.arrivalMinutes ?? item?.etaMinutes ?? null
+            ]);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function diagnoseCandidate(candidate, engine, prediction, options = {}, index = 0) {
+        const target = resolveTarget(engine, prediction);
+        const origin = coordinateOf(candidate);
+        const motion = resolveMotion(candidate, engine);
+        const computedDistance = origin && target.coordinate ? distanceKm(origin, target.coordinate) : null;
+        const distance = number(candidate.distanceKm, candidate.distanceToTargetKm, computedDistance);
+        const targetBearing = number(candidate.targetBearing, origin && target.coordinate ? bearing(origin, target.coordinate) : null);
+        const motionBearing = number(candidate.motionBearing, candidate.heading, candidate.bearing, motion.bearing);
+        const bearingDiff = number(candidate.bearingDifference, angleDifference(motionBearing, targetBearing));
+        const speed = number(candidate.effectiveSpeedKmh, candidate.speedKmh, motion.speedKmh);
+        const directionalFactor = finite(bearingDiff)
+            ? Math.max(0, Math.cos(Number(bearingDiff) * Math.PI / 180))
+            : null;
+        const effectiveSpeed = finite(speed) && directionalFactor !== null
+            ? Math.max(0, Number(speed) * directionalFactor)
+            : null;
+        let arrivalMinutes = number(candidate.arrivalMinutes, candidate.etaMinutes, candidate.minutesToArrival);
+        if (!finite(arrivalMinutes) && finite(distance) && finite(effectiveSpeed) && effectiveSpeed > 0) {
+            arrivalMinutes = Number(distance) / effectiveSpeed * 60;
+        }
+
+        const confidence = clamp(number(candidate.confidence, candidate.motionConfidence, candidate.score, 0), 0, 100);
+        const sourceCount = Math.max(0, toArray(candidate.evidenceSources ?? candidate.sources).length || number(candidate.sourceCount, 0) || 0);
+        const selectionScore = number(candidate.selectionScore, candidate.arrivalEvidenceScore, candidate.rankingScore, candidate.score);
+        const thresholds = {
+            minimumSpeedKmh: number(options.phase33MinimumSpeedKmh, 0.3),
+            maximumDistanceKm: number(options.phase33MaximumDistanceKm, 400),
+            maximumEtaMinutes: number(options.phase33MaximumEtaMinutes, 720),
+            maximumBearingDifference: number(options.phase33MaximumBearingDifference, 120),
+            minimumConfidence: number(options.phase33MinimumConfidence, 0)
+        };
+
+        const rejectionReasons = [];
+        const warnings = [];
+        if (!target.coordinate) rejectionReasons.push('TARGET_COORDINATE_MISSING');
+        if (!origin) rejectionReasons.push('CANDIDATE_COORDINATE_MISSING');
+        if (!finite(distance)) rejectionReasons.push('DISTANCE_UNAVAILABLE');
+        else if (Number(distance) < 0) rejectionReasons.push('DISTANCE_INVALID');
+        else if (Number(distance) > thresholds.maximumDistanceKm) rejectionReasons.push('OUT_OF_RANGE');
+        if (!finite(speed)) rejectionReasons.push('SPEED_UNAVAILABLE');
+        else if (Number(speed) <= 0) rejectionReasons.push('ZERO_SPEED');
+        else if (Number(speed) < thresholds.minimumSpeedKmh) rejectionReasons.push('SPEED_TOO_LOW');
+        if (!finite(motionBearing)) rejectionReasons.push('MOTION_BEARING_UNAVAILABLE');
+        if (!finite(targetBearing)) rejectionReasons.push('TARGET_BEARING_UNAVAILABLE');
+        if (finite(bearingDiff) && Number(bearingDiff) > thresholds.maximumBearingDifference) {
+            rejectionReasons.push('MOVING_AWAY');
+        }
+        if (finite(bearingDiff) && Number(bearingDiff) > 90 && Number(bearingDiff) <= thresholds.maximumBearingDifference) {
+            warnings.push('WEAK_APPROACH_GEOMETRY');
+        }
+        if (!finite(arrivalMinutes)) rejectionReasons.push('ETA_UNAVAILABLE');
+        else if (Number(arrivalMinutes) < 0) rejectionReasons.push('ETA_NEGATIVE');
+        else if (Number(arrivalMinutes) > thresholds.maximumEtaMinutes) rejectionReasons.push('ETA_OUT_OF_RANGE');
+        if (confidence < thresholds.minimumConfidence) rejectionReasons.push('CONFIDENCE_BELOW_MINIMUM');
+        if (sourceCount === 0) warnings.push('NO_EVIDENCE_SOURCES');
+        if (directionalFactor !== null && directionalFactor <= 0) rejectionReasons.push('NO_POSITIVE_CLOSING_SPEED');
+
+        const accepted = rejectionReasons.length === 0;
+        return {
+            index,
+            candidateId: idOf(candidate),
+            cellId: candidate?.cellId ?? candidate?.stormCellId ?? idOf(candidate),
+            accepted,
+            physicalValidity: accepted,
+            rejectionReasons,
+            warnings,
+            metrics: {
+                distanceKm: finite(distance) ? Number(distance) : null,
+                speedKmh: finite(speed) ? Number(speed) : null,
+                effectiveSpeedKmh: finite(effectiveSpeed) ? Number(effectiveSpeed) : null,
+                targetBearing: finite(targetBearing) ? normalizeAngle(targetBearing) : null,
+                motionBearing: finite(motionBearing) ? normalizeAngle(motionBearing) : null,
+                bearingDifference: finite(bearingDiff) ? Number(bearingDiff) : null,
+                directionalFactor: finite(directionalFactor) ? Number(directionalFactor) : null,
+                arrivalMinutes: finite(arrivalMinutes) ? Number(arrivalMinutes) : null,
+                confidence,
+                sourceCount,
+                selectionScore: finite(selectionScore) ? Number(selectionScore) : null
+            },
+            coordinates: {
+                candidate: origin,
+                target: target.coordinate
+            },
+            thresholds,
+            rawCandidate: candidate
+        };
+    }
+
+    function summarize(diagnostics) {
+        const rejectionSummary = {};
+        const warningSummary = {};
+        for (const diagnostic of diagnostics) {
+            for (const reason of diagnostic.rejectionReasons) {
+                rejectionSummary[reason] = (rejectionSummary[reason] || 0) + 1;
+            }
+            for (const warning of diagnostic.warnings) {
+                warningSummary[warning] = (warningSummary[warning] || 0) + 1;
+            }
+        }
+        return { rejectionSummary, warningSummary };
+    }
+
+    function diagnoseAllCandidates(result = null, options = {}) {
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        const actual = result ?? engine.lastPredictionResult;
+        const prediction = getPrediction(actual);
+        const candidates = collectCandidates(engine, actual);
+        const candidateDiagnostics = candidates.map((candidate, index) =>
+            diagnoseCandidate(candidate, engine, prediction, options, index)
+        );
+        const accepted = candidateDiagnostics.filter(item => item.accepted);
+        const rejected = candidateDiagnostics.filter(item => !item.accepted);
+        const summaries = summarize(candidateDiagnostics);
+        const report = {
+            success: true,
+            version: VERSION,
+            build: BUILD,
+            city: prediction?.city ?? engine?.selectedCity ?? engine?.targetCity ?? engine?.currentCity ?? null,
+            target: resolveTarget(engine, prediction),
+            candidateCount: candidateDiagnostics.length,
+            acceptedCount: accepted.length,
+            rejectedCount: rejected.length,
+            selectedCandidateId: accepted[0]?.candidateId ?? null,
+            candidateDiagnostics,
+            acceptedCandidates: accepted,
+            rejectedCandidates: rejected,
+            rejectionSummary: summaries.rejectionSummary,
+            warningSummary: summaries.warningSummary,
+            primaryBlockers: Object.entries(summaries.rejectionSummary)
+                .sort((a, b) => b[1] - a[1])
+                .map(([reason, count]) => ({ reason, count })),
+            generatedAt: new Date().toISOString()
+        };
+        engine.phase33ArrivalCandidateDiagnostics = report;
+        engine.latestCandidateDiagnostics = report;
+        state.executionCount += 1;
+        state.candidateCount = report.candidateCount;
+        state.acceptedCount = report.acceptedCount;
+        state.rejectedCount = report.rejectedCount;
+        state.lastDiagnostics = report;
+        state.history.push(report);
+        if (state.history.length > 50) state.history.splice(0, state.history.length - 50);
+        try {
+            if (typeof globalObject.dispatchEvent === 'function' && typeof globalObject.CustomEvent === 'function') {
+                globalObject.dispatchEvent(new globalObject.CustomEvent(
+                    'rainguard:v32:arrival-candidate-diagnostics-completed',
+                    { detail: report }
+                ));
+            }
+        } catch (_) {}
+        return report;
+    }
+
+    function publishDiagnostics(result, report) {
+        const engine = getEngine();
+        if (!engine) return result;
+        const wrapper = result && typeof result === 'object' ? result : { success: false, prediction: {} };
+        const prediction = getPrediction(wrapper) ?? {};
+        prediction.phase33ArrivalCandidateDiagnostics = report;
+        wrapper.phase33ArrivalCandidateDiagnostics = report;
+        engine.lastPredictionResult = wrapper;
+        return wrapper;
+    }
+
+    function install() {
+        const engine = getEngine();
+        if (!engine) return { installed: false, reason: 'ENGINE_UNAVAILABLE' };
+        if (engine.__phase33Installed) {
+            engine.version = VERSION;
+            engine.build = BUILD;
+            state.installed = true;
+            return { installed: true, reused: true, version: VERSION, build: BUILD };
+        }
+        const runner = [
+            'runCompleteRainArrivalPrediction', 'predictRainArrival',
+            'runRainArrivalPrediction', 'runPrediction', 'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (runner) {
+            const original = engine[runner].bind(engine);
+            engine[runner] = async function phase33Run(input = {}, options = {}) {
+                const result = await original(input, options);
+                const report = diagnoseAllCandidates(result, { ...input, ...options });
+                return publishDiagnostics(result, report);
+            };
+        }
+        engine.diagnoseArrivalCandidatePhase33 = function(candidate, options = {}) {
+            return diagnoseCandidate(candidate, this, getPrediction(this.lastPredictionResult), options, 0);
+        };
+        engine.diagnoseAllArrivalCandidatesPhase33 = function(result = null, options = {}) {
+            return diagnoseAllCandidates(result ?? this.lastPredictionResult, options);
+        };
+        engine.getCandidateDiagnosticsPhase33 = function() {
+            return state.lastDiagnostics;
+        };
+        engine.getRejectedCandidateSummaryPhase33 = function() {
+            return state.lastDiagnostics?.rejectionSummary ?? {};
+        };
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.__phase33Installed = true;
+        state.installed = true;
+        state.installCount += 1;
+        return { installed: true, version: VERSION, build: BUILD, runner: runner ?? null };
+    }
+
+    async function runNow(options = {}) {
+        install();
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE' };
+        const runner = [
+            'runCompleteRainArrivalPrediction', 'predictRainArrival',
+            'runRainArrivalPrediction', 'runPrediction', 'predict'
+        ].find(name => typeof engine[name] === 'function');
+        if (!runner) return { success: false, reason: 'PREDICTION_RUNNER_UNAVAILABLE' };
+        try {
+            const result = await engine[runner](options, options);
+            return {
+                success: true,
+                version: VERSION,
+                build: BUILD,
+                runner,
+                diagnostics: state.lastDiagnostics,
+                result
+            };
+        } catch (error) {
+            state.lastError = {
+                name: error?.name ?? 'Error',
+                message: error?.message ?? String(error),
+                stack: error?.stack ?? null
+            };
+            return { success: false, reason: 'PHASE33_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    const api = {
+        version: VERSION,
+        build: BUILD,
+        state,
+        install,
+        run: runNow,
+        diagnoseCandidate(candidate, options = {}) {
+            const engine = getEngine();
+            return engine ? diagnoseCandidate(candidate, engine, getPrediction(engine.lastPredictionResult), options, 0) : null;
+        },
+        diagnoseAllCandidates,
+        getCandidateDiagnostics() {
+            return state.lastDiagnostics;
+        },
+        getRejectedCandidateSummary() {
+            return state.lastDiagnostics?.rejectionSummary ?? {};
+        },
+        printTable() {
+            const rows = (state.lastDiagnostics?.candidateDiagnostics ?? []).map(item => ({
+                index: item.index,
+                candidateId: item.candidateId,
+                accepted: item.accepted,
+                distanceKm: item.metrics.distanceKm,
+                speedKmh: item.metrics.speedKmh,
+                effectiveSpeedKmh: item.metrics.effectiveSpeedKmh,
+                bearingDifference: item.metrics.bearingDifference,
+                arrivalMinutes: item.metrics.arrivalMinutes,
+                confidence: item.metrics.confidence,
+                rejectionReasons: item.rejectionReasons.join(', ')
+            }));
+            if (globalObject.console?.table) globalObject.console.table(rows);
+            return rows;
+        },
+        diagnose() {
+            const engine = getEngine();
+            return {
+                version: VERSION,
+                build: BUILD,
+                installed: Boolean(engine?.__phase33Installed),
+                engineAvailable: Boolean(engine),
+                cellsSize: engine?.cells instanceof Map ? engine.cells.size : null,
+                trackingStatesSize: engine?.trackingStates instanceof Map ? engine.trackingStates.size : null,
+                motionStatesSize: engine?.motionStates instanceof Map ? engine.motionStates.size : null,
+                fusedMotionStatesSize: engine?.fusedMotionStates instanceof Map ? engine.fusedMotionStates.size : null,
+                executionCount: state.executionCount,
+                candidateCount: state.candidateCount,
+                acceptedCount: state.acceptedCount,
+                rejectedCount: state.rejectedCount,
+                rejectionSummary: state.lastDiagnostics?.rejectionSummary ?? {},
+                primaryBlockers: state.lastDiagnostics?.primaryBlockers ?? [],
+                lastDiagnostics: state.lastDiagnostics,
+                lastError: state.lastError
+            };
+        }
+    };
+
+    globalObject.RainArrivalPhase33V32 = api;
+    globalObject.runRainArrivalPhase33 = runNow;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase33 = api;
     globalObject.setInterval(() => { try { install(); } catch (_) {} }, 2000);
     globalObject.setTimeout(install, 0);
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
