@@ -40,12 +40,31 @@
                 "RainArrivalTrackStoreV32"
         },
         {
-            name: "cache",
-            file: "cache.js",
-            requiredGlobal:
-                "RainArrivalCacheV32"
-        },
-        {
+    name: "cache",
+    file: "cache.js",
+    requiredGlobal:
+        "RainArrivalCacheV32"
+},
+{
+    name:
+        "cacheCompatibilityBridge",
+
+    file:
+        "cache_compatibility_bridge.js",
+
+    requiredGlobal:
+        "RainArrivalCacheCompatibilityBridgeV32"
+},
+{
+    name:
+        "motionEngine",
+
+    file:
+        "motion_engine.js",
+
+    requiredGlobal:
+        "RainArrivalMotionEngineV32"
+},
             name: "motionEngine",
             file: "motion_engine.js",
             requiredGlobal:
@@ -82,7 +101,7 @@
         autoInitialize: true,
         continueOnOptionalFailure: false,
         scriptTimeoutMs: 30000,
-        cacheVersion: "3238M11",
+        cacheVersion: "3238M12A",
         debug: true
     });
 
