@@ -37,7 +37,7 @@
         "RainGuard AI V32 Rain Arrival Prediction Engine";
 
     const ENGINE_VERSION =
-        "32.37.0";
+        "32.38.0";
 
     const ENGINE_MAJOR_VERSION =
         32;
@@ -52,7 +52,7 @@
         "RG32";
 
     const ENGINE_BUILD =
-        "rainguard-v32-phase37-historical-motion-cache-track-replay-engine";
+        "rainguard-v32-phase38-track-identity-preservation-replay-mapping-engine";
 
     const ENGINE_STAGE =
         "production";
@@ -82868,6 +82868,330 @@ if (
         engine.__phase37Installed = true;
         engine.version = VERSION;
         engine.build = BUILD;
+    }
+    state.installed = true;
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* ========================================================================== 
+ * RainGuard AI V32 — Phase 38
+ * Track Identity Preservation & Replay Mapping Engine
+ * Version: 32.38.0
+ * ========================================================================== */
+(function installRainArrivalPhase38(globalObject) {
+    'use strict';
+
+    const VERSION = '32.38.0';
+    const BUILD = 'rainguard-v32-phase38-track-identity-preservation-replay-mapping-engine';
+    const STORAGE_KEY = 'rainguard_ai_v32_phase38_track_identity_registry';
+
+    const state = {
+        installed: false,
+        executionCount: 0,
+        identityRegistry: new Map(),
+        aliasToCanonical: new Map(),
+        entityToTrack: new Map(),
+        cellToTrack: new Map(),
+        historyToTrack: new Map(),
+        replayToTrack: new Map(),
+        mappingResults: [],
+        lastRun: null,
+        lastError: null,
+        restoredFromStorage: false,
+        persistedAt: null
+    };
+
+    const finite = value => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    };
+
+    const normalizeId = value => {
+        if (value === null || value === undefined) return null;
+        const text = String(value).trim();
+        if (!text || text === 'null' || text === 'undefined') return null;
+        return text;
+    };
+
+    function getEngine() {
+        return globalObject.RainGuardAI?.V32?.rainArrivalPrediction ??
+            globalObject.RainGuardAI?.V32?.arrivalPredictionEngine ??
+            globalObject.rainArrivalPredictionEngineV32 ??
+            globalObject.RainArrivalPredictionEngineV32Instance ?? null;
+    }
+
+    function collectAliases(value, keyHint = null) {
+        const candidates = [
+            keyHint,
+            value?.canonicalTrackId,
+            value?.trackId,
+            value?.replayTrackId,
+            value?.cacheTrackId,
+            value?.historyTrackId,
+            value?.entityId,
+            value?.cellId,
+            value?.id,
+            value?.stormCellId,
+            value?.trackingId,
+            value?.sourceTrackId,
+            value?.phase35TrackId,
+            value?.phase36TrackId,
+            value?.phase37TrackId
+        ];
+        return [...new Set(candidates.map(normalizeId).filter(Boolean))];
+    }
+
+    function chooseCanonical(aliases, value = null, keyHint = null) {
+        const preferred = [
+            value?.canonicalTrackId,
+            value?.trackId,
+            keyHint,
+            value?.cellId,
+            value?.entityId,
+            value?.id
+        ].map(normalizeId).filter(Boolean);
+        for (const id of preferred) {
+            const mapped = state.aliasToCanonical.get(id);
+            if (mapped) return mapped;
+        }
+        for (const id of aliases) {
+            const mapped = state.aliasToCanonical.get(id);
+            if (mapped) return mapped;
+        }
+        return preferred[0] ?? aliases[0] ?? null;
+    }
+
+    function registerIdentity(value, keyHint = null, source = 'runtime') {
+        const aliases = collectAliases(value, keyHint);
+        let canonicalTrackId = chooseCanonical(aliases, value, keyHint);
+        if (!canonicalTrackId) return null;
+
+        const existing = state.identityRegistry.get(canonicalTrackId) || {};
+        const record = {
+            ...existing,
+            canonicalTrackId,
+            trackId: canonicalTrackId,
+            entityId: normalizeId(value?.entityId) ?? existing.entityId ?? null,
+            cellId: normalizeId(value?.cellId) ?? existing.cellId ?? null,
+            historyId: normalizeId(value?.historyId) ?? existing.historyId ?? null,
+            replayTrackId: normalizeId(value?.replayTrackId) ?? existing.replayTrackId ?? canonicalTrackId,
+            cacheTrackId: normalizeId(value?.cacheTrackId) ?? existing.cacheTrackId ?? canonicalTrackId,
+            aliases: [...new Set([...(existing.aliases || []), ...aliases, canonicalTrackId])],
+            sources: [...new Set([...(existing.sources || []), source])],
+            firstSeenAt: existing.firstSeenAt ?? Date.now(),
+            updatedAt: Date.now()
+        };
+        state.identityRegistry.set(canonicalTrackId, record);
+        for (const alias of record.aliases) state.aliasToCanonical.set(alias, canonicalTrackId);
+        if (record.entityId) state.entityToTrack.set(record.entityId, canonicalTrackId);
+        if (record.cellId) state.cellToTrack.set(record.cellId, canonicalTrackId);
+        if (record.historyId) state.historyToTrack.set(record.historyId, canonicalTrackId);
+        if (record.replayTrackId) state.replayToTrack.set(record.replayTrackId, canonicalTrackId);
+        return record;
+    }
+
+    function resolveTrackIdentity(value, keyHint = null) {
+        const aliases = collectAliases(value, keyHint);
+        for (const alias of aliases) {
+            const canonical = state.aliasToCanonical.get(alias);
+            if (canonical) return state.identityRegistry.get(canonical) ?? { canonicalTrackId: canonical, trackId: canonical };
+        }
+        return registerIdentity(value, keyHint, 'resolver');
+    }
+
+    function applyIdentity(value, keyHint = null, source = 'mapping') {
+        if (!value || typeof value !== 'object') return null;
+        const identity = registerIdentity(value, keyHint, source);
+        if (!identity) return null;
+        value.canonicalTrackId = identity.canonicalTrackId;
+        value.trackId = identity.canonicalTrackId;
+        if (!normalizeId(value.cellId)) value.cellId = identity.cellId ?? identity.canonicalTrackId;
+        if (!normalizeId(value.entityId)) value.entityId = identity.entityId ?? value.cellId ?? identity.canonicalTrackId;
+        value.replayTrackId = identity.replayTrackId ?? identity.canonicalTrackId;
+        value.cacheTrackId = identity.cacheTrackId ?? identity.canonicalTrackId;
+        value.identityPreserved = true;
+        value.identitySource = source;
+        return identity;
+    }
+
+    function remapMap(map, source) {
+        if (!(map instanceof Map)) return { scanned: 0, mapped: 0, moved: 0 };
+        const changes = [];
+        let scanned = 0;
+        let mapped = 0;
+        for (const [key, value] of map.entries()) {
+            scanned += 1;
+            if (!value || typeof value !== 'object') continue;
+            const identity = applyIdentity(value, key, source);
+            if (!identity) continue;
+            mapped += 1;
+            if (key !== identity.canonicalTrackId) changes.push([key, identity.canonicalTrackId, value]);
+        }
+        for (const [oldKey, newKey, value] of changes) {
+            if (!map.has(newKey)) map.set(newKey, value);
+            map.delete(oldKey);
+        }
+        return { scanned, mapped, moved: changes.length };
+    }
+
+    function mapPhase35Store(engine) {
+        const store = globalObject.RainArrivalPhase35V32?.getTrackStore?.() ?? engine?.phase35TrackStore ?? engine?.trackStore;
+        return remapMap(store, 'phase35_track_store');
+    }
+
+    function mapPhase37Cache(engine) {
+        const cache = globalObject.RainArrivalPhase37V32?.getCache?.() ?? engine?.phase37HistoricalMotionCache;
+        const summary = remapMap(cache, 'phase37_replay_cache');
+        if (cache instanceof Map) {
+            for (const [key, entry] of cache.entries()) {
+                const identity = applyIdentity(entry, key, 'phase37_replay_cache');
+                if (!identity) continue;
+                for (const observation of Array.isArray(entry.observations) ? entry.observations : []) {
+                    applyIdentity(observation, identity.canonicalTrackId, 'phase37_observation');
+                }
+            }
+        }
+        return summary;
+    }
+
+    function mapRuntime(engine) {
+        const names = ['cells','trackingStates','motionStates','fusedMotionStates','motionHistory','trackingHistory','cellHistory','predictions','arrivalPredictions'];
+        const summaries = {};
+        for (const name of names) summaries[name] = remapMap(engine?.[name], `engine_${name}`);
+        return summaries;
+    }
+
+    function persist() {
+        try {
+            const payload = {
+                version: VERSION,
+                savedAt: Date.now(),
+                identities: [...state.identityRegistry.entries()],
+                aliases: [...state.aliasToCanonical.entries()]
+            };
+            globalObject.localStorage?.setItem(STORAGE_KEY, JSON.stringify(payload));
+            state.persistedAt = Date.now();
+            return true;
+        } catch (_) { return false; }
+    }
+
+    function restore() {
+        try {
+            const raw = globalObject.localStorage?.getItem(STORAGE_KEY);
+            if (!raw) return 0;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed?.identities)) state.identityRegistry = new Map(parsed.identities);
+            if (Array.isArray(parsed?.aliases)) state.aliasToCanonical = new Map(parsed.aliases);
+            for (const [canonical, record] of state.identityRegistry.entries()) {
+                if (record?.entityId) state.entityToTrack.set(record.entityId, canonical);
+                if (record?.cellId) state.cellToTrack.set(record.cellId, canonical);
+                if (record?.historyId) state.historyToTrack.set(record.historyId, canonical);
+                if (record?.replayTrackId) state.replayToTrack.set(record.replayTrackId, canonical);
+            }
+            state.restoredFromStorage = true;
+            return state.identityRegistry.size;
+        } catch (_) { return 0; }
+    }
+
+    async function run(options = {}) {
+        state.executionCount += 1;
+        const engine = getEngine();
+        if (!engine) return { success: false, reason: 'ENGINE_UNAVAILABLE', version: VERSION, build: BUILD };
+        try {
+            if (!state.restoredFromStorage && options.restore !== false) restore();
+            const phase35 = mapPhase35Store(engine);
+            const phase37 = mapPhase37Cache(engine);
+            const runtime = mapRuntime(engine);
+            persist();
+
+            engine.__phase38Installed = true;
+            engine.version = VERSION;
+            engine.build = BUILD;
+            engine.phase38TrackIdentityRegistry = state.identityRegistry;
+            engine.phase38ReplayMapping = state.aliasToCanonical;
+            engine.resolveTrackIdentity = resolveTrackIdentity;
+            engine.preserveTrackIdentity = applyIdentity;
+
+            let phase37Result = null;
+            let phase36Result = null;
+            if (options.rerunDownstream !== false) {
+                try { phase37Result = await globalObject.runRainArrivalPhase37?.({ ...options, rerunDownstream: false }); } catch (_) {}
+                mapPhase37Cache(engine);
+                try { phase36Result = await globalObject.runRainArrivalPhase36?.({ ...options, rerunDownstream: false }); } catch (_) {}
+                mapRuntime(engine);
+            }
+
+            state.mappingResults = [...state.identityRegistry.values()].map(record => ({
+                canonicalTrackId: record.canonicalTrackId,
+                entityId: record.entityId,
+                cellId: record.cellId,
+                replayTrackId: record.replayTrackId,
+                aliasCount: record.aliases?.length ?? 0,
+                identityPreserved: true,
+                sources: record.sources
+            }));
+            state.lastRun = {
+                version: VERSION, build: BUILD, timestamp: new Date().toISOString(),
+                trackCount: state.identityRegistry.size,
+                aliasCount: state.aliasToCanonical.size,
+                phase35, phase37, runtime,
+                phase37Result, phase36Result
+            };
+            return { success: state.identityRegistry.size > 0, version: VERSION, build: BUILD, mapping: state.lastRun };
+        } catch (error) {
+            state.lastError = { name: error?.name ?? 'Error', message: error?.message ?? String(error), stack: error?.stack ?? null };
+            return { success: false, reason: 'PHASE38_EXECUTION_FAILED', error: state.lastError };
+        }
+    }
+
+    function diagnose() {
+        const engine = getEngine();
+        return {
+            version: VERSION, build: BUILD, installed: Boolean(engine?.__phase38Installed), engineAvailable: Boolean(engine),
+            trackCount: state.identityRegistry.size, aliasCount: state.aliasToCanonical.size,
+            entityMapCount: state.entityToTrack.size, cellMapCount: state.cellToTrack.size,
+            historyMapCount: state.historyToTrack.size, replayMapCount: state.replayToTrack.size,
+            restoredFromStorage: state.restoredFromStorage, persistedAt: state.persistedAt,
+            lastRun: state.lastRun, lastError: state.lastError
+        };
+    }
+
+    function printTable() {
+        const rows = state.mappingResults.map((item, index) => ({ index, ...item }));
+        if (globalObject.console?.table) globalObject.console.table(rows);
+        return rows;
+    }
+
+    const api = {
+        version: VERSION, build: BUILD, state, run, diagnose, printTable, restore, persist,
+        resolveTrackIdentity, preserveTrackIdentity: applyIdentity,
+        getIdentityMap: () => state.identityRegistry,
+        getReplayMap: () => state.replayToTrack,
+        getAliasMap: () => state.aliasToCanonical,
+        getCanonicalTrackId(value, keyHint = null) { return resolveTrackIdentity(value, keyHint)?.canonicalTrackId ?? null; },
+        clear() {
+            state.identityRegistry.clear(); state.aliasToCanonical.clear(); state.entityToTrack.clear();
+            state.cellToTrack.clear(); state.historyToTrack.clear(); state.replayToTrack.clear();
+            try { globalObject.localStorage?.removeItem(STORAGE_KEY); } catch (_) {}
+            return true;
+        }
+    };
+
+    globalObject.RainArrivalPhase38V32 = api;
+    globalObject.runRainArrivalPhase38 = run;
+    globalObject.RainGuardAI = globalObject.RainGuardAI || {};
+    globalObject.RainGuardAI.V32 = globalObject.RainGuardAI.V32 || {};
+    globalObject.RainGuardAI.V32.phase38 = api;
+
+    const engine = getEngine();
+    if (engine) {
+        engine.__phase38Installed = true;
+        engine.version = VERSION;
+        engine.build = BUILD;
+        engine.phase38TrackIdentityRegistry = state.identityRegistry;
+        engine.phase38ReplayMapping = state.aliasToCanonical;
+        engine.resolveTrackIdentity = resolveTrackIdentity;
+        engine.preserveTrackIdentity = applyIdentity;
     }
     state.installed = true;
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
