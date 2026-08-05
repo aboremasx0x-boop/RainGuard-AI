@@ -32,7 +32,7 @@
     const PRODUCT_NAME = 'RainGuard AI';
     const MODULE_NAME = 'Rain Arrival Integration Engine';
     const VERSION = 'V32';
-    const SEMANTIC_VERSION = '32.37.0';
+    const SEMANTIC_VERSION = '32.38.0';
 
     const ROOT_NAMESPACE_NAME = 'RainGuardAI';
     const VERSION_NAMESPACE_NAME = 'V32';
@@ -66825,5 +66825,29 @@ globalObject
                 engineAvailable: Boolean(globalObject.RainGuardAI?.V32?.rainArrivalPrediction)
             };
         }
+    };
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
+
+
+/* RainGuard AI V32 — Phase 38 Integration Adapter */
+(function installPhase38IntegrationAdapter(globalObject) {
+    'use strict';
+    const integration = globalObject.RainGuardAI?.V32?.rainArrivalIntegration ?? globalObject.RainArrivalIntegrationV32Instance;
+    const phase38 = globalObject.RainArrivalPhase38V32;
+    if (!integration || !phase38) return;
+    integration.phase38 = phase38;
+    integration.runPhase38 = phase38.run;
+    integration.resolveTrackIdentity = phase38.resolveTrackIdentity;
+    integration.preserveTrackIdentity = phase38.preserveTrackIdentity;
+    integration.getTrackIdentityMap = phase38.getIdentityMap;
+    integration.getReplayMapping = phase38.getReplayMap;
+    integration.metadata = {
+        ...(integration.metadata || {}),
+        semanticVersion: '32.38.0',
+        build: 'rainguard-v32-phase38-track-identity-preservation-replay-mapping-engine',
+        currentPart: 'Phase38',
+        status: 'complete',
+        productionReady: true,
+        moduleClosed: true
     };
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this));
