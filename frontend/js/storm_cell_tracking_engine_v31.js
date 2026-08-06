@@ -24,7 +24,7 @@ window.RG30 =
 RG31.StormCellTrackingEngine = {
 
     version:
-        "31.0.0",
+        "31.3.0",
 
     initialized:
         false,
@@ -7949,24 +7949,68 @@ stopMemoryMaintenance() {
         window.RG30.latestStormTrackingReport =
             report;
 
-        window.RG31.ActiveStormCells =
+        const exportedCells =
             this.getActiveCells();
 
+        /*
+         * Phase 38M-16
+         * Universal live storm publisher
+         */
+
+        window.RG31.ActiveStormCells =
+            exportedCells;
+
         window.RG30.ActiveStormCells =
-            this.getActiveCells();
+            exportedCells;
+
+        window.RG31.latestStormCells =
+            exportedCells;
+
+        window.RG30.latestStormCells =
+            exportedCells;
+
+        window.StormCells =
+            exportedCells;
+
+        window.RainGuardAI =
+            window.RainGuardAI || {};
+
+        window.RainGuardAI.V31 =
+            window.RainGuardAI.V31 || {};
+
+        window.RainGuardAI.activeStormCells =
+            exportedCells;
+
+        window.RainGuardAI.V31.activeStormCells =
+            exportedCells;
+
+        window.RainGuardAI.V31.latestStormTrackingReport =
+            report;
+
+        window.RainArrivalLiveStormEntities =
+            exportedCells;
 
         const detail = {
 
             report,
 
             activeCells:
-                this.getActiveCells(),
+                exportedCells,
+
+            cells:
+                exportedCells,
 
             archivedCells:
                 this.getArchivedCells(),
 
             transitions:
                 this.getCityTransitions(),
+
+            count:
+                exportedCells.length,
+
+            cycleNumber:
+                this.cycleNumber,
 
             timestamp:
                 this.lastTrackingAt,
@@ -7975,6 +8019,77 @@ stopMemoryMaintenance() {
                 this.version
 
         };
+
+        window.dispatchEvent(
+
+            new CustomEvent(
+
+                "RainGuard:StormCellsUpdated",
+
+                {
+                    detail: {
+
+                        cells:
+                            exportedCells,
+
+                        activeCells:
+                            exportedCells,
+
+                        count:
+                            exportedCells.length,
+
+                        cycleNumber:
+                            this.cycleNumber,
+
+                        report,
+
+                        timestamp:
+                            this.lastTrackingAt ||
+                            new Date()
+                                .toISOString(),
+
+                        version:
+                            this.version
+
+                    }
+                }
+
+            )
+
+        );
+
+        window.dispatchEvent(
+
+            new CustomEvent(
+
+                "rainarrival:live-storm-entities-updated",
+
+                {
+                    detail: {
+
+                        entities:
+                            exportedCells,
+
+                        cells:
+                            exportedCells,
+
+                        count:
+                            exportedCells.length,
+
+                        timestamp:
+                            this.lastTrackingAt ||
+                            new Date()
+                                .toISOString(),
+
+                        version:
+                            this.version
+
+                    }
+                }
+
+            )
+
+        );
 
         window.dispatchEvent(
 
@@ -9800,6 +9915,33 @@ stopMemoryMaintenance() {
         window.RG30.ActiveStormCells =
             [];
 
+        window.RG31.latestStormCells =
+            [];
+
+        window.RG30.latestStormCells =
+            [];
+
+        window.StormCells =
+            [];
+
+        window.RainArrivalLiveStormEntities =
+            [];
+
+        window.RainGuardAI =
+            window.RainGuardAI || {};
+
+        window.RainGuardAI.V31 =
+            window.RainGuardAI.V31 || {};
+
+        window.RainGuardAI.activeStormCells =
+            [];
+
+        window.RainGuardAI.V31.activeStormCells =
+            [];
+
+        window.RainGuardAI.V31.latestStormTrackingReport =
+            null;
+
         window.RG31.latestStormTrackingReport =
             null;
 
@@ -10274,6 +10416,60 @@ clearArchive() {
     },
 
     /* =====================================================
+       PHASE 38M-16
+       MANUAL LIVE STORM PUBLISH
+       ===================================================== */
+
+    publishActiveStormCells() {
+
+        const cells =
+            this.getActiveCells();
+
+        const report =
+            this.latestTrackingReport || {
+
+                cycleNumber:
+                    this.cycleNumber,
+
+                activeCellCount:
+                    cells.length,
+
+                activeCells:
+                    cells,
+
+                timestamp:
+                    this.lastTrackingAt ||
+                    new Date()
+                        .toISOString()
+
+            };
+
+        this.publishTrackingReport(
+            report
+        );
+
+        return {
+
+            success:
+                true,
+
+            version:
+                this.version,
+
+            activeCellCount:
+                cells.length,
+
+            cells,
+
+            timestamp:
+                new Date()
+                    .toISOString()
+
+        };
+
+    },
+
+    /* =====================================================
        DESTROY
        ===================================================== */
 
@@ -10485,6 +10681,15 @@ window.destroyStormTrackingV31 =
         return window.RG31
             .StormCellTrackingEngine
             .destroy();
+
+    };
+
+window.publishActiveStormCellsV31 =
+    function () {
+
+        return window.RG31
+            .StormCellTrackingEngine
+            .publishActiveStormCells();
 
     };
 
