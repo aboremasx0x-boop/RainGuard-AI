@@ -10,8 +10,8 @@
     "use strict";
 
     const ENGINE_NAME = "RainArrivalEngineV32";
-    const VERSION = "32.38M.17";
-    const BUILD = "rainguard-v32-phase38m-final-arrival-candidate-loader";
+    const VERSION = "32.38M.17.1";
+    const BUILD = "rainguard-v32-phase38m-final-arrival-candidate-collision-fix-loader";
 
     const MODULE_LOAD_ORDER = Object.freeze([
         { name: "utils", file: "utils.js", requiredGlobal: "RainArrivalUtilsV32" },
@@ -59,7 +59,7 @@
         autoInitialize: true,
         continueOnOptionalFailure: false,
         scriptTimeoutMs: 30000,
-        cacheVersion: "3238M17",
+        cacheVersion: "3238M171",
         debug: true
     });
 
@@ -547,7 +547,7 @@
         engine.initialize();
     }
 
-    console.log("[RainGuard AI V32] Phase 38M-17 Bootstrap loaded.", {
+    console.log("[RainGuard AI V32] Phase 38M-17.1 Bootstrap loaded.", {
         version: VERSION,
         build: BUILD,
         basePath: engine.basePath,
