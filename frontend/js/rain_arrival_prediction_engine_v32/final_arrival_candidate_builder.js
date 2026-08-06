@@ -23,10 +23,10 @@
         "finalArrivalCandidateBuilder";
 
     const VERSION =
-        "32.38M.17";
+        "32.38M.17.1";
 
     const BUILD =
-        "rainguard-v32-phase38m-final-arrival-candidate-builder";
+        "rainguard-v32-phase38m-final-arrival-candidate-builder-collision-fix";
 
     const DEFAULT_CONFIG =
         Object.freeze({
@@ -568,7 +568,7 @@
             this.version =
                 VERSION;
 
-            this.build =
+            this.buildId =
                 BUILD;
 
             this.config = {
@@ -1397,7 +1397,7 @@
                         this.version,
 
                     build:
-                        this.build,
+                        this.buildId,
 
                     target:
                         cloneValue(
@@ -1437,7 +1437,7 @@
                     this.version,
 
                 build:
-                    this.build,
+                    this.buildId,
 
                 target:
                     cloneValue(
@@ -1527,7 +1527,7 @@
                     this.version,
 
                 build:
-                    this.build,
+                    this.buildId,
 
                 startedAt,
 
@@ -1697,7 +1697,7 @@
                     this.version,
 
                 build:
-                    this.build,
+                    this.buildId,
 
                 installed:
                     true,
