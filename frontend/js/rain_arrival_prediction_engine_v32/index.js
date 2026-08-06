@@ -10,8 +10,8 @@
     "use strict";
 
     const ENGINE_NAME = "RainArrivalEngineV32";
-    const VERSION = "32.38M.17.1";
-    const BUILD = "rainguard-v32-phase38m-final-arrival-candidate-collision-fix-loader";
+    const VERSION = "32.38M.18";
+    const BUILD = "rainguard-v32-phase38m-candidate-repository-loader";
 
     const MODULE_LOAD_ORDER = Object.freeze([
         { name: "utils", file: "utils.js", requiredGlobal: "RainArrivalUtilsV32" },
@@ -47,6 +47,11 @@
             file: "final_arrival_candidate_builder.js",
             requiredGlobal: "RainArrivalFinalCandidateBuilderV32"
         },
+        {
+            name: "candidateRepository",
+            file: "candidate_repository.js",
+            requiredGlobal: "RainArrivalCandidateRepositoryV32"
+        },
         { name: "motionEngine", file: "motion_engine.js", requiredGlobal: "RainArrivalMotionEngineV32" },
         { name: "replayEngine", file: "replay_engine.js", requiredGlobal: "RainArrivalReplayEngineV32" },
         { name: "candidateEngine", file: "candidate_engine.js", requiredGlobal: "RainArrivalCandidateEngineV32" },
@@ -59,7 +64,7 @@
         autoInitialize: true,
         continueOnOptionalFailure: false,
         scriptTimeoutMs: 30000,
-        cacheVersion: "3238M171",
+        cacheVersion: "3238M18",
         debug: true
     });
 
@@ -547,7 +552,7 @@
         engine.initialize();
     }
 
-    console.log("[RainGuard AI V32] Phase 38M-17.1 Bootstrap loaded.", {
+    console.log("[RainGuard AI V32] Phase 38M-18 Bootstrap loaded.", {
         version: VERSION,
         build: BUILD,
         basePath: engine.basePath,
