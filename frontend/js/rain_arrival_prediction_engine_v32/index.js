@@ -10,8 +10,8 @@
     "use strict";
 
     const ENGINE_NAME = "RainArrivalEngineV32";
-    const VERSION = "32.38M.13";
-    const BUILD = "rainguard-v32-phase38m-storm-entity-collector-loader";
+    const VERSION = "32.38M.14";
+    const BUILD = "rainguard-v32-phase38m-live-storm-export-loader";
 
     const MODULE_LOAD_ORDER = Object.freeze([
         { name: "utils", file: "utils.js", requiredGlobal: "RainArrivalUtilsV32" },
@@ -32,6 +32,11 @@
             file: "storm_entity_collector.js",
             requiredGlobal: "RainArrivalStormEntityCollectorV32"
         },
+        {
+            name: "liveStormExportBridge",
+            file: "live_storm_export_bridge.js",
+            requiredGlobal: "RainArrivalLiveStormExportBridgeV32"
+        },
         { name: "motionEngine", file: "motion_engine.js", requiredGlobal: "RainArrivalMotionEngineV32" },
         { name: "replayEngine", file: "replay_engine.js", requiredGlobal: "RainArrivalReplayEngineV32" },
         { name: "candidateEngine", file: "candidate_engine.js", requiredGlobal: "RainArrivalCandidateEngineV32" },
@@ -44,7 +49,7 @@
         autoInitialize: true,
         continueOnOptionalFailure: false,
         scriptTimeoutMs: 30000,
-        cacheVersion: "3238M13",
+        cacheVersion: "3238M14",
         debug: true
     });
 
@@ -532,7 +537,7 @@
         engine.initialize();
     }
 
-    console.log("[RainGuard AI V32] Phase 38M-13 Bootstrap loaded.", {
+    console.log("[RainGuard AI V32] Phase 38M-14 Bootstrap loaded.", {
         version: VERSION,
         build: BUILD,
         basePath: engine.basePath,
