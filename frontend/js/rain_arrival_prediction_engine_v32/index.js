@@ -1,7 +1,7 @@
 /*
 ===========================================================
  RainGuard AI V32
- Phase 38M-12A2
+ Phase 38M-12B1
  Modular Bootstrap & Sequential Module Loader
 ===========================================================
 */
@@ -10,8 +10,8 @@
     "use strict";
 
     const ENGINE_NAME = "RainArrivalEngineV32";
-    const VERSION = "32.38M.12A2";
-    const BUILD = "rainguard-v32-phase38m-cache-bridge-loader-fix";
+    const VERSION = "32.38M.12B1";
+    const BUILD = "rainguard-v32-phase38m-storm-trackstore-bridge-loader";
 
     const MODULE_LOAD_ORDER = Object.freeze([
         { name: "utils", file: "utils.js", requiredGlobal: "RainArrivalUtilsV32" },
@@ -21,6 +21,11 @@
             name: "cacheCompatibilityBridge",
             file: "cache_compatibility_bridge.js",
             requiredGlobal: "RainArrivalCacheCompatibilityBridgeV32"
+        },
+        {
+            name: "stormTrackStoreBridge",
+            file: "storm_trackstore_bridge.js",
+            requiredGlobal: "RainArrivalStormTrackStoreBridgeV32"
         },
         { name: "motionEngine", file: "motion_engine.js", requiredGlobal: "RainArrivalMotionEngineV32" },
         { name: "replayEngine", file: "replay_engine.js", requiredGlobal: "RainArrivalReplayEngineV32" },
@@ -34,7 +39,7 @@
         autoInitialize: true,
         continueOnOptionalFailure: false,
         scriptTimeoutMs: 30000,
-        cacheVersion: "3238M12A2",
+        cacheVersion: "3238M12B1",
         debug: true
     });
 
