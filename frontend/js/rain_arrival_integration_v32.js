@@ -11571,6 +11571,15 @@
      */
     const BATCH_PREDICTION_METHODS =
         Object.freeze([
+            /*
+             * Phase 38M Modular Engine native API.
+             * index.js publishes RainArrivalEngineV32.run(context, options)
+             * and RainGuardAI.V32.rainArrivalPrediction.run(context, options).
+             */
+            'run',
+
+            /* Legacy / compatibility APIs. */
+            'runCompleteRainArrivalPrediction',
             'predictAllCities',
             'predictCities',
             'predictBatch',
@@ -11597,7 +11606,14 @@
             'generateCityPrediction',
             'executeCityPrediction',
             'predictArrival',
-            'predict'
+            'predict',
+
+            /*
+             * Last-resort Phase 38M compatibility. Batch mode is preferred
+             * for run(), but this prevents false incompatibility when a caller
+             * explicitly requests single-city execution.
+             */
+            'run'
         ]);
 
     /**
@@ -11940,7 +11956,16 @@
             supportsSingleCity:
                 Boolean(
                     singleCity.method
-                )
+                ),
+
+            phase38MRunAvailable:
+                typeof engine.run ===
+                'function',
+
+            preferredMethod:
+                batch.methodName ||
+                singleCity.methodName ||
+                null
         };
     }
 
@@ -12394,7 +12419,9 @@
             'data',
             'items',
             'forecasts',
-            'arrivalPredictions'
+            'arrivalPredictions',
+            'arrivalResults',
+            'outputs'
         ];
 
         for (
@@ -12419,6 +12446,48 @@
                     response[key]
                         .values()
                 );
+            }
+        }
+
+        /*
+         * Phase 38M orchestrators may wrap the actual prediction collection
+         * inside result/output/payload. Inspect one additional envelope level
+         * without recursively walking arbitrary objects.
+         */
+        const envelopeKeys = [
+            'result',
+            'output',
+            'payload',
+            'predictionResult',
+            'predictionOutput'
+        ];
+
+        for (const envelopeKey of envelopeKeys) {
+            const nested =
+                response[envelopeKey];
+
+            if (
+                nested &&
+                nested !== response &&
+                typeof nested === 'object'
+            ) {
+                if (Array.isArray(nested)) {
+                    return nested.slice();
+                }
+
+                for (const candidateKey of candidateKeys) {
+                    if (Array.isArray(nested[candidateKey])) {
+                        return nested[candidateKey].slice();
+                    }
+
+                    if (
+                        nested[candidateKey] instanceof Map
+                    ) {
+                        return Array.from(
+                            nested[candidateKey].values()
+                        );
+                    }
+                }
             }
         }
 
@@ -13066,11 +13135,34 @@
 
         const response =
             await withTimeout(
-                () =>
-                    resolvedMethod
-                        .method(
-                            payload
-                        ),
+                () => {
+                    /*
+                     * Phase 38M's native run(context, options) accepts a second
+                     * options argument. Legacy methods safely ignore the fact
+                     * that we only pass one argument below.
+                     */
+                    if (
+                        resolvedMethod.methodName === 'run' ||
+                        resolvedMethod.methodName ===
+                            'runCompleteRainArrivalPrediction'
+                    ) {
+                        return resolvedMethod.method(
+                            payload,
+                            {
+                                ...options,
+                                integrationMode: true,
+                                cycleId:
+                                    options.cycleId ||
+                                    unifiedInput.cycleId ||
+                                    null
+                            }
+                        );
+                    }
+
+                    return resolvedMethod.method(
+                        payload
+                    );
+                },
                 timeoutMs,
                 `Batch prediction using ${resolvedMethod.methodName}`
             );
