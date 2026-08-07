@@ -128,6 +128,24 @@
         storageKey:
             'rainguard_ai_v32_rain_arrival_integration_state',
 
+        /*
+         * Phase 38M modular compatibility.
+         *
+         * The modular bootstrap publishes an already-created singleton/runtime
+         * rather than a constructor.  Keep both the new singleton locations and
+         * the legacy constructor locations so older deployments still work.
+         */
+        engineInstanceGlobalNames: [
+            'RainArrivalEngineV32',
+            'RainArrivalPredictionEngineV32Instance'
+        ],
+
+        engineInstanceNamespacePaths: [
+            'RainGuardAI.V32.rainArrivalPrediction',
+            'RainGuardAI.V32.rainArrivalModularEngine',
+            'RainGuardAI.V32.arrivalPredictionEngine'
+        ],
+
         engineGlobalNames: [
             'RainArrivalPredictionEngineV32',
             'RainArrivalPredictionEngine'
@@ -1006,6 +1024,94 @@
      *     source: string|null
      * }}
      */
+    function isUsableEngineInstance(candidate) {
+        if (
+            !candidate ||
+            (
+                typeof candidate !== 'object' &&
+                typeof candidate !== 'function'
+            )
+        ) {
+            return false;
+        }
+
+        return Boolean(
+            typeof candidate.run === 'function' ||
+            typeof candidate.initialize === 'function' ||
+            typeof candidate.init === 'function' ||
+            typeof candidate.runCompleteRainArrivalPrediction === 'function' ||
+            candidate.readyPromise ||
+            candidate.modular === true
+        );
+    }
+
+    /**
+     * Discover an already-created Phase 38M/V32 engine singleton.
+     *
+     * @param {Object} options
+     * @returns {{instance: Object|Function|null, source: string|null}}
+     */
+    function findEngineInstance(
+        options = {}
+    ) {
+        const configuration =
+            resolveConfiguration(
+                options
+            );
+
+        const namespacePaths =
+            Array.isArray(
+                configuration.engineInstanceNamespacePaths
+            )
+                ? configuration.engineInstanceNamespacePaths
+                : [];
+
+        for (const path of namespacePaths) {
+            const candidate =
+                getByPath(path);
+
+            if (isUsableEngineInstance(candidate)) {
+                return {
+                    instance: candidate,
+                    source: path
+                };
+            }
+        }
+
+        const globalNames =
+            Array.isArray(
+                configuration.engineInstanceGlobalNames
+            )
+                ? configuration.engineInstanceGlobalNames
+                : [];
+
+        for (const globalName of globalNames) {
+            const candidate =
+                globalObject[globalName];
+
+            if (isUsableEngineInstance(candidate)) {
+                return {
+                    instance: candidate,
+                    source: globalName
+                };
+            }
+        }
+
+        return {
+            instance: null,
+            source: null
+        };
+    }
+
+    /**
+     * Discover a legacy Rain Arrival Prediction Engine constructor.
+     *
+     * This remains available for backwards compatibility.  New Phase 38M
+     * deployments normally resolve through findEngineInstance().
+     *
+     * @param {Object} options
+     * @returns {{constructor: Function|null, source: string|null}}
+     */
     function findEngineConstructor(
         options = {}
     ) {
@@ -1338,38 +1444,72 @@
      * @returns {Object}
      */
     function discoverV32Dependencies() {
-        const engineDiscovery =
+        const instanceDiscovery =
+            findEngineInstance();
+
+        const constructorDiscovery =
             findEngineConstructor();
+
+        const activeEngine =
+            runtimeState.engine ||
+            instanceDiscovery.instance ||
+            null;
+
+        const activeSource =
+            runtimeState.engineSource ||
+            instanceDiscovery.source ||
+            null;
 
         const discovered = {
             engineConstructor: {
                 available:
                     Boolean(
-                        engineDiscovery
+                        constructorDiscovery
                             .constructor
                     ),
 
                 value:
-                    engineDiscovery
+                    constructorDiscovery
                         .constructor,
 
                 source:
-                    engineDiscovery
+                    constructorDiscovery
                         .source
             },
 
             engineInstance: {
                 available:
                     Boolean(
-                        runtimeState.engine
+                        activeEngine
                     ),
 
                 value:
-                    runtimeState.engine,
+                    activeEngine,
 
                 source:
-                    runtimeState
-                        .engineSource
+                    activeSource
+            },
+
+            modularBootstrap: {
+                available:
+                    Boolean(
+                        globalObject.RainArrivalEngineV32 ||
+                        getByPath('RainGuardAI.V32.rainArrivalModularEngine')
+                    ),
+
+                value:
+                    globalObject.RainArrivalEngineV32 ||
+                    getByPath('RainGuardAI.V32.rainArrivalModularEngine') ||
+                    null,
+
+                source:
+                    globalObject.RainArrivalEngineV32
+                        ? 'RainArrivalEngineV32'
+                        : (
+                            getByPath('RainGuardAI.V32.rainArrivalModularEngine')
+                                ? 'RainGuardAI.V32.rainArrivalModularEngine'
+                                : null
+                        )
             }
         };
 
@@ -1420,124 +1560,146 @@
     function createEngineInstance(
         options = {}
     ) {
-        const requiredVersion =
-            SEMANTIC_VERSION;
-
-        if (runtimeState.engine) {
-            const activeVersion =
-                String(
-                    runtimeState.engine.version ??
-                    runtimeState.engine.metadata?.version ??
-                    ''
-                );
-
-            if (activeVersion === requiredVersion) {
-                return runtimeState.engine;
-            }
-
-            try {
-                if (typeof runtimeState.engine.destroy === 'function') {
-                    runtimeState.engine.destroy();
-                } else if (typeof runtimeState.engine.stop === 'function') {
-                    runtimeState.engine.stop();
-                }
-            } catch (_) {}
-
-            runtimeState.engine = null;
-            runtimeState.engineConstructor = null;
-            runtimeState.engineSource = null;
+        /*
+         * Phase 38M+ first reuses the singleton/runtime published by index.js.
+         * This prevents duplicate engines and avoids treating the modular
+         * singleton as a constructor.
+         */
+        if (
+            runtimeState.engine &&
+            isUsableEngineInstance(
+                runtimeState.engine
+            )
+        ) {
+            return runtimeState.engine;
         }
 
-        const discovery =
-            findEngineConstructor(
+        const instanceDiscovery =
+            findEngineInstance(
                 options
             );
 
+        if (instanceDiscovery.instance) {
+            runtimeState.engine =
+                instanceDiscovery.instance;
+
+            runtimeState.engineConstructor =
+                null;
+
+            runtimeState.engineSource =
+                instanceDiscovery.source;
+        } else {
+            /*
+             * Legacy fallback: older builds may still expose a constructor.
+             */
+            const constructorDiscovery =
+                findEngineConstructor(
+                    options
+                );
+
+            if (!constructorDiscovery.constructor) {
+                const error =
+                    new Error(
+                        'Rain Arrival Engine V32 was not found. Load rain_arrival_prediction_engine_v32/index.js before rain_arrival_integration_v32.js.'
+                    );
+
+                error.code =
+                    'RAIN_ARRIVAL_ENGINE_NOT_FOUND';
+
+                throw error;
+            }
+
+            runtimeState.engineConstructor =
+                constructorDiscovery.constructor;
+
+            runtimeState.engineSource =
+                constructorDiscovery.source;
+
+            const engineOptions =
+                isPlainObject(
+                    options.engineOptions
+                )
+                    ? options.engineOptions
+                    : {};
+
+            try {
+                runtimeState.engine =
+                    new constructorDiscovery.constructor(
+                        engineOptions
+                    );
+            } catch (constructorError) {
+                const error =
+                    new Error(
+                        'Failed to create Rain Arrival Prediction Engine V32 instance.'
+                    );
+
+                error.code =
+                    'RAIN_ARRIVAL_ENGINE_CREATION_FAILED';
+
+                error.cause =
+                    constructorError;
+
+                throw error;
+            }
+        }
+
         if (
-            !discovery.constructor
+            !runtimeState.engine ||
+            !isUsableEngineInstance(
+                runtimeState.engine
+            )
         ) {
             const error =
                 new Error(
-                    'RainArrivalPredictionEngineV32 was not found. Load rain_arrival_prediction_engine_v32.js before rain_arrival_integration_v32.js.'
+                    'Resolved Rain Arrival Engine V32 is not a usable engine instance.'
                 );
 
             error.code =
-                'RAIN_ARRIVAL_ENGINE_NOT_FOUND';
-
-            throw error;
-        }
-
-        runtimeState
-            .engineConstructor =
-            discovery.constructor;
-
-        runtimeState
-            .engineSource =
-            discovery.source;
-
-        const engineOptions =
-            isPlainObject(
-                options.engineOptions
-            )
-                ? options.engineOptions
-                : {};
-
-        try {
-            runtimeState.engine =
-                new discovery.constructor(
-                    engineOptions
-                );
-        } catch (constructorError) {
-            const error =
-                new Error(
-                    'Failed to create Rain Arrival Prediction Engine V32 instance.'
-                );
-
-            error.code =
-                'RAIN_ARRIVAL_ENGINE_CREATION_FAILED';
-
-            error.cause =
-                constructorError;
+                'RAIN_ARRIVAL_ENGINE_INVALID';
 
             throw error;
         }
 
         /*
- * Publish the created prediction-engine instance
- * using the paths expected by the connected-engine registry.
- */
-globalObject.RainGuardAI =
-    globalObject.RainGuardAI || {};
+         * Publish compatibility aliases without creating a second engine.
+         */
+        globalObject.RainGuardAI =
+            globalObject.RainGuardAI || {};
 
-globalObject.RainGuardAI.V32 =
-    globalObject.RainGuardAI.V32 || {};
+        globalObject.RainGuardAI.V32 =
+            globalObject.RainGuardAI.V32 || {};
 
-globalObject.RainGuardAI.V32
-    .rainArrivalPrediction =
-    runtimeState.engine;
+        globalObject.RainGuardAI.V32
+            .rainArrivalPrediction =
+            runtimeState.engine;
 
-globalObject.RainGuardAI.V32
-    .arrivalPredictionEngine =
-    runtimeState.engine;
+        globalObject.RainGuardAI.V32
+            .arrivalPredictionEngine =
+            runtimeState.engine;
 
-globalObject
-    .RainArrivalPredictionEngineV32Instance =
-    runtimeState.engine;
+        globalObject
+            .RainArrivalPredictionEngineV32Instance =
+            runtimeState.engine;
+
+        runtimeState.dependencies.v32 =
+            runtimeState.dependencies.v32 || {};
 
         runtimeState
             .dependencies
             .v32
             .engineConstructor = {
                 available:
-                    true,
+                    Boolean(
+                        runtimeState.engineConstructor
+                    ),
 
                 value:
-                    runtimeState
-                        .engineConstructor,
+                    runtimeState.engineConstructor,
 
                 source:
-                    runtimeState
-                        .engineSource
+                    runtimeState.engineConstructor
+                        ? runtimeState.engineSource
+                        : null
             };
 
         runtimeState
@@ -1551,17 +1713,20 @@ globalObject
                     runtimeState.engine,
 
                 source:
-                    runtimeState
-                        .engineSource
+                    runtimeState.engineSource
             };
 
         log(
             'info',
-            'Rain arrival prediction engine instance created.',
+            'Rain arrival prediction engine resolved.',
             {
                 source:
-                    runtimeState
-                        .engineSource
+                    runtimeState.engineSource,
+
+                reusedSingleton:
+                    Boolean(
+                        instanceDiscovery.instance
+                    )
             }
         );
 
@@ -1612,6 +1777,9 @@ globalObject
             'init'
         ];
 
+        let initializationResult = null;
+        let initializationMethod = null;
+
         for (
             const methodName
             of initializationMethods
@@ -1642,22 +1810,47 @@ globalObject
                         .enableV31Compatibility
             };
 
-            const result =
+            initializationResult =
                 await engine[
                     methodName
                 ](
                     initializationOptions
                 );
 
-            return {
-                initialized:
-                    true,
+            initializationMethod =
+                methodName;
 
-                method:
-                    methodName,
+            break;
+        }
 
-                result
-            };
+        /*
+         * The Phase 38M bootstrap exposes readyPromise.  Waiting for it here
+         * makes integration initialization deterministic even though index.js
+         * loads the modular files dynamically.
+         */
+        let readyResult = null;
+
+        if (
+            engine.readyPromise &&
+            typeof engine.readyPromise.then === 'function'
+        ) {
+            readyResult =
+                await engine.readyPromise;
+        } else {
+            const modularEngine =
+                globalObject.RainArrivalEngineV32 ||
+                getByPath(
+                    'RainGuardAI.V32.rainArrivalModularEngine'
+                );
+
+            if (
+                modularEngine &&
+                modularEngine.readyPromise &&
+                typeof modularEngine.readyPromise.then === 'function'
+            ) {
+                readyResult =
+                    await modularEngine.readyPromise;
+            }
         }
 
         return {
@@ -1665,13 +1858,20 @@ globalObject
                 true,
 
             skipped:
-                true,
+                initializationMethod === null,
 
             method:
-                null,
+                initializationMethod,
+
+            result:
+                initializationResult,
+
+            readyResult,
 
             reason:
-                'engine_has_no_explicit_initializer'
+                initializationMethod === null
+                    ? 'engine_has_no_explicit_initializer'
+                    : null
         };
     }
 
@@ -2553,6 +2753,7 @@ globalObject
         getMetadata,
         getConfiguration,
 
+        findEngineInstance,
         findEngineConstructor,
         discoverDependencies,
         discoverV30Dependencies,
@@ -2588,6 +2789,8 @@ globalObject
             setLastError,
             clearLastError,
             detectDependency,
+            isUsableEngineInstance,
+            findEngineInstance,
             createEngineInstance,
             initializeEngineInstance,
             getDependencySummary
