@@ -1,170 +1,308 @@
 /*
 ===============================================================================
- RainGuard AI V32 / Phase 39 Stabilization
- Storm Entity Collector Runtime Hotfix
- Version: 39A8-HF1
-
- Purpose:
- - Prevent "Cannot read properties of undefined (reading 'length')"
- - Normalize bridge.discover() output to an Array
- - Prevent overlapping collectAndSync() executions
- - Prevent Uncaught (in promise) from scheduled collection
- - Keep the existing StormEntityCollector implementation intact
-
- IMPORTANT:
- Load this file AFTER:
-   storm_entity_collector.js
- and AFTER the Rain Arrival 38M modules are loaded.
+ RainGuard AI V32
+ Storm Entity Collector — Restored Compatible Core
+ Version: 32.38M.13-R1
 ===============================================================================
 */
 
-(function installStormEntityCollectorHotfix(global) {
+(function initializeRainArrivalStormEntityCollector(global) {
     "use strict";
 
-    const HOTFIX_NAME = "RainGuardStormEntityCollectorHotfixV39";
-    const VERSION = "39A8-HF1";
-    const BUILD = "rainguard-v39-storm-entity-collector-hotfix";
-
+    const MODULE_NAME = "stormEntityCollector";
+    const VERSION = "32.38M.13-R1";
+    const BUILD = "rainguard-v32-phase38m-storm-entity-collector-restored";
     const now = () => Date.now();
 
-    function normalizeError(error) {
-        return {
-            name: error?.name || "Error",
-            message: error?.message || String(error),
-            stack: error?.stack || null,
-            timestamp: now()
-        };
-    }
+    const DEFAULT_CONFIG = {
+        autoStart: true,
+        collectionIntervalMs: 4000,
+        maximumEntities: 5000,
+        debug: true
+    };
 
-    function toArray(value) {
-        if (!value) return [];
-
-        if (Array.isArray(value)) {
+    function cloneValue(value) {
+        if (value === null || value === undefined) return value;
+        try {
+            if (typeof structuredClone === "function") return structuredClone(value);
+        } catch (_) {}
+        try {
+            return JSON.parse(JSON.stringify(value));
+        } catch (_) {
             return value;
         }
+    }
 
-        if (value instanceof Map || value instanceof Set) {
-            return Array.from(value.values());
-        }
-
-        if (typeof value.values === "function") {
-            try {
-                return Array.from(value.values());
-            } catch (_) {}
-        }
-
-        if (typeof value === "object") {
-            /*
-             * Only unwrap known collection envelopes.
-             * Avoid Object.values() on arbitrary diagnostic objects,
-             * because StormTrackStoreBridge expects actual entities.
-             */
-            const keys = [
-                "entities",
-                "items",
-                "tracks",
-                "stormTracks",
-                "cells",
-                "stormCells",
-                "activeCells",
-                "activeTracks",
-                "predictedPaths",
-                "paths",
-                "candidates",
-                "data",
-                "result",
-                "payload"
-            ];
-
-            for (const key of keys) {
-                if (Array.isArray(value?.[key])) {
-                    return value[key];
-                }
-
-                if (value?.[key] instanceof Map || value?.[key] instanceof Set) {
-                    return Array.from(value[key].values());
-                }
-            }
-        }
-
+    function safeArray(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        if (value instanceof Map || value instanceof Set) return Array.from(value.values());
+        try {
+            if (typeof value.values === "function") return Array.from(value.values());
+        } catch (_) {}
         return [];
     }
 
-    function resolveCollector() {
-        return (
-            global.RainArrivalStormEntityCollectorV32 ||
-            global.RainGuardAI?.V32?.rainArrivalModules?.stormEntityCollector ||
-            null
-        );
+    function finite(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
     }
 
-    function resolveBridge(collector) {
-        if (collector && typeof collector.getBridge === "function") {
+    function normalizeTimestamp(value) {
+        const n = finite(value);
+        if (n !== null) return n < 1e10 ? n * 1000 : n;
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : now();
+    }
+
+    function normalizeEntity(raw, sourceName = "unknown") {
+        if (!raw || typeof raw !== "object") return null;
+
+        const id =
+            raw.id ?? raw.trackId ?? raw.cellId ?? raw.stormId ??
+            raw.entityId ?? raw.uuid ?? null;
+
+        const latitude = finite(
+            raw.latitude ?? raw.lat ?? raw.center?.latitude ?? raw.center?.lat
+        );
+
+        const longitude = finite(
+            raw.longitude ?? raw.lon ?? raw.lng ??
+            raw.center?.longitude ?? raw.center?.lon ?? raw.center?.lng
+        );
+
+        if (!id && latitude === null && longitude === null && !raw.motion && !raw.path && !raw.predictedPath) {
+            return null;
+        }
+
+        const timestamp = normalizeTimestamp(
+            raw.timestamp ?? raw.updatedAt ?? raw.generatedAt ??
+            raw.detectedAt ?? raw.observedAt ?? now()
+        );
+
+        return {
+            ...cloneValue(raw),
+            id: String(id ?? `${sourceName}:${latitude ?? "na"}:${longitude ?? "na"}:${Math.floor(timestamp / 10000)}`),
+            source: raw.source ?? sourceName,
+            latitude,
+            longitude,
+            timestamp,
+            collectedAt: now()
+        };
+    }
+
+    class StormEntityCollector {
+        constructor(config = {}) {
+            this.version = VERSION;
+            this.build = BUILD;
+            this.config = { ...DEFAULT_CONFIG, ...config };
+            this.entities = new Map();
+            this.running = false;
+            this.timer = null;
+            this.syncRunning = false;
+            this.lastSourceReport = null;
+            this.lastResult = null;
+            this.lastError = null;
+            this.createdAt = now();
+            this.updatedAt = this.createdAt;
+            this.statistics = {
+                collections: 0,
+                discovered: 0,
+                stored: 0,
+                bridgeSyncs: 0,
+                failures: 0,
+                emptyCollections: 0
+            };
+        }
+
+        log(message, data) {
+            if (!this.config.debug) return;
+            console.log(`[RainArrival StormEntityCollector] ${message}`, data ?? "");
+        }
+
+        getBridge() {
+            return (
+                global.RainArrivalStormTrackStoreBridgeV32 ||
+                global.RainGuardAI?.V32?.rainArrivalModules?.stormTrackStoreBridge ||
+                null
+            );
+        }
+
+        collectSources() {
+            return [
+                ["liveStormExportBridge", global.RainArrivalLiveStormExportBridgeV32],
+                ["stormTrackStoreBridge", global.RainArrivalStormTrackStoreBridgeV32],
+                ["stormCellTracking", global.RainGuardStormCellTrackingEngineV31 ?? global.RainGuardAI?.V31?.stormCellTrackingEngine],
+                ["stormPathPrediction", global.RainGuardStormPathPredictionEngineV31 ?? global.RainGuardAI?.V31?.stormPathPredictionEngine],
+                ["rainArrivalEngine", global.RainArrivalEngineV32],
+                ["rainGuardV32", global.RainGuardAI?.V32]
+            ].filter(([, value]) => Boolean(value));
+        }
+
+        extractSourceEntities(value) {
+            if (!value) return [];
+
+            const candidates = [];
+            const append = (v) => { if (v) candidates.push(v); };
+
+            for (const methodName of [
+                "getAll", "getEntities", "getTracks", "getActive",
+                "getActiveTracks", "getStorms", "getCells", "getLatest", "export"
+            ]) {
+                if (typeof value?.[methodName] !== "function") continue;
+                try {
+                    const result = value[methodName]();
+                    if (result && typeof result.then === "function") continue;
+                    append(result);
+                } catch (_) {}
+            }
+
+            const keys = [
+                "entities", "stormEntities", "liveStormEntities",
+                "tracks", "activeTracks", "stormTracks",
+                "cells", "activeCells", "stormCells",
+                "items", "results", "predictions", "paths",
+                "predictedPaths", "candidates", "data",
+                "payload", "output", "lastResult", "lastOutput"
+            ];
+
+            for (const key of keys) append(value?.[key]);
+
+            const flattened = [];
+
+            for (const candidate of candidates) {
+                if (Array.isArray(candidate)) {
+                    flattened.push(...candidate);
+                    continue;
+                }
+
+                if (candidate instanceof Map || candidate instanceof Set) {
+                    flattened.push(...candidate.values());
+                    continue;
+                }
+
+                if (candidate && typeof candidate === "object") {
+                    for (const key of keys) {
+                        const nested = candidate[key];
+                        if (Array.isArray(nested)) flattened.push(...nested);
+                        else if (nested instanceof Map || nested instanceof Set) flattened.push(...nested.values());
+                    }
+                }
+            }
+
+            return flattened;
+        }
+
+        collect() {
+            const startedAt = now();
+            const discovered = [];
+            const seen = new Set();
+            const sourceReports = [];
+
             try {
-                const bridge = collector.getBridge();
-                if (bridge) return bridge;
-            } catch (_) {}
+                for (const [sourceName, sourceValue] of this.collectSources()) {
+                    let items = [];
+
+                    try {
+                        items = this.extractSourceEntities(sourceValue);
+                    } catch (error) {
+                        sourceReports.push({
+                            source: sourceName,
+                            success: false,
+                            count: 0,
+                            error: error?.message ?? String(error)
+                        });
+                        continue;
+                    }
+
+                    for (const raw of safeArray(items)) {
+                        const entity = normalizeEntity(raw, sourceName);
+                        if (!entity || seen.has(entity.id)) continue;
+                        seen.add(entity.id);
+                        discovered.push(entity);
+                    }
+
+                    sourceReports.push({
+                        source: sourceName,
+                        success: true,
+                        count: safeArray(items).length
+                    });
+                }
+
+                for (const entity of discovered) this.entities.set(entity.id, entity);
+
+                if (this.entities.size > this.config.maximumEntities) {
+                    const kept = Array.from(this.entities.values())
+                        .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
+                        .slice(0, this.config.maximumEntities);
+
+                    this.entities.clear();
+                    for (const entity of kept) this.entities.set(entity.id, entity);
+                }
+
+                this.statistics.collections += 1;
+                this.statistics.discovered += discovered.length;
+                this.statistics.stored = this.entities.size;
+                if (!discovered.length) this.statistics.emptyCollections += 1;
+
+                this.updatedAt = now();
+                this.lastSourceReport = {
+                    generatedAt: this.updatedAt,
+                    sources: sourceReports
+                };
+
+                const result = {
+                    success: true,
+                    status: discovered.length ? "STORM_ENTITIES_FOUND" : "NO_STORM_ENTITIES_FOUND",
+                    version: VERSION,
+                    build: BUILD,
+                    sourceCount: sourceReports.length,
+                    discoveredCount: discovered.length,
+                    storedCount: this.entities.size,
+                    entities: discovered,
+                    sourceReports,
+                    durationMs: now() - startedAt,
+                    generatedAt: this.updatedAt
+                };
+
+                this.lastResult = cloneValue(result);
+                this.lastError = null;
+                this.log("Collection result:", result);
+                return result;
+
+            } catch (error) {
+                const failure = {
+                    name: error?.name ?? "Error",
+                    message: error?.message ?? String(error),
+                    stack: error?.stack ?? null,
+                    timestamp: now()
+                };
+
+                this.lastError = failure;
+                this.statistics.failures += 1;
+
+                const result = {
+                    success: false,
+                    status: "STORM_ENTITY_COLLECTION_FAILED",
+                    version: VERSION,
+                    build: BUILD,
+                    sourceCount: 0,
+                    discoveredCount: 0,
+                    storedCount: this.entities.size,
+                    entities: [],
+                    sourceReports: [],
+                    error: failure,
+                    generatedAt: now()
+                };
+
+                this.lastResult = cloneValue(result);
+                console.error("[RainArrival StormEntityCollector] Collection failed.", failure);
+                return result;
+            }
         }
 
-        return (
-            global.RainArrivalStormTrackStoreBridgeV32 ||
-            global.RainGuardAI?.V32?.rainArrivalModules?.stormTrackStoreBridge ||
-            null
-        );
-    }
-
-    function patchCollector(collector) {
-        if (!collector) {
-            return {
-                success: false,
-                reason: "STORM_ENTITY_COLLECTOR_NOT_FOUND"
-            };
-        }
-
-        if (collector.__rainGuardPhase39HotfixInstalled) {
-            return {
-                success: true,
-                alreadyInstalled: true,
-                version: VERSION
-            };
-        }
-
-        /*
-         * 1) Add overlap state used by collectAndSync protection.
-         */
-        if (typeof collector.syncRunning !== "boolean") {
-            collector.syncRunning = false;
-        }
-
-        /*
-         * 2) Preserve original methods.
-         */
-        const originalInstallBridgeAdapter =
-            typeof collector.installBridgeAdapter === "function"
-                ? collector.installBridgeAdapter.bind(collector)
-                : null;
-
-        const originalCollect =
-            typeof collector.collect === "function"
-                ? collector.collect.bind(collector)
-                : null;
-
-        const originalStop =
-            typeof collector.stop === "function"
-                ? collector.stop.bind(collector)
-                : null;
-
-        /*
-         * 3) Safe Bridge Adapter.
-         *
-         * The original implementation assumes:
-         *     collected.entities.length
-         *
-         * This hotfix guarantees an array and also guarantees that the
-         * fallback bridge.discover() result is an array.
-         */
-        collector.installBridgeAdapter = function () {
-            const bridge = resolveBridge(this);
+        installBridgeAdapter() {
+            const bridge = this.getBridge();
 
             if (!bridge) {
                 return {
@@ -173,101 +311,53 @@
                 };
             }
 
-            /*
-             * If our safe adapter is already installed, do nothing.
-             */
-            if (bridge.__rainGuardSafeCollectorAdapterInstalled) {
-                bridge.stormEntityCollector = this;
-
+            if (bridge.__collectorAdapterInstalled && bridge.stormEntityCollector === this) {
                 return {
                     success: true,
-                    alreadyInstalled: true,
-                    safeAdapter: true
+                    installed: true,
+                    alreadyInstalled: true
                 };
             }
 
-            /*
-             * If the original collector adapter was previously installed,
-             * bridge.discover may already be the collector wrapper.
-             * Preserve it only as a final fallback when it is not our wrapper.
-             */
-            const previousDiscover =
+            const originalDiscover =
                 typeof bridge.discover === "function"
                     ? bridge.discover.bind(bridge)
                     : null;
 
-            const collectorRef = this;
-
-            bridge.discover = function safeStormEntityDiscover() {
-                let collected = null;
-
-                try {
-                    collected =
-                        typeof collectorRef.collect === "function"
-                            ? collectorRef.collect()
-                            : null;
-                } catch (error) {
-                    collectorRef.lastError = normalizeError(error);
-                }
-
+            bridge.discover = () => {
+                const collected = this.collect();
                 const entities = Array.isArray(collected?.entities)
                     ? collected.entities
-                    : toArray(collected?.entities);
+                    : [];
 
-                if (entities.length > 0) {
-                    return entities;
+                if (entities.length > 0) return entities;
+
+                if (!originalDiscover) return [];
+
+                try {
+                    const fallback = originalDiscover();
+                    return Array.isArray(fallback) ? fallback : [];
+                } catch (error) {
+                    this.lastError = {
+                        name: error?.name ?? "Error",
+                        message: error?.message ?? String(error),
+                        stack: error?.stack ?? null,
+                        timestamp: now()
+                    };
+                    return [];
                 }
-
-                /*
-                 * Try published collector state before invoking legacy fallback.
-                 */
-                const published =
-                    global.RainGuardAI?.V32?.stormEntityCollectorState?.entities ??
-                    global.RainGuardAI?.V32?.stormEntities ??
-                    null;
-
-                const publishedEntities = toArray(published);
-
-                if (publishedEntities.length > 0) {
-                    return publishedEntities;
-                }
-
-                /*
-                 * Calling a previousDiscover that is itself the old collector
-                 * adapter can recurse. Skip known collector wrappers.
-                 */
-                if (
-                    previousDiscover &&
-                    !previousDiscover.__rainGuardSafeCollectorDiscover
-                ) {
-                    try {
-                        const fallback = previousDiscover();
-                        return toArray(fallback);
-                    } catch (error) {
-                        collectorRef.lastError = normalizeError(error);
-                    }
-                }
-
-                return [];
             };
 
-            bridge.discover.__rainGuardSafeCollectorDiscover = true;
-
             bridge.__collectorAdapterInstalled = true;
-            bridge.__rainGuardSafeCollectorAdapterInstalled = true;
             bridge.stormEntityCollector = this;
 
             return {
                 success: true,
-                installed: true,
-                safeAdapter: true
+                installed: true
             };
-        };
+        }
 
-        /*
-         * 4) Safe non-overlapping collectAndSync.
-         */
-        collector.collectAndSync = async function () {
+        async collectAndSync() {
             if (this.syncRunning) {
                 return {
                     success: true,
@@ -280,35 +370,20 @@
             this.syncRunning = true;
 
             try {
-                const collection =
-                    typeof this.collect === "function"
-                        ? this.collect()
-                        : {
-                            success: false,
-                            entities: []
-                        };
-
-                const bridge = resolveBridge(this);
+                const collection = this.collect();
+                const bridge = this.getBridge();
 
                 if (!bridge || typeof bridge.sync !== "function") {
                     return {
                         success: false,
                         reason: "STORM_TRACKSTORE_BRIDGE_UNAVAILABLE",
-                        collection,
-                        generatedAt: now()
+                        collection
                     };
                 }
 
                 this.installBridgeAdapter();
-
                 const syncResult = await bridge.sync();
-
-                if (this.statistics && typeof this.statistics === "object") {
-                    this.statistics.bridgeSyncs =
-                        Number(this.statistics.bridgeSyncs || 0) + 1;
-                }
-
-                this.lastError = null;
+                this.statistics.bridgeSyncs += 1;
 
                 return {
                     success: Boolean(syncResult?.success),
@@ -317,275 +392,142 @@
                     syncResult,
                     generatedAt: now()
                 };
+
             } catch (error) {
-                const normalized = normalizeError(error);
+                this.lastError = {
+                    name: error?.name ?? "Error",
+                    message: error?.message ?? String(error),
+                    stack: error?.stack ?? null,
+                    timestamp: now()
+                };
 
-                this.lastError = normalized;
+                this.statistics.failures += 1;
 
-                if (this.statistics && typeof this.statistics === "object") {
-                    this.statistics.failures =
-                        Number(this.statistics.failures || 0) + 1;
-                }
-
-                console.error(
-                    "[RainArrival StormEntityCollector Hotfix] collectAndSync failed.",
-                    normalized
-                );
-
-                /*
-                 * Return a controlled failure instead of allowing an
-                 * unhandled rejected promise to flood DevTools.
-                 */
                 return {
                     success: false,
                     status: "COLLECTION_AND_SYNC_FAILED",
-                    error: normalized,
+                    error: cloneValue(this.lastError),
                     generatedAt: now()
                 };
+
             } finally {
                 this.syncRunning = false;
             }
-        };
+        }
 
-        /*
-         * 5) Replace the legacy auto-loop with one timer only.
-         * We keep the existing configured interval but prevent duplicate
-         * interval creation and catch every scheduled promise.
-         */
-        collector.start = function () {
+        getAll() {
+            return Array.from(this.entities.values()).map(cloneValue);
+        }
+
+        clear() {
+            this.entities.clear();
+            this.statistics.stored = 0;
+            return { success: true, storedCount: 0 };
+        }
+
+        start() {
             if (this.running && this.timer) {
                 return {
                     success: true,
                     alreadyRunning: true,
                     running: true,
-                    intervalMs: this.config?.collectionIntervalMs ?? 4000
+                    intervalMs: this.config.collectionIntervalMs
                 };
             }
 
-            /*
-             * Clear a stale timer before creating the new one.
-             */
             if (this.timer) {
-                try {
-                    global.clearInterval(this.timer);
-                } catch (_) {}
+                try { global.clearInterval(this.timer); } catch (_) {}
                 this.timer = null;
             }
 
             this.running = true;
+            this.installBridgeAdapter();
 
-            try {
-                this.installBridgeAdapter();
-            } catch (error) {
-                this.lastError = normalizeError(error);
-            }
+            Promise.resolve(this.collectAndSync()).catch(error => {
+                this.lastError = {
+                    name: error?.name ?? "Error",
+                    message: error?.message ?? String(error),
+                    stack: error?.stack ?? null,
+                    timestamp: now()
+                };
+            });
 
-            Promise.resolve(this.collectAndSync())
-                .catch(error => {
-                    this.lastError = normalizeError(error);
-
-                    console.error(
-                        "[RainArrival StormEntityCollector Hotfix] Initial collectAndSync failed.",
-                        error
-                    );
+            this.timer = global.setInterval(() => {
+                Promise.resolve(this.collectAndSync()).catch(error => {
+                    this.lastError = {
+                        name: error?.name ?? "Error",
+                        message: error?.message ?? String(error),
+                        stack: error?.stack ?? null,
+                        timestamp: now()
+                    };
                 });
-
-            const intervalMs =
-                Number(this.config?.collectionIntervalMs) > 0
-                    ? Number(this.config.collectionIntervalMs)
-                    : 4000;
-
-            this.timer = global.setInterval(
-                () => {
-                    Promise.resolve(this.collectAndSync())
-                        .catch(error => {
-                            this.lastError = normalizeError(error);
-
-                            console.error(
-                                "[RainArrival StormEntityCollector Hotfix] Scheduled collectAndSync failed.",
-                                error
-                            );
-                        });
-                },
-                intervalMs
-            );
+            }, this.config.collectionIntervalMs);
 
             return {
                 success: true,
                 running: true,
-                intervalMs
+                intervalMs: this.config.collectionIntervalMs
             };
-        };
+        }
 
-        /*
-         * 6) Safe stop keeps compatibility with the original collector.
-         */
-        collector.stop = function () {
-            if (this.timer) {
-                try {
-                    global.clearInterval(this.timer);
-                } catch (_) {}
-            }
-
+        stop() {
+            if (this.timer) global.clearInterval(this.timer);
             this.timer = null;
             this.running = false;
             this.syncRunning = false;
+            return { success: true, running: false };
+        }
 
+        getDiagnostics() {
             return {
-                success: true,
-                running: false
-            };
-        };
-
-        collector.__rainGuardPhase39HotfixInstalled = true;
-        collector.__rainGuardPhase39HotfixVersion = VERSION;
-
-        /*
-         * Reinstall bridge adapter immediately.
-         */
-        try {
-            collector.installBridgeAdapter();
-        } catch (error) {
-            collector.lastError = normalizeError(error);
-        }
-
-        /*
-         * Restart only if the collector was already intended to auto-run.
-         * This removes the old timer and starts exactly one protected timer.
-         */
-        const shouldRun =
-            collector.running === true ||
-            collector.config?.autoStart === true;
-
-        if (originalStop) {
-            try {
-                originalStop();
-            } catch (_) {}
-        } else if (collector.timer) {
-            try {
-                global.clearInterval(collector.timer);
-            } catch (_) {}
-            collector.timer = null;
-        }
-
-        collector.running = false;
-        collector.syncRunning = false;
-
-        if (shouldRun) {
-            collector.start();
-        }
-
-        return {
-            success: true,
-            installed: true,
-            version: VERSION,
-            build: BUILD,
-            running: collector.running,
-            intervalMs: collector.config?.collectionIntervalMs ?? null
-        };
-    }
-
-    function install() {
-        const collector = resolveCollector();
-
-        if (!collector) {
-            return {
-                success: false,
-                reason: "STORM_ENTITY_COLLECTOR_NOT_AVAILABLE"
+                module: MODULE_NAME,
+                version: this.version,
+                build: this.build,
+                installed: true,
+                running: this.running,
+                syncRunning: this.syncRunning,
+                bridgeAvailable: Boolean(this.getBridge()),
+                storedCount: this.entities.size,
+                sourceReports: cloneValue(this.lastSourceReport),
+                lastResult: cloneValue(this.lastResult),
+                lastError: cloneValue(this.lastError),
+                statistics: cloneValue(this.statistics),
+                createdAt: this.createdAt,
+                updatedAt: this.updatedAt
             };
         }
 
-        return patchCollector(collector);
-    }
-
-    global.RainGuardStormEntityCollectorHotfixV39 = {
-        name: HOTFIX_NAME,
-        version: VERSION,
-        build: BUILD,
-        install,
         diagnose() {
-            const collector = resolveCollector();
-            const bridge = resolveBridge(collector);
-
-            const result = {
-                installed:
-                    Boolean(collector?.__rainGuardPhase39HotfixInstalled),
-
-                version:
-                    collector?.__rainGuardPhase39HotfixVersion ?? null,
-
-                collectorAvailable:
-                    Boolean(collector),
-
-                bridgeAvailable:
-                    Boolean(bridge),
-
-                running:
-                    Boolean(collector?.running),
-
-                syncRunning:
-                    Boolean(collector?.syncRunning),
-
-                timerActive:
-                    Boolean(collector?.timer),
-
-                storedCount:
-                    collector?.entities instanceof Map
-                        ? collector.entities.size
-                        : null,
-
-                lastError:
-                    collector?.lastError ?? null,
-
-                bridgeSafeAdapter:
-                    Boolean(bridge?.__rainGuardSafeCollectorAdapterInstalled)
-            };
-
-            console.log(
-                "[RainGuard Phase 39 StormEntityCollector Hotfix]",
-                result
-            );
-
-            return result;
+            const diagnostics = this.getDiagnostics();
+            console.log("[RainArrival StormEntityCollector]", diagnostics);
+            return diagnostics;
         }
-    };
-
-    global.installRainGuardStormEntityCollectorHotfix =
-        () => install();
-
-    global.diagnoseRainGuardStormEntityCollectorHotfix =
-        () =>
-            global.RainGuardStormEntityCollectorHotfixV39
-                .diagnose();
-
-    /*
-     * Install immediately if the collector already exists.
-     * Otherwise retry for a short bounded period because this file may be
-     * loaded just after index.js while modular scripts are still registering.
-     */
-    const immediate = install();
-
-    if (!immediate.success) {
-        let attempts = 0;
-
-        const retryTimer = global.setInterval(
-            () => {
-                attempts += 1;
-
-                const result = install();
-
-                if (result.success || attempts >= 30) {
-                    global.clearInterval(retryTimer);
-                }
-            },
-            500
-        );
     }
 
-    console.log(
-        `[RainGuard AI] Storm Entity Collector Hotfix ${VERSION} READY`,
-        immediate
-    );
+    const collector = new StormEntityCollector();
+
+    global.RainArrivalStormEntityCollectorV32 = collector;
+
+    global.RainGuardAI = global.RainGuardAI || {};
+    global.RainGuardAI.V32 = global.RainGuardAI.V32 || {};
+    global.RainGuardAI.V32.rainArrivalModules =
+        global.RainGuardAI.V32.rainArrivalModules || {};
+
+    global.RainGuardAI.V32.rainArrivalModules.stormEntityCollector = collector;
+
+    global.RainArrivalEngineV32?.register?.(MODULE_NAME, collector);
+    global.RainArrivalOrchestratorV32?.register?.(MODULE_NAME, collector);
+
+    global.collectRainArrivalStormEntities = () => collector.collect();
+    global.collectAndSyncRainArrivalStormEntities = () => collector.collectAndSync();
+    global.diagnoseRainArrivalStormEntityCollector = () => collector.diagnose();
+
+    if (collector.config.autoStart) collector.start();
+
+    console.log("[RainGuard AI V32] Storm Entity Collector loaded.", {
+        version: VERSION,
+        build: BUILD
+    });
 
 })(
     typeof globalThis !== "undefined"
