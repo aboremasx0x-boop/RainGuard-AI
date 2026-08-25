@@ -17,6 +17,17 @@ Purpose
     Phase 39A-15F6N4B1B3C / C1
     Phase 39A-15F6N4B1B3C2
 
+Phase 39A-15F6N4B1B3C3 startup hardening
+----------------------------------------
+- Deferred startup.
+- Dependency readiness gate.
+- Up to 30 automatic retry attempts.
+- Does not declare startup success unless persisted history is
+  actually restored into the runtime store.
+- DOMContentLoaded + window.load recovery hooks.
+- Prevents concurrent rehydration runs.
+- Stops retry cycle immediately after authoritative recovery.
+
 Target path
 -----------
 frontend/js/rain_arrival_prediction_engine_v32/
@@ -27,8 +38,9 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.0";
-    const BUILD = "rainguard-v39-indexeddb-authoritative-temporal-history-rehydration-bridge";
+    const VERSION = "39A.15F6N4B1B3C3.1";
+    const BUILD =
+        "rainguard-v39-indexeddb-authoritative-temporal-history-rehydration-bridge-startup-hardening";
 
     const SOURCE_BRIDGE =
         "RainGuard39A15F6N4B1B3C2BridgeV39";
@@ -52,25 +64,37 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
         "diagnoseRainGuard39A15F6N4B1B3C3IndexedDBAuthoritativeTemporalHistoryRehydration";
 
     const AUTO_RETRY_MS = 2000;
-    const AUTO_RETRY_LIMIT = 8;
+    const AUTO_RETRY_LIMIT = 30;
+    const AUTO_INITIAL_DELAY_MS = 1200;
+
     const MAX_POINTS_PER_IDENTITY = 96;
 
     let running = false;
     let installed = false;
+
     let retryCount = 0;
     let retryTimer = null;
+
+    let autoRehydrationCompleted = false;
+    let autoAttemptCount = 0;
 
     function now() {
         return Date.now();
     }
 
     function normalizeTimestamp(value) {
-        if (typeof value === "number" && Number.isFinite(value)) {
+        if (
+            typeof value === "number" &&
+            Number.isFinite(value)
+        ) {
             return value;
         }
 
         const parsed = Date.parse(value);
-        return Number.isFinite(parsed) ? parsed : 0;
+
+        return Number.isFinite(parsed)
+            ? parsed
+            : 0;
     }
 
     function pointKey(point) {
@@ -92,19 +116,29 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
             0
         );
 
-        const timestamp = normalizeTimestamp(
-            point?.timestamp ??
-            point?.observedAt ??
-            point?.updatedAt ??
-            point?.generatedAt ??
-            0
-        );
+        const timestamp =
+            normalizeTimestamp(
+                point?.timestamp ??
+                point?.observedAt ??
+                point?.updatedAt ??
+                point?.generatedAt ??
+                0
+            );
 
-        return `${lat.toFixed(5)}|${lon.toFixed(5)}|${timestamp}`;
+        return (
+            `${lat.toFixed(5)}|` +
+            `${lon.toFixed(5)}|` +
+            `${timestamp}`
+        );
     }
 
     function normalizePoint(point) {
-        if (!point || typeof point !== "object") return null;
+        if (
+            !point ||
+            typeof point !== "object"
+        ) {
+            return null;
+        }
 
         const latitude = Number(
             point.latitude ??
@@ -129,83 +163,141 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
             return null;
         }
 
-        const timestamp = normalizeTimestamp(
-            point.timestamp ??
-            point.observedAt ??
-            point.updatedAt ??
-            point.generatedAt ??
-            now()
-        );
+        const timestamp =
+            normalizeTimestamp(
+                point.timestamp ??
+                point.observedAt ??
+                point.updatedAt ??
+                point.generatedAt ??
+                now()
+            );
 
         return {
             ...point,
+
             latitude,
             longitude,
+
             lat: latitude,
             lon: longitude,
+
             timestamp
         };
     }
 
-    function mergeHistory(existingHistory, persistedHistory) {
+    function mergeHistory(
+        existingHistory,
+        persistedHistory
+    ) {
         const all = [
-            ...(Array.isArray(persistedHistory) ? persistedHistory : []),
-            ...(Array.isArray(existingHistory) ? existingHistory : [])
+            ...(
+                Array.isArray(persistedHistory)
+                    ? persistedHistory
+                    : []
+            ),
+
+            ...(
+                Array.isArray(existingHistory)
+                    ? existingHistory
+                    : []
+            )
         ]
             .map(normalizePoint)
             .filter(Boolean)
-            .sort((a, b) => a.timestamp - b.timestamp);
+            .sort(
+                (a, b) =>
+                    a.timestamp -
+                    b.timestamp
+            );
 
         const seen = new Set();
         const merged = [];
 
         for (const point of all) {
-            const key = pointKey(point);
+            const key =
+                pointKey(point);
 
-            if (seen.has(key)) continue;
+            if (
+                seen.has(key)
+            ) {
+                continue;
+            }
 
             seen.add(key);
+
             merged.push(point);
         }
 
-        return merged.slice(-MAX_POINTS_PER_IDENTITY);
+        return merged.slice(
+            -MAX_POINTS_PER_IDENTITY
+        );
     }
 
     function ensureRuntimeStore() {
-        const current = global[TARGET_STORE];
+        const current =
+            global[TARGET_STORE];
 
-        if (current instanceof Map) {
+        if (
+            current instanceof Map
+        ) {
             return current;
         }
 
-        const map = new Map();
+        const map =
+            new Map();
 
-        if (current && typeof current === "object") {
-            for (const [key, value] of Object.entries(current)) {
-                map.set(key, value);
+        if (
+            current &&
+            typeof current === "object"
+        ) {
+            for (
+                const [key, value]
+                of Object.entries(current)
+            ) {
+                map.set(
+                    key,
+                    value
+                );
             }
         }
 
-        global[TARGET_STORE] = map;
+        global[TARGET_STORE] =
+            map;
+
         return map;
     }
 
-    function normalizePersistedRecord(record) {
-        if (!record || typeof record !== "object") return null;
+    function normalizePersistedRecord(
+        record
+    ) {
+        if (
+            !record ||
+            typeof record !== "object"
+        ) {
+            return null;
+        }
 
-        const identity = String(
-            record.identity ??
-            record.canonicalTrackId ??
-            record.trackId ??
-            record.cellId ??
-            ""
-        ).trim();
+        const identity =
+            String(
+                record.identity ??
+                record.canonicalTrackId ??
+                record.trackId ??
+                record.cellId ??
+                ""
+            ).trim();
 
-        if (!identity) return null;
+        if (
+            !identity
+        ) {
+            return null;
+        }
 
-        const history = Array.isArray(record.history)
-            ? record.history.map(normalizePoint).filter(Boolean)
-            : [];
+        const history =
+            Array.isArray(record.history)
+                ? record.history
+                    .map(normalizePoint)
+                    .filter(Boolean)
+                : [];
 
         const firstSeenAt =
             Number(record.firstSeenAt) ||
@@ -214,68 +306,132 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
 
         const lastSeenAt =
             Number(record.lastSeenAt) ||
-            Number(history.at(-1)?.timestamp) ||
+            Number(
+                history.at(-1)?.timestamp
+            ) ||
             firstSeenAt;
+
+        const uniqueCoordinateCount =
+            Number(
+                record.uniqueCoordinateCount
+            ) ||
+            new Set(
+                history.map(
+                    (p) =>
+                        `${p.latitude.toFixed(5)},` +
+                        `${p.longitude.toFixed(5)}`
+                )
+            ).size;
 
         return {
             identity,
+
             canonicalTrackId:
-                record.canonicalTrackId ?? identity,
+                record.canonicalTrackId ??
+                identity,
+
             firstSeenAt,
             lastSeenAt,
-            sources: Array.isArray(record.sources)
-                ? record.sources
-                : [],
+
+            sources:
+                Array.isArray(record.sources)
+                    ? record.sources
+                    : [],
+
             observationCount:
-                Number(record.observationCount) ||
+                Number(
+                    record.observationCount
+                ) ||
                 history.length,
-            uniqueCoordinateCount:
-                Number(record.uniqueCoordinateCount) ||
-                new Set(
-                    history.map(
-                        p => `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`
-                    )
-                ).size,
+
+            uniqueCoordinateCount,
+
             motionReady:
-                Boolean(record.motionReady),
+                Boolean(
+                    record.motionReady
+                ),
+
             history
         };
     }
 
-    function mergeIdentity(existing, persisted) {
-        const mergedHistory = mergeHistory(
-            existing?.history,
-            persisted?.history
-        );
+    function mergeIdentity(
+        existing,
+        persisted
+    ) {
+        const mergedHistory =
+            mergeHistory(
+                existing?.history,
+                persisted?.history
+            );
 
         const uniqueCoordinateCount =
             new Set(
                 mergedHistory.map(
-                    p => `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`
+                    (p) =>
+                        `${p.latitude.toFixed(5)},` +
+                        `${p.longitude.toFixed(5)}`
                 )
             ).size;
 
         const firstSeenAt =
             Math.min(
-                Number(existing?.firstSeenAt) || Number.MAX_SAFE_INTEGER,
-                Number(persisted?.firstSeenAt) || Number.MAX_SAFE_INTEGER,
-                Number(mergedHistory[0]?.timestamp) || Number.MAX_SAFE_INTEGER
+                Number(
+                    existing?.firstSeenAt
+                ) ||
+                    Number.MAX_SAFE_INTEGER,
+
+                Number(
+                    persisted?.firstSeenAt
+                ) ||
+                    Number.MAX_SAFE_INTEGER,
+
+                Number(
+                    mergedHistory[0]
+                        ?.timestamp
+                ) ||
+                    Number.MAX_SAFE_INTEGER
             );
 
         const lastSeenAt =
             Math.max(
-                Number(existing?.lastSeenAt) || 0,
-                Number(persisted?.lastSeenAt) || 0,
-                Number(mergedHistory.at(-1)?.timestamp) || 0
+                Number(
+                    existing?.lastSeenAt
+                ) || 0,
+
+                Number(
+                    persisted?.lastSeenAt
+                ) || 0,
+
+                Number(
+                    mergedHistory.at(-1)
+                        ?.timestamp
+                ) || 0
             );
 
         const sources =
             Array.from(
                 new Set([
-                    ...(Array.isArray(persisted?.sources) ? persisted.sources : []),
-                    ...(Array.isArray(existing?.sources) ? existing.sources : [])
+                    ...(
+                        Array.isArray(
+                            persisted?.sources
+                        )
+                            ? persisted.sources
+                            : []
+                    ),
+
+                    ...(
+                        Array.isArray(
+                            existing?.sources
+                        )
+                            ? existing.sources
+                            : []
+                    )
                 ])
-            ).slice(0, 32);
+            ).slice(
+                0,
+                32
+            );
 
         return {
             ...(persisted || {}),
@@ -292,16 +448,19 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
                 persisted?.identity,
 
             firstSeenAt:
-                firstSeenAt === Number.MAX_SAFE_INTEGER
+                firstSeenAt ===
+                Number.MAX_SAFE_INTEGER
                     ? now()
                     : firstSeenAt,
 
             lastSeenAt:
-                lastSeenAt || now(),
+                lastSeenAt ||
+                now(),
 
             sources,
 
-            observationCount: mergedHistory.length,
+            observationCount:
+                mergedHistory.length,
 
             uniqueCoordinateCount,
 
@@ -309,28 +468,57 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
                 mergedHistory.length >= 2 &&
                 uniqueCoordinateCount >= 2,
 
-            history: mergedHistory,
+            history:
+                mergedHistory,
 
-            rehydratedFromIndexedDB: true,
-            rehydratedAt: now(),
-            rehydrationPhase: PHASE
+            rehydratedFromIndexedDB:
+                true,
+
+            rehydratedAt:
+                now(),
+
+            rehydrationPhase:
+                PHASE
         };
+    }
+
+    function isSourceReady() {
+        return (
+            typeof global[
+                SOURCE_GET_ALL
+            ] === "function" ||
+
+            typeof global[
+                SOURCE_BRIDGE
+            ]?.getAllHistory ===
+                "function"
+        );
     }
 
     async function getPersistedRecords() {
         if (
-            typeof global[SOURCE_GET_ALL] === "function"
+            typeof global[
+                SOURCE_GET_ALL
+            ] === "function"
         ) {
-            return await global[SOURCE_GET_ALL]();
+            return await global[
+                SOURCE_GET_ALL
+            ]();
         }
 
-        const bridge = global[SOURCE_BRIDGE];
+        const bridge =
+            global[
+                SOURCE_BRIDGE
+            ];
 
         if (
             bridge &&
-            typeof bridge.getAllHistory === "function"
+            typeof bridge
+                .getAllHistory ===
+                "function"
         ) {
-            return await bridge.getAllHistory();
+            return await bridge
+                .getAllHistory();
         }
 
         throw new Error(
@@ -338,173 +526,315 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
         );
     }
 
+    function hasSuccessfulRehydration(
+        result
+    ) {
+        return Boolean(
+            result?.success === true &&
+
+            result
+                ?.targetStorePublished ===
+                true &&
+
+            Number(
+                result
+                    ?.persistedRecordCount ||
+                    0
+            ) > 0 &&
+
+            Number(
+                result
+                    ?.rehydratedIdentityCount ||
+                    0
+            ) > 0 &&
+
+            Number(
+                result
+                    ?.runtimeIdentityCount ||
+                    0
+            ) > 0
+        );
+    }
+
     async function run() {
-        if (running) {
-            return global[RESULT_NAME] ?? {
-                success: false,
-                phase: PHASE,
-                status: "ALREADY_RUNNING"
-            };
+        if (
+            running
+        ) {
+            return (
+                global[
+                    RESULT_NAME
+                ] ??
+                {
+                    success: false,
+                    phase: PHASE,
+                    version: VERSION,
+                    status:
+                        "ALREADY_RUNNING"
+                }
+            );
         }
 
         running = true;
 
-        const startedAt = now();
+        const startedAt =
+            now();
 
         try {
-            const records = await getPersistedRecords();
+            const records =
+                await getPersistedRecords();
 
-            if (!Array.isArray(records)) {
+            if (
+                !Array.isArray(
+                    records
+                )
+            ) {
                 throw new Error(
                     "INDEXEDDB_HISTORY_SOURCE_INVALID"
                 );
             }
 
-            const runtimeStore = ensureRuntimeStore();
+            const runtimeStore =
+                ensureRuntimeStore();
 
-            let rehydratedIdentityCount = 0;
-            let mergedIdentityCount = 0;
-            let restoredObservationCount = 0;
-            let motionReadyIdentityCount = 0;
-            let skippedIdentityCount = 0;
+            let rehydratedIdentityCount =
+                0;
 
-            for (const raw of records) {
+            let mergedIdentityCount =
+                0;
+
+            let restoredObservationCount =
+                0;
+
+            let motionReadyIdentityCount =
+                0;
+
+            let skippedIdentityCount =
+                0;
+
+            for (
+                const raw of records
+            ) {
                 const persisted =
-                    normalizePersistedRecord(raw);
+                    normalizePersistedRecord(
+                        raw
+                    );
 
-                if (!persisted) {
+                if (
+                    !persisted
+                ) {
                     skippedIdentityCount += 1;
                     continue;
                 }
 
                 const existing =
-                    runtimeStore.get(persisted.identity);
+                    runtimeStore.get(
+                        persisted.identity
+                    );
 
                 const merged =
-                    mergeIdentity(existing, persisted);
+                    mergeIdentity(
+                        existing,
+                        persisted
+                    );
 
                 runtimeStore.set(
                     persisted.identity,
                     merged
                 );
 
-                rehydratedIdentityCount += 1;
+                rehydratedIdentityCount +=
+                    1;
 
-                if (existing) {
-                    mergedIdentityCount += 1;
+                if (
+                    existing
+                ) {
+                    mergedIdentityCount +=
+                        1;
                 }
 
                 restoredObservationCount +=
                     merged.history.length;
 
-                if (merged.motionReady) {
-                    motionReadyIdentityCount += 1;
+                if (
+                    merged.motionReady
+                ) {
+                    motionReadyIdentityCount +=
+                        1;
                 }
             }
 
-            global[TARGET_STORE] = runtimeStore;
+            global[
+                TARGET_STORE
+            ] =
+                runtimeStore;
 
             const result = {
                 success: true,
+
                 phase: PHASE,
                 version: VERSION,
                 build: BUILD,
 
                 status:
-                    rehydratedIdentityCount > 0
+                    rehydratedIdentityCount >
+                    0
                         ? "INDEXEDDB_AUTHORITATIVE_TEMPORAL_HISTORY_REHYDRATED"
                         : "INDEXEDDB_AUTHORITATIVE_TEMPORAL_HISTORY_EMPTY",
 
-                generatedAt: now(),
-                durationMs: now() - startedAt,
+                generatedAt:
+                    now(),
 
-                indexedDBSourceAvailable: true,
-                targetStorePublished: true,
-                targetStoreName: TARGET_STORE,
+                durationMs:
+                    now() -
+                    startedAt,
 
-                persistedRecordCount: records.length,
+                indexedDBSourceAvailable:
+                    true,
+
+                targetStorePublished:
+                    true,
+
+                targetStoreName:
+                    TARGET_STORE,
+
+                persistedRecordCount:
+                    records.length,
+
                 rehydratedIdentityCount,
+
                 mergedIdentityCount,
+
                 skippedIdentityCount,
+
                 restoredObservationCount,
-                runtimeIdentityCount: runtimeStore.size,
+
+                runtimeIdentityCount:
+                    runtimeStore.size,
+
                 motionReadyIdentityCount
             };
 
-            global[RESULT_NAME] = result;
+            global[
+                RESULT_NAME
+            ] =
+                result;
 
             installed = true;
 
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3] IndexedDB authoritative temporal history rehydration result:",
+                `[RainGuard][${PHASE}] IndexedDB authoritative temporal history rehydration result:`,
                 result
             );
 
             return result;
-        } catch (error) {
+
+        } catch (
+            error
+        ) {
             const result = {
                 success: false,
+
                 phase: PHASE,
                 version: VERSION,
                 build: BUILD,
-                status: "INDEXEDDB_AUTHORITATIVE_TEMPORAL_HISTORY_REHYDRATION_FAILED",
-                generatedAt: now(),
-                durationMs: now() - startedAt,
-                error: String(
-                    error?.stack ||
-                    error?.message ||
-                    error
-                )
+
+                status:
+                    "INDEXEDDB_AUTHORITATIVE_TEMPORAL_HISTORY_REHYDRATION_FAILED",
+
+                generatedAt:
+                    now(),
+
+                durationMs:
+                    now() -
+                    startedAt,
+
+                error:
+                    String(
+                        error?.stack ||
+                        error?.message ||
+                        error
+                    )
             };
 
-            global[RESULT_NAME] = result;
+            global[
+                RESULT_NAME
+            ] =
+                result;
 
             console.warn(
-                "[RainGuard][39A-15F6N4B1B3C3]",
+                `[RainGuard][${PHASE}]`,
                 error
             );
 
             return result;
+
         } finally {
             running = false;
         }
     }
 
     async function diagnose() {
-        const target = global[TARGET_STORE];
+        const target =
+            global[
+                TARGET_STORE
+            ];
 
-        let runtimeIdentityCount = 0;
-        let runtimeMotionReadyIdentityCount = 0;
-        let runtimeObservationCount = 0;
+        let runtimeIdentityCount =
+            0;
 
-        if (target instanceof Map) {
-            runtimeIdentityCount = target.size;
+        let runtimeMotionReadyIdentityCount =
+            0;
 
-            for (const value of target.values()) {
-                if (value?.motionReady) {
-                    runtimeMotionReadyIdentityCount += 1;
+        let runtimeObservationCount =
+            0;
+
+        if (
+            target instanceof Map
+        ) {
+            runtimeIdentityCount =
+                target.size;
+
+            for (
+                const value
+                of target.values()
+            ) {
+                if (
+                    value?.motionReady
+                ) {
+                    runtimeMotionReadyIdentityCount +=
+                        1;
                 }
 
                 runtimeObservationCount +=
-                    Array.isArray(value?.history)
+                    Array.isArray(
+                        value?.history
+                    )
                         ? value.history.length
                         : 0;
             }
         }
 
-        let persistedIdentityCount = 0;
+        let persistedIdentityCount =
+            0;
 
         try {
-            const persisted = await getPersistedRecords();
+            const persisted =
+                await getPersistedRecords();
 
             persistedIdentityCount =
-                Array.isArray(persisted)
+                Array.isArray(
+                    persisted
+                )
                     ? persisted.length
                     : 0;
-        } catch (_) {}
+
+        } catch (_) {
+            // Diagnostics must remain non-fatal.
+        }
 
         const result = {
             success: true,
+
             phase: PHASE,
             version: VERSION,
             build: BUILD,
@@ -512,87 +842,373 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
             installed,
             running,
 
+            autoRehydrationCompleted,
+            autoAttemptCount,
+
+            retryCount,
+
+            sourceReady:
+                isSourceReady(),
+
             sourceBridgeAvailable:
-                Boolean(global[SOURCE_BRIDGE]),
+                Boolean(
+                    global[
+                        SOURCE_BRIDGE
+                    ]
+                ),
 
             sourceGetterAvailable:
-                typeof global[SOURCE_GET_ALL] === "function",
+                typeof global[
+                    SOURCE_GET_ALL
+                ] === "function",
 
             targetStoreAvailable:
                 target instanceof Map,
 
-            targetStoreName: TARGET_STORE,
+            targetStoreName:
+                TARGET_STORE,
 
             persistedIdentityCount,
+
             runtimeIdentityCount,
+
             runtimeObservationCount,
+
             runtimeMotionReadyIdentityCount,
 
             lastResult:
-                global[RESULT_NAME] ?? null
+                global[
+                    RESULT_NAME
+                ] ??
+                null
         };
 
         console.log(
-            "[RainGuard][39A-15F6N4B1B3C3] Diagnostics:",
+            `[RainGuard][${PHASE}] Diagnostics:`,
             result
         );
 
         return result;
     }
 
-    function scheduleAutoRehydration() {
-        if (retryTimer) return;
+    function scheduleAutoRehydration(
+        options = {}
+    ) {
+        if (
+            autoRehydrationCompleted
+        ) {
+            return false;
+        }
 
-        const attempt = async () => {
-            retryTimer = null;
+        if (
+            retryTimer
+        ) {
+            return false;
+        }
 
-            const sourceReady =
-                typeof global[SOURCE_GET_ALL] === "function" ||
-                Boolean(
-                    global[SOURCE_BRIDGE]?.getAllHistory
-                );
+        const delay =
+            Number.isFinite(
+                options.delayMs
+            )
+                ? Math.max(
+                    0,
+                    options.delayMs
+                )
+                : AUTO_INITIAL_DELAY_MS;
 
-            if (sourceReady) {
-                const result = await run();
+        const reason =
+            options.reason ||
+            "startup";
 
-                if (result?.success) {
-                    return;
-                }
+        const attempt =
+            async () => {
+
+            retryTimer =
+                null;
+
+            if (
+                autoRehydrationCompleted
+            ) {
+                return;
             }
 
-            retryCount += 1;
+            autoAttemptCount +=
+                1;
 
-            if (retryCount < AUTO_RETRY_LIMIT) {
+            const sourceReady =
+                isSourceReady();
+
+            console.log(
+                `[RainGuard][${PHASE}] Auto rehydration attempt`,
+                {
+                    attempt:
+                        autoAttemptCount,
+
+                    retryCount,
+
+                    reason,
+
+                    sourceReady
+                }
+            );
+
+            if (
+                !sourceReady
+            ) {
+                retryCount +=
+                    1;
+
+                if (
+                    retryCount <
+                    AUTO_RETRY_LIMIT
+                ) {
+                    retryTimer =
+                        global.setTimeout(
+                            attempt,
+                            AUTO_RETRY_MS
+                        );
+
+                    return;
+                }
+
+                console.warn(
+                    `[RainGuard][${PHASE}] Auto rehydration retry limit reached before source became ready`,
+                    {
+                        retryCount,
+                        autoAttemptCount
+                    }
+                );
+
+                return;
+            }
+
+            let result;
+
+            try {
+                result =
+                    await run();
+
+            } catch (
+                error
+            ) {
+                result = {
+                    success:
+                        false,
+
+                    phase:
+                        PHASE,
+
+                    status:
+                        "AUTO_REHYDRATION_RUN_EXCEPTION",
+
+                    error:
+                        String(
+                            error?.stack ||
+                            error?.message ||
+                            error
+                        )
+                };
+            }
+
+            if (
+                hasSuccessfulRehydration(
+                    result
+                )
+            ) {
+                autoRehydrationCompleted =
+                    true;
+
+                installed =
+                    true;
+
+                if (
+                    retryTimer
+                ) {
+                    global.clearTimeout(
+                        retryTimer
+                    );
+
+                    retryTimer =
+                        null;
+                }
+
+                console.log(
+                    `[RainGuard][${PHASE}] AUTO REHYDRATION COMPLETED`,
+                    {
+                        persistedRecordCount:
+                            result
+                                .persistedRecordCount,
+
+                        rehydratedIdentityCount:
+                            result
+                                .rehydratedIdentityCount,
+
+                        runtimeIdentityCount:
+                            result
+                                .runtimeIdentityCount,
+
+                        restoredObservationCount:
+                            result
+                                .restoredObservationCount,
+
+                        motionReadyIdentityCount:
+                            result
+                                .motionReadyIdentityCount,
+
+                        autoAttemptCount,
+                        retryCount
+                    }
+                );
+
+                return;
+            }
+
+            retryCount +=
+                1;
+
+            console.warn(
+                `[RainGuard][${PHASE}] Auto rehydration not authoritative yet`,
+                {
+                    retryCount,
+
+                    autoAttemptCount,
+
+                    status:
+                        result?.status,
+
+                    success:
+                        result?.success,
+
+                    persistedRecordCount:
+                        result
+                            ?.persistedRecordCount ??
+                        0,
+
+                    rehydratedIdentityCount:
+                        result
+                            ?.rehydratedIdentityCount ??
+                        0,
+
+                    runtimeIdentityCount:
+                        result
+                            ?.runtimeIdentityCount ??
+                        0,
+
+                    targetStorePublished:
+                        result
+                            ?.targetStorePublished ??
+                        false
+                }
+            );
+
+            if (
+                retryCount <
+                AUTO_RETRY_LIMIT
+            ) {
                 retryTimer =
                     global.setTimeout(
                         attempt,
                         AUTO_RETRY_MS
                     );
-            } else {
-                console.warn(
-                    "[RainGuard][39A-15F6N4B1B3C3] Auto rehydration retry limit reached"
-                );
+
+                return;
             }
+
+            console.warn(
+                `[RainGuard][${PHASE}] Auto rehydration retry limit reached`,
+                {
+                    retryCount,
+                    autoAttemptCount,
+
+                    lastResult:
+                        global[
+                            RESULT_NAME
+                        ] ??
+                        null
+                }
+            );
         };
 
         retryTimer =
             global.setTimeout(
                 attempt,
-                1500
+                delay
             );
+
+        return true;
     }
 
-    global[RUN_NAME] = run;
-    global[DIAG_NAME] = diagnose;
+    function restartAutoRehydration(
+        reason = "manual-restart"
+    ) {
+        if (
+            retryTimer
+        ) {
+            try {
+                global.clearTimeout(
+                    retryTimer
+                );
+            } catch (_) {}
 
-    global[BRIDGE_NAME] = {
-        phase: PHASE,
-        version: VERSION,
-        build: BUILD,
+            retryTimer =
+                null;
+        }
 
-        sourceBridgeName: SOURCE_BRIDGE,
-        sourceGetterName: SOURCE_GET_ALL,
-        targetStoreName: TARGET_STORE,
+        retryCount =
+            0;
+
+        autoAttemptCount =
+            0;
+
+        autoRehydrationCompleted =
+            false;
+
+        return scheduleAutoRehydration({
+            reason,
+            delayMs:
+                250
+        });
+    }
+
+    global[
+        RUN_NAME
+    ] =
+        run;
+
+    global[
+        DIAG_NAME
+    ] =
+        diagnose;
+
+    global[
+        BRIDGE_NAME
+    ] = {
+        phase:
+            PHASE,
+
+        version:
+            VERSION,
+
+        build:
+            BUILD,
+
+        sourceBridgeName:
+            SOURCE_BRIDGE,
+
+        sourceGetterName:
+            SOURCE_GET_ALL,
+
+        targetStoreName:
+            TARGET_STORE,
+
+        autoRetryMs:
+            AUTO_RETRY_MS,
+
+        autoRetryLimit:
+            AUTO_RETRY_LIMIT,
+
+        autoInitialDelayMs:
+            AUTO_INITIAL_DELAY_MS,
 
         get installed() {
             return installed;
@@ -606,11 +1222,138 @@ indexeddb_authoritative_temporal_history_rehydration_bridge_39a15f6n4b1b3c3.js
             return retryCount;
         },
 
+        get autoAttemptCount() {
+            return autoAttemptCount;
+        },
+
+        get autoRehydrationCompleted() {
+            return autoRehydrationCompleted;
+        },
+
+        get sourceReady() {
+            return isSourceReady();
+        },
+
         run,
+
         diagnose,
-        scheduleAutoRehydration
+
+        scheduleAutoRehydration,
+
+        restartAutoRehydration
     };
 
-    scheduleAutoRehydration();
+    /*
+    ========================================================
+    Startup Gate 1
+    Script-load deferred attempt
+    ========================================================
+    */
+
+    scheduleAutoRehydration({
+        reason:
+            "script-load",
+
+        delayMs:
+            AUTO_INITIAL_DELAY_MS
+    });
+
+    /*
+    ========================================================
+    Startup Gate 2
+    DOMContentLoaded recovery
+    ========================================================
+    */
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+
+            () => {
+                if (
+                    !autoRehydrationCompleted &&
+                    !retryTimer
+                ) {
+                    scheduleAutoRehydration({
+                        reason:
+                            "dom-content-loaded",
+
+                        delayMs:
+                            500
+                    });
+                }
+            },
+
+            {
+                once:
+                    true
+            }
+        );
+    }
+
+    /*
+    ========================================================
+    Startup Gate 3
+    Window load recovery
+    ========================================================
+    */
+
+    global.addEventListener(
+        "load",
+
+        () => {
+            if (
+                !autoRehydrationCompleted &&
+                !retryTimer
+            ) {
+                scheduleAutoRehydration({
+                    reason:
+                        "window-load",
+
+                    delayMs:
+                        500
+                });
+            }
+        },
+
+        {
+            once:
+                true
+        }
+    );
+
+    /*
+    ========================================================
+    Startup Gate 4
+    Late dependency safety check
+
+    Handles the case where:
+    - C3 loaded correctly
+    - page load already finished
+    - IndexedDB/C2 became ready slightly later
+    ========================================================
+    */
+
+    global.setTimeout(
+        () => {
+            if (
+                !autoRehydrationCompleted &&
+                !retryTimer
+            ) {
+                scheduleAutoRehydration({
+                    reason:
+                        "late-dependency-safety-check",
+
+                    delayMs:
+                        250
+                });
+            }
+        },
+
+        5000
+    );
 
 })(window);
