@@ -1,12 +1,15 @@
 /*
 ============================================================
 RainGuard AI V39
-Phase 39A-15F6N4B1B3C
+Phase 39A-15F6N4B1B3C1
 Cross-Cycle Persistent Temporal Coordinate History Bridge
+Bounded Storage & Quota Recovery Guard
 ============================================================
 
 Purpose
 -------
+- Add bounded localStorage persistence with automatic compaction.
+- Recover automatically from QuotaExceededError without breaking the cycle.
 - Persist valid storm coordinates across capture cycles.
 - Preserve observations by stable/canonical identity.
 - Reject placeholder (0,0) coordinates.
@@ -24,12 +27,18 @@ cross_cycle_persistent_temporal_coordinate_history_bridge_39a15f6n4b1b3c.js
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C";
-    const VERSION = "39A.15F6N4B1B3C.0";
-    const BUILD = "rainguard-v39-cross-cycle-persistent-temporal-coordinate-history-bridge";
+    const VERSION = "39A.15F6N4B1B3C1.0";
+    const BUILD = "rainguard-v39-cross-cycle-persistent-temporal-coordinate-history-bridge-bounded-storage-quota-recovery";
     const STORAGE_KEY = "RainGuard:39A15F6N4B1B3C:TemporalCoordinateHistory:v1";
-    const MAX_POINTS_PER_IDENTITY = 96;
-    const MAX_IDENTITIES = 5000;
+    const MAX_POINTS_PER_IDENTITY = 24;
+    const MAX_IDENTITIES = 1200;
     const AUTO_INTERVAL_MS = 15000;
+
+    // Phase 39A-15F6N4B1B3C1 — bounded storage + quota recovery
+    const STORAGE_SOFT_LIMIT_BYTES = 3_500_000;
+    const STORAGE_TARGET_BYTES = 2_500_000;
+    const MIN_POINTS_PER_IDENTITY = 2;
+    const QUOTA_RETRY_LIMIT = 3;
 
     const RESULT_NAME = "RainGuard39A15F6N4B1B3CResultV39";
     const BRIDGE_NAME = "RainGuard39A15F6N4B1B3CBridgeV39";
@@ -284,15 +293,184 @@ cross_cycle_persistent_temporal_coordinate_history_bridge_39a15f6n4b1b3c.js
         }
     }
 
-    function saveState(state) {
+    function estimateBytes(value) {
         try {
-            state.updatedAt = now();
-            global.localStorage?.setItem(STORAGE_KEY, JSON.stringify(state));
-            return true;
-        } catch (error) {
-            console.warn("[RainGuard][H3B2C] Failed to persist history:", error);
-            return false;
+            return new Blob([JSON.stringify(value)]).size;
+        } catch (_) {
+            try {
+                return JSON.stringify(value).length * 2;
+            } catch (_) {
+                return Number.MAX_SAFE_INTEGER;
+            }
         }
+    }
+
+    function compactStateForStorage(state, targetBytes = STORAGE_TARGET_BYTES) {
+        const clone = sanitizeState(state);
+
+        const identities = Object.entries(clone.identities)
+            .sort((a, b) => (b[1].lastSeenAt || 0) - (a[1].lastSeenAt || 0));
+
+        // First pass: aggressively cap per-identity history while preserving motion utility.
+        for (const [, item] of identities) {
+            if (!Array.isArray(item.history)) item.history = [];
+
+            // Deduplicate identical timestamp+coordinate records.
+            const seen = new Set();
+            item.history = item.history
+                .sort((a, b) => a.timestamp - b.timestamp)
+                .filter((point) => {
+                    const key = observationKey(point);
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                })
+                .slice(-MAX_POINTS_PER_IDENTITY);
+        }
+
+        // Second pass: remove oldest identities until comfortably below target size.
+        while (
+            Object.keys(clone.identities).length > 0 &&
+            estimateBytes(clone) > targetBytes
+        ) {
+            const ordered = Object.entries(clone.identities)
+                .sort((a, b) => (a[1].lastSeenAt || 0) - (b[1].lastSeenAt || 0));
+
+            let reduced = false;
+
+            // Prefer reducing history first, but never below MIN_POINTS_PER_IDENTITY.
+            for (const [identity, item] of ordered) {
+                if (item.history.length > MIN_POINTS_PER_IDENTITY) {
+                    item.history = item.history.slice(
+                        -Math.max(
+                            MIN_POINTS_PER_IDENTITY,
+                            Math.ceil(item.history.length / 2)
+                        )
+                    );
+                    reduced = true;
+
+                    if (estimateBytes(clone) <= targetBytes) break;
+                }
+            }
+
+            if (estimateBytes(clone) <= targetBytes) break;
+
+            if (!reduced) {
+                // Remove the oldest identity as a last resort.
+                const oldest = ordered[0]?.[0];
+                if (!oldest) break;
+                delete clone.identities[oldest];
+            }
+        }
+
+        clone.updatedAt = now();
+        return clone;
+    }
+
+    function isQuotaError(error) {
+        return Boolean(
+            error &&
+            (
+                error.name === "QuotaExceededError" ||
+                error.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+                error.code === 22 ||
+                error.code === 1014
+            )
+        );
+    }
+
+    function saveState(state) {
+        const storage = global.localStorage;
+
+        if (!storage) {
+            return {
+                persisted: false,
+                compacted: false,
+                quotaRecovered: false,
+                storedBytes: 0,
+                reason: "LOCAL_STORAGE_UNAVAILABLE"
+            };
+        }
+
+        let workingState = state;
+        let compacted = false;
+        let quotaRecovered = false;
+        let lastError = null;
+
+        for (let attempt = 0; attempt <= QUOTA_RETRY_LIMIT; attempt += 1) {
+            try {
+                const bytes = estimateBytes(workingState);
+
+                if (bytes > STORAGE_SOFT_LIMIT_BYTES) {
+                    workingState = compactStateForStorage(
+                        workingState,
+                        STORAGE_TARGET_BYTES
+                    );
+                    compacted = true;
+                }
+
+                const serialized = JSON.stringify(workingState);
+                storage.setItem(STORAGE_KEY, serialized);
+
+                // Synchronize in-memory state with what was actually persisted.
+                state.createdAt = workingState.createdAt;
+                state.updatedAt = workingState.updatedAt;
+                state.cycleCount = workingState.cycleCount;
+                state.identities = workingState.identities;
+
+                return {
+                    persisted: true,
+                    compacted,
+                    quotaRecovered,
+                    storedBytes: estimateBytes(workingState),
+                    reason: null
+                };
+            } catch (error) {
+                lastError = error;
+
+                if (!isQuotaError(error)) {
+                    console.warn("[RainGuard][H3B2C1] Failed to persist history:", error);
+                    return {
+                        persisted: false,
+                        compacted,
+                        quotaRecovered,
+                        storedBytes: estimateBytes(workingState),
+                        reason: String(error?.message || error)
+                    };
+                }
+
+                quotaRecovered = true;
+                compacted = true;
+
+                // On quota failure, compact harder on every retry.
+                const progressivelySmallerTarget = Math.max(
+                    700_000,
+                    Math.floor(STORAGE_TARGET_BYTES * Math.pow(0.65, attempt + 1))
+                );
+
+                workingState = compactStateForStorage(
+                    workingState,
+                    progressivelySmallerTarget
+                );
+
+                try {
+                    storage.removeItem(STORAGE_KEY);
+                } catch (_) {}
+            }
+        }
+
+        console.warn(
+            "[RainGuard][H3B2C1] Storage quota recovery exhausted:",
+            lastError
+        );
+
+        return {
+            persisted: false,
+            compacted,
+            quotaRecovered,
+            storedBytes: estimateBytes(workingState),
+            reason: "QUOTA_RECOVERY_EXHAUSTED"
+        };
     }
 
     function coordinateKey(point) {
@@ -472,7 +650,8 @@ cross_cycle_persistent_temporal_coordinate_history_bridge_39a15f6n4b1b3c.js
             trimIdentities(state);
             state.cycleCount += 1;
 
-            const localStoragePersisted = saveState(state);
+            const storageResult = saveState(state);
+            const localStoragePersisted = storageResult.persisted;
             const published = buildPublishedStore(state);
             const summary = summarize(published);
 
@@ -486,13 +665,21 @@ cross_cycle_persistent_temporal_coordinate_history_bridge_39a15f6n4b1b3c.js
                 status:
                     summary.motionReadyIdentityCount > 0
                         ? "PERSISTENT_TEMPORAL_COORDINATE_HISTORY_MOTION_READY"
-                        : "PERSISTENT_TEMPORAL_COORDINATE_HISTORY_ACCUMULATING",
+                        : (
+                            localStoragePersisted
+                                ? "PERSISTENT_TEMPORAL_COORDINATE_HISTORY_ACCUMULATING"
+                                : "PERSISTENT_TEMPORAL_COORDINATE_HISTORY_RUNTIME_ONLY"
+                        ),
                 generatedAt: now(),
                 durationMs: now() - startedAt,
                 sourceCount: sources.length,
                 sourceNames: sources.map((source) => source.name),
                 cycleCount: state.cycleCount,
                 localStoragePersisted,
+                storageCompacted: storageResult.compacted,
+                quotaRecovered: storageResult.quotaRecovered,
+                storedBytes: storageResult.storedBytes,
+                storagePersistReason: storageResult.reason,
                 ...stats,
                 ...summary,
                 persistentStoreName: STORE_NAME,
