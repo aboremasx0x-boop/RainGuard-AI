@@ -121,9 +121,15 @@
 
             const likelyLonLat = Math.abs(first) > 90 && Math.abs(second) <= 90;
 
-            return likelyLonLat
+            const coordinate = likelyLonLat
                 ? { lat: second, lon: first }
                 : { lat: first, lon: second };
+
+            if (coordinate.lat === 0 && coordinate.lon === 0) {
+                return null;
+            }
+
+            return coordinate;
         }
 
         const lat = toFiniteNumber(
@@ -165,12 +171,36 @@
             lat < -90 ||
             lat > 90 ||
             lon < -180 ||
-            lon > 180
+            lon > 180 ||
+            (lat === 0 && lon === 0)
         ) {
             return null;
         }
 
         return { lat, lon };
+    }
+
+    function resolveEntityCoordinate(entity) {
+        if (!entity) return null;
+
+        const candidates = [
+            entity.currentCoordinate,
+            entity.coordinate,
+            entity.center,
+            entity.centroid,
+            entity.location,
+            entity.position,
+            entity.start,
+            entity.end,
+            entity
+        ];
+
+        for (const candidate of candidates) {
+            const coordinate = normalizeCoordinate(candidate);
+            if (coordinate) return coordinate;
+        }
+
+        return null;
     }
 
     function collectionToArray(value) {
@@ -200,15 +230,7 @@
             value.candidateId !== undefined;
 
         const hasCoordinate = Boolean(
-            normalizeCoordinate(
-                value.currentCoordinate ??
-                value.coordinate ??
-                value.center ??
-                value.centroid ??
-                value.location ??
-                value.position ??
-                value
-            )
+            resolveEntityCoordinate(value)
         );
 
         return hasCoordinate && (
@@ -255,17 +277,7 @@
         }
 
         normalizeEntity(entity, source, index) {
-            const coordinate = normalizeCoordinate(
-                entity.currentCoordinate ??
-                entity.coordinate ??
-                entity.center ??
-                entity.centroid ??
-                entity.location ??
-                entity.position ??
-                entity.start ??
-                entity.end ??
-                entity
-            );
+            const coordinate = resolveEntityCoordinate(entity);
 
             if (!coordinate) return null;
 
@@ -331,7 +343,7 @@
 
             const points = rawPoints
                 .map((item, pointIndex) => {
-                    const itemCoordinate = normalizeCoordinate(item);
+                    const itemCoordinate = resolveEntityCoordinate(item);
                     if (!itemCoordinate) return null;
 
                     return {
@@ -359,6 +371,14 @@
                 canonicalTrackId:
                     normalizeText(entity.canonicalTrackId) || trackId,
                 cellId: cellId || trackId,
+
+                // Phase 39A-15F6N4B1B3B-H3B2D coordinate recovery.
+                lat: coordinate.lat,
+                lon: coordinate.lon,
+                lng: coordinate.lon,
+                latitude: coordinate.lat,
+                longitude: coordinate.lon,
+
                 currentCoordinate: point,
                 coordinate: point,
                 center: point,
