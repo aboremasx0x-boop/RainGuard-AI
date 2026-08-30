@@ -4,15 +4,18 @@
  *
  * Memory-Safe IndexedDB Cursor Drain
  * & Canonical Runtime Identity Registry Binding Repair
+ *
+ * Transaction-Safe Revision
  */
 
 (function (global) {
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C7B2A";
-    const VERSION = "39A.15F6N4B1B3C7B2A.0";
+    const VERSION = "39A.15F6N4B1B3C7B2A.1";
+
     const BUILD =
-        "rainguard-v39-memory-safe-indexeddb-cursor-drain-canonical-runtime-identity-registry-binding-repair";
+        "rainguard-v39-memory-safe-indexeddb-cursor-drain-canonical-runtime-identity-registry-binding-repair-transaction-safe";
 
     const BRIDGE_NAME =
         "RainGuard39A15F6N4B1B3C7B2ABridgeV39";
@@ -22,6 +25,22 @@
 
     const DIAG_NAME =
         "diagnoseRainGuard39A15F6N4B1B3C7B2AMemorySafeIdentityDrain";
+
+    /*
+     * Confirmed IndexedDB structure.
+     *
+     * DATABASE:
+     * RainGuardTemporalHistoryV39
+     *
+     * STORES:
+     * metadata
+     * temporalHistory
+     */
+    const AUTHORITATIVE_DB_NAME =
+        "RainGuardTemporalHistoryV39";
+
+    const AUTHORITATIVE_STORE_NAME =
+        "temporalHistory";
 
     const C6_NAME =
         "RainGuard39A15F6N4B1B3C6BridgeV39";
@@ -37,9 +56,24 @@
 
     const MIN_COVERAGE_PERCENT = 99;
 
+    /*
+     * Cursor limits.
+     */
     const BATCH_SIZE = 100;
-    const YIELD_EVERY = 50;
+
+    /*
+     * IMPORTANT:
+     * We no longer yield with await inside cursor.onsuccess.
+     *
+     * IndexedDB cursor events already execute asynchronously.
+     */
     const MAX_RECORDS_PER_RUN = 50000;
+
+    /*
+     * Protection against IndexedDB hanging indefinitely.
+     */
+    const DATABASE_OPEN_TIMEOUT_MS = 10000;
+    const CURSOR_IDLE_TIMEOUT_MS = 15000;
 
     const STATES = Object.freeze({
         IDLE:
@@ -51,8 +85,14 @@
         DISCOVERING_RUNTIME_REGISTRY:
             "DISCOVERING_CANONICAL_RUNTIME_IDENTITY_REGISTRY",
 
+        INDEXEDDB_SOURCE_READY:
+            "INDEXEDDB_AUTHORITATIVE_SOURCE_READY",
+
+        BUILDING_RUNTIME_INDEX:
+            "BUILDING_RUNTIME_IDENTITY_INDEX",
+
         CURSOR_DRAINING:
-            "MEMORY_SAFE_CURSOR_DRAINING",
+            "MEMORY_SAFE_TRANSACTION_SAFE_CURSOR_DRAINING",
 
         VERIFYING:
             "VERIFYING_IDENTITY_COVERAGE",
@@ -66,12 +106,16 @@
         BLOCKED:
             "CANONICAL_RUNTIME_IDENTITY_REGISTRY_NOT_FOUND",
 
+        DATABASE_BLOCKED:
+            "AUTHORITATIVE_INDEXEDDB_SOURCE_NOT_AVAILABLE",
+
         FAILED:
             "MEMORY_SAFE_IDENTITY_REHYDRATION_FAILED"
     });
 
     let installed = false;
     let running = false;
+
     let state = STATES.IDLE;
 
     let scannedRecordCount = 0;
@@ -91,26 +135,42 @@
     let startedAt = null;
     let completedAt = null;
 
+    let runtimeIdentityIndexSize = 0;
+
     function now() {
         return Date.now();
     }
 
     function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return new Promise(resolve =>
+            setTimeout(resolve, ms)
+        );
     }
 
     function normalizeError(error) {
         return {
-            name: error?.name || "Error",
-            message: error?.message || String(error),
-            stack: error?.stack || null
+            name:
+                error?.name ||
+                "Error",
+
+            message:
+                error?.message ||
+                String(error),
+
+            stack:
+                error?.stack ||
+                null
         };
     }
 
     function getBridge(name) {
-        const value = global[name];
+        const value =
+            global[name];
 
-        return value && typeof value === "object"
+        return (
+            value &&
+            typeof value === "object"
+        )
             ? value
             : null;
     }
@@ -131,12 +191,47 @@
         return getBridge(C7B1_NAME);
     }
 
-    function getIdentityKey(value) {
-        if (!value || typeof value !== "object") {
+    /*
+     * ---------------------------------------------------------
+     * Identity extraction
+     * ---------------------------------------------------------
+     */
+
+    function normalizeIdentityKey(value) {
+        if (
+            value === null ||
+            value === undefined
+        ) {
             return null;
         }
 
+        const text =
+            String(value).trim();
+
+        return text
+            ? text
+            : null;
+    }
+
+    function getIdentityKey(value) {
+        if (
+            !value ||
+            typeof value !== "object"
+        ) {
+            return null;
+        }
+
+        /*
+         * canonicalTrackId is intentionally first.
+         *
+         * Our direct IndexedDB inspection confirmed records such as:
+         *
+         * canonicalTrackId: "Abha"
+         * identity: "Abha"
+         */
         const candidates = [
+            value.canonicalTrackId,
+            value.canonicalIdentity,
             value.identityId,
             value.identityID,
             value.identity,
@@ -154,12 +249,11 @@
         ];
 
         for (const candidate of candidates) {
-            if (
-                candidate !== null &&
-                candidate !== undefined &&
-                String(candidate).trim() !== ""
-            ) {
-                return String(candidate);
+            const normalized =
+                normalizeIdentityKey(candidate);
+
+            if (normalized) {
+                return normalized;
             }
         }
 
@@ -167,11 +261,18 @@
     }
 
     function extractCanonicalIdentity(record) {
-        if (!record || typeof record !== "object") {
+        if (
+            !record ||
+            typeof record !== "object"
+        ) {
             return null;
         }
 
-        const directKey = getIdentityKey(record);
+        /*
+         * Direct canonical identity.
+         */
+        const directKey =
+            getIdentityKey(record);
 
         if (directKey) {
             return {
@@ -180,6 +281,9 @@
             };
         }
 
+        /*
+         * Fallback nested structures.
+         */
         const nestedCandidates = [
             record.identity,
             record.entity,
@@ -192,8 +296,19 @@
             record.metadata
         ];
 
-        for (const candidate of nestedCandidates) {
-            const key = getIdentityKey(candidate);
+        for (
+            const candidate
+            of nestedCandidates
+        ) {
+            if (
+                !candidate ||
+                typeof candidate !== "object"
+            ) {
+                continue;
+            }
+
+            const key =
+                getIdentityKey(candidate);
 
             if (key) {
                 return {
@@ -206,83 +321,233 @@
         return null;
     }
 
+    /*
+     * ---------------------------------------------------------
+     * Canonical runtime registry discovery
+     * ---------------------------------------------------------
+     */
+
     function discoverCanonicalRuntimeRegistry() {
-        state = STATES.DISCOVERING_RUNTIME_REGISTRY;
+        state =
+            STATES.DISCOVERING_RUNTIME_REGISTRY;
 
         const candidates = [
             {
-                name: "RainGuardIntegratedIdentityPersistentRegistryV39",
-                value: global.RainGuardIntegratedIdentityPersistentRegistryV39
+                name:
+                    "RainGuardIntegratedIdentityPersistentRegistryV39",
+
+                value:
+                    global
+                        .RainGuardIntegratedIdentityPersistentRegistryV39
             },
+
             {
-                name: "RainGuardStableTrackIdentityRegistryV39",
-                value: global.RainGuardStableTrackIdentityRegistryV39
+                name:
+                    "RainGuardStableTrackIdentityRegistryV39",
+
+                value:
+                    global
+                        .RainGuardStableTrackIdentityRegistryV39
             },
+
             {
-                name: "RainGuardRuntimeIdentityRegistryV39",
-                value: global.RainGuardRuntimeIdentityRegistryV39
+                name:
+                    "RainGuardRuntimeIdentityRegistryV39",
+
+                value:
+                    global
+                        .RainGuardRuntimeIdentityRegistryV39
             },
+
             {
-                name: "RainGuardIdentityRegistryV39",
-                value: global.RainGuardIdentityRegistryV39
+                name:
+                    "RainGuardIdentityRegistryV39",
+
+                value:
+                    global
+                        .RainGuardIdentityRegistryV39
             }
         ];
 
-        for (const candidate of candidates) {
-            const registry = candidate.value;
+        for (
+            const candidate
+            of candidates
+        ) {
+            const registry =
+                candidate.value;
 
-            if (!registry || typeof registry !== "object") {
+            if (
+                !registry ||
+                typeof registry !== "object"
+            ) {
                 continue;
             }
 
-            if (
+            const supported =
                 registry instanceof Map ||
-                registry.byIdentity instanceof Map ||
-                Array.isArray(registry.identities) ||
-                typeof registry.set === "function" ||
-                typeof registry.upsert === "function" ||
-                typeof registry.register === "function" ||
-                typeof registry.add === "function"
-            ) {
-                selectedRuntimeRegistryName =
-                    candidate.name;
 
-                return registry;
+                registry.byIdentity
+                    instanceof Map ||
+
+                Array.isArray(
+                    registry.identities
+                ) ||
+
+                typeof registry.set
+                    === "function" ||
+
+                typeof registry.upsert
+                    === "function" ||
+
+                typeof registry.register
+                    === "function" ||
+
+                typeof registry.add
+                    === "function";
+
+            if (!supported) {
+                continue;
             }
+
+            selectedRuntimeRegistryName =
+                candidate.name;
+
+            return registry;
         }
+
+        selectedRuntimeRegistryName =
+            null;
 
         return null;
     }
 
-    function runtimeHasIdentity(registry, key) {
+    /*
+     * ---------------------------------------------------------
+     * Runtime identity index
+     *
+     * Prevents O(N x N) duplicate scans when the registry uses
+     * an Array.
+     * ---------------------------------------------------------
+     */
+
+    function buildRuntimeIdentityIndex(
+        registry
+    ) {
+        state =
+            STATES.BUILDING_RUNTIME_INDEX;
+
+        const index =
+            new Set();
+
         if (!registry) {
+            return index;
+        }
+
+        if (registry instanceof Map) {
+            for (
+                const key
+                of registry.keys()
+            ) {
+                const normalized =
+                    normalizeIdentityKey(key);
+
+                if (normalized) {
+                    index.add(normalized);
+                }
+            }
+        }
+
+        if (
+            registry.byIdentity
+            instanceof Map
+        ) {
+            for (
+                const key
+                of registry.byIdentity.keys()
+            ) {
+                const normalized =
+                    normalizeIdentityKey(key);
+
+                if (normalized) {
+                    index.add(normalized);
+                }
+            }
+        }
+
+        if (
+            Array.isArray(
+                registry.identities
+            )
+        ) {
+            for (
+                const item
+                of registry.identities
+            ) {
+                const key =
+                    getIdentityKey(item);
+
+                if (key) {
+                    index.add(key);
+                }
+            }
+        }
+
+        runtimeIdentityIndexSize =
+            index.size;
+
+        return index;
+    }
+
+    function runtimeHasIdentity(
+        registry,
+        key,
+        identityIndex
+    ) {
+        if (!registry || !key) {
             return false;
+        }
+
+        /*
+         * Fast path.
+         */
+        if (
+            identityIndex &&
+            identityIndex.has(key)
+        ) {
+            return true;
         }
 
         if (registry instanceof Map) {
             return registry.has(key);
         }
 
-        if (registry.byIdentity instanceof Map) {
-            return registry.byIdentity.has(key);
+        if (
+            registry.byIdentity
+            instanceof Map
+        ) {
+            return registry
+                .byIdentity
+                .has(key);
         }
 
-        if (typeof registry.has === "function") {
+        if (
+            typeof registry.has
+            === "function"
+        ) {
             try {
                 return registry.has(key);
             } catch (_) {}
         }
 
-        if (typeof registry.get === "function") {
+        if (
+            typeof registry.get
+            === "function"
+        ) {
             try {
-                return Boolean(registry.get(key));
+                return Boolean(
+                    registry.get(key)
+                );
             } catch (_) {}
-        }
-
-        if (Array.isArray(registry.identities)) {
-            return registry.identities.some(
-                item => getIdentityKey(item) === key
-            );
         }
 
         return false;
@@ -293,359 +558,838 @@
         key,
         value
     ) {
-        if (!registry) {
+        if (
+            !registry ||
+            !key
+        ) {
             return false;
         }
 
         if (registry instanceof Map) {
-            registry.set(key, value);
+            registry.set(
+                key,
+                value
+            );
+
             return true;
         }
 
-        if (registry.byIdentity instanceof Map) {
-            registry.byIdentity.set(key, value);
+        if (
+            registry.byIdentity
+            instanceof Map
+        ) {
+            registry
+                .byIdentity
+                .set(
+                    key,
+                    value
+                );
+
             return true;
         }
 
-        if (typeof registry.upsert === "function") {
-            registry.upsert(value);
-            return true;
-        }
-
-        if (typeof registry.register === "function") {
-            registry.register(value);
-            return true;
-        }
-
-        if (typeof registry.set === "function") {
+        if (
+            typeof registry.upsert
+            === "function"
+        ) {
             try {
-                registry.set(key, value);
+                registry.upsert(value);
                 return true;
             } catch (_) {}
         }
 
-        if (typeof registry.add === "function") {
+        if (
+            typeof registry.register
+            === "function"
+        ) {
+            try {
+                registry.register(value);
+                return true;
+            } catch (_) {}
+        }
+
+        if (
+            typeof registry.set
+            === "function"
+        ) {
+            try {
+                registry.set(
+                    key,
+                    value
+                );
+
+                return true;
+            } catch (_) {}
+        }
+
+        if (
+            typeof registry.add
+            === "function"
+        ) {
             try {
                 registry.add(value);
                 return true;
             } catch (_) {}
         }
 
-        if (Array.isArray(registry.identities)) {
-            registry.identities.push(value);
-            return true;
+        if (
+            Array.isArray(
+                registry.identities
+            )
+        ) {
+            try {
+                registry
+                    .identities
+                    .push(value);
+
+                return true;
+            } catch (_) {}
         }
 
         return false;
     }
 
+    /*
+     * ---------------------------------------------------------
+     * IndexedDB helpers
+     * ---------------------------------------------------------
+     */
+
+    function openDatabase(
+        name,
+        timeoutMs =
+            DATABASE_OPEN_TIMEOUT_MS
+    ) {
+        return new Promise(
+            (resolve, reject) => {
+
+                let settled = false;
+
+                const timer =
+                    setTimeout(() => {
+                        if (settled) {
+                            return;
+                        }
+
+                        settled = true;
+
+                        reject(
+                            new Error(
+                                `IndexedDB open timeout: ${name}`
+                            )
+                        );
+                    }, timeoutMs);
+
+                let request;
+
+                try {
+                    request =
+                        global
+                            .indexedDB
+                            .open(name);
+                } catch (error) {
+                    clearTimeout(timer);
+
+                    settled = true;
+
+                    reject(error);
+                    return;
+                }
+
+                request.onsuccess = () => {
+                    if (settled) {
+                        try {
+                            request
+                                .result
+                                ?.close();
+                        } catch (_) {}
+
+                        return;
+                    }
+
+                    settled = true;
+
+                    clearTimeout(timer);
+
+                    resolve(
+                        request.result
+                    );
+                };
+
+                request.onerror = () => {
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+
+                    clearTimeout(timer);
+
+                    reject(
+                        request.error ||
+                        new Error(
+                            `Failed to open IndexedDB: ${name}`
+                        )
+                    );
+                };
+
+                request.onblocked = () => {
+                    console.warn(
+                        `[RainGuard][${PHASE}] IndexedDB open blocked`,
+                        { name }
+                    );
+                };
+            }
+        );
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * Authoritative IndexedDB source discovery
+     * ---------------------------------------------------------
+     */
+
     async function discoverIndexedDBSource() {
-        state = STATES.DISCOVERING_INDEXEDDB;
+        state =
+            STATES.DISCOVERING_INDEXEDDB;
 
         if (!global.indexedDB) {
-            throw new Error("IndexedDB unavailable.");
-        }
-
-        const databases =
-            typeof global.indexedDB.databases === "function"
-                ? await global.indexedDB.databases()
-                : [];
-
-        const preferredNames = [
-            "RainGuardTemporalHistoryV39",
-            "RainGuardTemporalHistory",
-            "RainGuardN4B1B3CTemporalHistoryV39",
-            "RainGuard"
-        ];
-
-        const names = [
-            ...new Set([
-                ...preferredNames,
-                ...databases
-                    .map(db => db?.name)
-                    .filter(Boolean)
-            ])
-        ];
-
-        let best = null;
-
-        for (const dbName of names) {
-            let db = null;
-
-            try {
-                db = await openDatabase(dbName);
-
-                const stores =
-                    Array.from(db.objectStoreNames || []);
-
-                for (const storeName of stores) {
-                    const score =
-                        scoreStoreName(storeName);
-
-                    if (
-                        !best ||
-                        score > best.score
-                    ) {
-                        best = {
-                            dbName,
-                            storeName,
-                            score
-                        };
-                    }
-                }
-            } catch (_) {
-            } finally {
-                try {
-                    db?.close();
-                } catch (_) {}
-            }
-        }
-
-        if (!best) {
             throw new Error(
-                "No IndexedDB source store discovered."
+                "IndexedDB unavailable."
             );
         }
 
-        selectedDatabaseName = best.dbName;
-        selectedStoreName = best.storeName;
+        /*
+         * We already verified this DB and store manually.
+         *
+         * Do not scan/open arbitrary preferred database names.
+         * Opening a non-existing database name can create an empty
+         * IndexedDB database and pollute discovery.
+         */
+        let db = null;
 
-        return best;
-    }
-
-    function scoreStoreName(name) {
-        const lower =
-            String(name || "").toLowerCase();
-
-        let score = 0;
-
-        if (lower.includes("identity")) score += 100;
-        if (lower.includes("track")) score += 50;
-        if (lower.includes("temporal")) score += 25;
-        if (lower.includes("history")) score += 20;
-        if (lower.includes("metadata")) score -= 50;
-
-        return score;
-    }
-
-    function openDatabase(name) {
-        return new Promise((resolve, reject) => {
-            const request =
-                global.indexedDB.open(name);
-
-            request.onsuccess =
-                () => resolve(request.result);
-
-            request.onerror =
-                () => reject(
-                    request.error ||
-                    new Error("Failed to open IndexedDB.")
+        try {
+            db =
+                await openDatabase(
+                    AUTHORITATIVE_DB_NAME
                 );
-        });
+
+            const stores =
+                Array.from(
+                    db.objectStoreNames ||
+                    []
+                );
+
+            if (
+                !stores.includes(
+                    AUTHORITATIVE_STORE_NAME
+                )
+            ) {
+                throw new Error(
+                    `Authoritative store not found: ${AUTHORITATIVE_STORE_NAME}`
+                );
+            }
+
+            selectedDatabaseName =
+                AUTHORITATIVE_DB_NAME;
+
+            selectedStoreName =
+                AUTHORITATIVE_STORE_NAME;
+
+            state =
+                STATES.INDEXEDDB_SOURCE_READY;
+
+            return {
+                dbName:
+                    AUTHORITATIVE_DB_NAME,
+
+                storeName:
+                    AUTHORITATIVE_STORE_NAME,
+
+                availableStores:
+                    stores
+            };
+
+        } finally {
+            try {
+                db?.close();
+            } catch (_) {}
+        }
     }
+
+    /*
+     * ---------------------------------------------------------
+     * Transaction-safe cursor drain
+     * ---------------------------------------------------------
+     *
+     * CRITICAL RULE:
+     *
+     * Never use:
+     *
+     *     await sleep(...)
+     *
+     * between:
+     *
+     *     cursorRequest.onsuccess
+     *
+     * and:
+     *
+     *     cursor.continue()
+     *
+     * Otherwise IndexedDB may auto-commit the transaction and
+     * cursor.continue() can stall or throw
+     * TransactionInactiveError.
+     * ---------------------------------------------------------
+     */
 
     async function cursorDrain(
         dbName,
         storeName,
         runtimeRegistry
     ) {
-        state = STATES.CURSOR_DRAINING;
+        state =
+            STATES.CURSOR_DRAINING;
 
-        return new Promise((resolve, reject) => {
-            const openRequest =
-                global.indexedDB.open(dbName);
+        const identityIndex =
+            buildRuntimeIdentityIndex(
+                runtimeRegistry
+            );
 
-            openRequest.onerror = () => {
-                reject(
-                    openRequest.error ||
-                    new Error("IndexedDB open failed.")
-                );
-            };
+        state =
+            STATES.CURSOR_DRAINING;
 
-            openRequest.onsuccess = () => {
-                const db = openRequest.result;
+        return new Promise(
+            (resolve, reject) => {
 
-                let tx;
-                let store;
+                let settled = false;
+                let db = null;
+                let tx = null;
+                let cursorIdleTimer = null;
 
-                try {
-                    tx =
-                        db.transaction(
-                            storeName,
-                            "readonly"
+                function clearCursorTimer() {
+                    if (cursorIdleTimer) {
+                        clearTimeout(
+                            cursorIdleTimer
                         );
 
-                    store =
-                        tx.objectStore(storeName);
-                } catch (error) {
+                        cursorIdleTimer =
+                            null;
+                    }
+                }
+
+                function safeCloseDatabase() {
                     try {
-                        db.close();
+                        db?.close();
+                    } catch (_) {}
+                }
+
+                function finishSuccess() {
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+
+                    clearCursorTimer();
+                    safeCloseDatabase();
+
+                    runtimeIdentityIndexSize =
+                        identityIndex.size;
+
+                    resolve({
+                        success: true,
+
+                        scannedRecordCount,
+                        extractedIdentityCount,
+                        insertedIdentityCount,
+                        skippedDuplicateCount,
+                        rejectedRecordCount,
+
+                        runtimeIdentityIndexSize
+                    });
+                }
+
+                function finishFailure(
+                    error
+                ) {
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+
+                    clearCursorTimer();
+
+                    try {
+                        tx?.abort();
                     } catch (_) {}
 
+                    safeCloseDatabase();
+
                     reject(error);
+                }
+
+                function resetCursorIdleTimer() {
+                    clearCursorTimer();
+
+                    cursorIdleTimer =
+                        setTimeout(() => {
+                            finishFailure(
+                                new Error(
+                                    `IndexedDB cursor idle timeout after ${CURSOR_IDLE_TIMEOUT_MS} ms`
+                                )
+                            );
+                        }, CURSOR_IDLE_TIMEOUT_MS);
+                }
+
+                let openRequest;
+
+                try {
+                    openRequest =
+                        global
+                            .indexedDB
+                            .open(dbName);
+                } catch (error) {
+                    finishFailure(error);
                     return;
                 }
 
-                const cursorRequest =
-                    store.openCursor();
+                const openTimer =
+                    setTimeout(() => {
+                        finishFailure(
+                            new Error(
+                                `IndexedDB cursor source open timeout: ${dbName}`
+                            )
+                        );
+                    }, DATABASE_OPEN_TIMEOUT_MS);
 
-                cursorRequest.onerror = () => {
-                    try {
-                        db.close();
-                    } catch (_) {}
-
-                    reject(
-                        cursorRequest.error ||
-                        new Error("Cursor failed.")
-                    );
-                };
-
-                cursorRequest.onsuccess = async event => {
-                    const cursor =
-                        event.target.result;
-
-                    if (!cursor) {
-                        try {
-                            db.close();
-                        } catch (_) {}
-
-                        resolve();
-                        return;
-                    }
-
-                    if (
-                        scannedRecordCount >=
-                        MAX_RECORDS_PER_RUN
-                    ) {
-                        try {
-                            db.close();
-                        } catch (_) {}
-
-                        resolve();
-                        return;
-                    }
-
-                    scannedRecordCount += 1;
-
-                    const extracted =
-                        extractCanonicalIdentity(
-                            cursor.value
+                openRequest.onerror =
+                    () => {
+                        clearTimeout(
+                            openTimer
                         );
 
-                    if (!extracted) {
-                        rejectedRecordCount += 1;
-                        cursor.continue();
-                        return;
-                    }
+                        finishFailure(
+                            openRequest.error ||
+                            new Error(
+                                "IndexedDB open failed."
+                            )
+                        );
+                    };
 
-                    extractedIdentityCount += 1;
+                openRequest.onblocked =
+                    () => {
+                        console.warn(
+                            `[RainGuard][${PHASE}] Cursor source open blocked`,
+                            {
+                                dbName,
+                                storeName
+                            }
+                        );
+                    };
 
-                    const key =
-                        extracted.key;
+                openRequest.onsuccess =
+                    () => {
+                        clearTimeout(
+                            openTimer
+                        );
 
-                    if (
-                        runtimeHasIdentity(
-                            runtimeRegistry,
-                            key
-                        )
-                    ) {
-                        skippedDuplicateCount += 1;
-                    } else {
-                        const inserted =
-                            insertIntoRuntimeRegistry(
-                                runtimeRegistry,
-                                key,
-                                extracted.value
-                            );
+                        if (settled) {
+                            try {
+                                openRequest
+                                    .result
+                                    ?.close();
+                            } catch (_) {}
 
-                        if (inserted) {
-                            insertedIdentityCount += 1;
-                        } else {
-                            rejectedRecordCount += 1;
+                            return;
                         }
-                    }
 
-                    if (
-                        scannedRecordCount %
-                            YIELD_EVERY ===
-                        0
-                    ) {
-                        await sleep(0);
-                    }
+                        db =
+                            openRequest.result;
 
-                    cursor.continue();
-                };
-            };
-        });
+                        try {
+                            tx =
+                                db.transaction(
+                                    storeName,
+                                    "readonly"
+                                );
+                        } catch (error) {
+                            finishFailure(error);
+                            return;
+                        }
+
+                        let store;
+
+                        try {
+                            store =
+                                tx.objectStore(
+                                    storeName
+                                );
+                        } catch (error) {
+                            finishFailure(error);
+                            return;
+                        }
+
+                        tx.onerror =
+                            () => {
+                                if (settled) {
+                                    return;
+                                }
+
+                                finishFailure(
+                                    tx.error ||
+                                    new Error(
+                                        "IndexedDB transaction failed."
+                                    )
+                                );
+                            };
+
+                        tx.onabort =
+                            () => {
+                                if (settled) {
+                                    return;
+                                }
+
+                                finishFailure(
+                                    tx.error ||
+                                    new Error(
+                                        "IndexedDB transaction aborted."
+                                    )
+                                );
+                            };
+
+                        /*
+                         * When cursor naturally stops,
+                         * transaction completion is the clean
+                         * finalization point.
+                         */
+                        tx.oncomplete =
+                            () => {
+                                if (!settled) {
+                                    finishSuccess();
+                                }
+                            };
+
+                        let cursorRequest;
+
+                        try {
+                            cursorRequest =
+                                store.openCursor();
+                        } catch (error) {
+                            finishFailure(error);
+                            return;
+                        }
+
+                        resetCursorIdleTimer();
+
+                        cursorRequest.onerror =
+                            () => {
+                                finishFailure(
+                                    cursorRequest.error ||
+                                    new Error(
+                                        "IndexedDB cursor failed."
+                                    )
+                                );
+                            };
+
+                        /*
+                         * DO NOT make this callback async.
+                         */
+                        cursorRequest.onsuccess =
+                            event => {
+
+                                if (settled) {
+                                    return;
+                                }
+
+                                resetCursorIdleTimer();
+
+                                const cursor =
+                                    event
+                                        .target
+                                        .result;
+
+                                /*
+                                 * End of store.
+                                 *
+                                 * Do not resolve here.
+                                 * Allow tx.oncomplete to finalize.
+                                 */
+                                if (!cursor) {
+                                    clearCursorTimer();
+                                    return;
+                                }
+
+                                /*
+                                 * Controlled safety ceiling.
+                                 */
+                                if (
+                                    scannedRecordCount >=
+                                    MAX_RECORDS_PER_RUN
+                                ) {
+                                    clearCursorTimer();
+
+                                    /*
+                                     * Do not cursor.continue().
+                                     * The readonly transaction
+                                     * will complete naturally.
+                                     */
+                                    return;
+                                }
+
+                                scannedRecordCount += 1;
+
+                                const extracted =
+                                    extractCanonicalIdentity(
+                                        cursor.value
+                                    );
+
+                                if (!extracted) {
+                                    rejectedRecordCount += 1;
+
+                                    try {
+                                        cursor.continue();
+                                    } catch (error) {
+                                        finishFailure(error);
+                                    }
+
+                                    return;
+                                }
+
+                                extractedIdentityCount += 1;
+
+                                const key =
+                                    extracted.key;
+
+                                if (
+                                    runtimeHasIdentity(
+                                        runtimeRegistry,
+                                        key,
+                                        identityIndex
+                                    )
+                                ) {
+                                    skippedDuplicateCount += 1;
+
+                                    identityIndex.add(key);
+
+                                } else {
+                                    let inserted = false;
+
+                                    try {
+                                        inserted =
+                                            insertIntoRuntimeRegistry(
+                                                runtimeRegistry,
+                                                key,
+                                                extracted.value
+                                            );
+                                    } catch (_) {
+                                        inserted = false;
+                                    }
+
+                                    if (inserted) {
+                                        insertedIdentityCount += 1;
+
+                                        identityIndex.add(key);
+
+                                    } else {
+                                        rejectedRecordCount += 1;
+                                    }
+                                }
+
+                                runtimeIdentityIndexSize =
+                                    identityIndex.size;
+
+                                /*
+                                 * CRITICAL:
+                                 *
+                                 * No await.
+                                 * No setTimeout.
+                                 * No Promise.
+                                 * No sleep.
+                                 *
+                                 * Continue immediately while the
+                                 * transaction remains active.
+                                 */
+                                try {
+                                    cursor.continue();
+                                } catch (error) {
+                                    finishFailure(error);
+                                }
+                            };
+                    };
+            }
+        );
     }
 
+    /*
+     * ---------------------------------------------------------
+     * Coverage
+     * ---------------------------------------------------------
+     */
+
     async function readCoverage() {
-        const c6 = getC6();
+        const c6 =
+            getC6();
 
         if (
             c6 &&
-            typeof c6.getIdentityCoverageReport === "function"
+            typeof c6
+                .getIdentityCoverageReport
+                === "function"
         ) {
             try {
                 lastCoverage =
-                    await c6.getIdentityCoverageReport();
+                    await c6
+                        .getIdentityCoverageReport();
 
                 return lastCoverage;
+            } catch (_) {}
+        }
+
+        /*
+         * Some implementations expose the report
+         * through diagnose().
+         */
+        if (
+            c6 &&
+            typeof c6.diagnose
+                === "function"
+        ) {
+            try {
+                const diagnostic =
+                    await c6.diagnose();
+
+                if (
+                    diagnostic &&
+                    diagnostic.coverage
+                ) {
+                    lastCoverage =
+                        diagnostic.coverage;
+
+                    return lastCoverage;
+                }
             } catch (_) {}
         }
 
         return lastCoverage;
     }
 
-    function coverageComplete(coverage) {
-        return Boolean(
-            coverage &&
+    function coverageComplete(
+        coverage
+    ) {
+        if (!coverage) {
+            return false;
+        }
+
+        const percent =
             Number(
                 coverage.coveragePercent
-            ) >= MIN_COVERAGE_PERCENT &&
+            );
+
+        const missing =
             Number(
                 coverage.missingInRuntimeCount
-            ) === 0 &&
-            coverage.identityCoverageVerified === true
+            );
+
+        return Boolean(
+            Number.isFinite(percent) &&
+            percent >=
+                MIN_COVERAGE_PERCENT &&
+
+            Number.isFinite(missing) &&
+            missing === 0 &&
+
+            coverage
+                .identityCoverageVerified
+                === true
         );
     }
+
+    /*
+     * ---------------------------------------------------------
+     * Downstream release
+     * ---------------------------------------------------------
+     */
 
     async function releaseDownstream() {
         const results = {};
 
         const chain = [
-            ["c7a", getC7A()],
-            ["c7b", getC7B()],
-            ["c7b1", getC7B1()]
+            [
+                "c7a",
+                getC7A()
+            ],
+            [
+                "c7b",
+                getC7B()
+            ],
+            [
+                "c7b1",
+                getC7B1()
+            ]
         ];
 
-        for (const [name, bridge] of chain) {
+        for (
+            const [name, bridge]
+            of chain
+        ) {
             if (
-                bridge &&
-                typeof bridge.run === "function"
+                !bridge ||
+                typeof bridge.run
+                    !== "function"
             ) {
-                try {
-                    results[name] =
-                        await bridge.run();
-                } catch (error) {
-                    results[
-                        name + "Error"
-                    ] =
-                        normalizeError(error);
-                }
+                results[name] = {
+                    skipped: true,
+                    reason:
+                        "BRIDGE_NOT_AVAILABLE"
+                };
+
+                continue;
+            }
+
+            try {
+                results[name] =
+                    await bridge.run();
+
+            } catch (error) {
+                results[
+                    `${name}Error`
+                ] =
+                    normalizeError(
+                        error
+                    );
             }
         }
 
         return results;
     }
 
+    /*
+     * ---------------------------------------------------------
+     * Main run
+     * ---------------------------------------------------------
+     */
+
     async function run() {
         if (running) {
-            return lastResult;
+            return (
+                lastResult || {
+                    success: false,
+                    phase: PHASE,
+                    version: VERSION,
+                    status:
+                        "ALREADY_RUNNING"
+                }
+            );
         }
 
         running = true;
-        startedAt = now();
+
+        startedAt =
+            now();
+
+        completedAt =
+            null;
 
         scannedRecordCount = 0;
         extractedIdentityCount = 0;
@@ -653,45 +1397,131 @@
         skippedDuplicateCount = 0;
         rejectedRecordCount = 0;
 
+        runtimeIdentityIndexSize = 0;
+
+        selectedDatabaseName = null;
+        selectedStoreName = null;
+        selectedRuntimeRegistryName = null;
+
         lastError = null;
 
         try {
+            /*
+             * 1. Runtime registry
+             */
             const runtimeRegistry =
                 discoverCanonicalRuntimeRegistry();
 
             if (!runtimeRegistry) {
-                state = STATES.BLOCKED;
+                state =
+                    STATES.BLOCKED;
+
+                completedAt =
+                    now();
 
                 lastResult = {
                     success: false,
+
                     phase: PHASE,
                     version: VERSION,
                     build: BUILD,
+
                     status:
-                        "CANONICAL_RUNTIME_IDENTITY_REGISTRY_NOT_FOUND"
+                        "CANONICAL_RUNTIME_IDENTITY_REGISTRY_NOT_FOUND",
+
+                    state,
+
+                    startedAt,
+                    completedAt,
+
+                    durationMs:
+                        completedAt -
+                        startedAt
                 };
 
                 return lastResult;
             }
 
-            const source =
-                await discoverIndexedDBSource();
+            /*
+             * 2. Authoritative IndexedDB source
+             */
+            let source;
 
-            await cursorDrain(
-                source.dbName,
-                source.storeName,
-                runtimeRegistry
-            );
+            try {
+                source =
+                    await discoverIndexedDBSource();
+            } catch (error) {
+                state =
+                    STATES.DATABASE_BLOCKED;
 
-            state = STATES.VERIFYING;
+                completedAt =
+                    now();
 
-            await sleep(200);
+                lastError =
+                    normalizeError(error);
+
+                lastResult = {
+                    success: false,
+
+                    phase: PHASE,
+                    version: VERSION,
+                    build: BUILD,
+
+                    status:
+                        "AUTHORITATIVE_INDEXEDDB_SOURCE_NOT_AVAILABLE",
+
+                    state,
+
+                    selectedDatabaseName,
+                    selectedStoreName,
+                    selectedRuntimeRegistryName,
+
+                    error:
+                        lastError,
+
+                    startedAt,
+                    completedAt,
+
+                    durationMs:
+                        completedAt -
+                        startedAt
+                };
+
+                return lastResult;
+            }
+
+            /*
+             * 3. Transaction-safe cursor drain
+             */
+            const drainResult =
+                await cursorDrain(
+                    source.dbName,
+                    source.storeName,
+                    runtimeRegistry
+                );
+
+            /*
+             * Give synchronous registry side-effects one
+             * event-loop turn before coverage verification.
+             *
+             * This sleep happens AFTER the IndexedDB transaction
+             * has completed, not inside the cursor transaction.
+             */
+            await sleep(100);
+
+            /*
+             * 4. Verify
+             */
+            state =
+                STATES.VERIFYING;
 
             const coverage =
                 await readCoverage();
 
             const complete =
-                coverageComplete(coverage);
+                coverageComplete(
+                    coverage
+                );
 
             let downstream = null;
 
@@ -701,15 +1531,18 @@
 
                 state =
                     STATES.COMPLETE;
+
             } else {
                 state =
                     STATES.PARTIAL;
             }
 
-            completedAt = now();
+            completedAt =
+                now();
 
             lastResult = {
-                success: complete,
+                success:
+                    complete,
 
                 phase: PHASE,
                 version: VERSION,
@@ -722,6 +1555,12 @@
 
                 state,
 
+                authoritativeDatabase:
+                    AUTHORITATIVE_DB_NAME,
+
+                authoritativeStore:
+                    AUTHORITATIVE_STORE_NAME,
+
                 selectedDatabaseName,
                 selectedStoreName,
                 selectedRuntimeRegistryName,
@@ -732,20 +1571,35 @@
                 skippedDuplicateCount,
                 rejectedRecordCount,
 
+                runtimeIdentityIndexSize,
+
+                drainResult,
+
                 coverage,
 
                 downstream,
 
                 startedAt,
                 completedAt,
+
                 durationMs:
-                    completedAt - startedAt
+                    completedAt -
+                    startedAt
             };
+
+            console.log(
+                `[RainGuard][${PHASE}] Run result:`,
+                lastResult
+            );
 
             return lastResult;
 
         } catch (error) {
-            state = STATES.FAILED;
+            state =
+                STATES.FAILED;
+
+            completedAt =
+                now();
 
             lastError =
                 normalizeError(error);
@@ -762,6 +1616,12 @@
 
                 state,
 
+                authoritativeDatabase:
+                    AUTHORITATIVE_DB_NAME,
+
+                authoritativeStore:
+                    AUTHORITATIVE_STORE_NAME,
+
                 selectedDatabaseName,
                 selectedStoreName,
                 selectedRuntimeRegistryName,
@@ -772,9 +1632,23 @@
                 skippedDuplicateCount,
                 rejectedRecordCount,
 
+                runtimeIdentityIndexSize,
+
                 error:
-                    lastError
+                    lastError,
+
+                startedAt,
+                completedAt,
+
+                durationMs:
+                    completedAt -
+                    startedAt
             };
+
+            console.error(
+                `[RainGuard][${PHASE}] Run failed:`,
+                lastResult
+            );
 
             return lastResult;
 
@@ -782,6 +1656,12 @@
             running = false;
         }
     }
+
+    /*
+     * ---------------------------------------------------------
+     * Diagnostics
+     * ---------------------------------------------------------
+     */
 
     async function diagnose() {
         let coverage = null;
@@ -802,6 +1682,12 @@
             running,
             state,
 
+            authoritativeDatabase:
+                AUTHORITATIVE_DB_NAME,
+
+            authoritativeStore:
+                AUTHORITATIVE_STORE_NAME,
+
             selectedDatabaseName,
             selectedStoreName,
             selectedRuntimeRegistryName,
@@ -812,31 +1698,56 @@
             skippedDuplicateCount,
             rejectedRecordCount,
 
+            runtimeIdentityIndexSize,
+
             batchSize:
                 BATCH_SIZE,
-
-            yieldEvery:
-                YIELD_EVERY,
 
             maxRecordsPerRun:
                 MAX_RECORDS_PER_RUN,
 
+            databaseOpenTimeoutMs:
+                DATABASE_OPEN_TIMEOUT_MS,
+
+            cursorIdleTimeoutMs:
+                CURSOR_IDLE_TIMEOUT_MS,
+
             minimumCoveragePercent:
                 MIN_COVERAGE_PERCENT,
+
+            transactionSafeCursor:
+                true,
+
+            cursorAwaitDisabled:
+                true,
+
+            getAllDisabled:
+                true,
+
+            authoritativeSourcePinned:
+                true,
 
             coverage,
 
             c6Available:
-                Boolean(getC6()),
+                Boolean(
+                    getC6()
+                ),
 
             c7aAvailable:
-                Boolean(getC7A()),
+                Boolean(
+                    getC7A()
+                ),
 
             c7bAvailable:
-                Boolean(getC7B()),
+                Boolean(
+                    getC7B()
+                ),
 
             c7b1Available:
-                Boolean(getC7B1()),
+                Boolean(
+                    getC7B1()
+                ),
 
             lastResult,
             lastError
@@ -856,6 +1767,12 @@
         );
     }
 
+    /*
+     * ---------------------------------------------------------
+     * Install
+     * ---------------------------------------------------------
+     */
+
     function install() {
         if (installed) {
             return bridge;
@@ -866,22 +1783,62 @@
         console.log(
             `[RainGuard][${PHASE}] Installed`,
             {
-                version: VERSION,
-                memorySafe: true,
-                cursorDrain: true,
-                getAllDisabled: true
+                version:
+                    VERSION,
+
+                build:
+                    BUILD,
+
+                memorySafe:
+                    true,
+
+                transactionSafe:
+                    true,
+
+                cursorDrain:
+                    true,
+
+                cursorAwaitDisabled:
+                    true,
+
+                getAllDisabled:
+                    true,
+
+                authoritativeDatabase:
+                    AUTHORITATIVE_DB_NAME,
+
+                authoritativeStore:
+                    AUTHORITATIVE_STORE_NAME
             }
         );
 
         return bridge;
     }
 
-    const bridge = {
-        phase: PHASE,
-        version: VERSION,
-        build: BUILD,
+    /*
+     * ---------------------------------------------------------
+     * Public bridge
+     * ---------------------------------------------------------
+     */
 
-        states: STATES,
+    const bridge = {
+        phase:
+            PHASE,
+
+        version:
+            VERSION,
+
+        build:
+            BUILD,
+
+        states:
+            STATES,
+
+        authoritativeDatabase:
+            AUTHORITATIVE_DB_NAME,
+
+        authoritativeStore:
+            AUTHORITATIVE_STORE_NAME,
 
         install,
         run,
@@ -933,6 +1890,10 @@
             return rejectedRecordCount;
         },
 
+        get runtimeIdentityIndexSize() {
+            return runtimeIdentityIndexSize;
+        },
+
         get lastCoverage() {
             return lastCoverage;
         },
@@ -955,7 +1916,8 @@
     global[DIAG_NAME] =
         diagnose;
 
-    global.isRainGuard39A15F6N4B1B3C7B2AMemorySafeDrainComplete =
+    global
+        .isRainGuard39A15F6N4B1B3C7B2AMemorySafeDrainComplete =
         isComplete;
 
     install();
