@@ -1369,14 +1369,14 @@
                             return;
                         }
 
-                        this.sync().catch(
-                            error => {
+                        Promise.resolve()
+                            .then(() => this.sync())
+                            .catch(error => {
                                 this.captureError(
                                     error,
                                     "INTERVAL_SYNC_FAILED"
-                                );
-                            }
-                        );
+                               );
+                          });
                     },
                     this.config.syncIntervalMs
                 );
