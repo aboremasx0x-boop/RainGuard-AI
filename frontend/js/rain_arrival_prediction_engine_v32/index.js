@@ -69,7 +69,7 @@
         autoInitialize: true,
         continueOnOptionalFailure: false,
         scriptTimeoutMs: 30000,
-        cacheVersion: "3238M19_C7B2B2_MEMFIX3",
+        cacheVersion: "3238M19_C7B2B1_MEMSAFE2",
         debug: true
     });
 
