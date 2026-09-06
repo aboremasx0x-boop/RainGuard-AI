@@ -12073,17 +12073,23 @@ RG30.VerificationEngine = {
             .length;
 
         const conflictedCities =
-            results.filter(
-                result =>
+    results.filter(
+        result =>
 
-                    result.status ===
-                        "CONFLICTED" ||
+            result.status ===
+                "CONFLICTED" ||
 
-                    result.conflict
-                        ?.detected ===
-                        true
+            (
+                result.conflict
+                    ?.detected ===
+                    true &&
+
+                result.conflict
+                    ?.level ===
+                    "HIGH"
             )
-            .length;
+    )
+    .length;
 
         const insufficientDataCities =
             results.filter(
