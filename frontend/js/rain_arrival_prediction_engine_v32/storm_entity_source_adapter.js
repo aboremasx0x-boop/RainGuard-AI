@@ -73,20 +73,240 @@
     }
 
     function cloneValue(value) {
-        if (value === null || value === undefined) return value;
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return value;
+    }
 
-        if (typeof structuredClone === "function") {
-            try {
-                return structuredClone(value);
-            } catch (_) {}
-        }
+    /*
+     * Primitive values are already safe.
+     */
+    if (
+        typeof value !== "object"
+    ) {
+        return value;
+    }
+
+    /*
+     * Arrays:
+     * keep only a bounded shallow copy.
+     */
+    if (Array.isArray(value)) {
+        const MAX_ITEMS = 100;
+
+        return value
+            .slice(0, MAX_ITEMS)
+            .map(item => {
+                if (
+                    item === null ||
+                    item === undefined ||
+                    typeof item !== "object"
+                ) {
+                    return item;
+                }
+
+                return compactClone(item);
+            });
+    }
+
+    /*
+     * Objects:
+     * do NOT structuredClone the complete graph.
+     */
+    return compactClone(value);
+}
+
+
+function compactClone(source) {
+    if (
+        source === null ||
+        source === undefined
+    ) {
+        return source;
+    }
+
+    if (
+        typeof source !== "object"
+    ) {
+        return source;
+    }
+
+    const MAX_KEYS = 50;
+    const MAX_ARRAY_ITEMS = 50;
+
+    const result = {};
+
+    let keys;
+
+    try {
+        keys = Object.keys(source)
+            .slice(0, MAX_KEYS);
+    } catch (_) {
+        return null;
+    }
+
+    for (const key of keys) {
+        let item;
 
         try {
-            return JSON.parse(JSON.stringify(value));
+            item = source[key];
         } catch (_) {
-            return value;
+            continue;
+        }
+
+        if (
+            item === null ||
+            item === undefined
+        ) {
+            result[key] = item;
+            continue;
+        }
+
+        const type =
+            typeof item;
+
+        if (
+            type === "string" ||
+            type === "number" ||
+            type === "boolean"
+        ) {
+            result[key] = item;
+            continue;
+        }
+
+        if (
+            type === "bigint"
+        ) {
+            result[key] =
+                item.toString();
+            continue;
+        }
+
+        if (
+            type === "function" ||
+            type === "symbol"
+        ) {
+            continue;
+        }
+
+        if (
+            Array.isArray(item)
+        ) {
+            result[key] =
+                item
+                    .slice(
+                        0,
+                        MAX_ARRAY_ITEMS
+                    )
+                    .map(entry => {
+                        if (
+                            entry === null ||
+                            entry === undefined ||
+                            typeof entry !== "object"
+                        ) {
+                            return entry;
+                        }
+
+                        /*
+                         * One lightweight level only.
+                         */
+                        const small = {};
+
+                        let entryKeys;
+
+                        try {
+                            entryKeys =
+                                Object.keys(entry)
+                                    .slice(0, 20);
+                        } catch (_) {
+                            return null;
+                        }
+
+                        for (
+                            const entryKey
+                            of entryKeys
+                        ) {
+                            let entryValue;
+
+                            try {
+                                entryValue =
+                                    entry[entryKey];
+                            } catch (_) {
+                                continue;
+                            }
+
+                            if (
+                                entryValue === null ||
+                                entryValue === undefined ||
+                                typeof entryValue === "string" ||
+                                typeof entryValue === "number" ||
+                                typeof entryValue === "boolean"
+                            ) {
+                                small[entryKey] =
+                                    entryValue;
+                            }
+                        }
+
+                        return small;
+                    });
+
+            continue;
+        }
+
+        /*
+         * Nested objects:
+         * one bounded shallow level only.
+         */
+        if (
+            type === "object"
+        ) {
+            const nested = {};
+
+            let nestedKeys;
+
+            try {
+                nestedKeys =
+                    Object.keys(item)
+                        .slice(0, 20);
+            } catch (_) {
+                result[key] = null;
+                continue;
+            }
+
+            for (
+                const nestedKey
+                of nestedKeys
+            ) {
+                let nestedValue;
+
+                try {
+                    nestedValue =
+                        item[nestedKey];
+                } catch (_) {
+                    continue;
+                }
+
+                if (
+                    nestedValue === null ||
+                    nestedValue === undefined ||
+                    typeof nestedValue === "string" ||
+                    typeof nestedValue === "number" ||
+                    typeof nestedValue === "boolean"
+                ) {
+                    nested[nestedKey] =
+                        nestedValue;
+                }
+            }
+
+            result[key] =
+                nested;
         }
     }
+
+    return result;
+}
 
     function toFiniteNumber(value, fallback = null) {
         const number = Number(value);
