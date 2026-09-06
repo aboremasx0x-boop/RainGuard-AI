@@ -1,53 +1,81 @@
 /*
 ===========================================================
  RainGuard AI V32
- Phase 38M-12B-1
  Storm Tracking -> Modular TrackStore Live Bridge
 
- MEMORY SAFE REVISION
+ Phase 38M-12B-1
  Phase 39A Memory Pressure Guard
+ C7B2B2 Storm/ETA Reliability Source Binding Repair
+
+ Version:
+ 32.38M.12B1-MEMSAFE-2
 ===========================================================
 */
 
 (function (global) {
     "use strict";
 
-    const VERSION = "32.38M.12B1-MEMSAFE-1";
+    const VERSION =
+        "32.38M.12B1-MEMSAFE-2";
+
     const BUILD =
-        "rainguard-v32-phase38m-storm-trackstore-live-bridge-memory-safe";
+        "rainguard-v32-storm-trackstore-live-bridge-memory-safe-v32-source-binding";
 
     const CONFIG = Object.freeze({
         autoStart: true,
 
-        // كان 5000ms
-        // نرفعها قليلًا لتقليل الضغط المستمر.
+        /*
+         * Memory-safe cadence.
+         */
         syncIntervalMs: 10000,
 
-        // كان 500 كيان في كل دورة.
+        /*
+         * Hard maximum entities processed
+         * during a single synchronization cycle.
+         */
         maximumEntitiesPerSync: 100,
 
-        // أقصى عدد نتائج كتابة نحتفظ بها داخل lastResult.
+        /*
+         * Only a small sample of write results
+         * is retained for diagnostics.
+         */
         maximumWriteResultsStored: 25,
 
-        // أقصى عدد نقاط نحافظ عليها عند الحاجة.
+        /*
+         * Reserved limit for track history.
+         */
         maximumPointsPerTrack: 60,
 
-        maximumPointAgeMs: 6 * 60 * 60 * 1000,
-        minimumCoordinateDelta: 0.00001,
+        maximumPointAgeMs:
+            6 * 60 * 60 * 1000,
 
-        // منع تداخل sync.
+        minimumCoordinateDelta:
+            0.00001,
+
+        /*
+         * Prevent overlapping sync cycles.
+         */
         preventConcurrentSync: true,
 
-        // عدم الاحتفاظ بالكيان الخام الكبير.
+        /*
+         * Never retain full raw source entities.
+         */
         preserveRawEntity: false,
 
-        // عدم عمل structuredClone لأجسام كبيرة بدون داعٍ.
         lightweightSnapshots: true,
 
         debug: true
     });
 
-    const now = () => Date.now();
+    const now =
+        () => Date.now();
+
+
+    /*
+    =========================================================
+     Utilities
+    =========================================================
+    */
 
     function isObject(value) {
         return (
@@ -57,39 +85,56 @@
         );
     }
 
-    /*
-     * Clone آمن ومحدود.
-     *
-     * لا نريد structuredClone لكائنات ضخمة أو دورية،
-     * لذلك نستخدمه فقط للبيانات الصغيرة التي نملكها نحن.
-     */
+
     function clone(value) {
-        if (value === null || value === undefined) {
+        if (
+            value === null ||
+            value === undefined
+        ) {
             return value;
         }
 
         try {
             return typeof structuredClone === "function"
                 ? structuredClone(value)
-                : JSON.parse(JSON.stringify(value));
+                : JSON.parse(
+                    JSON.stringify(value)
+                );
+
         } catch (_) {
             return null;
         }
     }
 
-    function number(value, fallback = null) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : fallback;
+
+    function number(
+        value,
+        fallback = null
+    ) {
+        const n =
+            Number(value);
+
+        return Number.isFinite(n)
+            ? n
+            : fallback;
     }
 
+
     function text(value) {
-        return value === null || value === undefined
+        return (
+            value === null ||
+            value === undefined
+        )
             ? ""
             : String(value).trim();
     }
 
+
     function timestamp(value) {
-        if (value === null || value === undefined) {
+        if (
+            value === null ||
+            value === undefined
+        ) {
             return now();
         }
 
@@ -102,24 +147,32 @@
                 : value;
         }
 
-        const parsed = Date.parse(value);
+        const parsed =
+            Date.parse(value);
 
         return Number.isFinite(parsed)
             ? parsed
             : now();
     }
 
+
     function coordinate(value) {
         if (!value) {
             return null;
         }
 
+        /*
+         * Array coordinates.
+         */
         if (
             Array.isArray(value) &&
             value.length >= 2
         ) {
-            const first = number(value[0]);
-            const second = number(value[1]);
+            const first =
+                number(value[0]);
+
+            const second =
+                number(value[1]);
 
             if (
                 first === null ||
@@ -143,27 +196,38 @@
                 };
         }
 
-        const lat = number(
-            value.lat ??
-            value.latitude ??
-            value.y ??
-            value.center?.lat ??
-            value.centroid?.lat ??
-            value.coordinate?.lat
-        );
 
-        const lon = number(
-            value.lon ??
-            value.lng ??
-            value.longitude ??
-            value.x ??
-            value.center?.lon ??
-            value.center?.lng ??
-            value.centroid?.lon ??
-            value.centroid?.lng ??
-            value.coordinate?.lon ??
-            value.coordinate?.lng
-        );
+        const lat =
+            number(
+                value.lat ??
+                value.latitude ??
+                value.y ??
+                value.center?.lat ??
+                value.center?.latitude ??
+                value.centroid?.lat ??
+                value.centroid?.latitude ??
+                value.coordinate?.lat ??
+                value.coordinate?.latitude
+            );
+
+
+        const lon =
+            number(
+                value.lon ??
+                value.lng ??
+                value.longitude ??
+                value.x ??
+                value.center?.lon ??
+                value.center?.lng ??
+                value.center?.longitude ??
+                value.centroid?.lon ??
+                value.centroid?.lng ??
+                value.centroid?.longitude ??
+                value.coordinate?.lon ??
+                value.coordinate?.lng ??
+                value.coordinate?.longitude
+            );
+
 
         if (
             lat === null ||
@@ -182,6 +246,7 @@
         };
     }
 
+
     function toArray(value) {
         if (!value) {
             return [];
@@ -195,11 +260,14 @@
             value instanceof Map ||
             value instanceof Set
         ) {
-            return Array.from(value.values());
+            return Array.from(
+                value.values()
+            );
         }
 
         if (
-            typeof value.values === "function"
+            typeof value.values ===
+            "function"
         ) {
             try {
                 return Array.from(
@@ -213,13 +281,18 @@
             : [];
     }
 
+
     /*
-     * لا نحتفظ بالـraw entity.
-     *
-     * نأخذ فقط حقولًا صغيرة ومفيدة للتشخيص.
+     * Small diagnostic-only summary.
+     * Never retain the entire raw entity.
      */
-    function compactEntityMetadata(entity) {
-        if (!entity || typeof entity !== "object") {
+    function compactEntityMetadata(
+        entity
+    ) {
+        if (
+            !entity ||
+            typeof entity !== "object"
+        ) {
             return null;
         }
 
@@ -234,8 +307,9 @@
                 ) || null,
 
             source:
-                text(entity.source) ||
-                null,
+                text(
+                    entity.source
+                ) || null,
 
             city:
                 text(
@@ -245,95 +319,317 @@
                 ) || null,
 
             status:
-                text(entity.status) ||
-                null
+                text(
+                    entity.status
+                ) || null
         };
     }
 
-    function trimPoints(points, maximum) {
-        if (!Array.isArray(points)) {
-            return [];
-        }
 
-        if (points.length <= maximum) {
-            return points;
-        }
-
-        return points.slice(
-            points.length - maximum
-        );
-    }
+    /*
+    =========================================================
+     Bridge
+    =========================================================
+    */
 
     class StormTrackStoreBridge {
         constructor(config = {}) {
-            this.version = VERSION;
-            this.build = BUILD;
+            this.version =
+                VERSION;
+
+            this.build =
+                BUILD;
 
             this.config = {
                 ...CONFIG,
-                ...(isObject(config) ? config : {})
+                ...(isObject(config)
+                    ? config
+                    : {})
             };
 
-            this.running = false;
-            this.timer = null;
+            this.running =
+                false;
+
+            this.timer =
+                null;
 
             /*
-             * Memory / concurrency guards
+             * Concurrency guards.
              */
-            this.syncInProgress = false;
-            this.activeSyncPromise = null;
-            this.lastSyncStartedAt = null;
-            this.lastSyncCompletedAt = null;
+            this.syncInProgress =
+                false;
+
+            this.activeSyncPromise =
+                null;
+
+            this.lastSyncStartedAt =
+                null;
+
+            this.lastSyncCompletedAt =
+                null;
 
             /*
-             * لا نخزن source object نفسه،
-             * لأنه قد يمسك Graph ضخم في الذاكرة.
+             * Keep only source NAME.
+             *
+             * Do not retain the full source object.
              */
-            this.lastSourceName = null;
+            this.lastSourceName =
+                null;
 
-            this.lastResult = null;
-            this.lastError = null;
+            this.lastSourceIndex =
+                null;
+
+            this.lastResult =
+                null;
+
+            this.lastError =
+                null;
 
             this.statistics = {
                 syncRuns: 0,
+
                 concurrentSyncSkips: 0,
+
                 discovered: 0,
+
                 normalized: 0,
+
                 inserted: 0,
+
                 updated: 0,
+
                 skipped: 0,
+
                 failures: 0,
-                memoryGuardDrops: 0
+
+                memoryGuardDrops: 0,
+
+                v32SourceHits: 0,
+
+                v31FallbackHits: 0,
+
+                emptyDiscoveryRuns: 0
             };
         }
 
+
+        /*
+        =====================================================
+         TrackStore
+        =====================================================
+        */
+
         getTrackStore() {
             return (
-                global.RainArrivalTrackStoreV32 ||
-                global.RainGuardAI?.V32
+                global
+                    .RainArrivalTrackStoreV32 ||
+
+                global
+                    .RainGuardAI
+                    ?.V32
                     ?.rainArrivalModules
                     ?.trackStore ||
-                global.RainArrivalEngineV32
-                    ?.get?.("trackStore") ||
+
+                global
+                    .RainArrivalEngineV32
+                    ?.get?.(
+                        "trackStore"
+                    ) ||
+
                 null
             );
         }
 
+
+        /*
+        =====================================================
+         Source Discovery
+        =====================================================
+        */
+
         getSources() {
-            return [
-                global.StormCellTrackingEngineV31,
-                global.StormTrackingEngineV31,
-                global.RainGuardStormTrackingV31,
-                global.RainGuardAI?.V31
-                    ?.stormCellTracking,
-                global.RainGuardAI?.V31
-                    ?.stormTracking,
-                global.RainGuardAI
-                    ?.stormCellTracking,
-                global.RainGuardAI
-                    ?.stormTracking
-            ].filter(Boolean);
+            /*
+             * IMPORTANT:
+             *
+             * V32 live sources have priority.
+             *
+             * Previously this bridge mostly searched V31
+             * sources, while the actual live storm entities
+             * were already available in:
+             *
+             * RainArrivalStormEntityCollectorV32
+             * RainArrivalLiveStormExportBridgeV32
+             */
+
+            const definitions = [
+                /*
+                 * ------------------------------------------
+                 * V32 authoritative/live sources
+                 * ------------------------------------------
+                 */
+                {
+                    name:
+                        "RainArrivalStormEntityCollectorV32",
+
+                    generation:
+                        "V32",
+
+                    value:
+                        global
+                            .RainArrivalStormEntityCollectorV32
+                },
+
+                {
+                    name:
+                        "RainArrivalLiveStormExportBridgeV32",
+
+                    generation:
+                        "V32",
+
+                    value:
+                        global
+                            .RainArrivalLiveStormExportBridgeV32
+                },
+
+                {
+                    name:
+                        "V32.rainArrivalModules.stormEntityCollector",
+
+                    generation:
+                        "V32",
+
+                    value:
+                        global
+                            .RainGuardAI
+                            ?.V32
+                            ?.rainArrivalModules
+                            ?.stormEntityCollector
+                },
+
+                {
+                    name:
+                        "V32.rainArrivalModules.liveStormExportBridge",
+
+                    generation:
+                        "V32",
+
+                    value:
+                        global
+                            .RainGuardAI
+                            ?.V32
+                            ?.rainArrivalModules
+                            ?.liveStormExportBridge
+                },
+
+
+                /*
+                 * ------------------------------------------
+                 * V31 fallback sources
+                 * ------------------------------------------
+                 */
+                {
+                    name:
+                        "StormCellTrackingEngineV31",
+
+                    generation:
+                        "V31",
+
+                    value:
+                        global
+                            .StormCellTrackingEngineV31
+                },
+
+                {
+                    name:
+                        "StormTrackingEngineV31",
+
+                    generation:
+                        "V31",
+
+                    value:
+                        global
+                            .StormTrackingEngineV31
+                },
+
+                {
+                    name:
+                        "RainGuardStormTrackingV31",
+
+                    generation:
+                        "V31",
+
+                    value:
+                        global
+                            .RainGuardStormTrackingV31
+                },
+
+                {
+                    name:
+                        "RainGuardAI.V31.stormCellTracking",
+
+                    generation:
+                        "V31",
+
+                    value:
+                        global
+                            .RainGuardAI
+                            ?.V31
+                            ?.stormCellTracking
+                },
+
+                {
+                    name:
+                        "RainGuardAI.V31.stormTracking",
+
+                    generation:
+                        "V31",
+
+                    value:
+                        global
+                            .RainGuardAI
+                            ?.V31
+                            ?.stormTracking
+                },
+
+                {
+                    name:
+                        "RainGuardAI.stormCellTracking",
+
+                    generation:
+                        "V31",
+
+                    value:
+                        global
+                            .RainGuardAI
+                            ?.stormCellTracking
+                },
+
+                {
+                    name:
+                        "RainGuardAI.stormTracking",
+
+                    generation:
+                        "V31",
+
+                    value:
+                        global
+                            .RainGuardAI
+                            ?.stormTracking
+                }
+            ];
+
+            return definitions.filter(
+                item =>
+                    Boolean(item.value)
+            );
         }
+
+
+        /*
+        =====================================================
+         Entity Extraction
+        =====================================================
+        */
 
         extractEntities(value) {
             if (!value) {
@@ -341,38 +637,61 @@
             }
 
             /*
-             * IMPORTANT:
-             * لا ننسخ المصدر.
-             * نأخذ references محدودة فقط
-             * ونقصها لاحقًا.
+             * Direct arrays/maps/sets.
              */
-            const direct = toArray(value);
+            const direct =
+                toArray(value);
 
             if (
                 direct.length &&
-                direct.some(isObject)
+                direct.some(
+                    isObject
+                )
             ) {
                 return direct;
             }
 
-            for (const key of [
-                "activeCells",
-                "cells",
-                "stormCells",
-                "trackedCells",
-                "activeTracks",
-                "tracks",
-                "stormTracks",
-                "candidates",
-                "entities",
-                "items",
-                "data",
-                "result"
-            ]) {
-                const items =
-                    toArray(value?.[key]);
 
-                if (items.length) {
+            /*
+             * Common V32 + V31 containers.
+             */
+            for (
+                const key of [
+                    "entities",
+                    "stormEntities",
+                    "liveStormEntities",
+                    "exportedEntities",
+
+                    "activeCells",
+                    "cells",
+                    "stormCells",
+                    "trackedCells",
+
+                    "activeTracks",
+                    "tracks",
+                    "stormTracks",
+
+                    "candidates",
+                    "items",
+                    "results",
+
+                    "data",
+                    "payload",
+                    "output",
+
+                    "result",
+                    "lastResult",
+                    "lastOutput"
+                ]
+            ) {
+                const items =
+                    toArray(
+                        value?.[key]
+                    );
+
+                if (
+                    items.length
+                ) {
                     return items;
                 }
             }
@@ -380,81 +699,180 @@
             return [];
         }
 
+
+        /*
+        =====================================================
+         Source Reader
+        =====================================================
+        */
+
         readSource(source) {
-            for (const method of [
+            if (!source) {
+                return [];
+            }
+
+
+            /*
+             * V32 APIs FIRST.
+             *
+             * getAll() is bounded where possible.
+             */
+            const methods = [
+                "getAll",
+                "getEntities",
+                "getLiveEntities",
+                "getExportedEntities",
+                "getStormEntities",
+
+                /*
+                 * V31 APIs.
+                 */
                 "getActiveCells",
                 "getCells",
                 "getActiveTracks",
                 "getTracks",
                 "getTrackedCells",
                 "getCurrentCells",
+
                 "getSnapshot",
                 "getState"
-            ]) {
+            ];
+
+
+            for (
+                const method
+                of methods
+            ) {
                 if (
-                    typeof source?.[method] ===
+                    typeof source?.[method] !==
                     "function"
                 ) {
-                    try {
-                        const output =
-                            source[method]();
+                    continue;
+                }
 
-                        /*
-                         * لا ندعم async source هنا
-                         * حتى لا تتداخل الدورات.
-                         */
-                        if (
-                            output &&
-                            typeof output.then ===
-                            "function"
-                        ) {
-                            continue;
-                        }
+                try {
+                    let output;
 
-                        const entities =
-                            this.extractEntities(
-                                output
+                    /*
+                     * Bounded getAll() for the
+                     * memory-safe collector.
+                     */
+                    if (
+                        method === "getAll"
+                    ) {
+                        output =
+                            source[method](
+                                this.config
+                                    .maximumEntitiesPerSync
                             );
-
-                        if (entities.length) {
-                            return entities;
-                        }
-                    } catch (error) {
-                        this.captureError(
-                            error,
-                            `SOURCE_METHOD_FAILED:${method}`
-                        );
+                    } else {
+                        output =
+                            source[method]();
                     }
+
+
+                    /*
+                     * This bridge remains synchronous
+                     * at source-discovery level.
+                     *
+                     * Async source methods are skipped.
+                     */
+                    if (
+                        output &&
+                        typeof output.then ===
+                        "function"
+                    ) {
+                        continue;
+                    }
+
+
+                    const entities =
+                        this.extractEntities(
+                            output
+                        );
+
+                    if (
+                        entities.length
+                    ) {
+                        return entities;
+                    }
+
+                } catch (error) {
+                    this.captureError(
+                        error,
+                        `SOURCE_METHOD_FAILED:${method}`
+                    );
                 }
             }
 
-            return this.extractEntities(source);
+
+            /*
+             * Direct object fallback.
+             */
+            return this.extractEntities(
+                source
+            );
         }
+
+
+        /*
+        =====================================================
+         Discover
+        =====================================================
+        */
 
         discover() {
             const sources =
                 this.getSources();
 
+
             for (
                 let sourceIndex = 0;
-                sourceIndex < sources.length;
+                sourceIndex <
+                    sources.length;
                 sourceIndex++
             ) {
+                const definition =
+                    sources[
+                        sourceIndex
+                    ];
+
                 const source =
-                    sources[sourceIndex];
+                    definition.value;
+
 
                 const entities =
-                    this.readSource(source);
+                    this.readSource(
+                        source
+                    );
 
-                if (entities.length) {
+
+                if (
+                    entities.length
+                ) {
                     this.lastSourceName =
-                        source?.constructor?.name ||
-                        source?.name ||
-                        `source-${sourceIndex}`;
+                        definition.name;
+
+                    this.lastSourceIndex =
+                        sourceIndex;
+
+
+                    if (
+                        definition.generation ===
+                        "V32"
+                    ) {
+                        this.statistics
+                            .v32SourceHits += 1;
+                    } else {
+                        this.statistics
+                            .v31FallbackHits += 1;
+                    }
+
 
                     const maximum =
                         this.config
                             .maximumEntitiesPerSync;
+
 
                     if (
                         entities.length >
@@ -466,6 +884,10 @@
                             maximum;
                     }
 
+
+                    /*
+                     * Hard bounded result.
+                     */
                     return entities.slice(
                         0,
                         maximum
@@ -473,33 +895,67 @@
                 }
             }
 
-            this.lastSourceName = null;
+
+            this.lastSourceName =
+                null;
+
+            this.lastSourceIndex =
+                null;
+
+            this.statistics
+                .emptyDiscoveryRuns += 1;
 
             return [];
         }
 
-        normalizeEntity(entity, index) {
+
+        /*
+        =====================================================
+         Normalize
+        =====================================================
+        */
+
+        normalizeEntity(
+            entity,
+            index
+        ) {
             if (
                 !entity ||
-                typeof entity !== "object"
+                typeof entity !==
+                "object"
             ) {
                 return null;
             }
 
+
             const pointCoordinate =
                 coordinate(
-                    entity.currentCoordinate ??
-                    entity.coordinate ??
-                    entity.center ??
-                    entity.centroid ??
-                    entity.location ??
-                    entity.position ??
+                    entity
+                        ?.currentCoordinate ??
+
+                    entity
+                        ?.coordinate ??
+
+                    entity
+                        ?.center ??
+
+                    entity
+                        ?.centroid ??
+
+                    entity
+                        ?.location ??
+
+                    entity
+                        ?.position ??
+
                     entity
                 );
+
 
             if (!pointCoordinate) {
                 return null;
             }
+
 
             const pointTimestamp =
                 timestamp(
@@ -511,12 +967,16 @@
                     entity.frameTimestamp
                 );
 
+
             if (
-                now() - pointTimestamp >
-                this.config.maximumPointAgeMs
+                now() -
+                    pointTimestamp >
+                this.config
+                    .maximumPointAgeMs
             ) {
                 return null;
             }
+
 
             const trackId =
                 text(
@@ -527,12 +987,20 @@
                     entity.candidateId ??
                     entity.uuid
                 ) ||
+
                 (
                     `LIVE-` +
-                    `${Math.round(pointCoordinate.lat * 10000)}-` +
-                    `${Math.round(pointCoordinate.lon * 10000)}-` +
+                    `${Math.round(
+                        pointCoordinate.lat *
+                        10000
+                    )}-` +
+                    `${Math.round(
+                        pointCoordinate.lon *
+                        10000
+                    )}-` +
                     `${index}`
                 );
+
 
             const cellId =
                 text(
@@ -541,6 +1009,7 @@
                     entity.trackId
                 ) ||
                 trackId;
+
 
             const intensity =
                 number(
@@ -551,6 +1020,7 @@
                     entity.severity
                 );
 
+
             const confidence =
                 number(
                     entity.confidence ??
@@ -558,6 +1028,7 @@
                     entity.matchConfidence ??
                     entity.score
                 );
+
 
             const currentPoint = {
                 lat:
@@ -574,16 +1045,20 @@
                 confidence,
 
                 source:
-                    text(entity.source) ||
-                    "storm_cell_tracking_v31"
+                    text(
+                        entity.source
+                    ) ||
+                    "storm_tracking"
             };
+
 
             const track = {
                 trackId,
 
                 canonicalTrackId:
                     text(
-                        entity.canonicalTrackId
+                        entity
+                            .canonicalTrackId
                     ) ||
                     trackId,
 
@@ -601,8 +1076,10 @@
                     null,
 
                 source:
-                    text(entity.source) ||
-                    "storm_cell_tracking_v31",
+                    text(
+                        entity.source
+                    ) ||
+                    "storm_tracking",
 
                 confidence,
 
@@ -631,15 +1108,16 @@
                 currentPoint,
 
                 /*
-                 * دائمًا نقطة واحدة فقط في الكائن القادم.
-                 * TrackStore هو المسؤول عن التاريخ.
+                 * Only one point is supplied
+                 * to TrackStore during this cycle.
                  */
                 points: [
                     currentPoint
                 ],
 
                 active:
-                    entity.active !== false,
+                    entity.active !==
+                    false,
 
                 status:
                     entity.status ??
@@ -649,12 +1127,13 @@
                     now()
             };
 
+
             /*
-             * إصلاح مهم:
-             * لا نعمل clone(entity).
+             * Optional compact metadata only.
              */
             if (
-                this.config.preserveRawEntity
+                this.config
+                    .preserveRawEntity
             ) {
                 track.rawSummary =
                     compactEntityMetadata(
@@ -662,14 +1141,28 @@
                     );
             }
 
+
             return track;
         }
 
-        existing(store, trackId) {
-            for (const method of [
-                "get",
-                "getTrack"
-            ]) {
+
+        /*
+        =====================================================
+         Existing track
+        =====================================================
+        */
+
+        existing(
+            store,
+            trackId
+        ) {
+            for (
+                const method
+                of [
+                    "get",
+                    "getTrack"
+                ]
+            ) {
                 if (
                     typeof store?.[method] !==
                     "function"
@@ -678,7 +1171,9 @@
                 }
 
                 try {
-                    return store[method](
+                    return store[
+                        method
+                    ](
                         trackId
                     );
                 } catch (_) {}
@@ -687,7 +1182,17 @@
             return null;
         }
 
-        duplicate(existing, point) {
+
+        /*
+        =====================================================
+         Duplicate detection
+        =====================================================
+        */
+
+        duplicate(
+            existing,
+            point
+        ) {
             const points =
                 Array.isArray(
                     existing?.points
@@ -695,37 +1200,45 @@
                     ? existing.points
                     : [];
 
+
             const last =
                 points[
                     points.length - 1
                 ] ??
-                existing?.currentPoint ??
+                existing
+                    ?.currentPoint ??
                 null;
+
 
             if (!last) {
                 return false;
             }
 
+
             const lastCoordinate =
                 coordinate(last);
+
 
             if (!lastCoordinate) {
                 return false;
             }
+
 
             const samePosition =
                 Math.abs(
                     lastCoordinate.lat -
                     point.lat
                 ) <
-                    this.config
-                        .minimumCoordinateDelta &&
+                this.config
+                    .minimumCoordinateDelta &&
+
                 Math.abs(
                     lastCoordinate.lon -
                     point.lon
                 ) <
-                    this.config
-                        .minimumCoordinateDelta;
+                this.config
+                    .minimumCoordinateDelta;
+
 
             const lastTime =
                 timestamp(
@@ -733,24 +1246,31 @@
                     last.updatedAt
                 );
 
+
             return (
                 samePosition &&
-                lastTime === point.timestamp
+                lastTime ===
+                    point.timestamp
             );
         }
 
+
         /*
-         * نحاول appendPoint أولًا عند وجود Track.
-         *
-         * هذا يقلل احتمال استبدال كائن Track ضخم
-         * في كل دورة.
-         */
-        upsert(store, track) {
+        =====================================================
+         Upsert
+        =====================================================
+        */
+
+        upsert(
+            store,
+            track
+        ) {
             const existing =
                 this.existing(
                     store,
                     track.trackId
                 );
+
 
             if (
                 existing &&
@@ -759,29 +1279,38 @@
                     track.currentPoint
                 )
             ) {
-                this.statistics.skipped += 1;
+                this.statistics
+                    .skipped += 1;
 
                 return {
-                    success: true,
-                    action: "skipped",
-                    trackId: track.trackId
+                    success:
+                        true,
+
+                    action:
+                        "skipped",
+
+                    trackId:
+                        track.trackId
                 };
             }
 
+
             /*
-             * إذا كان موجودًا ولدينا appendPoint،
-             * نستخدمه أولًا.
+             * Preferred update path.
              */
             if (
                 existing &&
-                typeof store?.appendPoint ===
-                "function"
+                typeof store
+                    ?.appendPoint ===
+                    "function"
             ) {
                 try {
                     const result =
                         store.appendPoint(
                             track.trackId,
+
                             track.currentPoint,
+
                             {
                                 active:
                                     track.active,
@@ -812,11 +1341,15 @@
                             }
                         );
 
-                    this.statistics.updated += 1;
+
+                    this.statistics
+                        .updated += 1;
+
 
                     return {
                         success:
-                            result !== false,
+                            result !==
+                            false,
 
                         action:
                             "updated",
@@ -827,6 +1360,7 @@
                         method:
                             "appendPoint"
                     };
+
                 } catch (error) {
                     this.captureError(
                         error,
@@ -835,67 +1369,74 @@
                 }
             }
 
-            /*
-             * لا نجرب كل الطرق بلا حدود.
-             * نتوقف عند أول طريقة صالحة سواء نجحت
-             * أو رمت exception ثم ننتقل للتالية.
-             */
-            const attempts = existing
-                ? [
-                    [
-                        "upsertTrack",
-                        [track]
-                    ],
-                    [
-                        "setTrack",
+
+            const attempts =
+                existing
+
+                    ? [
                         [
-                            track.trackId,
-                            track
-                        ]
-                    ],
-                    [
-                        "upsert",
+                            "upsertTrack",
+                            [track]
+                        ],
+
                         [
-                            track.trackId,
-                            track
-                        ]
-                    ],
-                    [
-                        "set",
+                            "setTrack",
+                            [
+                                track.trackId,
+                                track
+                            ]
+                        ],
+
                         [
-                            track.trackId,
-                            track
-                        ]
-                    ]
-                ]
-                : [
-                    [
-                        "addTrack",
-                        [track]
-                    ],
-                    [
-                        "add",
-                        [track]
-                    ],
-                    [
-                        "upsertTrack",
-                        [track]
-                    ],
-                    [
-                        "upsert",
+                            "upsert",
+                            [
+                                track.trackId,
+                                track
+                            ]
+                        ],
+
                         [
-                            track.trackId,
-                            track
-                        ]
-                    ],
-                    [
-                        "set",
-                        [
-                            track.trackId,
-                            track
+                            "set",
+                            [
+                                track.trackId,
+                                track
+                            ]
                         ]
                     ]
-                ];
+
+                    : [
+                        [
+                            "addTrack",
+                            [track]
+                        ],
+
+                        [
+                            "add",
+                            [track]
+                        ],
+
+                        [
+                            "upsertTrack",
+                            [track]
+                        ],
+
+                        [
+                            "upsert",
+                            [
+                                track.trackId,
+                                track
+                            ]
+                        ],
+
+                        [
+                            "set",
+                            [
+                                track.trackId,
+                                track
+                            ]
+                        ]
+                    ];
+
 
             for (
                 const [
@@ -910,18 +1451,26 @@
                     continue;
                 }
 
+
                 try {
                     const result =
-                        store[method](
+                        store[
+                            method
+                        ](
                             ...args
                         );
+
 
                     const action =
                         existing
                             ? "updated"
                             : "inserted";
 
-                    this.statistics[action] += 1;
+
+                    this.statistics[
+                        action
+                    ] += 1;
+
 
                     return {
                         success:
@@ -934,6 +1483,7 @@
 
                         method
                     };
+
                 } catch (error) {
                     this.captureError(
                         error,
@@ -942,15 +1492,28 @@
                 }
             }
 
+
             return {
-                success: false,
-                action: "failed",
+                success:
+                    false,
+
+                action:
+                    "failed",
+
                 reason:
                     "NO_COMPATIBLE_TRACKSTORE_WRITE_METHOD",
+
                 trackId:
                     track.trackId
             };
         }
+
+
+        /*
+        =====================================================
+         Count
+        =====================================================
+        */
 
         count(store) {
             if (
@@ -960,9 +1523,9 @@
                 return store.size;
             }
 
+
             /*
-             * نتجنب getAll() هنا لأنه قد ينسخ
-             * TrackStore كاملًا إلى الذاكرة.
+             * Never use getAll() here.
              */
             if (
                 typeof store?.count ===
@@ -976,17 +1539,29 @@
             return null;
         }
 
+
+        /*
+        =====================================================
+         Synchronization
+        =====================================================
+        */
+
         async syncInternal() {
-            this.statistics.syncRuns += 1;
+            this.statistics
+                .syncRuns += 1;
+
 
             const startedAt =
                 now();
 
+
             this.lastSyncStartedAt =
                 startedAt;
 
+
             const store =
                 this.getTrackStore();
+
 
             if (!store) {
                 return this.fail(
@@ -995,61 +1570,103 @@
                 );
             }
 
+
             /*
-             * المرحلة 1:
-             * discover bounded.
+             * ----------------------------------------------
+             * Phase 1:
+             * V32-first bounded discovery.
+             * ----------------------------------------------
              */
+
             const entities =
                 this.discover();
 
-            this.statistics.discovered +=
-                entities.length;
 
             /*
-             * المرحلة 2:
-             * normalize one-by-one.
-             *
-             * لا map ضخمة ولا clones.
+             * Preserve the real discovery number
+             * BEFORE we null array elements later.
              */
-            const normalized = [];
+            const discoveredThisRun =
+                entities.length;
+
+
+            this.statistics
+                .discovered +=
+                discoveredThisRun;
+
+
+            /*
+             * ----------------------------------------------
+             * Phase 2:
+             * normalize bounded entities.
+             * ----------------------------------------------
+             */
+
+            const normalized =
+                [];
+
 
             for (
                 let index = 0;
-                index < entities.length;
+                index <
+                    discoveredThisRun;
                 index++
             ) {
                 const track =
                     this.normalizeEntity(
-                        entities[index],
+                        entities[
+                            index
+                        ],
                         index
                     );
 
+
                 if (track) {
-                    normalized.push(track);
+                    normalized.push(
+                        track
+                    );
                 }
             }
 
-            this.statistics.normalized +=
+
+            const normalizedThisRun =
                 normalized.length;
 
-            /*
-             * المرحلة 3:
-             * write one-by-one.
-             *
-             * لا نحتفظ بكل writes.
-             */
-            let successfulWrites = 0;
-            let failedWrites = 0;
 
-            const writeSamples = [];
+            this.statistics
+                .normalized +=
+                normalizedThisRun;
+
+
+            /*
+             * ----------------------------------------------
+             * Phase 3:
+             * write one-by-one.
+             * ----------------------------------------------
+             */
+
+            let successfulWrites =
+                0;
+
+            let failedWrites =
+                0;
+
+
+            const writeSamples =
+                [];
+
 
             for (
                 let index = 0;
-                index < normalized.length;
+                index <
+                    normalizedThisRun;
                 index++
             ) {
                 const track =
-                    normalized[index];
+                    normalized[
+                        index
+                    ];
+
 
                 const writeResult =
                     this.upsert(
@@ -1057,13 +1674,18 @@
                         track
                     );
 
+
                 if (
-                    writeResult?.success
+                    writeResult
+                        ?.success
                 ) {
-                    successfulWrites += 1;
+                    successfulWrites +=
+                        1;
                 } else {
-                    failedWrites += 1;
+                    failedWrites +=
+                        1;
                 }
+
 
                 if (
                     writeSamples.length <
@@ -1075,32 +1697,61 @@
                     );
                 }
 
+
                 /*
-                 * نكسر reference بسرعة.
+                 * Release large references quickly.
                  */
-                normalized[index] = null;
-                entities[index] = null;
+                normalized[
+                    index
+                ] =
+                    null;
+
+
+                if (
+                    index <
+                    entities.length
+                ) {
+                    entities[
+                        index
+                    ] =
+                        null;
+                }
             }
+
 
             const completedAt =
                 now();
 
+
             this.lastSyncCompletedAt =
                 completedAt;
 
+
             /*
-             * Result صغير فقط.
+             * IMPORTANT:
+             *
+             * Use discoveredThisRun,
+             * not entities.length after processing.
              */
             const result = {
                 success:
-                    entities.length === 0
+                    discoveredThisRun ===
+                    0
+
                         ? true
-                        : successfulWrites > 0,
+
+                        : successfulWrites >
+                            0,
+
 
                 status:
-                    entities.length === 0
+                    discoveredThisRun ===
+                    0
+
                         ? "NO_LIVE_STORM_ENTITIES"
+
                         : "TRACKSTORE_SYNC_COMPLETED",
+
 
                 version:
                     this.version,
@@ -1108,111 +1759,148 @@
                 build:
                     this.build,
 
+
                 discovered:
-                    entities.length,
+                    discoveredThisRun,
+
 
                 normalized:
-                    this.statistics.normalized,
+                    normalizedThisRun,
 
-                normalizedThisRun:
-                    successfulWrites +
-                    failedWrites,
+
+                normalizedTotal:
+                    this.statistics
+                        .normalized,
+
 
                 successfulWrites,
 
                 failedWrites,
 
-                trackCount:
-                    this.count(store),
 
-                /*
-                 * عينة فقط بدل مصفوفة writes كاملة.
-                 */
+                trackCount:
+                    this.count(
+                        store
+                    ),
+
+
                 writeSamples,
 
+
                 writeSampleTruncated:
-                    successfulWrites +
-                        failedWrites >
+                    (
+                        successfulWrites +
+                        failedWrites
+                    ) >
                     writeSamples.length,
+
 
                 source:
                     this.lastSourceName,
 
+
+                sourceIndex:
+                    this.lastSourceIndex,
+
+
                 startedAt,
 
                 completedAt,
+
 
                 durationMs:
                     completedAt -
                     startedAt
             };
 
-            /*
-             * lastResult صغير، فلا حاجة لنسخ Graph ضخم.
-             */
+
             this.lastResult =
                 clone(result);
 
-            this.publish(result);
 
-            if (this.config.debug) {
+            this.publish(
+                result
+            );
+
+
+            if (
+                this.config.debug
+            ) {
                 console.log(
                     "[RainArrival StormTrackStoreBridge] Sync result:",
                     result
                 );
             }
 
+
             return result;
         }
 
+
         async sync() {
-            /*
-             * أهم Memory Guard:
-             * لا نسمح بدورتين متزامنتين.
-             */
             if (
                 this.config
                     .preventConcurrentSync &&
-                this.syncInProgress
+
+                this
+                    .syncInProgress
             ) {
                 this.statistics
-                    .concurrentSyncSkips += 1;
+                    .concurrentSyncSkips +=
+                    1;
+
 
                 return {
-                    success: true,
+                    success:
+                        true,
+
                     status:
                         "SYNC_ALREADY_RUNNING",
-                    skipped: true,
+
+                    skipped:
+                        true,
+
                     version:
                         this.version,
+
                     build:
                         this.build,
+
                     startedAt:
                         this.lastSyncStartedAt,
+
                     timestamp:
                         now()
                 };
             }
 
-            this.syncInProgress = true;
+
+            this.syncInProgress =
+                true;
+
 
             try {
                 this.activeSyncPromise =
                     this.syncInternal();
 
+
                 return await this
                     .activeSyncPromise;
+
             } catch (error) {
                 this.captureError(
                     error,
                     "SYNC_UNHANDLED_EXCEPTION"
                 );
 
+
                 return this.fail(
                     "SYNC_UNHANDLED_EXCEPTION",
+
                     this.lastSyncStartedAt ??
                     now()
                 );
+
             } finally {
                 this.activeSyncPromise =
                     null;
@@ -1222,14 +1910,28 @@
             }
         }
 
-        fail(reason, startedAt) {
-            this.statistics.failures += 1;
+
+        /*
+        =====================================================
+         Failure
+        =====================================================
+        */
+
+        fail(
+            reason,
+            startedAt
+        ) {
+            this.statistics
+                .failures += 1;
+
 
             const completedAt =
                 now();
 
+
             const result = {
-                success: false,
+                success:
+                    false,
 
                 status:
                     "TRACKSTORE_SYNC_FAILED",
@@ -1251,15 +1953,30 @@
                     startedAt
             };
 
+
             this.lastResult =
                 clone(result);
 
-            this.publish(result);
+
+            this.publish(
+                result
+            );
+
 
             return result;
         }
 
-        captureError(error, code) {
+
+        /*
+        =====================================================
+         Error capture
+        =====================================================
+        */
+
+        captureError(
+            error,
+            code
+        ) {
             this.lastError = {
                 code,
 
@@ -1271,40 +1988,52 @@
                     error?.message ??
                     String(error),
 
-                /*
-                 * لا نحتفظ بستاك ضخم جدًا.
-                 */
                 stack:
                     typeof error?.stack ===
                     "string"
+
                         ? error.stack.slice(
                             0,
                             3000
                         )
+
                         : null,
 
                 timestamp:
                     now()
             };
 
-            this.statistics.failures += 1;
+
+            this.statistics
+                .failures += 1;
+
 
             return this.lastError;
         }
 
+
+        /*
+        =====================================================
+         Publish
+        =====================================================
+        */
+
         publish(result) {
             global.RainGuardAI =
-                global.RainGuardAI || {};
+                global.RainGuardAI ||
+                {};
+
 
             global.RainGuardAI.V32 =
-                global.RainGuardAI.V32 || {};
+                global.RainGuardAI.V32 ||
+                {};
 
-            /*
-             * لا نخزن source objects ولا writes الكاملة.
-             */
-            global.RainGuardAI.V32
-                .rainArrivalBridgeState = {
 
+            global
+                .RainGuardAI
+                .V32
+                .rainArrivalBridgeState =
+            {
                 version:
                     this.version,
 
@@ -1320,47 +2049,69 @@
                 lastResult:
                     clone(result),
 
-                statistics:
-                    {
-                        ...this.statistics
-                    },
+                statistics: {
+                    ...this.statistics
+                },
 
                 updatedAt:
                     now()
             };
         }
 
+
+        /*
+        =====================================================
+         Lifecycle
+        =====================================================
+        */
+
         start() {
-            if (this.running) {
+            if (
+                this.running
+            ) {
                 return {
-                    success: true,
-                    alreadyRunning: true
+                    success:
+                        true,
+
+                    alreadyRunning:
+                        true
                 };
             }
 
-            this.running = true;
+
+            this.running =
+                true;
+
 
             /*
-             * لا ننتظر أول sync.
+             * First async-safe sync.
              */
-            Promise.resolve()
-                .then(() => this.sync())
-                .catch(error => {
-                    this.captureError(
-                        error,
-                        "AUTOSTART_SYNC_FAILED"
-                    );
-                });
+            Promise
+                .resolve()
+                .then(
+                    () =>
+                        this.sync()
+                )
+                .catch(
+                    error => {
+                        this.captureError(
+                            error,
+                            "AUTOSTART_SYNC_FAILED"
+                        );
+                    }
+                );
+
 
             this.timer =
                 global.setInterval(
                     () => {
+
                         /*
-                         * لا ندخل sync جديد إذا القديم
-                         * لم ينتهِ.
+                         * Prevent overlap.
                          */
                         if (
-                            this.syncInProgress
+                            this
+                                .syncInProgress
                         ) {
                             this.statistics
                                 .concurrentSyncSkips +=
@@ -1369,65 +2120,117 @@
                             return;
                         }
 
-                        Promise.resolve()
-                            .then(() => this.sync())
-                            .catch(error => {
-                                this.captureError(
-                                    error,
-                                    "INTERVAL_SYNC_FAILED"
-                               );
-                          });
+
+                        Promise
+                            .resolve()
+                            .then(
+                                () =>
+                                    this.sync()
+                            )
+                            .catch(
+                                error => {
+                                    this.captureError(
+                                        error,
+                                        "INTERVAL_SYNC_FAILED"
+                                    );
+                                }
+                            );
+
                     },
-                    this.config.syncIntervalMs
+
+                    this.config
+                        .syncIntervalMs
                 );
 
+
             return {
-                success: true,
-                running: true,
+                success:
+                    true,
+
+                running:
+                    true,
+
                 intervalMs:
                     this.config
                         .syncIntervalMs
             };
         }
 
+
         stop() {
-            if (this.timer) {
+            if (
+                this.timer
+            ) {
                 global.clearInterval(
                     this.timer
                 );
             }
 
-            this.timer = null;
-            this.running = false;
+
+            this.timer =
+                null;
+
+
+            this.running =
+                false;
+
 
             return {
-                success: true,
-                running: false,
+                success:
+                    true,
+
+                running:
+                    false,
+
                 syncInProgress:
                     this.syncInProgress
             };
         }
 
+
         /*
-         * Memory-safe reset.
-         * لا يحذف TrackStore.
-         * فقط يزيل References الخاصة بالجسر.
-         */
+        =====================================================
+         Memory release
+        =====================================================
+        */
+
         releaseMemory() {
-            this.lastResult = null;
-            this.lastError = null;
-            this.lastSourceName = null;
+            this.lastResult =
+                null;
+
+            this.lastError =
+                null;
+
+            this.lastSourceName =
+                null;
+
+            this.lastSourceIndex =
+                null;
+
 
             return {
-                success: true,
-                released: true,
-                timestamp: now()
+                success:
+                    true,
+
+                released:
+                    true,
+
+                timestamp:
+                    now()
             };
         }
+
+
+        /*
+        =====================================================
+         Diagnostics
+        =====================================================
+        */
 
         getDiagnostics() {
             const store =
                 this.getTrackStore();
+
 
             return {
                 module:
@@ -1450,7 +2253,8 @@
 
                 activeSyncPromise:
                     Boolean(
-                        this.activeSyncPromise
+                        this
+                            .activeSyncPromise
                     ),
 
                 trackStoreAvailable:
@@ -1458,35 +2262,46 @@
 
                 sourceAvailable:
                     Boolean(
-                        this.lastSourceName
+                        this
+                            .lastSourceName
                     ),
 
                 sourceName:
-                    this.lastSourceName,
+                    this
+                        .lastSourceName,
+
+                sourceIndex:
+                    this
+                        .lastSourceIndex,
 
                 trackCount:
-                    this.count(store),
+                    this.count(
+                        store
+                    ),
 
                 lastSyncStartedAt:
-                    this.lastSyncStartedAt,
+                    this
+                        .lastSyncStartedAt,
 
                 lastSyncCompletedAt:
-                    this.lastSyncCompletedAt,
+                    this
+                        .lastSyncCompletedAt,
 
                 lastResult:
                     clone(
-                        this.lastResult
+                        this
+                            .lastResult
                     ),
 
                 lastError:
                     clone(
-                        this.lastError
+                        this
+                            .lastError
                     ),
 
-                statistics:
-                    {
-                        ...this.statistics
-                    },
+                statistics: {
+                    ...this.statistics
+                },
 
                 memorySafety: {
                     maximumEntitiesPerSync:
@@ -1508,90 +2323,157 @@
                     syncIntervalMs:
                         this.config
                             .syncIntervalMs
-                }
+                },
+
+                sourcePriority: [
+                    "V32 StormEntityCollector",
+                    "V32 LiveStormExportBridge",
+                    "V31 fallback"
+                ]
             };
         }
+
 
         diagnose() {
             const diagnostics =
                 this.getDiagnostics();
+
 
             console.log(
                 "[RainArrival StormTrackStoreBridge]",
                 diagnostics
             );
 
+
             return diagnostics;
         }
     }
 
+
     /*
-     * إذا كان إصدار قديم يعمل بالفعل،
-     * نحاول إيقاف timer القديم قبل استبداله.
-     */
+    =========================================================
+     Replace old instance safely
+    =========================================================
+    */
+
     try {
         global
             .RainArrivalStormTrackStoreBridgeV32
             ?.stop?.();
     } catch (_) {}
 
+
     const bridge =
         new StormTrackStoreBridge();
+
 
     global
         .RainArrivalStormTrackStoreBridgeV32 =
         bridge;
 
+
     global.RainGuardAI =
-        global.RainGuardAI || {};
+        global.RainGuardAI ||
+        {};
+
 
     global.RainGuardAI.V32 =
-        global.RainGuardAI.V32 || {};
+        global.RainGuardAI.V32 ||
+        {};
 
-    global.RainGuardAI.V32
+
+    global
+        .RainGuardAI
+        .V32
         .rainArrivalModules =
-        global.RainGuardAI.V32
+        global
+            .RainGuardAI
+            .V32
             .rainArrivalModules ||
         {};
 
-    global.RainGuardAI.V32
+
+    global
+        .RainGuardAI
+        .V32
         .rainArrivalModules
         .stormTrackStoreBridge =
         bridge;
 
-    global.RainArrivalEngineV32
+
+    /*
+    =========================================================
+     Registration
+    =========================================================
+    */
+
+    global
+        .RainArrivalEngineV32
         ?.register?.(
             "stormTrackStoreBridge",
             bridge
         );
 
-    global.RainArrivalOrchestratorV32
+
+    global
+        .RainArrivalOrchestratorV32
         ?.register?.(
             "stormTrackStoreBridge",
             bridge
         );
 
-    global.runRainArrivalStormTrackStoreSync =
-        () => bridge.sync();
 
-    global.stopRainArrivalStormTrackStoreBridge =
-        () => bridge.stop();
+    /*
+    =========================================================
+     Global APIs
+    =========================================================
+    */
 
-    global.startRainArrivalStormTrackStoreBridge =
-        () => bridge.start();
+    global
+        .runRainArrivalStormTrackStoreSync =
+        () =>
+            bridge.sync();
 
-    global.diagnoseRainArrivalStormTrackStoreBridge =
-        () => bridge.diagnose();
 
-    global.releaseRainArrivalStormTrackStoreBridgeMemory =
-        () => bridge.releaseMemory();
+    global
+        .stopRainArrivalStormTrackStoreBridge =
+        () =>
+            bridge.stop();
 
-    if (bridge.config.autoStart) {
+
+    global
+        .startRainArrivalStormTrackStoreBridge =
+        () =>
+            bridge.start();
+
+
+    global
+        .diagnoseRainArrivalStormTrackStoreBridge =
+        () =>
+            bridge.diagnose();
+
+
+    global
+        .releaseRainArrivalStormTrackStoreBridgeMemory =
+        () =>
+            bridge.releaseMemory();
+
+
+    /*
+    =========================================================
+     Auto start
+    =========================================================
+    */
+
+    if (
+        bridge.config.autoStart
+    ) {
         bridge.start();
     }
 
+
     console.log(
-        "[RainGuard AI V32] Storm Tracking -> TrackStore Bridge MEMORY SAFE loaded.",
+        "[RainGuard AI V32] Storm Tracking -> TrackStore Bridge MEMSAFE-2 loaded.",
         {
             version:
                 VERSION,
@@ -1613,7 +2495,13 @@
 
             preserveRawEntity:
                 bridge.config
-                    .preserveRawEntity
+                    .preserveRawEntity,
+
+            sourcePriority: [
+                "StormEntityCollectorV32",
+                "LiveStormExportBridgeV32",
+                "V31 fallback"
+            ]
         }
     );
 
