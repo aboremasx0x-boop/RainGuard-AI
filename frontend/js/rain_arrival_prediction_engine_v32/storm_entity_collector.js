@@ -156,7 +156,7 @@
             );
 
         return {
-            ...cloneValue(raw),
+            ...raw,
 
             id: String(
                 id ??
