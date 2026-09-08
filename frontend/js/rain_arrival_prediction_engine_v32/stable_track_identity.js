@@ -22,11 +22,24 @@ let latestResult = null;
 
 const now = () => Date.now();
 const clone = value => {
-  try { return structuredClone(value); }
-  catch (_) {
-    try { return JSON.parse(JSON.stringify(value)); }
-    catch (_) { return value; }
-  }
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return value;
+    }
+
+    if (Array.isArray(value)) {
+        return value.slice();
+    }
+
+    if (
+        typeof value === "object"
+    ) {
+        return { ...value };
+    }
+
+    return value;
 };
 
 function num(value, fallback = null) {
