@@ -1,1222 +1,1512 @@
 /*
-============================================================
-RainGuard AI V39
-Phase 39A-15F6N4B1B3C3
-Persistent Stable Identity Cross-Reload Recovery Bridge
-============================================================
+===========================================================
+ RainGuard AI V39
+ Phase 39A-15F6N4B1B3C3 — C3-FIX1
 
-Target:
-frontend/js/rain_arrival_prediction_engine_v32/
-indexeddb_authoritative_identity_recovery_39A15F6N4B1B3C3.js
+ Authoritative Identity Recovery
+ Source-Track Anchored Cross-Reload Recovery
 
-Purpose:
-- Preserve Stable Track IDs across browser reloads.
-- Reuse the authoritative IndexedDB database from C2.
-- Store only a bounded identity mapping in the existing metadata store.
-- Restore previous Stable IDs after reload.
-- Wrap the public StableTrack API without deep cloning.
-- Avoid localStorage heavy payloads.
-- Avoid creating another IndexedDB database.
-============================================================
+ Purpose:
+ - Recover storm identity after browser reload.
+ - Prefer real source identity over generated RST identity.
+ - Reject volatile/generated RST-* identifiers as recovery anchors.
+ - Use sourceTrackId as primary stable source identity.
+ - Provide deterministic geographic/time fallback.
+ - Avoid unbounded memory growth.
+===========================================================
 */
 
-(function (global) {
+(function initializeAuthoritativeIdentityRecoveryC3(global) {
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.0";
+    const VERSION = "39A.15F6N4B1B3C3.FIX1";
     const BUILD =
-        "rainguard-v39-persistent-stable-identity-cross-reload-recovery";
+        "rainguard-v39-authoritative-identity-recovery-source-track-fix1";
 
-    const C2_BRIDGE_NAME =
-        "RainGuard39A15F6N4B1B3C2BridgeV39";
+    const DB_NAME = "RainGuardIdentityRecoveryV39";
+    const DB_VERSION = 1;
+    const STORE_NAME = "authoritativeIdentities";
 
-    const STABLE_API_NAME =
-        "RainArrivalStableTrackIdentityV32";
+    const MAX_RECORDS = 5000;
+    const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-    const RESULT_NAME =
-        "RainGuard39A15F6N4B1B3C3ResultV39";
+    const SOURCE_ID_FIELDS = Object.freeze([
+        "sourceTrackId",
+        "sourceId",
+        "externalTrackId",
+        "providerTrackId"
+    ]);
 
-    const BRIDGE_NAME =
-        "RainGuard39A15F6N4B1B3C3BridgeV39";
+    const GENERATED_ID_FIELDS = Object.freeze([
+        "stableId",
+        "stableTrackId",
+        "trackId",
+        "canonicalTrackId",
+        "id"
+    ]);
 
-    const RUN_NAME =
-        "runRainGuard39A15F6N4B1B3C3PersistentIdentityRecovery";
+    const state = {
+        initialized: false,
+        dbAvailable: false,
+        db: null,
 
-    const DIAG_NAME =
-        "diagnoseRainGuard39A15F6N4B1B3C3PersistentIdentityRecovery";
+        recoveredCount: 0,
+        persistedCount: 0,
+        matchedBySource: 0,
+        matchedByFallback: 0,
+        rejectedGeneratedIds: 0,
 
-    const META_KEY =
-        "stableIdentityRecovery:v1";
+        lastPersistAt: null,
+        lastRecoverAt: null,
+        lastError: null,
 
-    const MAX_MAPPINGS = 5000;
-
-    const START_DELAY_MS = 2500;
-    const RETRY_DELAY_MS = 1500;
-    const MAX_RETRIES = 12;
-    const SAVE_INTERVAL_MS = 15000;
-
-    let running = false;
-    let installed = false;
-    let recovered = false;
-
-    let retryCount = 0;
-    let retryTimer = null;
-    let saveTimer = null;
-
-    let dbPromise = null;
-
-    const identityMap = new Map();
-    const currentToRecovered = new Map();
-    const recoveredToCurrent = new Map();
-
-    let originalGetAllTracks = null;
-    let originalGetTrack = null;
-    let originalReconcile = null;
-
-    let lastSavedAt = 0;
-    let lastRecoveredAt = 0;
-    let lastResult = null;
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    };
 
     function now() {
         return Date.now();
     }
 
-    function safeString(value) {
-        if (
-            value === null ||
-            value === undefined
-        ) {
-            return "";
+    function normalizeString(value) {
+        if (value === null || value === undefined) return "";
+
+        return String(value)
+            .trim()
+            .replace(/\s+/g, " ");
+    }
+
+    function normalizeLower(value) {
+        return normalizeString(value).toLowerCase();
+    }
+
+    function safeNumber(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
+
+    function normalizeError(error) {
+        return {
+            name: error?.name || "Error",
+            message: error?.message || String(error),
+            stack: error?.stack || null,
+            timestamp: now()
+        };
+    }
+
+    function clone(value) {
+        if (value === undefined) return undefined;
+
+        if (typeof structuredClone === "function") {
+            try {
+                return structuredClone(value);
+            } catch (_) {}
         }
 
-        return String(value).trim();
-    }
-
-    function safeArray(value) {
-        return Array.isArray(value)
-            ? value
-            : [];
-    }
-
-    function shallowCopy(value) {
-        if (
-            !value ||
-            typeof value !== "object"
-        ) {
+        try {
+            return JSON.parse(JSON.stringify(value));
+        } catch (_) {
             return value;
         }
-
-        if (Array.isArray(value)) {
-            return value.slice();
-        }
-
-        return { ...value };
-    }
-
-    function uniqueStrings(values) {
-        return [
-            ...new Set(
-                safeArray(values)
-                    .map(safeString)
-                    .filter(Boolean)
-            )
-        ];
     }
 
     /*
-    ------------------------------------------------------------
-    Create a deterministic key for the physical storm identity.
-    This key must NOT depend on the generated RST-* ID.
-    ------------------------------------------------------------
+    -------------------------------------------------------
+    Generated RainGuard identities MUST NOT become the
+    authoritative cross-reload source identity.
+    -------------------------------------------------------
     */
-    function buildIdentityKey(track) {
-        if (
-            !track ||
-            typeof track !== "object"
-        ) {
-            return "";
-        }
 
-        const sourceIds = uniqueStrings([
-            ...safeArray(track.sourceIds),
-            ...safeArray(track.sources),
-            ...safeArray(track.memberIds),
-            ...safeArray(track.sourceTrackIds),
-            track.sourceTrackId,
-            track.cellId,
-            track.canonicalTrackId,
-            track.externalId,
-            track.providerTrackId
-        ]);
+    function isGeneratedIdentity(value) {
+        const text = normalizeString(value);
 
-        if (sourceIds.length) {
-            return (
-                "sources:" +
-                sourceIds
-                    .sort()
-                    .join("|")
-            );
-        }
+        if (!text) return false;
 
-        const source =
-            safeString(
-                track.source ||
-                track.provider ||
-                track.sourceName
-            );
+        return (
+            /^RST-/i.test(text) ||
+            /^RG-/i.test(text) ||
+            /^RainGuard-/i.test(text)
+        );
+    }
 
-        const latitude =
-            Number(
-                track.latitude ??
-                track.lat ??
-                track.coordinate?.latitude ??
-                track.coordinate?.lat
-            );
+    /*
+    -------------------------------------------------------
+    Coordinate extraction
+    -------------------------------------------------------
+    */
 
-        const longitude =
-            Number(
-                track.longitude ??
-                track.lon ??
-                track.lng ??
-                track.coordinate?.longitude ??
-                track.coordinate?.lon ??
-                track.coordinate?.lng
-            );
+    function getLatitude(track) {
+        return (
+            safeNumber(track?.latitude) ??
+            safeNumber(track?.lat) ??
+            safeNumber(track?.coordinate?.latitude) ??
+            safeNumber(track?.coordinate?.lat) ??
+            safeNumber(track?.coordinate?.[0])
+        );
+    }
 
-        if (
-            source &&
-            Number.isFinite(latitude) &&
-            Number.isFinite(longitude)
-        ) {
-            return [
-                "geo",
-                source.toLowerCase(),
-                latitude.toFixed(3),
-                longitude.toFixed(3)
-            ].join(":");
-        }
+    function getLongitude(track) {
+        return (
+            safeNumber(track?.longitude) ??
+            safeNumber(track?.lon) ??
+            safeNumber(track?.lng) ??
+            safeNumber(track?.coordinate?.longitude) ??
+            safeNumber(track?.coordinate?.lon) ??
+            safeNumber(track?.coordinate?.lng) ??
+            safeNumber(track?.coordinate?.[1])
+        );
+    }
 
-        const fallback =
-            safeString(
-                track.canonicalTrackId ||
-                track.trackId ||
-                track.cellId
-            );
+    /*
+    -------------------------------------------------------
+    Source normalization
 
-        if (
-            fallback &&
-            !fallback.startsWith("RST-")
-        ) {
-            return "fallback:" + fallback;
+    Example observed runtime:
+
+      stableId:
+        RST-stormentitys-mtu2e2dr-1o
+
+      sourceTrackId:
+        Ash Sinan
+
+    Therefore sourceTrackId is preferred.
+    -------------------------------------------------------
+    */
+
+    function getSource(track) {
+        return normalizeLower(
+            track?.source ||
+            track?.provider ||
+            track?.sourceName ||
+            track?.origin ||
+            "unknown"
+        );
+    }
+
+    function getRealSourceTrackId(track) {
+        for (const field of SOURCE_ID_FIELDS) {
+            const candidate = normalizeString(track?.[field]);
+
+            if (!candidate) continue;
+
+            if (isGeneratedIdentity(candidate)) {
+                state.rejectedGeneratedIds += 1;
+                continue;
+            }
+
+            return candidate;
         }
 
         return "";
     }
 
-    function getRuntimeStableId(track) {
-        return safeString(
-            track?.stableTrackId ||
-            track?.trackId ||
-            track?.id
+    function getGeneratedTrackId(track) {
+        for (const field of GENERATED_ID_FIELDS) {
+            const candidate = normalizeString(track?.[field]);
+
+            if (candidate) return candidate;
+        }
+
+        return "";
+    }
+
+    /*
+    -------------------------------------------------------
+    Time normalization
+    -------------------------------------------------------
+    */
+
+    function parseTime(value) {
+        if (value === null || value === undefined || value === "") {
+            return null;
+        }
+
+        if (typeof value === "number" && Number.isFinite(value)) {
+            return value;
+        }
+
+        const parsed = Date.parse(value);
+
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function getFirstSeenAt(track) {
+        return (
+            parseTime(track?.firstSeenAt) ??
+            parseTime(track?.observedAt) ??
+            parseTime(track?.timestamp) ??
+            parseTime(track?.lastSeenAt) ??
+            null
         );
     }
 
-    function getC2Bridge() {
-        return global[C2_BRIDGE_NAME] || null;
-    }
+    /*
+    -------------------------------------------------------
+    Geographic bucket
 
-    function getStableApi() {
-        return global[STABLE_API_NAME] || null;
-    }
+    We deliberately use coarse coordinates.
 
-    function getDatabaseConfig() {
-        const bridge = getC2Bridge();
+    The exact latitude/longitude cannot be the primary
+    identity because storm cells move over time.
+    -------------------------------------------------------
+    */
 
-        if (!bridge) {
-            return null;
+    function coordinateBucket(track, precision = 1) {
+        const latitude = getLatitude(track);
+        const longitude = getLongitude(track);
+
+        if (latitude === null || longitude === null) {
+            return "";
         }
 
-        const dbName =
-            safeString(bridge.dbName);
+        return (
+            latitude.toFixed(precision) +
+            ":" +
+            longitude.toFixed(precision)
+        );
+    }
 
-        const metadataStore =
-            safeString(
-                bridge.metadataStore
-            );
+    /*
+    -------------------------------------------------------
+    Deterministic hash
+    -------------------------------------------------------
+    */
 
-        if (
-            !dbName ||
-            !metadataStore
-        ) {
-            return null;
+    function hashString(input) {
+        const text = String(input || "");
+
+        let hash = 2166136261;
+
+        for (let i = 0; i < text.length; i += 1) {
+            hash ^= text.charCodeAt(i);
+
+            hash = Math.imul(hash, 16777619);
+        }
+
+        return (hash >>> 0).toString(36);
+    }
+
+    /*
+    -------------------------------------------------------
+    Identity strategy
+
+    Priority:
+
+    1. source + sourceTrackId
+    2. sourceTrackId
+    3. source + firstSeenAt + coarse geographic bucket
+    4. source + coarse geographic bucket
+    5. generated ID only as LAST diagnostic fallback
+
+    Generated RST-* identity is NEVER treated as an
+    authoritative source identity.
+    -------------------------------------------------------
+    */
+
+    function buildIdentityDescriptor(track) {
+        if (!track || typeof track !== "object") {
+            return {
+                key: "",
+                method: "INVALID_TRACK",
+                authoritative: false
+            };
+        }
+
+        const source = getSource(track);
+        const sourceTrackId = getRealSourceTrackId(track);
+
+        if (sourceTrackId) {
+            const normalizedSourceTrackId =
+                normalizeLower(sourceTrackId);
+
+            if (source && source !== "unknown") {
+                return {
+                    key:
+                        "SRC:" +
+                        hashString(
+                            source +
+                            "|" +
+                            normalizedSourceTrackId
+                        ),
+
+                    rawKey:
+                        source +
+                        "|" +
+                        normalizedSourceTrackId,
+
+                    method: "SOURCE_AND_SOURCE_TRACK_ID",
+                    authoritative: true,
+                    source,
+                    sourceTrackId
+                };
+            }
+
+            return {
+                key:
+                    "SID:" +
+                    hashString(normalizedSourceTrackId),
+
+                rawKey: normalizedSourceTrackId,
+
+                method: "SOURCE_TRACK_ID",
+                authoritative: true,
+                source,
+                sourceTrackId
+            };
+        }
+
+        const firstSeenAt = getFirstSeenAt(track);
+        const bucket = coordinateBucket(track, 1);
+
+        if (firstSeenAt && bucket) {
+            /*
+            30-minute time bucket reduces minor timestamp
+            variation without using exact runtime timestamps.
+            */
+
+            const timeBucket =
+                Math.floor(firstSeenAt / (30 * 60 * 1000));
+
+            const rawKey =
+                source +
+                "|" +
+                timeBucket +
+                "|" +
+                bucket;
+
+            return {
+                key:
+                    "STG:" +
+                    hashString(rawKey),
+
+                rawKey,
+
+                method:
+                    "SOURCE_TIME_GEOGRAPHIC_FALLBACK",
+
+                authoritative: false,
+                source,
+                sourceTrackId: ""
+            };
+        }
+
+        if (bucket) {
+            const rawKey =
+                source +
+                "|" +
+                bucket;
+
+            return {
+                key:
+                    "GEO:" +
+                    hashString(rawKey),
+
+                rawKey,
+
+                method:
+                    "SOURCE_GEOGRAPHIC_FALLBACK",
+
+                authoritative: false,
+                source,
+                sourceTrackId: ""
+            };
+        }
+
+        const generatedId = getGeneratedTrackId(track);
+
+        if (generatedId) {
+            return {
+                key:
+                    "GEN:" +
+                    hashString(generatedId),
+
+                rawKey: generatedId,
+
+                method:
+                    "GENERATED_ID_LAST_RESORT",
+
+                authoritative: false,
+                source,
+                sourceTrackId: ""
+            };
         }
 
         return {
-            dbName,
-            metadataStore
+            key: "",
+            rawKey: "",
+            method: "NO_IDENTITY_AVAILABLE",
+            authoritative: false,
+            source,
+            sourceTrackId: ""
         };
     }
 
     /*
-    ------------------------------------------------------------
-    Open EXACTLY the same IndexedDB database as C2.
-    No version upgrade.
-    No new store.
-    ------------------------------------------------------------
+    -------------------------------------------------------
+    IndexedDB
+    -------------------------------------------------------
     */
+
     function openDatabase() {
-        if (dbPromise) {
-            return dbPromise;
-        }
-
-        const config =
-            getDatabaseConfig();
-
-        if (!config) {
-            return Promise.reject(
-                new Error(
-                    "C2_DATABASE_CONFIG_UNAVAILABLE"
-                )
-            );
-        }
-
         if (!global.indexedDB) {
-            return Promise.reject(
-                new Error(
-                    "INDEXEDDB_UNAVAILABLE"
-                )
-            );
+            state.dbAvailable = false;
+
+            return Promise.resolve(null);
         }
 
-        dbPromise =
-            new Promise(
-                (resolve, reject) => {
+        if (state.db) {
+            return Promise.resolve(state.db);
+        }
 
-                    const request =
-                        global.indexedDB.open(
-                            config.dbName
-                        );
+        return new Promise((resolve, reject) => {
+            const request =
+                global.indexedDB.open(
+                    DB_NAME,
+                    DB_VERSION
+                );
 
-                    request.onsuccess =
-                        () => {
+            request.onupgradeneeded = event => {
+                const db = event.target.result;
 
-                            const db =
-                                request.result;
-
-                            if (
-                                !db.objectStoreNames
-                                    .contains(
-                                        config.metadataStore
-                                    )
-                            ) {
-                                try {
-                                    db.close();
-                                } catch (_) {}
-
-                                reject(
-                                    new Error(
-                                        "C2_METADATA_STORE_NOT_FOUND"
-                                    )
-                                );
-
-                                return;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    const store =
+                        db.createObjectStore(
+                            STORE_NAME,
+                            {
+                                keyPath: "identityKey"
                             }
+                        );
 
-                            db.onversionchange =
-                                () => {
-                                    try {
-                                        db.close();
-                                    } catch (_) {}
+                    store.createIndex(
+                        "updatedAt",
+                        "updatedAt",
+                        { unique: false }
+                    );
 
-                                    dbPromise = null;
-                                };
-
-                            resolve(db);
-                        };
-
-                    request.onerror =
-                        () => {
-                            reject(
-                                request.error ||
-                                new Error(
-                                    "INDEXEDDB_OPEN_FAILED"
-                                )
-                            );
-                        };
-
-                    request.onblocked =
-                        () => {
-                            console.warn(
-                                "[RainGuard][39A-15F6N4B1B3C3] IndexedDB open blocked."
-                            );
-                        };
+                    store.createIndex(
+                        "sourceTrackId",
+                        "sourceTrackId",
+                        { unique: false }
+                    );
                 }
-            );
+            };
 
-        return dbPromise;
+            request.onsuccess = () => {
+                state.db = request.result;
+                state.dbAvailable = true;
+
+                state.db.onversionchange = () => {
+                    try {
+                        state.db.close();
+                    } catch (_) {}
+
+                    state.db = null;
+                };
+
+                resolve(state.db);
+            };
+
+            request.onerror = () => {
+                state.dbAvailable = false;
+
+                reject(
+                    request.error ||
+                    new Error(
+                        "IDENTITY_RECOVERY_DB_OPEN_FAILED"
+                    )
+                );
+            };
+        });
     }
 
-    async function readPersistedMap() {
-        const config =
-            getDatabaseConfig();
+    function transaction(mode = "readonly") {
+        if (!state.db) return null;
 
-        const db =
-            await openDatabase();
+        return state.db
+            .transaction(STORE_NAME, mode)
+            .objectStore(STORE_NAME);
+    }
 
-        return new Promise(
-            (resolve, reject) => {
+    function getRecord(identityKey) {
+        return new Promise(resolve => {
+            const store = transaction("readonly");
 
-                const tx =
-                    db.transaction(
-                        [
-                            config.metadataStore
-                        ],
-                        "readonly"
-                    );
-
-                const store =
-                    tx.objectStore(
-                        config.metadataStore
-                    );
-
-                const request =
-                    store.get(META_KEY);
-
-                request.onsuccess =
-                    () => {
-                        resolve(
-                            request.result ||
-                            null
-                        );
-                    };
-
-                request.onerror =
-                    () => {
-                        reject(
-                            request.error ||
-                            new Error(
-                                "IDENTITY_MAP_READ_FAILED"
-                            )
-                        );
-                    };
+            if (!store || !identityKey) {
+                resolve(null);
+                return;
             }
-        );
+
+            const request = store.get(identityKey);
+
+            request.onsuccess = () => {
+                resolve(request.result || null);
+            };
+
+            request.onerror = () => {
+                resolve(null);
+            };
+        });
     }
 
-    async function writePersistedMap() {
-        const config =
-            getDatabaseConfig();
+    function putRecord(record) {
+        return new Promise(resolve => {
+            const store = transaction("readwrite");
 
-        const db =
-            await openDatabase();
+            if (!store) {
+                resolve(false);
+                return;
+            }
 
-        const entries =
-            Array.from(
-                identityMap.entries()
-            )
-            .slice(-MAX_MAPPINGS)
-            .map(
-                ([identityKey, stableId]) => ({
-                    identityKey,
-                    stableId
-                })
-            );
+            const request = store.put(record);
+
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => resolve(false);
+        });
+    }
+
+    function getAllRecords() {
+        return new Promise(resolve => {
+            const store = transaction("readonly");
+
+            if (!store) {
+                resolve([]);
+                return;
+            }
+
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                resolve(
+                    Array.isArray(request.result)
+                        ? request.result
+                        : []
+                );
+            };
+
+            request.onerror = () => resolve([]);
+        });
+    }
+
+    function deleteRecord(identityKey) {
+        return new Promise(resolve => {
+            const store = transaction("readwrite");
+
+            if (!store) {
+                resolve(false);
+                return;
+            }
+
+            const request =
+                store.delete(identityKey);
+
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => resolve(false);
+        });
+    }
+
+    /*
+    -------------------------------------------------------
+    Persist
+    -------------------------------------------------------
+    */
+
+    async function persistTrack(track) {
+        const descriptor =
+            buildIdentityDescriptor(track);
+
+        if (!descriptor.key) {
+            return {
+                success: false,
+                reason: "IDENTITY_KEY_UNAVAILABLE"
+            };
+        }
+
+        const timestamp = now();
+
+        const existing =
+            await getRecord(descriptor.key);
 
         const record = {
-            key: META_KEY,
+            identityKey: descriptor.key,
+
+            identityMethod:
+                descriptor.method,
+
+            authoritative:
+                descriptor.authoritative,
+
+            source:
+                descriptor.source || "",
+
+            sourceTrackId:
+                descriptor.sourceTrackId || "",
+
+            stableId:
+                normalizeString(track?.stableId),
+
+            stableTrackId:
+                normalizeString(track?.stableTrackId),
+
+            trackId:
+                normalizeString(track?.trackId),
+
+            canonicalTrackId:
+                normalizeString(track?.canonicalTrackId),
+
+            latitude:
+                getLatitude(track),
+
+            longitude:
+                getLongitude(track),
+
+            coordinate:
+                clone(track?.coordinate),
+
+            firstSeenAt:
+                getFirstSeenAt(track),
+
+            observedAt:
+                track?.observedAt ?? null,
+
+            lastSeenAt:
+                track?.lastSeenAt ?? null,
+
+            intensity:
+                track?.intensity ?? null,
+
+            confidence:
+                track?.confidence ?? null,
+
+            matchMethod:
+                track?.matchMethod ?? null,
+
+            matchDistanceKm:
+                track?.matchDistanceKm ?? null,
+
+            raw:
+                clone(track?.raw),
+
+            createdAt:
+                existing?.createdAt || timestamp,
+
+            updatedAt:
+                timestamp,
+
+            seenCount:
+                (existing?.seenCount || 0) + 1
+        };
+
+        const success =
+            await putRecord(record);
+
+        if (success) {
+            state.persistedCount += 1;
+            state.lastPersistAt = timestamp;
+            state.updatedAt = timestamp;
+        }
+
+        return {
+            success,
+            identityKey: descriptor.key,
+            identityMethod: descriptor.method,
+            authoritative:
+                descriptor.authoritative,
+            record
+        };
+    }
+
+    async function persistTracks(tracks = []) {
+        await initialize();
+
+        const list =
+            Array.isArray(tracks)
+                ? tracks
+                : [];
+
+        let persisted = 0;
+        let skipped = 0;
+
+        const methods = {};
+
+        for (const track of list) {
+            const result =
+                await persistTrack(track);
+
+            if (result.success) {
+                persisted += 1;
+
+                methods[result.identityMethod] =
+                    (methods[result.identityMethod] || 0) + 1;
+            } else {
+                skipped += 1;
+            }
+        }
+
+        await pruneDatabase();
+
+        return {
+            success: true,
+            status:
+                "AUTHORITATIVE_IDENTITIES_PERSISTED",
 
             phase: PHASE,
             version: VERSION,
-            build: BUILD,
 
-            generatedAt: now(),
+            inputCount: list.length,
+            persisted,
+            skipped,
+            methods,
 
-            mappingCount:
-                entries.length,
-
-            mappings:
-                entries
+            generatedAt: now()
         };
-
-        return new Promise(
-            (resolve, reject) => {
-
-                const tx =
-                    db.transaction(
-                        [
-                            config.metadataStore
-                        ],
-                        "readwrite"
-                    );
-
-                tx.objectStore(
-                    config.metadataStore
-                ).put(record);
-
-                tx.oncomplete =
-                    () => {
-                        lastSavedAt = now();
-
-                        resolve(
-                            entries.length
-                        );
-                    };
-
-                tx.onerror =
-                    () => {
-                        reject(
-                            tx.error ||
-                            new Error(
-                                "IDENTITY_MAP_WRITE_FAILED"
-                            )
-                        );
-                    };
-
-                tx.onabort =
-                    () => {
-                        reject(
-                            tx.error ||
-                            new Error(
-                                "IDENTITY_MAP_WRITE_ABORTED"
-                            )
-                        );
-                    };
-            }
-        );
     }
 
-    function loadMappingsIntoMemory(record) {
-        identityMap.clear();
+    /*
+    -------------------------------------------------------
+    Recovery
+    -------------------------------------------------------
+    */
 
-        const mappings =
-            safeArray(
-                record?.mappings
-            );
+    function applyRecoveredIdentity(
+        track,
+        record,
+        descriptor
+    ) {
+        if (!track || !record) return false;
 
-        for (
-            const item of mappings
-        ) {
-            const key =
-                safeString(
-                    item?.identityKey
-                );
+        /*
+        Preserve current source observation data.
 
-            const stableId =
-                safeString(
-                    item?.stableId
-                );
+        Recover only identity continuity fields when
+        current values are missing or generated.
+        */
 
-            if (
-                !key ||
-                !stableId
-            ) {
-                continue;
-            }
-
-            identityMap.set(
-                key,
-                stableId
-            );
-
-            if (
-                identityMap.size >=
-                MAX_MAPPINGS
-            ) {
-                break;
-            }
-        }
-
-        return identityMap.size;
-    }
-
-    function translateTrack(track) {
         if (
-            !track ||
-            typeof track !== "object"
+            record.stableId &&
+            (
+                !track.stableId ||
+                isGeneratedIdentity(track.stableId)
+            )
         ) {
-            return track;
+            track.stableId =
+                record.stableId;
         }
 
-        const runtimeId =
-            getRuntimeStableId(track);
+        if (
+            record.stableTrackId &&
+            (
+                !track.stableTrackId ||
+                isGeneratedIdentity(track.stableTrackId)
+            )
+        ) {
+            track.stableTrackId =
+                record.stableTrackId;
+        }
 
-        const identityKey =
-            buildIdentityKey(track);
-
-        let recoveredId = "";
-
-        if (identityKey) {
-            recoveredId =
-                safeString(
-                    identityMap.get(
-                        identityKey
-                    )
-                );
+        if (
+            record.canonicalTrackId &&
+            (
+                !track.canonicalTrackId ||
+                isGeneratedIdentity(track.canonicalTrackId)
+            )
+        ) {
+            track.canonicalTrackId =
+                record.canonicalTrackId;
         }
 
         /*
-        First observation:
-        persist current Stable ID as authoritative.
+        Do NOT overwrite sourceTrackId with RST identity.
         */
-        if (
-            identityKey &&
-            !recoveredId &&
-            runtimeId
-        ) {
-            recoveredId =
-                runtimeId;
-
-            identityMap.set(
-                identityKey,
-                recoveredId
-            );
-        }
-
-        if (!recoveredId) {
-            recoveredId =
-                runtimeId;
-        }
 
         if (
-            runtimeId &&
-            recoveredId
+            !getRealSourceTrackId(track) &&
+            record.sourceTrackId &&
+            !isGeneratedIdentity(record.sourceTrackId)
         ) {
-            currentToRecovered.set(
-                runtimeId,
-                recoveredId
-            );
-
-            recoveredToCurrent.set(
-                recoveredId,
-                runtimeId
-            );
+            track.sourceTrackId =
+                record.sourceTrackId;
         }
 
-        if (
-            !recoveredId ||
-            recoveredId === runtimeId
-        ) {
-            return shallowCopy(track);
-        }
-
-        /*
-        Do not deep clone.
-        Only patch public identity fields.
-        */
-        const output = {
-            ...track,
-            stableTrackId:
-                recoveredId
+        track.identityRecovery = {
+            recovered: true,
+            identityKey:
+                record.identityKey,
+            identityMethod:
+                descriptor.method,
+            persistedIdentityMethod:
+                record.identityMethod,
+            authoritative:
+                Boolean(record.authoritative),
+            recoveredAt: now()
         };
-
-        if (
-            Object.prototype
-                .hasOwnProperty
-                .call(
-                    track,
-                    "trackId"
-                )
-        ) {
-            output.trackId =
-                recoveredId;
-        }
-
-        if (
-            Object.prototype
-                .hasOwnProperty
-                .call(
-                    track,
-                    "id"
-                ) &&
-            safeString(track.id)
-                .startsWith("RST-")
-        ) {
-            output.id =
-                recoveredId;
-        }
-
-        output.runtimeStableTrackId =
-            runtimeId;
-
-        output.identityRecovered =
-            true;
-
-        output.identityRecoveryPhase =
-            PHASE;
-
-        return output;
-    }
-
-    function translatedTracks() {
-        const api =
-            getStableApi();
-
-        if (
-            !api ||
-            typeof originalGetAllTracks !==
-                "function"
-        ) {
-            return [];
-        }
-
-        let tracks = [];
-
-        try {
-            tracks =
-                originalGetAllTracks.call(
-                    api
-                );
-        } catch (_) {
-            tracks = [];
-        }
-
-        if (
-            !Array.isArray(tracks)
-        ) {
-            return [];
-        }
-
-        currentToRecovered.clear();
-        recoveredToCurrent.clear();
-
-        return tracks.map(
-            translateTrack
-        );
-    }
-
-    function installApiWrapper() {
-        if (installed) {
-            return true;
-        }
-
-        const api =
-            getStableApi();
-
-        if (!api) {
-            return false;
-        }
-
-        if (
-            typeof api.getAllTracks !==
-                "function"
-        ) {
-            return false;
-        }
-
-        originalGetAllTracks =
-            api.getAllTracks.bind(api);
-
-        originalGetTrack =
-            typeof api.getTrack ===
-                "function"
-                ? api.getTrack.bind(api)
-                : null;
-
-        originalReconcile =
-            typeof api.reconcile ===
-                "function"
-                ? api.reconcile.bind(api)
-                : null;
-
-        api.getAllTracks =
-            function () {
-                return translatedTracks();
-            };
-
-        if (originalGetTrack) {
-            api.getTrack =
-                function (requestedId) {
-                    const requested =
-                        safeString(
-                            requestedId
-                        );
-
-                    const runtimeId =
-                        recoveredToCurrent.get(
-                            requested
-                        ) ||
-                        requested;
-
-                    const original =
-                        originalGetTrack(
-                            runtimeId
-                        );
-
-                    if (!original) {
-                        return null;
-                    }
-
-                    return translateTrack(
-                        original
-                    );
-                };
-        }
-
-        if (originalReconcile) {
-            api.reconcile =
-                function (...args) {
-                    const result =
-                        originalReconcile(
-                            ...args
-                        );
-
-                    /*
-                    Reconcile may be sync or async.
-                    */
-                    if (
-                        result &&
-                        typeof result.then ===
-                            "function"
-                    ) {
-                        return result.then(
-                            value => {
-                                translatedTracks();
-
-                                scheduleSave();
-
-                                return value;
-                            }
-                        );
-                    }
-
-                    translatedTracks();
-
-                    scheduleSave();
-
-                    return result;
-                };
-        }
-
-        installed = true;
 
         return true;
     }
 
-    let saveScheduled = false;
+    async function recoverTrack(track) {
+        const descriptor =
+            buildIdentityDescriptor(track);
 
-    function scheduleSave() {
-        if (saveScheduled) {
-            return;
+        if (!descriptor.key) {
+            return {
+                recovered: false,
+                reason:
+                    "IDENTITY_KEY_UNAVAILABLE"
+            };
         }
 
-        saveScheduled = true;
+        let record =
+            await getRecord(descriptor.key);
 
-        global.setTimeout(
-            async () => {
-                saveScheduled = false;
+        /*
+        If source+sourceTrackId lookup failed,
+        try sourceTrackId-only compatibility lookup.
+        */
 
-                try {
-                    translatedTracks();
-
-                    await writePersistedMap();
-                } catch (error) {
-                    console.warn(
-                        "[RainGuard][39A-15F6N4B1B3C3] Deferred identity save failed:",
-                        error
-                    );
-                }
-            },
-            750
-        );
-    }
-
-    async function recover() {
-        const record =
-            await readPersistedMap();
-
-        const persistedCount =
-            loadMappingsIntoMemory(
-                record
-            );
-
-        if (!installApiWrapper()) {
-            throw new Error(
-                "STABLE_TRACK_API_UNAVAILABLE"
-            );
-        }
-
-        const translated =
-            translatedTracks();
-
-        let recoveredCount = 0;
-        let unchangedCount = 0;
-        let newMappingCount = 0;
-
-        for (
-            const track of translated
+        if (
+            !record &&
+            descriptor.sourceTrackId
         ) {
+            const fallbackKey =
+                "SID:" +
+                hashString(
+                    normalizeLower(
+                        descriptor.sourceTrackId
+                    )
+                );
+
             if (
-                track?.identityRecovered
+                fallbackKey !==
+                descriptor.key
             ) {
-                recoveredCount += 1;
-            } else {
-                unchangedCount += 1;
+                record =
+                    await getRecord(
+                        fallbackKey
+                    );
             }
         }
 
-        newMappingCount =
-            Math.max(
-                0,
-                identityMap.size -
-                persistedCount
+        if (!record) {
+            return {
+                recovered: false,
+                identityKey:
+                    descriptor.key,
+                identityMethod:
+                    descriptor.method,
+                reason:
+                    "PERSISTED_IDENTITY_NOT_FOUND"
+            };
+        }
+
+        const age =
+            now() -
+            Number(record.updatedAt || 0);
+
+        if (
+            Number.isFinite(age) &&
+            age > MAX_AGE_MS
+        ) {
+            return {
+                recovered: false,
+                identityKey:
+                    descriptor.key,
+                reason:
+                    "PERSISTED_IDENTITY_EXPIRED"
+            };
+        }
+
+        const applied =
+            applyRecoveredIdentity(
+                track,
+                record,
+                descriptor
             );
 
-        await writePersistedMap();
+        if (applied) {
+            state.recoveredCount += 1;
 
-        recovered = true;
-        lastRecoveredAt = now();
+            if (
+                descriptor.method ===
+                    "SOURCE_AND_SOURCE_TRACK_ID" ||
+                descriptor.method ===
+                    "SOURCE_TRACK_ID"
+            ) {
+                state.matchedBySource += 1;
+            } else {
+                state.matchedByFallback += 1;
+            }
+
+            state.lastRecoverAt = now();
+            state.updatedAt =
+                state.lastRecoverAt;
+        }
 
         return {
-            persistedCount,
-            runtimeTrackCount:
-                translated.length,
-            recoveredCount,
-            unchangedCount,
-            newMappingCount,
-            finalMappingCount:
-                identityMap.size
+            recovered: applied,
+            identityKey:
+                record.identityKey,
+            identityMethod:
+                descriptor.method,
+            persistedIdentityMethod:
+                record.identityMethod,
+            authoritative:
+                Boolean(record.authoritative),
+            record
         };
     }
 
-    async function run() {
-        if (running) {
-            return (
-                lastResult || {
-                    success: false,
-                    phase: PHASE,
-                    status:
-                        "ALREADY_RUNNING"
+    async function recoverTracks(tracks = []) {
+        await initialize();
+
+        const list =
+            Array.isArray(tracks)
+                ? tracks
+                : [];
+
+        let recovered = 0;
+        let missing = 0;
+
+        const methods = {};
+        const sampleRecovered = [];
+        const sampleMissing = [];
+
+        for (const track of list) {
+            const result =
+                await recoverTrack(track);
+
+            if (result.recovered) {
+                recovered += 1;
+
+                methods[result.identityMethod] =
+                    (methods[result.identityMethod] || 0) + 1;
+
+                if (
+                    sampleRecovered.length < 10
+                ) {
+                    sampleRecovered.push({
+                        sourceTrackId:
+                            getRealSourceTrackId(track),
+
+                        identityKey:
+                            result.identityKey,
+
+                        identityMethod:
+                            result.identityMethod
+                    });
                 }
-            );
-        }
+            } else {
+                missing += 1;
 
-        running = true;
+                if (
+                    sampleMissing.length < 10
+                ) {
+                    sampleMissing.push({
+                        sourceTrackId:
+                            getRealSourceTrackId(track),
 
-        const startedAt =
-            now();
+                        stableId:
+                            track?.stableId || null,
 
-        try {
-            const c2 =
-                getC2Bridge();
+                        trackId:
+                            track?.trackId || null,
 
-            const stableApi =
-                getStableApi();
-
-            if (!c2) {
-                throw new Error(
-                    "C2_BRIDGE_NOT_READY"
-                );
+                        reason:
+                            result.reason
+                    });
+                }
             }
-
-            if (!stableApi) {
-                throw new Error(
-                    "STABLE_TRACK_API_NOT_READY"
-                );
-            }
-
-            const recovery =
-                await recover();
-
-            lastResult = {
-                success: true,
-                phase: PHASE,
-                version: VERSION,
-                build: BUILD,
-
-                status:
-                    recovery.recoveredCount > 0
-                        ? "PERSISTENT_STABLE_IDENTITY_RECOVERED"
-                        : "PERSISTENT_STABLE_IDENTITY_READY",
-
-                generatedAt: now(),
-                durationMs:
-                    now() - startedAt,
-
-                installed,
-                recovered,
-
-                dbName:
-                    c2.dbName,
-
-                metadataStore:
-                    c2.metadataStore,
-
-                persistedMappingCount:
-                    recovery.persistedCount,
-
-                runtimeTrackCount:
-                    recovery.runtimeTrackCount,
-
-                recoveredIdentityCount:
-                    recovery.recoveredCount,
-
-                unchangedIdentityCount:
-                    recovery.unchangedCount,
-
-                newMappingCount:
-                    recovery.newMappingCount,
-
-                finalMappingCount:
-                    recovery.finalMappingCount
-            };
-
-            global[RESULT_NAME] =
-                lastResult;
-
-            console.log(
-                "[RainGuard][39A-15F6N4B1B3C3] Persistent identity recovery result:",
-                lastResult
-            );
-
-            return lastResult;
-
-        } catch (error) {
-            lastResult = {
-                success: false,
-                phase: PHASE,
-                version: VERSION,
-                build: BUILD,
-
-                status:
-                    "PERSISTENT_STABLE_IDENTITY_RECOVERY_FAILED",
-
-                generatedAt: now(),
-                durationMs:
-                    now() - startedAt,
-
-                installed,
-                recovered,
-
-                error:
-                    String(
-                        error?.stack ||
-                        error?.message ||
-                        error
-                    )
-            };
-
-            global[RESULT_NAME] =
-                lastResult;
-
-            console.warn(
-                "[RainGuard][39A-15F6N4B1B3C3]",
-                lastResult
-            );
-
-            return lastResult;
-
-        } finally {
-            running = false;
-        }
-    }
-
-    async function diagnose() {
-        let persistedRecord = null;
-
-        try {
-            persistedRecord =
-                await readPersistedMap();
-        } catch (_) {}
-
-        let runtimeTracks = [];
-
-        try {
-            runtimeTracks =
-                installed
-                    ? translatedTracks()
-                    : (
-                        getStableApi()
-                            ?.getAllTracks?.() ||
-                        []
-                    );
-        } catch (_) {
-            runtimeTracks = [];
         }
 
-        const runtimeIds =
-            runtimeTracks
-                .map(
-                    getRuntimeStableId
-                )
-                .filter(Boolean);
+        const coverage =
+            list.length
+                ? (
+                    recovered /
+                    list.length
+                ) * 100
+                : 0;
 
-        const uniqueRuntimeIds =
-            new Set(runtimeIds);
-
-        const result = {
+        return {
             success: true,
+            status:
+                "AUTHORITATIVE_IDENTITY_RECOVERY_COMPLETED",
+
             phase: PHASE,
             version: VERSION,
-            build: BUILD,
 
-            installed,
+            inputCount: list.length,
             recovered,
-            running,
+            missing,
 
-            c2BridgeAvailable:
-                Boolean(
-                    getC2Bridge()
+            recoveryRate:
+                Number(
+                    coverage.toFixed(2)
                 ),
 
-            stableApiAvailable:
-                Boolean(
-                    getStableApi()
-                ),
+            recoveryRateText:
+                coverage.toFixed(2) + "%",
 
-            persistedMappingCount:
-                safeArray(
-                    persistedRecord?.mappings
-                ).length,
+            methods,
+            sampleRecovered,
+            sampleMissing,
 
-            memoryMappingCount:
-                identityMap.size,
+            generatedAt: now()
+        };
+    }
 
-            runtimeTrackCount:
-                runtimeTracks.length,
+    /*
+    -------------------------------------------------------
+    Memory protection / pruning
+    -------------------------------------------------------
+    */
 
-            runtimeUniqueIdentityCount:
-                uniqueRuntimeIds.size,
+    async function pruneDatabase() {
+        const records =
+            await getAllRecords();
 
-            duplicateRuntimeIdentityCount:
+        if (!records.length) {
+            return {
+                removed: 0,
+                remaining: 0
+            };
+        }
+
+        const timestamp = now();
+
+        const expired =
+            records.filter(record => {
+                const updatedAt =
+                    Number(record.updatedAt || 0);
+
+                return (
+                    updatedAt > 0 &&
+                    timestamp - updatedAt >
+                        MAX_AGE_MS
+                );
+            });
+
+        let removed = 0;
+
+        for (const record of expired) {
+            if (
+                await deleteRecord(
+                    record.identityKey
+                )
+            ) {
+                removed += 1;
+            }
+        }
+
+        let remaining =
+            records.length - removed;
+
+        if (remaining > MAX_RECORDS) {
+            const currentRecords =
+                (await getAllRecords())
+                    .sort(
+                        (a, b) =>
+                            Number(
+                                a.updatedAt || 0
+                            ) -
+                            Number(
+                                b.updatedAt || 0
+                            )
+                    );
+
+            const overflow =
+                currentRecords.length -
+                MAX_RECORDS;
+
+            for (
+                let i = 0;
+                i < overflow;
+                i += 1
+            ) {
+                if (
+                    await deleteRecord(
+                        currentRecords[i]
+                            .identityKey
+                    )
+                ) {
+                    removed += 1;
+                }
+            }
+
+            remaining =
                 Math.max(
                     0,
-                    runtimeIds.length -
-                    uniqueRuntimeIds.size
+                    currentRecords.length -
+                        overflow
+                );
+        }
+
+        return {
+            removed,
+            remaining
+        };
+    }
+
+    /*
+    -------------------------------------------------------
+    Runtime track discovery
+    -------------------------------------------------------
+    */
+
+    function discoverRuntimeTracks() {
+        const candidates = [
+            global.RainArrivalStableTrackIdentityV32
+                ?.getAllTracks?.(),
+
+            global.RainArrivalStableTrackIdentityV32
+                ?.getTracks?.(),
+
+            global.RainArrivalTrackStoreV32
+                ?.getAll?.(),
+
+            global.RainArrivalTrackStoreV32
+                ?.getAllTracks?.(),
+
+            global.RainArrivalStormTrackStoreBridgeV32
+                ?.getTracks?.(),
+
+            global.RainArrivalStormEntityCollectorV32
+                ?.getEntities?.()
+        ];
+
+        for (const candidate of candidates) {
+            if (
+                Array.isArray(candidate) &&
+                candidate.length
+            ) {
+                return candidate;
+            }
+        }
+
+        /*
+        Compatibility with runtime objects where tracks
+        are exposed as arrays.
+        */
+
+        const possibleArrays = [
+            global.RainArrivalStableTrackIdentityV32
+                ?.tracks,
+
+            global.RainArrivalTrackStoreV32
+                ?.tracks,
+
+            global.RainGuardAI?.V32
+                ?.tracks,
+
+            global.RainGuardAI?.V32
+                ?.rainArrivalTracks
+        ];
+
+        for (const candidate of possibleArrays) {
+            if (
+                Array.isArray(candidate) &&
+                candidate.length
+            ) {
+                return candidate;
+            }
+        }
+
+        return [];
+    }
+
+    /*
+    -------------------------------------------------------
+    Cross-reload test helper
+    -------------------------------------------------------
+    */
+
+    async function crossReloadTest(
+        previousIds = []
+    ) {
+        await initialize();
+
+        const runtimeTracks =
+            discoverRuntimeTracks();
+
+        const previous =
+            Array.isArray(previousIds)
+                ? previousIds
+                    .map(normalizeString)
+                    .filter(Boolean)
+                : [];
+
+        const previousSet =
+            new Set(previous);
+
+        let recovered = 0;
+        const recoveredIds = [];
+        const missingIds = [];
+
+        for (const track of runtimeTracks) {
+            const sourceTrackId =
+                getRealSourceTrackId(track);
+
+            if (
+                sourceTrackId &&
+                previousSet.has(
+                    sourceTrackId
+                )
+            ) {
+                recovered += 1;
+                recoveredIds.push(
+                    sourceTrackId
+                );
+            }
+        }
+
+        for (const id of previousSet) {
+            if (
+                !recoveredIds.includes(id)
+            ) {
+                missingIds.push(id);
+            }
+        }
+
+        const denominator =
+            previousSet.size;
+
+        const coverage =
+            denominator
+                ? (
+                    recovered /
+                    denominator
+                ) * 100
+                : 0;
+
+        const result = {
+            beforeReload:
+                denominator,
+
+            currentRuntime:
+                runtimeTracks.length,
+
+            recovered,
+            missing:
+                missingIds.length,
+
+            recoveryRate:
+                Number(
+                    coverage.toFixed(2)
                 ),
 
-            lastRecoveredAt,
-            lastSavedAt,
+            recoveryRateText:
+                coverage.toFixed(2) + "%",
 
-            latestResult:
-                lastResult
+            sampleRecovered:
+                recoveredIds.slice(0, 10),
+
+            sampleMissing:
+                missingIds.slice(0, 10)
         };
 
         console.log(
-            "[RainGuard][39A-15F6N4B1B3C3] Diagnostics:",
-            result
+            "=== C3-FIX1 CROSS-RELOAD RECOVERY TEST ==="
         );
+
+        console.table(result);
+        console.log(result);
 
         return result;
     }
 
-    function startPeriodicSave() {
-        if (saveTimer) {
-            return;
+    /*
+    -------------------------------------------------------
+    Initialization
+    -------------------------------------------------------
+    */
+
+    async function initialize() {
+        if (state.initialized) {
+            return diagnose(false);
         }
 
-        saveTimer =
-            global.setInterval(
-                () => {
-                    scheduleSave();
-                },
-                SAVE_INTERVAL_MS
-            );
-    }
+        try {
+            await openDatabase();
 
-    function stop() {
-        if (retryTimer) {
-            global.clearTimeout(
-                retryTimer
-            );
+            state.initialized = true;
+            state.updatedAt = now();
 
-            retryTimer = null;
-        }
+            const pruneResult =
+                await pruneDatabase();
 
-        if (saveTimer) {
-            global.clearInterval(
-                saveTimer
-            );
-
-            saveTimer = null;
-        }
-
-        return true;
-    }
-
-    function autoStart() {
-        run().then(
-            result => {
-
-                if (
-                    result?.success
-                ) {
-                    retryCount = 0;
-
-                    startPeriodicSave();
-
-                    return;
+            console.log(
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX1] Initialized.",
+                {
+                    version: VERSION,
+                    build: BUILD,
+                    dbAvailable:
+                        state.dbAvailable,
+                    pruneResult
                 }
+            );
 
-                if (
-                    retryCount >=
-                    MAX_RETRIES
-                ) {
-                    return;
-                }
+            return diagnose(false);
+        } catch (error) {
+            state.lastError =
+                normalizeError(error);
 
-                retryCount += 1;
+            state.updatedAt = now();
 
-                retryTimer =
-                    global.setTimeout(
-                        autoStart,
-                        RETRY_DELAY_MS
-                    );
-            }
-        );
+            console.error(
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX1] Initialization failed.",
+                state.lastError
+            );
+
+            return diagnose(false);
+        }
     }
 
-    global[RUN_NAME] =
-        run;
+    /*
+    -------------------------------------------------------
+    Diagnostics
+    -------------------------------------------------------
+    */
 
-    global[DIAG_NAME] =
-        diagnose;
+    function diagnose(log = true) {
+        const diagnostics = {
+            success:
+                state.initialized &&
+                state.dbAvailable,
 
-    global[BRIDGE_NAME] = {
+            phase: PHASE,
+            version: VERSION,
+            build: BUILD,
+
+            initialized:
+                state.initialized,
+
+            indexedDBAvailable:
+                Boolean(global.indexedDB),
+
+            dbAvailable:
+                state.dbAvailable,
+
+            dbName:
+                DB_NAME,
+
+            storeName:
+                STORE_NAME,
+
+            identityPriority: [
+                "source + sourceTrackId",
+                "sourceTrackId",
+                "source + firstSeenAt + geographic bucket",
+                "source + geographic bucket",
+                "generated identity LAST RESORT"
+            ],
+
+            generatedIdentityPolicy:
+                "RST/RG/RainGuard IDs rejected as authoritative source anchors",
+
+            persistedCount:
+                state.persistedCount,
+
+            recoveredCount:
+                state.recoveredCount,
+
+            matchedBySource:
+                state.matchedBySource,
+
+            matchedByFallback:
+                state.matchedByFallback,
+
+            rejectedGeneratedIds:
+                state.rejectedGeneratedIds,
+
+            lastPersistAt:
+                state.lastPersistAt,
+
+            lastRecoverAt:
+                state.lastRecoverAt,
+
+            lastError:
+                clone(state.lastError),
+
+            createdAt:
+                state.createdAt,
+
+            updatedAt:
+                state.updatedAt
+        };
+
+        if (log) {
+            console.log(
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX1] Diagnostics:",
+                diagnostics
+            );
+        }
+
+        return diagnostics;
+    }
+
+    /*
+    -------------------------------------------------------
+    Public API
+    -------------------------------------------------------
+    */
+
+    const api = Object.freeze({
         phase: PHASE,
         version: VERSION,
         build: BUILD,
 
-        get installed() {
-            return installed;
-        },
+        initialize,
 
-        get recovered() {
-            return recovered;
-        },
+        persistTrack,
+        persistTracks,
 
-        get running() {
-            return running;
-        },
+        recoverTrack,
+        recoverTracks,
 
-        get mappingCount() {
-            return identityMap.size;
-        },
+        buildIdentityDescriptor,
+        discoverRuntimeTracks,
 
-        run,
-        recover,
+        crossReloadTest,
+
+        pruneDatabase,
         diagnose,
-        stop,
 
-        getMappings() {
-            return Array.from(
-                identityMap.entries()
-            ).map(
-                ([identityKey, stableId]) => ({
-                    identityKey,
-                    stableId
-                })
-            );
-        },
+        isGeneratedIdentity,
+        getRealSourceTrackId
+    });
 
-        getLatestResult() {
-            return lastResult;
+    global.RainGuardAuthoritativeIdentityRecoveryC3 =
+        api;
+
+    global.RainGuardAI =
+        global.RainGuardAI || {};
+
+    global.RainGuardAI.V39 =
+        global.RainGuardAI.V39 || {};
+
+    global.RainGuardAI.V39
+        .authoritativeIdentityRecoveryC3 =
+        api;
+
+    /*
+    Compatibility aliases
+    */
+
+    global.RainArrivalAuthoritativeIdentityRecoveryV39 =
+        api;
+
+    initialize();
+
+    console.log(
+        "[RainGuard AI V39] C3-FIX1 Source-Track Anchored Identity Recovery loaded.",
+        {
+            phase: PHASE,
+            version: VERSION,
+            build: BUILD
         }
-    };
-
-    global.setTimeout(
-        autoStart,
-        START_DELAY_MS
     );
 
-})(window);
+})(
+    typeof globalThis !== "undefined"
+        ? globalThis
+        : window
+);
