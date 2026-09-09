@@ -185,8 +185,7 @@
          New cache version forces browsers/CDNs to request
          the C3-enabled loader chain.
         */
-        cacheVersion: "39A15F6N4B1B3C3_20260909_1",
-
+        cacheVersion: "3238M19_C3_FIX1",
         debug: true
     });
 
