@@ -148,6 +148,14 @@
         },
 
         {
+           name: "indexedDBAuthoritativeIdentityRecoveryC3",
+           file:
+               "indexeddb_authoritative_identity_recovery_39A15F6N4B1B3C3.js",
+          requiredGlobal: 
+              "RainGuardAuthoritativeIdentityRecoveryC3"
+        },
+
+        {
             name: "diagnostics",
             file: "diagnostics.js",
             requiredGlobal: "RainArrivalDiagnosticsV32"
