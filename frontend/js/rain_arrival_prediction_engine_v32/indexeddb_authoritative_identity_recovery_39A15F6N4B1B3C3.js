@@ -20,9 +20,9 @@
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.FIX1";
+    const VERSION = "39A.15F6N4B1B3C3.FIX4";
     const BUILD =
-        "rainguard-v39-authoritative-identity-recovery-source-track-fix1";
+        "rainguard-v39-authoritative-identity-recovery-temporal-track-fix4";
 
     const DB_NAME = "RainGuardIdentityRecoveryV39";
     const DB_VERSION = 1;
@@ -30,6 +30,10 @@
 
     const MAX_RECORDS = 5000;
     const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+    const TEMPORAL_MATCH_WINDOW_MS = 15 * 60 * 1000;
+    const TEMPORAL_UNIQUENESS_MARGIN_MS = 30 * 1000;
+    const TRACK_ID_TIMESTAMP_PATTERN = /^TRACK-(\d{10,16})-/i;
 
     const SOURCE_ID_FIELDS = Object.freeze([
         "sourceTrackId",
@@ -55,6 +59,8 @@
         persistedCount: 0,
         matchedBySource: 0,
         matchedByFallback: 0,
+        matchedByTemporal: 0,
+        ambiguousTemporalFallbacks: 0,
         rejectedGeneratedIds: 0,
 
         lastPersistAt: null,
@@ -239,6 +245,121 @@
             parseTime(track?.lastSeenAt) ??
             null
         );
+    }
+
+    function extractTrackIdTimestamp(value) {
+        const text = normalizeString(value);
+        if (!text) return null;
+
+        const match = text.match(TRACK_ID_TIMESTAMP_PATTERN);
+        if (!match) return null;
+
+        const parsed = Number(match[1]);
+        if (!Number.isFinite(parsed)) return null;
+
+        return parsed < 1e12 ? parsed * 1000 : parsed;
+    }
+
+    function getEmbeddedTrackTimestamp(track) {
+        return (
+            extractTrackIdTimestamp(track?.canonicalTrackId) ??
+            extractTrackIdTimestamp(track?.trackId) ??
+            extractTrackIdTimestamp(track?.stableTrackId) ??
+            extractTrackIdTimestamp(track?.stableId) ??
+            null
+        );
+    }
+
+    function getTemporalAnchor(track) {
+        return (
+            getFirstSeenAt(track) ??
+            getEmbeddedTrackTimestamp(track) ??
+            null
+        );
+    }
+
+    function buildTemporalIndex(records = []) {
+        const output = [];
+
+        for (const record of records) {
+            if (!record || typeof record !== "object") continue;
+
+            const timestamp = getTemporalAnchor(record);
+            if (!Number.isFinite(timestamp)) continue;
+
+            output.push({
+                record,
+                timestamp,
+                source: normalizeLower(record?.source || "unknown")
+            });
+        }
+
+        output.sort((a, b) => a.timestamp - b.timestamp);
+        return output;
+    }
+
+    function findTemporalFallbackRecord(track, temporalIndex = []) {
+        const targetTimestamp = getTemporalAnchor(track);
+
+        if (!Number.isFinite(targetTimestamp)) {
+            return {
+                record: null,
+                reason: "TEMPORAL_ANCHOR_UNAVAILABLE"
+            };
+        }
+
+        const runtimeSource = getSource(track);
+        const candidates = [];
+
+        for (const item of temporalIndex) {
+            const delta = Math.abs(item.timestamp - targetTimestamp);
+
+            if (delta > TEMPORAL_MATCH_WINDOW_MS) continue;
+
+            if (
+                runtimeSource !== "unknown" &&
+                item.source !== "unknown" &&
+                runtimeSource !== item.source
+            ) {
+                continue;
+            }
+
+            candidates.push({
+                ...item,
+                delta
+            });
+        }
+
+        if (!candidates.length) {
+            return {
+                record: null,
+                reason: "TEMPORAL_CANDIDATE_NOT_FOUND"
+            };
+        }
+
+        candidates.sort((a, b) => a.delta - b.delta);
+
+        const best = candidates[0];
+        const second = candidates[1] || null;
+
+        if (
+            second &&
+            (second.delta - best.delta) <
+                TEMPORAL_UNIQUENESS_MARGIN_MS
+        ) {
+            return {
+                record: null,
+                reason: "TEMPORAL_MATCH_AMBIGUOUS",
+                bestDeltaMs: best.delta,
+                secondDeltaMs: second.delta
+            };
+        }
+
+        return {
+            record: best.record,
+            reason: "TEMPORAL_MATCH_UNAMBIGUOUS",
+            deltaMs: best.delta
+        };
     }
 
     /*
@@ -844,25 +965,25 @@
         return true;
     }
 
-    async function recoverTrack(track) {
+    async function recoverTrack(
+        track,
+        options = {}
+    ) {
         const descriptor =
             buildIdentityDescriptor(track);
 
         if (!descriptor.key) {
             return {
                 recovered: false,
-                reason:
-                    "IDENTITY_KEY_UNAVAILABLE"
+                reason: "IDENTITY_KEY_UNAVAILABLE"
             };
         }
 
         let record =
             await getRecord(descriptor.key);
 
-        /*
-        If source+sourceTrackId lookup failed,
-        try sourceTrackId-only compatibility lookup.
-        */
+        let recoveryMethod =
+            descriptor.method;
 
         if (
             !record &&
@@ -876,26 +997,69 @@
                     )
                 );
 
-            if (
-                fallbackKey !==
-                descriptor.key
-            ) {
+            if (fallbackKey !== descriptor.key) {
                 record =
-                    await getRecord(
-                        fallbackKey
+                    await getRecord(fallbackKey);
+
+                if (record) {
+                    recoveryMethod =
+                        "SOURCE_TRACK_ID_COMPATIBILITY";
+                }
+            }
+        }
+
+        let temporalResult = null;
+
+        if (!record) {
+            let temporalIndex =
+                Array.isArray(options.temporalIndex)
+                    ? options.temporalIndex
+                    : null;
+
+            if (!temporalIndex) {
+                temporalIndex =
+                    buildTemporalIndex(
+                        await getAllRecords()
                     );
+            }
+
+            temporalResult =
+                findTemporalFallbackRecord(
+                    track,
+                    temporalIndex
+                );
+
+            if (temporalResult.record) {
+                record =
+                    temporalResult.record;
+
+                recoveryMethod =
+                    "TRACK_ID_TEMPORAL_FALLBACK";
+            } else if (
+                temporalResult.reason ===
+                "TEMPORAL_MATCH_AMBIGUOUS"
+            ) {
+                state.ambiguousTemporalFallbacks += 1;
             }
         }
 
         if (!record) {
             return {
                 recovered: false,
-                identityKey:
-                    descriptor.key,
-                identityMethod:
-                    descriptor.method,
+                identityKey: descriptor.key,
+                identityMethod: descriptor.method,
                 reason:
-                    "PERSISTED_IDENTITY_NOT_FOUND"
+                    temporalResult?.reason ||
+                    "PERSISTED_IDENTITY_NOT_FOUND",
+                temporal:
+                    temporalResult
+                        ? {
+                            bestDeltaMs:
+                                temporalResult.bestDeltaMs ?? null,
+                            secondDeltaMs:
+                                temporalResult.secondDeltaMs ?? null
+                        }
+                        : null
             };
         }
 
@@ -909,10 +1073,8 @@
         ) {
             return {
                 recovered: false,
-                identityKey:
-                    descriptor.key,
-                reason:
-                    "PERSISTED_IDENTITY_EXPIRED"
+                identityKey: descriptor.key,
+                reason: "PERSISTED_IDENTITY_EXPIRED"
             };
         }
 
@@ -920,38 +1082,47 @@
             applyRecoveredIdentity(
                 track,
                 record,
-                descriptor
+                {
+                    ...descriptor,
+                    method: recoveryMethod
+                }
             );
 
         if (applied) {
             state.recoveredCount += 1;
 
             if (
-                descriptor.method ===
+                recoveryMethod ===
                     "SOURCE_AND_SOURCE_TRACK_ID" ||
-                descriptor.method ===
-                    "SOURCE_TRACK_ID"
+                recoveryMethod ===
+                    "SOURCE_TRACK_ID" ||
+                recoveryMethod ===
+                    "SOURCE_TRACK_ID_COMPATIBILITY"
             ) {
                 state.matchedBySource += 1;
+            } else if (
+                recoveryMethod ===
+                "TRACK_ID_TEMPORAL_FALLBACK"
+            ) {
+                state.matchedByTemporal += 1;
             } else {
                 state.matchedByFallback += 1;
             }
 
             state.lastRecoverAt = now();
-            state.updatedAt =
-                state.lastRecoverAt;
+            state.updatedAt = state.lastRecoverAt;
         }
 
         return {
             recovered: applied,
-            identityKey:
-                record.identityKey,
-            identityMethod:
-                descriptor.method,
+            identityKey: record.identityKey,
+            identityMethod: recoveryMethod,
             persistedIdentityMethod:
                 record.identityMethod,
             authoritative:
                 Boolean(record.authoritative),
+            temporalDeltaMs:
+                temporalResult?.deltaMs ?? null,
             record
         };
     }
@@ -967,13 +1138,21 @@
         let recovered = 0;
         let missing = 0;
 
+        const temporalIndex =
+            buildTemporalIndex(
+                await getAllRecords()
+            );
+
         const methods = {};
         const sampleRecovered = [];
         const sampleMissing = [];
 
         for (const track of list) {
             const result =
-                await recoverTrack(track);
+                await recoverTrack(
+                    track,
+                    { temporalIndex }
+                );
 
             if (result.recovered) {
                 recovered += 1;
@@ -1304,7 +1483,7 @@
         };
 
         console.log(
-            "=== C3-FIX1 CROSS-RELOAD RECOVERY TEST ==="
+            "=== C3-FIX4 CROSS-RELOAD RECOVERY TEST ==="
         );
 
         console.table(result);
@@ -1334,7 +1513,7 @@
                 await pruneDatabase();
 
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX1] Initialized.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX4] Initialized.",
                 {
                     version: VERSION,
                     build: BUILD,
@@ -1352,7 +1531,7 @@
             state.updatedAt = now();
 
             console.error(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX1] Initialization failed.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX4] Initialization failed.",
                 state.lastError
             );
 
@@ -1396,6 +1575,7 @@
                 "sourceTrackId",
                 "source + firstSeenAt + geographic bucket",
                 "source + geographic bucket",
+                "guarded TRACK-* temporal fallback",
                 "generated identity LAST RESORT"
             ],
 
@@ -1413,6 +1593,22 @@
 
             matchedByFallback:
                 state.matchedByFallback,
+
+            matchedByTemporal:
+                state.matchedByTemporal,
+
+            ambiguousTemporalFallbacks:
+                state.ambiguousTemporalFallbacks,
+
+            temporalFallbackPolicy: {
+                enabled: true,
+                windowMs:
+                    TEMPORAL_MATCH_WINDOW_MS,
+                uniquenessMarginMs:
+                    TEMPORAL_UNIQUENESS_MARGIN_MS,
+                ambiguousMatchesRejected:
+                    true
+            },
 
             rejectedGeneratedIds:
                 state.rejectedGeneratedIds,
@@ -1435,7 +1631,7 @@
 
         if (log) {
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX1] Diagnostics:",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX4] Diagnostics:",
                 diagnostics
             );
         }
@@ -1464,6 +1660,13 @@
 
         buildIdentityDescriptor,
         discoverRuntimeTracks,
+
+        extractTrackIdTimestamp,
+        getEmbeddedTrackTimestamp,
+        getTemporalAnchor,
+        buildTemporalIndex,
+        findTemporalFallbackRecord,
+        getAllRecords,
 
         crossReloadTest,
 
@@ -1497,7 +1700,7 @@
     initialize();
 
     console.log(
-        "[RainGuard AI V39] C3-FIX1 Source-Track Anchored Identity Recovery loaded.",
+        "[RainGuard AI V39] C3-FIX4 Guarded Temporal Identity Recovery loaded.",
         {
             phase: PHASE,
             version: VERSION,
