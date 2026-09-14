@@ -14,10 +14,10 @@
 
     const ENGINE_NAME = "RainArrivalEngineV32";
 
-    const VERSION = "39A.15F6N4B1B3C3.0";
+    const VERSION = "39A.15F6N4B1B3C3.FIX2";
 
     const BUILD =
-        "rainguard-v39-indexeddb-authoritative-identity-recovery-loader";
+        "rainguard-v39-authoritative-identity-recovery-fix2-loader";
 
     /*
     =======================================================
@@ -148,22 +148,32 @@
         },
 
         {
-           name: "indexedDBAuthoritativeIdentityRecoveryC3",
-           file:
-               "indexeddb_authoritative_identity_recovery_39A15F6N4B1B3C3.js",
-          requiredGlobal: 
-              "RainGuardAuthoritativeIdentityRecoveryC3"
+            name: "indexedDBAuthoritativeIdentityRecoveryC3",
+            file:
+                "indexeddb_authoritative_identity_recovery_39A15F6N4B1B3C3.js",
+            requiredGlobal:
+                "RainGuardAuthoritativeIdentityRecoveryC3"
         },
 
-       
+        /*
+        ===================================================
+         Phase C3-FIX2
+         Missing Identity Rehydration
 
-         {
-           name: "authoritativeIdentityMissingRehydration",
-           file: 
-            "authoritative_identity_missing_rehydration_bridge.js",
-         requiredGlobal:
-          "RainGuardAuthoritativeIdentityMissingRehydrationV39"
-       },
+         MUST load after both C3 compatibility globals and
+         before diagnostics/orchestrator.
+        ===================================================
+        */
+
+        {
+            name: "authoritativeIdentityMissingRehydration",
+            file:
+                "authoritative_identity_missing_rehydration_bridge.js",
+            requiredGlobal:
+                "RainGuardAuthoritativeIdentityMissingRehydrationV39"
+        },
+
+        {
             name: "diagnostics",
             file: "diagnostics.js",
             requiredGlobal: "RainArrivalDiagnosticsV32"
@@ -193,7 +203,7 @@
          New cache version forces browsers/CDNs to request
          the C3-enabled loader chain.
         */
-        cacheVersion: "3238M19_C3_FIX1",
+        cacheVersion: "3238M19_C3_FIX2",
         debug: true
     });
 
@@ -994,6 +1004,18 @@
                                     .RainGuard39A15F6N4B1B3C3BridgeV39
                             ),
 
+                        authoritativeIdentityRecoveryC3Ready:
+                            Boolean(
+                                global
+                                    .RainGuardAuthoritativeIdentityRecoveryC3
+                            ),
+
+                        missingIdentityRehydrationReady:
+                            Boolean(
+                                global
+                                    .RainGuardAuthoritativeIdentityMissingRehydrationV39
+                            ),
+
                         startedAt:
                             this.startedAt,
 
@@ -1283,6 +1305,18 @@
             runtime.authoritativeIdentityRecovery =
                 global
                     .RainGuard39A15F6N4B1B3C3BridgeV39 ||
+                global
+                    .RainGuardAuthoritativeIdentityRecoveryC3 ||
+                null;
+
+            runtime.authoritativeIdentityRecoveryC3 =
+                global
+                    .RainGuardAuthoritativeIdentityRecoveryC3 ||
+                null;
+
+            runtime.missingIdentityRehydration =
+                global
+                    .RainGuardAuthoritativeIdentityMissingRehydrationV39 ||
                 null;
 
             global.RainGuardAI
@@ -1407,6 +1441,18 @@
                     Boolean(
                         global
                             .RainGuard39A15F6N4B1B3C3BridgeV39
+                    ),
+
+                authoritativeIdentityRecoveryC3Available:
+                    Boolean(
+                        global
+                            .RainGuardAuthoritativeIdentityRecoveryC3
+                    ),
+
+                missingIdentityRehydrationAvailable:
+                    Boolean(
+                        global
+                            .RainGuardAuthoritativeIdentityMissingRehydrationV39
                     ),
 
                 lastResult:
@@ -1558,7 +1604,10 @@
                 "indexeddb_persistent_temporal_history_39A15F6N4B1B3C2.js",
 
             c3:
-                "indexeddb_authoritative_identity_recovery_39A15F6N4B1B3C3.js"
+                "indexeddb_authoritative_identity_recovery_39A15F6N4B1B3C3.js",
+
+            c3Fix2:
+                "authoritative_identity_missing_rehydration_bridge.js"
         }
     );
 
