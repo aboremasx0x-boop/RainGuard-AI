@@ -155,13 +155,15 @@
               "RainGuardAuthoritativeIdentityRecoveryC3"
         },
 
-        {
+       
 
          {
-    name: "authoritativeIdentityMissingRehydration",
-    file: "authoritative_identity_missing_rehydration_bridge.js",
-    requiredGlobal: "RainGuardAuthoritativeIdentityMissingRehydrationV39"
-},
+           name: "authoritativeIdentityMissingRehydration",
+           file: 
+            "authoritative_identity_missing_rehydration_bridge.js",
+         requiredGlobal:
+          "RainGuardAuthoritativeIdentityMissingRehydrationV39"
+       },
             name: "diagnostics",
             file: "diagnostics.js",
             requiredGlobal: "RainArrivalDiagnosticsV32"
