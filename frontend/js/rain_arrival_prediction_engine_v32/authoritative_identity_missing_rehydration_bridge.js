@@ -11,9 +11,9 @@
 
     const NAME = "RainGuardAuthoritativeIdentityMissingRehydrationV39";
     const PHASE = "39A-15F6N4B1B3C3-FIX2";
-    const VERSION = "39A.15F6N4B1B3C3.FIX2";
+    const VERSION = "39A.15F6N4B1B3C3.FIX3";
     const BUILD =
-        "rainguard-v39-authoritative-identity-missing-rehydration-bridge";
+        "rainguard-v39-authoritative-identity-missing-rehydration-bridge-fix3";
 
     const SOURCE_ID_KEYS = Object.freeze([
         "sourceTrackId",
@@ -55,18 +55,60 @@
         return text.length ? text : null;
     }
 
-    function getIdentity(record) {
-        if (!record || typeof record !== "object") return null;
+    function getIdentityAliases(record) {
+        if (!record || typeof record !== "object") return [];
+
+        const aliases = [];
+        const seen = new Set();
+
+        const add = value => {
+            const id = normalizeId(value);
+            if (!id || seen.has(id)) return;
+            seen.add(id);
+            aliases.push(id);
+        };
 
         for (const key of SOURCE_ID_KEYS) {
-            const value = normalizeId(record[key]);
+            add(record[key]);
+        }
 
-            if (value) {
-                return value;
+        /*
+         * Some persisted C2/C3 rows wrap the actual track.
+         * Read only known shallow wrappers; do not recursively
+         * scan the full object because runtime records can be large.
+         */
+        for (const wrapperKey of [
+            "record",
+            "track",
+            "entity",
+            "data",
+            "value",
+            "payload"
+        ]) {
+            const wrapped = record[wrapperKey];
+
+            if (!wrapped || typeof wrapped !== "object") continue;
+
+            for (const key of SOURCE_ID_KEYS) {
+                add(wrapped[key]);
             }
         }
 
-        return null;
+        return aliases;
+    }
+
+    function getIdentity(record) {
+        return getIdentityAliases(record)[0] || null;
+    }
+
+    function recordsShareIdentity(left, right) {
+        const leftAliases = getIdentityAliases(left);
+
+        if (!leftAliases.length) return false;
+
+        const rightSet = new Set(getIdentityAliases(right));
+
+        return leftAliases.some(id => rightSet.has(id));
     }
 
     function clone(value) {
@@ -287,11 +329,20 @@
     }
 
     function buildRuntimeIdentitySet(records) {
-        return new Set(
-            (records || [])
-                .map(getIdentity)
-                .filter(Boolean)
-        );
+        const ids = new Set();
+
+        for (const record of records || []) {
+            for (const id of getIdentityAliases(record)) {
+                ids.add(id);
+            }
+        }
+
+        return ids;
+    }
+
+    function recordMatchesIdentitySet(record, identitySet) {
+        return getIdentityAliases(record)
+            .some(id => identitySet.has(id));
     }
 
     function normalizeRecoveredTrack(record) {
@@ -301,17 +352,42 @@
 
         if (!id) return null;
 
+        const aliases = getIdentityAliases(copy);
+
         copy.stableId =
-            normalizeId(copy.stableId) || id;
+            normalizeId(copy.stableId) ||
+            normalizeId(copy.canonicalTrackId) ||
+            normalizeId(copy.trackId) ||
+            normalizeId(copy.sourceTrackId) ||
+            id;
 
         copy.trackId =
-            normalizeId(copy.trackId) || id;
+            normalizeId(copy.trackId) ||
+            normalizeId(copy.sourceTrackId) ||
+            normalizeId(copy.canonicalTrackId) ||
+            copy.stableId;
 
         copy.canonicalTrackId =
-            normalizeId(copy.canonicalTrackId) || id;
+            normalizeId(copy.canonicalTrackId) ||
+            normalizeId(copy.stableId) ||
+            normalizeId(copy.trackId) ||
+            id;
 
         copy.sourceTrackId =
-            normalizeId(copy.sourceTrackId) || id;
+            normalizeId(copy.sourceTrackId) ||
+            normalizeId(copy.trackId) ||
+            normalizeId(copy.canonicalTrackId) ||
+            id;
+
+        copy.identityAliases = Array.from(
+            new Set([
+                ...aliases,
+                copy.sourceTrackId,
+                copy.canonicalTrackId,
+                copy.trackId,
+                copy.stableId
+            ].map(normalizeId).filter(Boolean))
+        );
 
         copy.rehydrated = true;
         copy.rehydratedAt = now();
@@ -331,7 +407,9 @@
 
             if (Array.isArray(store)) {
                 const exists =
-                    store.some(item => getIdentity(item) === id);
+                    store.some(item =>
+                        recordsShareIdentity(item, record)
+                    );
 
                 if (!exists) {
                     store.push(record);
@@ -495,9 +573,16 @@
 
             const missing =
                 persisted.filter(record => {
-                    const id = getIdentity(record);
+                    const aliases =
+                        getIdentityAliases(record);
 
-                    return id && !runtimeIds.has(id);
+                    return (
+                        aliases.length > 0 &&
+                        !recordMatchesIdentitySet(
+                            record,
+                            runtimeIds
+                        )
+                    );
                 });
 
             runtimeState.missingBefore =
@@ -538,9 +623,12 @@
             let matched = 0;
 
             for (const record of persisted) {
-                const id = getIdentity(record);
-
-                if (id && afterIds.has(id)) {
+                if (
+                    recordMatchesIdentitySet(
+                        record,
+                        afterIds
+                    )
+                ) {
                     matched++;
                 }
             }
@@ -593,6 +681,8 @@
 
                 matched,
                 missingAfter,
+
+                aliasMatching: true,
 
                 continuity:
                     `${continuity.toFixed(2)}%`,
