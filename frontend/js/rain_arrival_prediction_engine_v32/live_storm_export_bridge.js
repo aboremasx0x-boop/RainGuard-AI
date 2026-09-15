@@ -20,10 +20,10 @@
         "liveStormExportBridge";
 
     const VERSION =
-        "32.38M.14";
+        "32.38M.14-MEMSAFE-1";
 
     const BUILD =
-        "rainguard-v32-phase38m-live-storm-export-bridge";
+        "rainguard-v32-phase38m-live-storm-export-bridge-memory-safe";
 
     const DEFAULT_CONFIG =
         Object.freeze({
@@ -31,10 +31,10 @@
                 true,
 
             refreshIntervalMs:
-                3000,
+                10000,
 
             maximumEntities:
-                1000,
+                250,
 
             maximumEntityAgeMs:
                 8 * 60 * 60 * 1000,
@@ -59,31 +59,13 @@
     }
 
     function cloneValue(value) {
-        if (
-            value === null ||
-            value === undefined
-        ) {
-            return value;
-        }
-
-        if (
-            typeof structuredClone ===
-            "function"
-        ) {
-            try {
-                return structuredClone(value);
-            } catch (error) {
-                // Continue with JSON fallback.
-            }
-        }
-
-        try {
-            return JSON.parse(
-                JSON.stringify(value)
-            );
-        } catch (error) {
-            return value;
-        }
+        // MEMSAFE: never deep-clone runtime storm graphs.
+        if (value === null || value === undefined) return value;
+        if (Array.isArray(value)) return value.slice();
+        if (value instanceof Map) return new Map(value);
+        if (value instanceof Set) return new Set(value);
+        if (isObject(value)) return { ...value };
+        return value;
     }
 
     function toFiniteNumber(
@@ -241,13 +223,14 @@
             return value;
         }
 
-        if (
-            value instanceof Map ||
-            value instanceof Set
-        ) {
-            return Array.from(
-                value.values()
-            );
+        if (value instanceof Map || value instanceof Set) {
+            const result = [];
+            let count = 0;
+            for (const item of value.values()) {
+                result.push(item);
+                if (++count >= 250) break;
+            }
+            return result;
         }
 
         if (
@@ -834,8 +817,15 @@
                     entity.status ??
                     "ACTIVE",
 
-                rawEntity:
-                    cloneValue(entity),
+                rawEntity: {
+                    id: normalizeText(
+                        entity.id ??
+                        entity.trackId ??
+                        entity.cellId
+                    ),
+                    source: sourceName,
+                    timestamp: observedAt
+                },
 
                 exportedAt:
                     now()
@@ -983,9 +973,7 @@
                 sourceReports;
 
             global.RainArrivalLiveStormEntities =
-                cloneValue(
-                    exported
-                );
+                exported;
 
             global.RainGuardAI =
                 global.RainGuardAI || {};
@@ -995,9 +983,7 @@
 
             global.RainGuardAI.V32
                 .liveStormEntities =
-                cloneValue(
-                    exported
-                );
+                exported;
 
             global.RainGuardAI.V32
                 .liveStormExportState = {
@@ -1008,9 +994,7 @@
                         this.build,
 
                     entities:
-                        cloneValue(
-                            exported
-                        ),
+                        exported,
 
                     sourceReports:
                         cloneValue(
@@ -1046,9 +1030,7 @@
                     exported.length,
 
                 entities:
-                    cloneValue(
-                        exported
-                    ),
+                    exported,
 
                 sourceReports:
                     cloneValue(
@@ -1065,8 +1047,18 @@
                     startedAt
             };
 
-            this.lastResult =
-                cloneValue(result);
+            this.lastResult = {
+                success: result.success,
+                status: result.status,
+                version: result.version,
+                build: result.build,
+                sourceCount: result.sourceCount,
+                rawCount: result.rawCount,
+                exportedCount: result.exportedCount,
+                startedAt: result.startedAt,
+                completedAt: result.completedAt,
+                durationMs: result.durationMs
+            };
 
             this.updatedAt =
                 now();
