@@ -1,12 +1,12 @@
 /*
- RainGuard AI V39 — C3-FIX6
+ RainGuard AI V39 — C3-FIX7
  Memory-Safe Bounded Authoritative Identity Recovery
 */
 (function(global){
 "use strict";
-const PHASE="39A-15F6N4B1B3C3-FIX6";
-const VERSION="39A.15F6N4B1B3C3.FIX6";
-const BUILD="rainguard-v39-authoritative-identity-recovery-memory-safe-fix6";
+const PHASE="39A-15F6N4B1B3C3-FIX7";
+const VERSION="39A.15F6N4B1B3C3.FIX7";
+const BUILD="rainguard-v39-authoritative-identity-recovery-cross-reload-state-fix7";
 const DB_NAME="RainGuardIdentityRecoveryV39", DB_VERSION=1, STORE="identities";
 const MAX_RUNTIME=1500, MAX_SCAN=12000, BATCH=250;
 const state={initialized:false,running:false,lastPersistResult:null,lastRecoveryResult:null};
@@ -125,17 +125,187 @@ async function diagnose(verbose=true){
   runtimeCount:discoverRuntimeTracks().length,persistedCount:await persistedCount(),
   maxRuntimeTracks:MAX_RUNTIME,maxScanRecords:MAX_SCAN,batchSize:BATCH,running:state.running,
   lastPersistResult:state.lastPersistResult,lastRecoveryResult:state.lastRecoveryResult};
- if(verbose)console.log("[RainGuard][C3-FIX6] Diagnostic:",r);return r;
+ if(verbose)console.log("[RainGuard][C3-FIX7] Diagnostic:",r);return r;
 }
+const CROSS_RELOAD_KEY="RG_C3_FIX7_PRE_RELOAD";
+const LEGACY_CROSS_RELOAD_KEYS=Object.freeze([
+ "RG_C3_FIX6_PRE_RELOAD",
+ "RG_C3_FIX6_PRE_RELOAD_RESULT"
+]);
+
+function runtimeIdentitySnapshot(){
+ const tracks=discoverRuntimeTracks();
+ const seen=new Set(),identities=[];
+ for(const track of tracks){
+  const d=descriptor(track);
+  if(!d)continue;
+  const sourceTrackId=str(d.sourceTrackId);
+  const canonicalTrackId=str(d.canonicalTrackId);
+  const key=sourceTrackId||canonicalTrackId;
+  if(!key||seen.has(key))continue;
+  seen.add(key);
+  identities.push({
+   sourceTrackId:sourceTrackId||canonicalTrackId,
+   canonicalTrackId:canonicalTrackId||sourceTrackId
+  });
+  if(identities.length>=MAX_RUNTIME)break;
+ }
+ return identities;
+}
+
+function readCrossReloadSnapshot(){
+ let raw=null,key=null;
+ try{
+  raw=sessionStorage.getItem(CROSS_RELOAD_KEY);
+  if(raw)key=CROSS_RELOAD_KEY;
+  if(!raw){
+   for(const legacyKey of LEGACY_CROSS_RELOAD_KEYS){
+    const candidate=sessionStorage.getItem(legacyKey);
+    if(candidate){
+     try{
+      const parsed=JSON.parse(candidate);
+      if(Array.isArray(parsed?.identities)&&parsed.identities.length){
+       raw=candidate;key=legacyKey;break;
+      }
+     }catch(_){}
+    }
+   }
+  }
+ }catch(_){}
+ if(!raw)return null;
+ try{
+  const parsed=JSON.parse(raw);
+  return parsed&&typeof parsed==="object"?{key,snapshot:parsed}:null;
+ }catch(_){return null;}
+}
+
+function clearCrossReloadSnapshot(key){
+ try{
+  if(key)sessionStorage.removeItem(key);
+  sessionStorage.removeItem(CROSS_RELOAD_KEY);
+ }catch(_){}
+}
+
 async function crossReloadTest(){
- const persist=await persistTracks(),snapshot={version:VERSION,build:BUILD,time:Date.now(),persist};
- try{sessionStorage.setItem("RG_C3_FIX6_PRE_RELOAD",JSON.stringify(snapshot));}catch(_){}
- return{success:!!persist.success,status:"C3_FIX6_PRE_RELOAD_READY",...snapshot};
+ await initialize();
+
+ const existing=readCrossReloadSnapshot();
+
+ if(!existing){
+  const identities=runtimeIdentitySnapshot();
+  const persist=await persistTracks();
+  const snapshot={
+   schema:1,
+   stage:"PRE_RELOAD",
+   phase:PHASE,
+   version:VERSION,
+   build:BUILD,
+   time:Date.now(),
+   count:identities.length,
+   identities,
+   persist:{
+    success:!!persist?.success,
+    status:persist?.status??null,
+    persistedCount:persist?.persistedCount??0,
+    scannedCount:persist?.scannedCount??0
+   }
+  };
+
+  try{
+   sessionStorage.setItem(CROSS_RELOAD_KEY,JSON.stringify(snapshot));
+  }catch(e){
+   return{
+    success:false,
+    status:"C3_FIX7_PRE_RELOAD_STORAGE_FAILED",
+    phase:PHASE,version:VERSION,build:BUILD,
+    error:String(e?.message||e)
+   };
+  }
+
+  return{
+   success:false,
+   readyForReload:true,
+   status:"C3_FIX7_PRE_RELOAD_READY",
+   phase:PHASE,version:VERSION,build:BUILD,
+   beforeCount:identities.length,
+   snapshotKey:CROSS_RELOAD_KEY,
+   persist:snapshot.persist,
+   time:snapshot.time
+  };
+ }
+
+ const before=Array.isArray(existing.snapshot?.identities)
+  ? existing.snapshot.identities.slice(0,MAX_RUNTIME)
+  : [];
+
+ if(!before.length){
+  clearCrossReloadSnapshot(existing.key);
+  return{
+   success:false,
+   status:"C3_FIX7_INVALID_PRE_RELOAD_SNAPSHOT",
+   phase:PHASE,version:VERSION,build:BUILD
+  };
+ }
+
+ const recovery=await recoverTracks();
+ const after=runtimeIdentitySnapshot();
+
+ const afterSource=new Set();
+ const afterCanonical=new Set();
+ for(const d of after){
+  const s=str(d?.sourceTrackId),c=str(d?.canonicalTrackId);
+  if(s)afterSource.add(s);
+  if(c)afterCanonical.add(c);
+ }
+
+ let matched=0;
+ const sampleMatched=[],sampleMissing=[];
+ for(const d of before){
+  const s=str(d?.sourceTrackId),c=str(d?.canonicalTrackId);
+  const hit=Boolean(
+   (s&&(afterSource.has(s)||afterCanonical.has(s))) ||
+   (c&&(afterCanonical.has(c)||afterSource.has(c)))
+  );
+  if(hit){
+   matched++;
+   if(sampleMatched.length<10)sampleMatched.push(s||c);
+  }else if(sampleMissing.length<10){
+   sampleMissing.push(s||c);
+  }
+ }
+
+ const missing=Math.max(0,before.length-matched);
+ const continuityPercent=before.length
+  ? Number(((matched/before.length)*100).toFixed(2))
+  : 0;
+
+ const result={
+  success:true,
+  status:"C3_FIX7_POST_RELOAD_COMPLETE",
+  phase:PHASE,version:VERSION,build:BUILD,
+  memorySafe:true,
+  snapshotKey:existing.key,
+  beforeCount:before.length,
+  afterCount:after.length,
+  matched,
+  missing,
+  continuityPercent,
+  recoverySuccess:!!recovery?.success,
+  recoveredCount:recovery?.recoveredCount??0,
+  scannedPersistedCount:recovery?.scannedPersistedCount??0,
+  scanLimited:!!recovery?.scanLimited,
+  sampleMatched,
+  sampleMissing,
+  completedAt:Date.now()
+ };
+
+ clearCrossReloadSnapshot(existing.key);
+ return result;
 }
 async function initialize(){
  if(state.initialized)return{success:true,status:"ALREADY_INITIALIZED",version:VERSION};
  state.initialized=true;
- setTimeout(()=>recoverTracks().catch(e=>console.warn("[RainGuard][C3-FIX6]",e)),0);
+ setTimeout(()=>recoverTracks().catch(e=>console.warn("[RainGuard][C3-FIX7]",e)),0);
  return{success:true,status:"INITIALIZED",phase:PHASE,version:VERSION,build:BUILD};
 }
 const api=Object.freeze({phase:PHASE,version:VERSION,build:BUILD,initialize,persistTracks,
@@ -146,5 +316,5 @@ global.RainGuardAI=global.RainGuardAI||{};global.RainGuardAI.V39=global.RainGuar
 global.RainGuardAI.V39.authoritativeIdentityRecoveryC3=api;
 global.RainArrivalAuthoritativeIdentityRecoveryV39=api;
 initialize();
-console.log("[RainGuard AI V39] C3-FIX6 Memory-Safe loaded.",{phase:PHASE,version:VERSION,build:BUILD});
+console.log("[RainGuard AI V39] C3-FIX7 Cross-Reload State Recovery loaded.",{phase:PHASE,version:VERSION,build:BUILD});
 })(typeof globalThis!=="undefined"?globalThis:window);
