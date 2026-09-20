@@ -20,9 +20,9 @@
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.FIX8";
+    const VERSION = "39A.15F6N4B1B3C3.FIX9";
     const BUILD =
-        "rainguard-v39-authoritative-identity-recovery-indexeddb-store-compat-fix8";
+        "rainguard-v39-authoritative-identity-recovery-map-runtime-source-fix9";
 
     const DB_NAME = "RainGuardIdentityRecoveryV39";
     const DB_VERSION = 1;
@@ -1363,46 +1363,40 @@
     */
 
     function discoverRuntimeTracks() {
-        const candidates = [
-            global.RainArrivalStableTrackIdentityV32
-                ?.getAllTracks?.(),
+        const MAX =
+            typeof MAX_RUNTIME_TRACKS === "number"
+                ? MAX_RUNTIME_TRACKS
+                : 1500;
 
-            global.RainArrivalStableTrackIdentityV32
-                ?.getTracks?.(),
+        const sources = [
+            global.RainArrivalStormEntitySourceAdapterV32
+                ?.capturedEntities,
 
             global.RainArrivalTrackStoreV32
-                ?.getAll?.(),
-
-            global.RainArrivalTrackStoreV32
-                ?.getAllTracks?.(),
+                ?.tracks,
 
             global.RainArrivalStormTrackStoreBridgeV32
-                ?.getTracks?.(),
-
-            global.RainArrivalStormEntityCollectorV32
-                ?.getEntities?.()
-        ];
-
-        for (const candidate of candidates) {
-            if (
-                Array.isArray(candidate) &&
-                candidate.length
-            ) {
-                return candidate.slice(0, MAX_RUNTIME_TRACKS);
-            }
-        }
-
-        /*
-        Compatibility with runtime objects where tracks
-        are exposed as arrays.
-        */
-
-        const possibleArrays = [
-            global.RainArrivalStableTrackIdentityV32
                 ?.tracks,
+
+            global.RainArrivalStormEntitySourceAdapterV32
+                ?.entities,
+
+            global.RainArrivalLiveStormEntities,
+
+            global.RainArrivalStormEntitySourceAdapterV32
+                ?.store,
+
+            global.RainArrivalStormTrackStoreBridgeV32
+                ?.entities,
+
+            global.RainArrivalStormTrackStoreBridgeV32
+                ?.store,
 
             global.RainArrivalTrackStoreV32
-                ?.tracks,
+                ?.entities,
+
+            global.RainArrivalTrackStoreV32
+                ?.store,
 
             global.RainGuardAI?.V32
                 ?.tracks,
@@ -1411,16 +1405,128 @@
                 ?.rainArrivalTracks
         ];
 
-        for (const candidate of possibleArrays) {
+        const out = [];
+        const seenObjects = new Set();
+        const seenIdentityKeys = new Set();
+
+        function valuesOf(source) {
+            if (!source) return [];
+
+            if (Array.isArray(source)) {
+                return source;
+            }
+
+            if (source instanceof Map) {
+                return source.values();
+            }
+
+            if (source instanceof Set) {
+                return source.values();
+            }
+
             if (
-                Array.isArray(candidate) &&
-                candidate.length
+                typeof source === "object" &&
+                typeof source.values === "function"
             ) {
-                return candidate.slice(0, MAX_RUNTIME_TRACKS);
+                try {
+                    return source.values();
+                } catch (_) {}
+            }
+
+            if (typeof source === "object") {
+                return Object.values(source);
+            }
+
+            return [];
+        }
+
+        function identityKey(track) {
+            if (!track || typeof track !== "object") {
+                return "";
+            }
+
+            const source =
+                normalizeString(
+                    track.source ||
+                    track.provider ||
+                    track.sourceName
+                );
+
+            const sourceTrackId =
+                normalizeString(
+                    track.sourceTrackId ||
+                    track.sourceId ||
+                    track.externalTrackId
+                );
+
+            const canonicalTrackId =
+                normalizeString(
+                    track.canonicalTrackId ||
+                    track.canonicalId
+                );
+
+            const stableId =
+                normalizeString(
+                    track.stableId ||
+                    track.stableTrackId
+                );
+
+            const trackId =
+                normalizeString(
+                    track.trackId ||
+                    track.id
+                );
+
+            const id =
+                sourceTrackId ||
+                canonicalTrackId ||
+                stableId ||
+                trackId;
+
+            return id
+                ? `${source || "unknown"}|${id}`
+                : "";
+        }
+
+        for (const source of sources) {
+            const values = valuesOf(source);
+
+            for (const track of values) {
+                if (
+                    !track ||
+                    typeof track !== "object"
+                ) {
+                    continue;
+                }
+
+                if (seenObjects.has(track)) {
+                    continue;
+                }
+
+                seenObjects.add(track);
+
+                const key = identityKey(track);
+
+                if (
+                    key &&
+                    seenIdentityKeys.has(key)
+                ) {
+                    continue;
+                }
+
+                if (key) {
+                    seenIdentityKeys.add(key);
+                }
+
+                out.push(track);
+
+                if (out.length >= MAX) {
+                    return out;
+                }
             }
         }
 
-        return [];
+        return out;
     }
 
     /*
@@ -1429,7 +1535,7 @@
     -------------------------------------------------------
     */
 
-    const CROSS_RELOAD_KEY = "RG_C3_FIX8_PRE_RELOAD";
+    const CROSS_RELOAD_KEY = "RG_C3_FIX9_PRE_RELOAD";
 
     function buildCrossReloadSnapshot() {
         const tracks = discoverRuntimeTracks().slice(0, MAX_RUNTIME_TRACKS);
@@ -1525,7 +1631,7 @@
                 return {
                     success: false,
                     status:
-                        "C3_FIX8_PRE_RELOAD_STORAGE_FAILED",
+                        "C3_FIX9_PRE_RELOAD_STORAGE_FAILED",
                     phase: PHASE,
                     version: VERSION,
                     error:
@@ -1538,7 +1644,7 @@
                 success: false,
                 readyForReload: true,
                 status:
-                    "C3_FIX8_PRE_RELOAD_READY",
+                    "C3_FIX9_PRE_RELOAD_READY",
                 phase: PHASE,
                 version: VERSION,
                 build: BUILD,
@@ -1674,7 +1780,7 @@
         return {
             success: true,
             status:
-                "C3_FIX8_POST_RELOAD_COMPLETE",
+                "C3_FIX9_POST_RELOAD_COMPLETE",
             phase: PHASE,
             version: VERSION,
             build: BUILD,
@@ -1727,7 +1833,7 @@
                 await pruneDatabase();
 
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX8] Initialized.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX9] Initialized.",
                 {
                     version: VERSION,
                     build: BUILD,
@@ -1745,7 +1851,7 @@
             state.updatedAt = now();
 
             console.error(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX8] Initialization failed.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX9] Initialization failed.",
                 state.lastError
             );
 
@@ -1852,7 +1958,7 @@
 
         if (log) {
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX8] Diagnostics:",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX9] Diagnostics:",
                 diagnostics
             );
         }
@@ -1921,7 +2027,7 @@
     initialize();
 
     console.log(
-        "[RainGuard AI V39] C3-FIX8 IndexedDB Store Compatibility loaded.",
+        "[RainGuard AI V39] C3-FIX9 IndexedDB Store Compatibility loaded.",
         {
             phase: PHASE,
             version: VERSION,
