@@ -20,9 +20,9 @@
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.FIX10";
+    const VERSION = "39A.15F6N4B1B3C3.FIX11";
     const BUILD =
-        "rainguard-v39-authoritative-identity-recovery-persistence-loop-fix10";
+        "rainguard-v39-authoritative-identity-recovery-cross-reload-rehydration-fix11";
 
     const DB_NAME = "RainGuardIdentityRecoveryV39";
     const DB_VERSION = 1;
@@ -716,18 +716,20 @@
 
                 records.push(cursor.value);
 
-                if (records.length % BATCH_SIZE === 0) {
-                    setTimeout(() => {
-                        try { cursor.continue(); }
-                        catch (_) {
-                            if (!finished) {
-                                finished = true;
-                                resolve(records);
-                            }
-                        }
-                    }, 0);
-                } else {
+                /*
+                 FIX11:
+                 IndexedDB cursors must continue while the transaction is active.
+                 FIX10 yielded with setTimeout every 250 records, which allowed the
+                 readonly transaction to auto-close. That made scans appear capped
+                 at exactly 250 records even after 1500 successful writes.
+                */
+                try {
                     cursor.continue();
+                } catch (_) {
+                    if (!finished) {
+                        finished = true;
+                        resolve(records);
+                    }
                 }
             };
 
@@ -1187,13 +1189,38 @@
         };
     }
 
-    async function recoverTracks(tracks = []) {
+    async function recoverTracks(tracks) {
         await initialize();
 
-        const list =
-            Array.isArray(tracks)
-                ? tracks
-                : [];
+        /*
+         FIX11:
+         Recover the bounded live runtime automatically when the caller does
+         not explicitly provide tracks. FIX10 silently recovered an empty list
+         when called as recoverTracks().
+        */
+        let list;
+
+        if (tracks === undefined || tracks === null) {
+            list = discoverRuntimeTracks()
+                .slice(0, MAX_RUNTIME_TRACKS);
+        } else if (Array.isArray(tracks)) {
+            list = tracks.slice(0, MAX_RUNTIME_TRACKS);
+        } else if (tracks instanceof Map || tracks instanceof Set) {
+            list = Array.from(tracks.values())
+                .slice(0, MAX_RUNTIME_TRACKS);
+        } else if (
+            typeof tracks === "object" &&
+            typeof tracks.values === "function"
+        ) {
+            try {
+                list = Array.from(tracks.values())
+                    .slice(0, MAX_RUNTIME_TRACKS);
+            } catch (_) {
+                list = [];
+            }
+        } else {
+            list = [];
+        }
 
         let recovered = 0;
         let missing = 0;
@@ -1275,7 +1302,12 @@
 
             inputCount: list.length,
             recovered,
+            recoveredCount: recovered,
             missing,
+            missingCount: missing,
+            scannedPersistedCount: temporalIndex.length,
+            scanLimited:
+                temporalIndex.length >= MAX_SCAN_RECORDS,
 
             recoveryRate:
                 Number(
@@ -1564,7 +1596,7 @@
     -------------------------------------------------------
     */
 
-    const CROSS_RELOAD_KEY = "RG_C3_FIX10_PRE_RELOAD";
+    const CROSS_RELOAD_KEY = "RG_C3_FIX11_PRE_RELOAD";
 
     function buildCrossReloadSnapshot() {
         const tracks = discoverRuntimeTracks().slice(0, MAX_RUNTIME_TRACKS);
@@ -1660,7 +1692,7 @@
                 return {
                     success: false,
                     status:
-                        "C3_FIX10_PRE_RELOAD_STORAGE_FAILED",
+                        "C3_FIX11_PRE_RELOAD_STORAGE_FAILED",
                     phase: PHASE,
                     version: VERSION,
                     error:
@@ -1673,7 +1705,7 @@
                 success: false,
                 readyForReload: true,
                 status:
-                    "C3_FIX10_PRE_RELOAD_READY",
+                    "C3_FIX11_PRE_RELOAD_READY",
                 phase: PHASE,
                 version: VERSION,
                 build: BUILD,
@@ -1809,7 +1841,7 @@
         return {
             success: true,
             status:
-                "C3_FIX10_POST_RELOAD_COMPLETE",
+                "C3_FIX11_POST_RELOAD_COMPLETE",
             phase: PHASE,
             version: VERSION,
             build: BUILD,
@@ -1862,7 +1894,7 @@
                 await pruneDatabase();
 
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX10] Initialized.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX11] Initialized.",
                 {
                     version: VERSION,
                     build: BUILD,
@@ -1880,7 +1912,7 @@
             state.updatedAt = now();
 
             console.error(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX10] Initialization failed.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX11] Initialization failed.",
                 state.lastError
             );
 
@@ -1990,7 +2022,7 @@
 
         if (log) {
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX10] Diagnostics:",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX11] Diagnostics:",
                 diagnostics
             );
         }
@@ -2059,7 +2091,7 @@
     initialize();
 
     console.log(
-        "[RainGuard AI V39] C3-FIX10 IndexedDB Store Compatibility loaded.",
+        "[RainGuard AI V39] C3-FIX11 IndexedDB Store Compatibility loaded.",
         {
             phase: PHASE,
             version: VERSION,
