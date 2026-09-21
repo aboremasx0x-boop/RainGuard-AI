@@ -20,9 +20,9 @@
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.FIX9";
+    const VERSION = "39A.15F6N4B1B3C3.FIX10";
     const BUILD =
-        "rainguard-v39-authoritative-identity-recovery-map-runtime-source-fix9";
+        "rainguard-v39-authoritative-identity-recovery-persistence-loop-fix10";
 
     const DB_NAME = "RainGuardIdentityRecoveryV39";
     const DB_VERSION = 1;
@@ -868,13 +868,39 @@
         };
     }
 
-    async function persistTracks(tracks = []) {
+    async function persistTracks(tracks) {
         await initialize();
 
-        const list =
-            Array.isArray(tracks)
-                ? tracks
-                : [];
+        /*
+         FIX10:
+         - If no explicit collection is supplied, persist the bounded runtime
+           collection discovered by C3 itself.
+         - Accept Array / Map / Set / iterable inputs.
+         - Never silently convert an omitted argument into an empty write.
+        */
+        let list;
+
+        if (tracks === undefined || tracks === null) {
+            list = discoverRuntimeTracks()
+                .slice(0, MAX_RUNTIME_TRACKS);
+        } else if (Array.isArray(tracks)) {
+            list = tracks.slice(0, MAX_RUNTIME_TRACKS);
+        } else if (tracks instanceof Map || tracks instanceof Set) {
+            list = Array.from(tracks.values())
+                .slice(0, MAX_RUNTIME_TRACKS);
+        } else if (
+            typeof tracks === "object" &&
+            typeof tracks.values === "function"
+        ) {
+            try {
+                list = Array.from(tracks.values())
+                    .slice(0, MAX_RUNTIME_TRACKS);
+            } catch (_) {
+                list = [];
+            }
+        } else {
+            list = [];
+        }
 
         let persisted = 0;
         let skipped = 0;
@@ -906,9 +932,12 @@
             version: VERSION,
 
             inputCount: list.length,
+            attempted: list.length,
             persisted,
             skipped,
             methods,
+            persistedCountAfter:
+                (await getAllRecords(MAX_RECORDS)).length,
 
             generatedAt: now()
         };
@@ -1535,7 +1564,7 @@
     -------------------------------------------------------
     */
 
-    const CROSS_RELOAD_KEY = "RG_C3_FIX9_PRE_RELOAD";
+    const CROSS_RELOAD_KEY = "RG_C3_FIX10_PRE_RELOAD";
 
     function buildCrossReloadSnapshot() {
         const tracks = discoverRuntimeTracks().slice(0, MAX_RUNTIME_TRACKS);
@@ -1631,7 +1660,7 @@
                 return {
                     success: false,
                     status:
-                        "C3_FIX9_PRE_RELOAD_STORAGE_FAILED",
+                        "C3_FIX10_PRE_RELOAD_STORAGE_FAILED",
                     phase: PHASE,
                     version: VERSION,
                     error:
@@ -1644,7 +1673,7 @@
                 success: false,
                 readyForReload: true,
                 status:
-                    "C3_FIX9_PRE_RELOAD_READY",
+                    "C3_FIX10_PRE_RELOAD_READY",
                 phase: PHASE,
                 version: VERSION,
                 build: BUILD,
@@ -1780,7 +1809,7 @@
         return {
             success: true,
             status:
-                "C3_FIX9_POST_RELOAD_COMPLETE",
+                "C3_FIX10_POST_RELOAD_COMPLETE",
             phase: PHASE,
             version: VERSION,
             build: BUILD,
@@ -1833,7 +1862,7 @@
                 await pruneDatabase();
 
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX9] Initialized.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX10] Initialized.",
                 {
                     version: VERSION,
                     build: BUILD,
@@ -1851,7 +1880,7 @@
             state.updatedAt = now();
 
             console.error(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX9] Initialization failed.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX10] Initialization failed.",
                 state.lastError
             );
 
@@ -1912,6 +1941,9 @@
             persistedCount:
                 state.persistedCount,
 
+            sessionPersistedCount:
+                state.persistedCount,
+
             recoveredCount:
                 state.recoveredCount,
 
@@ -1958,7 +1990,7 @@
 
         if (log) {
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX9] Diagnostics:",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX10] Diagnostics:",
                 diagnostics
             );
         }
@@ -2027,7 +2059,7 @@
     initialize();
 
     console.log(
-        "[RainGuard AI V39] C3-FIX9 IndexedDB Store Compatibility loaded.",
+        "[RainGuard AI V39] C3-FIX10 IndexedDB Store Compatibility loaded.",
         {
             phase: PHASE,
             version: VERSION,
