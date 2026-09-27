@@ -20,9 +20,9 @@
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.FIX11";
+    const VERSION = "39A.15F6N4B1B3C3.FIX12";
     const BUILD =
-        "rainguard-v39-authoritative-identity-recovery-cross-reload-rehydration-fix11";
+        "rainguard-v39-authoritative-identity-recovery-stable-matching-fix12";
 
     const DB_NAME = "RainGuardIdentityRecoveryV39";
     const DB_VERSION = 1;
@@ -434,6 +434,26 @@
                 key: "",
                 method: "INVALID_TRACK",
                 authoritative: false
+            };
+        }
+
+        /*
+        FIX12: a recovered persisted identity is the strongest cross-reload
+        anchor. This makes subsequent descriptor calls return the historical
+        identity instead of rebuilding a volatile time/geographic key.
+        */
+        const recoveredIdentityKey =
+            normalizeString(track?.identityRecovery?.identityKey);
+
+        if (recoveredIdentityKey) {
+            return {
+                key: recoveredIdentityKey,
+                rawKey: recoveredIdentityKey,
+                method: "RECOVERED_PERSISTED_IDENTITY",
+                authoritative:
+                    Boolean(track?.identityRecovery?.authoritative),
+                source: getSource(track),
+                sourceTrackId: getRealSourceTrackId(track)
             };
         }
 
@@ -1027,6 +1047,182 @@
         return true;
     }
 
+    /*
+    -------------------------------------------------------
+    FIX12 stable persisted-record matching
+
+    Match priority:
+      1. exact real sourceTrackId
+      2. exact non-generated canonicalTrackId / trackId
+      3. same source + same semantic track id + nearest coordinate
+      4. same semantic track id + nearest coordinate
+
+    Runtime timestamps are deliberately NOT used here.
+    -------------------------------------------------------
+    */
+
+    function stableSemanticIds(track) {
+        const values = [
+            track?.canonicalTrackId,
+            track?.trackId,
+            track?.id
+        ];
+
+        const out = [];
+
+        for (const value of values) {
+            const normalized = normalizeLower(value);
+
+            if (!normalized) continue;
+            if (isGeneratedIdentity(normalized)) continue;
+            if (!out.includes(normalized)) out.push(normalized);
+        }
+
+        return out;
+    }
+
+    function coordinateDistanceSquared(a, b) {
+        const aLat = getLatitude(a);
+        const aLon = getLongitude(a);
+        const bLat = getLatitude(b);
+        const bLon = getLongitude(b);
+
+        if (
+            !Number.isFinite(aLat) ||
+            !Number.isFinite(aLon) ||
+            !Number.isFinite(bLat) ||
+            !Number.isFinite(bLon)
+        ) {
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const dLat = aLat - bLat;
+        const dLon = aLon - bLon;
+
+        return dLat * dLat + dLon * dLon;
+    }
+
+    function findStablePersistedRecord(
+        track,
+        records = [],
+        usedIdentityKeys = null
+    ) {
+        const runtimeSourceId =
+            normalizeLower(getRealSourceTrackId(track));
+
+        const runtimeSource =
+            getSource(track);
+
+        const runtimeSemanticIds =
+            stableSemanticIds(track);
+
+        let best = null;
+        let bestScore = -Infinity;
+        let bestDistance = Number.POSITIVE_INFINITY;
+
+        for (const record of records) {
+            if (!record || typeof record !== "object") continue;
+
+            const identityKey =
+                normalizeString(record.identityKey);
+
+            if (!identityKey) continue;
+
+            if (
+                usedIdentityKeys instanceof Set &&
+                usedIdentityKeys.has(identityKey)
+            ) {
+                continue;
+            }
+
+            const recordSourceId =
+                normalizeLower(record.sourceTrackId);
+
+            const recordSource =
+                normalizeLower(record.source || "unknown");
+
+            const recordSemanticIds =
+                stableSemanticIds(record);
+
+            let score = 0;
+
+            if (
+                runtimeSourceId &&
+                recordSourceId &&
+                runtimeSourceId === recordSourceId
+            ) {
+                score += 10000;
+            }
+
+            const semanticMatch =
+                runtimeSemanticIds.some(id =>
+                    recordSemanticIds.includes(id)
+                );
+
+            if (semanticMatch) {
+                score += 3000;
+            }
+
+            if (
+                runtimeSource !== "unknown" &&
+                recordSource !== "unknown" &&
+                runtimeSource === recordSource
+            ) {
+                score += 500;
+            }
+
+            /*
+            Require at least a stable semantic/source anchor.
+            Coordinate proximity alone is never enough.
+            */
+            if (
+                score < 3000 &&
+                !(
+                    runtimeSourceId &&
+                    recordSourceId &&
+                    runtimeSourceId === recordSourceId
+                )
+            ) {
+                continue;
+            }
+
+            const distance =
+                coordinateDistanceSquared(track, record);
+
+            if (Number.isFinite(distance)) {
+                /*
+                Prefer the nearest historical observation without making
+                coordinates part of the identity key.
+                */
+                score += Math.max(0, 100 - Math.min(100, distance * 100));
+            }
+
+            if (
+                score > bestScore ||
+                (
+                    score === bestScore &&
+                    distance < bestDistance
+                )
+            ) {
+                best = record;
+                bestScore = score;
+                bestDistance = distance;
+            }
+        }
+
+        return {
+            record: best,
+            score:
+                Number.isFinite(bestScore)
+                    ? bestScore
+                    : null,
+            distanceSquared:
+                Number.isFinite(bestDistance)
+                    ? bestDistance
+                    : null
+        };
+    }
+
     async function recoverTrack(
         track,
         options = {}
@@ -1067,6 +1263,32 @@
                     recoveryMethod =
                         "SOURCE_TRACK_ID_COMPATIBILITY";
                 }
+            }
+        }
+
+        /*
+        FIX12: if the newly generated descriptor key changed after reload,
+        recover from stable persisted fields before using temporal fallback.
+        */
+        let stableResult = null;
+
+        if (!record) {
+            const persistedRecords =
+                Array.isArray(options.persistedRecords)
+                    ? options.persistedRecords
+                    : await getAllRecords();
+
+            stableResult =
+                findStablePersistedRecord(
+                    track,
+                    persistedRecords,
+                    options.usedIdentityKeys
+                );
+
+            if (stableResult.record) {
+                record = stableResult.record;
+                recoveryMethod =
+                    "STABLE_SEMANTIC_PERSISTED_MATCH";
             }
         }
 
@@ -1171,6 +1393,10 @@
                 state.matchedByFallback += 1;
             }
 
+            if (options.usedIdentityKeys instanceof Set) {
+                options.usedIdentityKeys.add(record.identityKey);
+            }
+
             state.lastRecoverAt = now();
             state.updatedAt = state.lastRecoverAt;
         }
@@ -1225,10 +1451,15 @@
         let recovered = 0;
         let missing = 0;
 
+        const persistedRecords =
+            await getAllRecords();
+
         const temporalIndex =
             buildTemporalIndex(
-                await getAllRecords()
+                persistedRecords
             );
+
+        const usedIdentityKeys = new Set();
 
         const methods = {};
         const sampleRecovered = [];
@@ -1238,7 +1469,11 @@
             const result =
                 await recoverTrack(
                     track,
-                    { temporalIndex }
+                    {
+                        temporalIndex,
+                        persistedRecords,
+                        usedIdentityKeys
+                    }
                 );
 
             if (result.recovered) {
@@ -1305,9 +1540,9 @@
             recoveredCount: recovered,
             missing,
             missingCount: missing,
-            scannedPersistedCount: temporalIndex.length,
+            scannedPersistedCount: persistedRecords.length,
             scanLimited:
-                temporalIndex.length >= MAX_SCAN_RECORDS,
+                persistedRecords.length >= MAX_SCAN_RECORDS,
 
             recoveryRate:
                 Number(
@@ -1596,7 +1831,7 @@
     -------------------------------------------------------
     */
 
-    const CROSS_RELOAD_KEY = "RG_C3_FIX11_PRE_RELOAD";
+    const CROSS_RELOAD_KEY = "RG_C3_FIX12_PRE_RELOAD";
 
     function buildCrossReloadSnapshot() {
         const tracks = discoverRuntimeTracks().slice(0, MAX_RUNTIME_TRACKS);
@@ -1692,7 +1927,7 @@
                 return {
                     success: false,
                     status:
-                        "C3_FIX11_PRE_RELOAD_STORAGE_FAILED",
+                        "C3_FIX12_PRE_RELOAD_STORAGE_FAILED",
                     phase: PHASE,
                     version: VERSION,
                     error:
@@ -1705,7 +1940,7 @@
                 success: false,
                 readyForReload: true,
                 status:
-                    "C3_FIX11_PRE_RELOAD_READY",
+                    "C3_FIX12_PRE_RELOAD_READY",
                 phase: PHASE,
                 version: VERSION,
                 build: BUILD,
@@ -1841,7 +2076,7 @@
         return {
             success: true,
             status:
-                "C3_FIX11_POST_RELOAD_COMPLETE",
+                "C3_FIX12_POST_RELOAD_COMPLETE",
             phase: PHASE,
             version: VERSION,
             build: BUILD,
@@ -1894,7 +2129,7 @@
                 await pruneDatabase();
 
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX11] Initialized.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX12] Initialized.",
                 {
                     version: VERSION,
                     build: BUILD,
@@ -1912,7 +2147,7 @@
             state.updatedAt = now();
 
             console.error(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX11] Initialization failed.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX12] Initialization failed.",
                 state.lastError
             );
 
@@ -2022,7 +2257,7 @@
 
         if (log) {
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX11] Diagnostics:",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX12] Diagnostics:",
                 diagnostics
             );
         }
@@ -2091,7 +2326,7 @@
     initialize();
 
     console.log(
-        "[RainGuard AI V39] C3-FIX11 IndexedDB Store Compatibility loaded.",
+        "[RainGuard AI V39] C3-FIX12 IndexedDB Store Compatibility loaded.",
         {
             phase: PHASE,
             version: VERSION,
