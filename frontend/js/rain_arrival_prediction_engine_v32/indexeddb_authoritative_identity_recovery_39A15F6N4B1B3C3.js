@@ -1,7 +1,7 @@
 /*
 ===========================================================
  RainGuard AI V39
- Phase 39A-15F6N4B1B3C3 — C3-FIX1
+ Phase 39A-15F6N4B1B3C3 — C3-FIX13
 
  Authoritative Identity Recovery
  Source-Track Anchored Cross-Reload Recovery
@@ -20,9 +20,9 @@
     "use strict";
 
     const PHASE = "39A-15F6N4B1B3C3";
-    const VERSION = "39A.15F6N4B1B3C3.FIX12";
+    const VERSION = "39A.15F6N4B1B3C3.FIX13";
     const BUILD =
-        "rainguard-v39-authoritative-identity-recovery-stable-matching-fix12";
+        "rainguard-v39-authoritative-identity-recovery-cross-reload-key-fix13";
 
     const DB_NAME = "RainGuardIdentityRecoveryV39";
     const DB_VERSION = 1;
@@ -438,7 +438,7 @@
         }
 
         /*
-        FIX12: a recovered persisted identity is the strongest cross-reload
+        FIX13: a recovered persisted identity is the strongest cross-reload
         anchor. This makes subsequent descriptor calls return the historical
         identity instead of rebuilding a volatile time/geographic key.
         */
@@ -1049,7 +1049,7 @@
 
     /*
     -------------------------------------------------------
-    FIX12 stable persisted-record matching
+    FIX13 stable persisted-record matching
 
     Match priority:
       1. exact real sourceTrackId
@@ -1267,7 +1267,7 @@
         }
 
         /*
-        FIX12: if the newly generated descriptor key changed after reload,
+        FIX13: if the newly generated descriptor key changed after reload,
         recover from stable persisted fields before using temporal fallback.
         */
         let stableResult = null;
@@ -1831,7 +1831,35 @@
     -------------------------------------------------------
     */
 
-    const CROSS_RELOAD_KEY = "RG_C3_FIX12_PRE_RELOAD";
+    const CROSS_RELOAD_KEY = "RG_C3_FIX13_PRE_RELOAD";
+
+    function buildContinuityKeys(track) {
+        const keys = [];
+        const source = getSource(track);
+        const sourceTrackId = normalizeLower(getRealSourceTrackId(track));
+        const recoveredIdentityKey = normalizeString(track?.identityRecovery?.identityKey);
+
+        function add(value) {
+            const v = normalizeString(value);
+            if (v && !keys.includes(v)) keys.push(v);
+        }
+
+        if (sourceTrackId) {
+            add("SOURCE:" + source + "|" + sourceTrackId);
+            add("SID:" + sourceTrackId);
+        }
+
+        if (recoveredIdentityKey) add("IDENTITY:" + recoveredIdentityKey);
+
+        for (const semanticId of stableSemanticIds(track)) {
+            add("SEMANTIC:" + source + "|" + semanticId);
+            add("SEMANTIC_ANY:" + semanticId);
+        }
+
+        const descriptor = buildIdentityDescriptor(track);
+        if (descriptor?.key) add("IDENTITY:" + descriptor.key);
+        return keys;
+    }
 
     function buildCrossReloadSnapshot() {
         const tracks = discoverRuntimeTracks().slice(0, MAX_RUNTIME_TRACKS);
@@ -1866,7 +1894,9 @@
                 sourceTrackId,
                 canonicalTrackId,
                 identityKey:
-                    normalizeString(descriptor.key)
+                    normalizeString(descriptor.key),
+                continuityKeys:
+                    buildContinuityKeys(track)
             });
 
             if (identities.length >= MAX_RUNTIME_TRACKS) {
@@ -1927,7 +1957,7 @@
                 return {
                     success: false,
                     status:
-                        "C3_FIX12_PRE_RELOAD_STORAGE_FAILED",
+                        "C3_FIX13_PRE_RELOAD_STORAGE_FAILED",
                     phase: PHASE,
                     version: VERSION,
                     error:
@@ -1940,7 +1970,7 @@
                 success: false,
                 readyForReload: true,
                 status:
-                    "C3_FIX12_PRE_RELOAD_READY",
+                    "C3_FIX13_PRE_RELOAD_READY",
                 phase: PHASE,
                 version: VERSION,
                 build: BUILD,
@@ -1965,6 +1995,7 @@
         const sourceIds = new Set();
         const canonicalIds = new Set();
         const identityKeys = new Set();
+        const continuityKeys = new Set();
 
         for (const item of current) {
             if (item.sourceTrackId) {
@@ -1982,6 +2013,10 @@
                     item.identityKey
                 );
             }
+
+            for (const key of (item.continuityKeys || [])) {
+                continuityKeys.add(key);
+            }
         }
 
         let matched = 0;
@@ -1993,7 +2028,18 @@
             previous.identities
                 .slice(0, MAX_RUNTIME_TRACKS)
         ) {
+            const previousContinuityKeys =
+                Array.isArray(item.continuityKeys)
+                    ? item.continuityKeys
+                    : [];
+
+            const stableContinuityHit =
+                previousContinuityKeys.some(key =>
+                    continuityKeys.has(key)
+                );
+
             const hit =
+                stableContinuityHit ||
                 (
                     item.sourceTrackId &&
                     (
@@ -2076,7 +2122,7 @@
         return {
             success: true,
             status:
-                "C3_FIX12_POST_RELOAD_COMPLETE",
+                "C3_FIX13_POST_RELOAD_COMPLETE",
             phase: PHASE,
             version: VERSION,
             build: BUILD,
@@ -2129,7 +2175,7 @@
                 await pruneDatabase();
 
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX12] Initialized.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX13] Initialized.",
                 {
                     version: VERSION,
                     build: BUILD,
@@ -2147,7 +2193,7 @@
             state.updatedAt = now();
 
             console.error(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX12] Initialization failed.",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX13] Initialization failed.",
                 state.lastError
             );
 
@@ -2257,7 +2303,7 @@
 
         if (log) {
             console.log(
-                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX12] Diagnostics:",
+                "[RainGuard][39A-15F6N4B1B3C3][C3-FIX13] Diagnostics:",
                 diagnostics
             );
         }
@@ -2285,6 +2331,7 @@
         recoverTracks,
 
         buildIdentityDescriptor,
+        buildContinuityKeys,
         discoverRuntimeTracks,
 
         extractTrackIdTimestamp,
@@ -2326,7 +2373,7 @@
     initialize();
 
     console.log(
-        "[RainGuard AI V39] C3-FIX12 IndexedDB Store Compatibility loaded.",
+        "[RainGuard AI V39] C3-FIX13 IndexedDB Store Compatibility loaded.",
         {
             phase: PHASE,
             version: VERSION,
