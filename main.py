@@ -49,8 +49,10 @@ def cors_test():
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
+VISUAL_CROSSING_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+VISUAL_CROSSING_API_KEY = os.getenv("VISUAL_CROSSING_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -1578,6 +1580,72 @@ def build_open_meteo_result(
     store_prediction_from_result(result, name, lat, lon)
 
     return result
+
+
+# ============================================================
+# VISUALCROSSING-1B — Secure backend proxy
+# ============================================================
+
+@app.get("/api/weather/visual-crossing")
+async def visual_crossing_weather(
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+):
+    if not VISUAL_CROSSING_API_KEY:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "source": "visual_crossing",
+                "error": "VISUAL_CROSSING_API_KEY_NOT_CONFIGURED"
+            }
+        )
+
+    url = f"{VISUAL_CROSSING_URL}/{lat},{lon}"
+    params = {
+        "unitGroup": "metric",
+        "include": "hours,current",
+        "key": VISUAL_CROSSING_API_KEY,
+        "contentType": "json"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(url, params=params)
+
+        if response.status_code != 200:
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "success": False,
+                    "source": "visual_crossing",
+                    "upstream_status": response.status_code,
+                    "error": "VISUAL_CROSSING_UPSTREAM_ERROR"
+                }
+            )
+
+        data = response.json()
+        return {
+            "success": True,
+            "source": "visual_crossing",
+            "latitude": data.get("latitude"),
+            "longitude": data.get("longitude"),
+            "timezone": data.get("timezone"),
+            "resolvedAddress": data.get("resolvedAddress"),
+            "currentConditions": data.get("currentConditions"),
+            "days": data.get("days", [])
+        }
+
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "source": "visual_crossing",
+                "error": "VISUAL_CROSSING_REQUEST_FAILED",
+                "detail": str(exc)
+            }
+        )
 
 
 @app.get("/rain-alert")
