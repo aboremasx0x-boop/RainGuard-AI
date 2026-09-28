@@ -1,9 +1,9 @@
 /*
 ===============================================================================
  RainGuard AI
- Phase 39A-12B — National City Registry Source Recovery
+ Phase 39A-12C — National City Registry Source Priority Fix
  File: national_city_registry_bridge_v39.js
- Version: 39A.12B.0
+ Version: 39A.12C.0
 
  Replaces:
  Phase 39A-12 — National City Registry Bridge
@@ -21,9 +21,9 @@
 (function initializeNationalCityRegistryBridgeV39(global) {
     "use strict";
 
-    const PHASE = "39A-12B";
-    const VERSION = "39A.12B.0";
-    const BUILD = "rainguard-v39-national-city-registry-source-recovery";
+    const PHASE = "39A-12C";
+    const VERSION = "39A.12C.0";
+    const BUILD = "rainguard-v39-national-city-registry-source-priority-fix";
 
     const now = () => Date.now();
 
@@ -412,7 +412,148 @@
 
             /*
              * PRIORITY 1
-             * Runtime probe confirmed getNationalCities() returns real cities.
+             * Full Saudi regions/cities data.
+             *
+             * FORECAST-1I2:
+             * Prefer the full national registry before legacy city lists.
+             */
+            const regionRaw =
+                toArray(
+                    global.SaudiLocationsRegistryV32Data
+                );
+
+            const expanded =
+                expandRegionData(
+                    regionRaw
+                );
+
+            const expandedCities =
+                normalizeCityArray(
+                    expanded
+                );
+
+            reports.push({
+                source:
+                    "SaudiLocationsRegistryV32Data",
+
+                available:
+                    regionRaw.length > 0,
+
+                rawCount:
+                    regionRaw.length,
+
+                expandedCount:
+                    expanded.length,
+
+                normalizedCount:
+                    expandedCities.length,
+
+                error:
+                    null
+            });
+
+            /*
+             * A national registry should contain more than
+             * the small legacy six-city operational list.
+             */
+            if (
+                expandedCities.length > 20
+            ) {
+                return {
+                    source:
+                        "SaudiLocationsRegistryV32Data",
+
+                    cities:
+                        expandedCities,
+
+                    reports
+                };
+            }
+
+            /*
+             * PRIORITY 2
+             * Existing Saudi registry instance/object.
+             */
+            const registryCandidates = [
+                [
+                    "SaudiLocationsRegistryV32Instance",
+                    global.SaudiLocationsRegistryV32Instance
+                ],
+                [
+                    "SaudiLocationsRegistryV32",
+                    global.SaudiLocationsRegistryV32
+                ]
+            ];
+
+            for (
+                const [
+                    sourceName,
+                    registry
+                ] of registryCandidates
+            ) {
+                const raw =
+                    await inspectRegistryObject(
+                        registry
+                    );
+
+                /*
+                 * Some registry objects may themselves
+                 * contain region objects rather than cities.
+                 */
+                const expandedRaw =
+                    expandRegionData(
+                        raw
+                    );
+
+                const normalized =
+                    normalizeCityArray(
+                        expandedRaw.length > 0
+                            ? expandedRaw
+                            : raw
+                    );
+
+                reports.push({
+                    source:
+                        sourceName,
+
+                    available:
+                        Boolean(registry),
+
+                    rawCount:
+                        raw.length,
+
+                    expandedCount:
+                        expandedRaw.length,
+
+                    normalizedCount:
+                        normalized.length,
+
+                    error:
+                        null
+                });
+
+                if (
+                    normalized.length > 20
+                ) {
+                    return {
+                        source:
+                            sourceName,
+
+                        cities:
+                            normalized,
+
+                        reports
+                    };
+                }
+            }
+
+            /*
+             * PRIORITY 3
+             * Generic national provider.
+             *
+             * This is now fallback only. Runtime probing
+             * showed that it can expose the legacy six-city
+             * operational list.
              */
             const national =
                 await callGlobalFunction(
@@ -456,8 +597,9 @@
             }
 
             /*
-             * PRIORITY 2
-             * Rain Arrival specific list, only if it actually contains cities.
+             * PRIORITY 4
+             * Rain Arrival specific city list.
+             * Final fallback only.
              */
             const rainArrival =
                 await callGlobalFunction(
@@ -501,122 +643,8 @@
             }
 
             /*
-             * PRIORITY 3
-             * Existing registry instance/object.
+             * Nothing usable was discovered.
              */
-            const registryCandidates = [
-                [
-                    "SaudiLocationsRegistryV32Instance",
-                    global.SaudiLocationsRegistryV32Instance
-                ],
-                [
-                    "SaudiLocationsRegistryV32",
-                    global.SaudiLocationsRegistryV32
-                ]
-            ];
-
-            for (
-                const [
-                    sourceName,
-                    registry
-                ] of registryCandidates
-            ) {
-                const raw =
-                    await inspectRegistryObject(
-                        registry
-                    );
-
-                const normalized =
-                    normalizeCityArray(
-                        raw
-                    );
-
-                reports.push({
-                    source:
-                        sourceName,
-
-                    available:
-                        Boolean(registry),
-
-                    rawCount:
-                        raw.length,
-
-                    normalizedCount:
-                        normalized.length,
-
-                    error:
-                        null
-                });
-
-                if (
-                    normalized.length > 0
-                ) {
-                    return {
-                        source:
-                            sourceName,
-
-                        cities:
-                            normalized,
-
-                        reports
-                    };
-                }
-            }
-
-            /*
-             * PRIORITY 4
-             * SaudiLocationsRegistryV32Data is a 13-region array.
-             * Expand each region.cities into a flat city list.
-             */
-            const regionRaw =
-                toArray(
-                    global.SaudiLocationsRegistryV32Data
-                );
-
-            const expanded =
-                expandRegionData(
-                    regionRaw
-                );
-
-            const expandedCities =
-                normalizeCityArray(
-                    expanded
-                );
-
-            reports.push({
-                source:
-                    "SaudiLocationsRegistryV32Data",
-
-                available:
-                    regionRaw.length > 0,
-
-                rawCount:
-                    regionRaw.length,
-
-                expandedCount:
-                    expanded.length,
-
-                normalizedCount:
-                    expandedCities.length,
-
-                error:
-                    null
-            });
-
-            if (
-                expandedCities.length > 0
-            ) {
-                return {
-                    source:
-                        "SaudiLocationsRegistryV32Data",
-
-                    cities:
-                        expandedCities,
-
-                    reports
-                };
-            }
-
             return {
                 source: null,
                 cities: [],
@@ -855,7 +883,7 @@
             };
 
             console.log(
-                "[RainGuard Phase 39A-12B] National City Registry Source Recovery",
+                "[RainGuard Phase 39A-12C] National City Registry Source Priority Fix",
                 result
             );
 
@@ -884,7 +912,7 @@
         .then(
             result => {
                 console.log(
-                    `[RainGuard AI] Phase ${PHASE} — National City Registry Source Recovery v${VERSION} READY`,
+                    `[RainGuard AI] Phase ${PHASE} — National City Registry Source Priority Fix v${VERSION} READY`,
                     result
                 );
             }
