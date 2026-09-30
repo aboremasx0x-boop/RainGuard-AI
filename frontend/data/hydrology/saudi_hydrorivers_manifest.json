@@ -1,0 +1,447 @@
+{
+  "version": "FORECAST-1J6B.0",
+  "tileSizeDegrees": 2,
+  "source": "HydroRIVERS v1.0 user-provided dataset",
+  "tiles": {
+    "N16_E040": {
+      "file": "tiles/N16_E040.geojson",
+      "features": 43,
+      "bytes": 20504
+    },
+    "N16_E042": {
+      "file": "tiles/N16_E042.geojson",
+      "features": 1472,
+      "bytes": 715501
+    },
+    "N16_E044": {
+      "file": "tiles/N16_E044.geojson",
+      "features": 1591,
+      "bytes": 986575
+    },
+    "N16_E046": {
+      "file": "tiles/N16_E046.geojson",
+      "features": 1307,
+      "bytes": 1194365
+    },
+    "N16_E048": {
+      "file": "tiles/N16_E048.geojson",
+      "features": 1842,
+      "bytes": 1151014
+    },
+    "N16_E050": {
+      "file": "tiles/N16_E050.geojson",
+      "features": 1997,
+      "bytes": 957195
+    },
+    "N16_E052": {
+      "file": "tiles/N16_E052.geojson",
+      "features": 1456,
+      "bytes": 727271
+    },
+    "N16_E054": {
+      "file": "tiles/N16_E054.geojson",
+      "features": 627,
+      "bytes": 336423
+    },
+    "N18_E040": {
+      "file": "tiles/N18_E040.geojson",
+      "features": 936,
+      "bytes": 467404
+    },
+    "N18_E042": {
+      "file": "tiles/N18_E042.geojson",
+      "features": 2221,
+      "bytes": 1085013
+    },
+    "N18_E044": {
+      "file": "tiles/N18_E044.geojson",
+      "features": 1735,
+      "bytes": 1101559
+    },
+    "N18_E046": {
+      "file": "tiles/N18_E046.geojson",
+      "features": 1167,
+      "bytes": 1682116
+    },
+    "N18_E048": {
+      "file": "tiles/N18_E048.geojson",
+      "features": 992,
+      "bytes": 1466286
+    },
+    "N18_E050": {
+      "file": "tiles/N18_E050.geojson",
+      "features": 1920,
+      "bytes": 1191013
+    },
+    "N18_E052": {
+      "file": "tiles/N18_E052.geojson",
+      "features": 1925,
+      "bytes": 1042530
+    },
+    "N18_E054": {
+      "file": "tiles/N18_E054.geojson",
+      "features": 1809,
+      "bytes": 882018
+    },
+    "N20_E038": {
+      "file": "tiles/N20_E038.geojson",
+      "features": 636,
+      "bytes": 332363
+    },
+    "N20_E040": {
+      "file": "tiles/N20_E040.geojson",
+      "features": 2025,
+      "bytes": 1079387
+    },
+    "N20_E042": {
+      "file": "tiles/N20_E042.geojson",
+      "features": 2097,
+      "bytes": 1091360
+    },
+    "N20_E044": {
+      "file": "tiles/N20_E044.geojson",
+      "features": 2230,
+      "bytes": 1178448
+    },
+    "N20_E046": {
+      "file": "tiles/N20_E046.geojson",
+      "features": 1844,
+      "bytes": 1133211
+    },
+    "N20_E048": {
+      "file": "tiles/N20_E048.geojson",
+      "features": 1631,
+      "bytes": 1126098
+    },
+    "N20_E050": {
+      "file": "tiles/N20_E050.geojson",
+      "features": 1872,
+      "bytes": 1064794
+    },
+    "N20_E052": {
+      "file": "tiles/N20_E052.geojson",
+      "features": 2017,
+      "bytes": 1095749
+    },
+    "N20_E054": {
+      "file": "tiles/N20_E054.geojson",
+      "features": 1856,
+      "bytes": 927016
+    },
+    "N22_E038": {
+      "file": "tiles/N22_E038.geojson",
+      "features": 1229,
+      "bytes": 640232
+    },
+    "N22_E040": {
+      "file": "tiles/N22_E040.geojson",
+      "features": 2099,
+      "bytes": 1105225
+    },
+    "N22_E042": {
+      "file": "tiles/N22_E042.geojson",
+      "features": 2198,
+      "bytes": 1056628
+    },
+    "N22_E044": {
+      "file": "tiles/N22_E044.geojson",
+      "features": 2354,
+      "bytes": 1175469
+    },
+    "N22_E046": {
+      "file": "tiles/N22_E046.geojson",
+      "features": 2068,
+      "bytes": 1088072
+    },
+    "N22_E048": {
+      "file": "tiles/N22_E048.geojson",
+      "features": 1903,
+      "bytes": 1053413
+    },
+    "N22_E050": {
+      "file": "tiles/N22_E050.geojson",
+      "features": 1894,
+      "bytes": 999129
+    },
+    "N22_E052": {
+      "file": "tiles/N22_E052.geojson",
+      "features": 1796,
+      "bytes": 986008
+    },
+    "N22_E054": {
+      "file": "tiles/N22_E054.geojson",
+      "features": 1488,
+      "bytes": 852214
+    },
+    "N24_E036": {
+      "file": "tiles/N24_E036.geojson",
+      "features": 724,
+      "bytes": 371521
+    },
+    "N24_E038": {
+      "file": "tiles/N24_E038.geojson",
+      "features": 2114,
+      "bytes": 1073978
+    },
+    "N24_E040": {
+      "file": "tiles/N24_E040.geojson",
+      "features": 2144,
+      "bytes": 1086422
+    },
+    "N24_E042": {
+      "file": "tiles/N24_E042.geojson",
+      "features": 2239,
+      "bytes": 1122722
+    },
+    "N24_E044": {
+      "file": "tiles/N24_E044.geojson",
+      "features": 2086,
+      "bytes": 1078105
+    },
+    "N24_E046": {
+      "file": "tiles/N24_E046.geojson",
+      "features": 2047,
+      "bytes": 1041235
+    },
+    "N24_E048": {
+      "file": "tiles/N24_E048.geojson",
+      "features": 1945,
+      "bytes": 985163
+    },
+    "N24_E050": {
+      "file": "tiles/N24_E050.geojson",
+      "features": 1132,
+      "bytes": 577246
+    },
+    "N24_E052": {
+      "file": "tiles/N24_E052.geojson",
+      "features": 120,
+      "bytes": 65169
+    },
+    "N24_E054": {
+      "file": "tiles/N24_E054.geojson",
+      "features": 550,
+      "bytes": 354343
+    },
+    "N26_E034": {
+      "file": "tiles/N26_E034.geojson",
+      "features": 209,
+      "bytes": 105229
+    },
+    "N26_E036": {
+      "file": "tiles/N26_E036.geojson",
+      "features": 1898,
+      "bytes": 944514
+    },
+    "N26_E038": {
+      "file": "tiles/N26_E038.geojson",
+      "features": 2119,
+      "bytes": 1033042
+    },
+    "N26_E040": {
+      "file": "tiles/N26_E040.geojson",
+      "features": 2083,
+      "bytes": 1046844
+    },
+    "N26_E042": {
+      "file": "tiles/N26_E042.geojson",
+      "features": 1949,
+      "bytes": 1017982
+    },
+    "N26_E044": {
+      "file": "tiles/N26_E044.geojson",
+      "features": 1865,
+      "bytes": 1011763
+    },
+    "N26_E046": {
+      "file": "tiles/N26_E046.geojson",
+      "features": 1962,
+      "bytes": 980857
+    },
+    "N26_E048": {
+      "file": "tiles/N26_E048.geojson",
+      "features": 1472,
+      "bytes": 729306
+    },
+    "N26_E050": {
+      "file": "tiles/N26_E050.geojson",
+      "features": 118,
+      "bytes": 55721
+    },
+    "N26_E052": {
+      "file": "tiles/N26_E052.geojson",
+      "features": 935,
+      "bytes": 427960
+    },
+    "N26_E054": {
+      "file": "tiles/N26_E054.geojson",
+      "features": 1270,
+      "bytes": 593585
+    },
+    "N28_E034": {
+      "file": "tiles/N28_E034.geojson",
+      "features": 1406,
+      "bytes": 699860
+    },
+    "N28_E036": {
+      "file": "tiles/N28_E036.geojson",
+      "features": 2072,
+      "bytes": 1054693
+    },
+    "N28_E038": {
+      "file": "tiles/N28_E038.geojson",
+      "features": 1973,
+      "bytes": 1018339
+    },
+    "N28_E040": {
+      "file": "tiles/N28_E040.geojson",
+      "features": 1663,
+      "bytes": 934158
+    },
+    "N28_E042": {
+      "file": "tiles/N28_E042.geojson",
+      "features": 2022,
+      "bytes": 991942
+    },
+    "N28_E044": {
+      "file": "tiles/N28_E044.geojson",
+      "features": 1850,
+      "bytes": 972095
+    },
+    "N28_E046": {
+      "file": "tiles/N28_E046.geojson",
+      "features": 1689,
+      "bytes": 981170
+    },
+    "N28_E048": {
+      "file": "tiles/N28_E048.geojson",
+      "features": 302,
+      "bytes": 160113
+    },
+    "N28_E050": {
+      "file": "tiles/N28_E050.geojson",
+      "features": 1263,
+      "bytes": 612964
+    },
+    "N28_E052": {
+      "file": "tiles/N28_E052.geojson",
+      "features": 2135,
+      "bytes": 1017385
+    },
+    "N28_E054": {
+      "file": "tiles/N28_E054.geojson",
+      "features": 1818,
+      "bytes": 913962
+    },
+    "N30_E034": {
+      "file": "tiles/N30_E034.geojson",
+      "features": 1540,
+      "bytes": 815464
+    },
+    "N30_E036": {
+      "file": "tiles/N30_E036.geojson",
+      "features": 2033,
+      "bytes": 1062514
+    },
+    "N30_E038": {
+      "file": "tiles/N30_E038.geojson",
+      "features": 2073,
+      "bytes": 1043267
+    },
+    "N30_E040": {
+      "file": "tiles/N30_E040.geojson",
+      "features": 1912,
+      "bytes": 989642
+    },
+    "N30_E042": {
+      "file": "tiles/N30_E042.geojson",
+      "features": 1984,
+      "bytes": 981401
+    },
+    "N30_E044": {
+      "file": "tiles/N30_E044.geojson",
+      "features": 1993,
+      "bytes": 1019288
+    },
+    "N30_E046": {
+      "file": "tiles/N30_E046.geojson",
+      "features": 2034,
+      "bytes": 1001347
+    },
+    "N30_E048": {
+      "file": "tiles/N30_E048.geojson",
+      "features": 1867,
+      "bytes": 900701
+    },
+    "N30_E050": {
+      "file": "tiles/N30_E050.geojson",
+      "features": 2144,
+      "bytes": 1016381
+    },
+    "N30_E052": {
+      "file": "tiles/N30_E052.geojson",
+      "features": 2101,
+      "bytes": 1069991
+    },
+    "N30_E054": {
+      "file": "tiles/N30_E054.geojson",
+      "features": 1767,
+      "bytes": 947154
+    },
+    "N32_E034": {
+      "file": "tiles/N32_E034.geojson",
+      "features": 135,
+      "bytes": 68927
+    },
+    "N32_E036": {
+      "file": "tiles/N32_E036.geojson",
+      "features": 251,
+      "bytes": 135575
+    },
+    "N32_E038": {
+      "file": "tiles/N32_E038.geojson",
+      "features": 219,
+      "bytes": 112070
+    },
+    "N32_E040": {
+      "file": "tiles/N32_E040.geojson",
+      "features": 191,
+      "bytes": 103833
+    },
+    "N32_E042": {
+      "file": "tiles/N32_E042.geojson",
+      "features": 224,
+      "bytes": 118738
+    },
+    "N32_E044": {
+      "file": "tiles/N32_E044.geojson",
+      "features": 186,
+      "bytes": 92865
+    },
+    "N32_E046": {
+      "file": "tiles/N32_E046.geojson",
+      "features": 223,
+      "bytes": 112663
+    },
+    "N32_E048": {
+      "file": "tiles/N32_E048.geojson",
+      "features": 254,
+      "bytes": 126738
+    },
+    "N32_E050": {
+      "file": "tiles/N32_E050.geojson",
+      "features": 233,
+      "bytes": 114281
+    },
+    "N32_E052": {
+      "file": "tiles/N32_E052.geojson",
+      "features": 212,
+      "bytes": 121765
+    },
+    "N32_E054": {
+      "file": "tiles/N32_E054.geojson",
+      "features": 210,
+      "bytes": 110023
+    }
+  }
+}
