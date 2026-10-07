@@ -1,6 +1,6 @@
 (function (global) {
   "use strict";
-  const NAME="HydroSHEDSFlowAccumulationAdapterV32", VERSION="FORECAST-1J6G1.0";
+  const NAME="HydroSHEDSFlowAccumulationAdapterV32", VERSION="FORECAST-1J6G2.0";
   const META_URL="data/hydrology/saudi_hydrosheds_acc_15s.meta.json";
   const DATA_URL="data/hydrology/saudi_hydrosheds_acc_15s.u32";
   let cache=null;
