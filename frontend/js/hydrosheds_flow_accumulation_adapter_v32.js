@@ -2,7 +2,7 @@
   "use strict";
   const NAME="HydroSHEDSFlowAccumulationAdapterV32", VERSION="FORECAST-1J6G1.0";
   const META_URL="data/hydrology/saudi_hydrosheds_acc_15s.meta.json";
-  const DATA_URL="data/hydrology/saudi_hydrosheds_acc_15s.u32.gz";
+  const DATA_URL="data/hydrology/saudi_hydrosheds_acc_15s.u32";
   let cache=null;
   const rad=x=>x*Math.PI/180;
   function distanceKm(a,b,c,d){const R=6371,p1=rad(a),p2=rad(c),dp=rad(c-a),dl=rad(d-b);const q=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(q));}
