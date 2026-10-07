@@ -1,0 +1,18 @@
+{
+  "version": "FORECAST-1J6G1.0",
+  "dataset": "HydroSHEDS v1.1 Flow Accumulation (ACC)",
+  "resolutionArcSeconds": 15,
+  "crs": "EPSG:4326",
+  "width": 5280,
+  "height": 4080,
+  "left": 34.00000000000005,
+  "top": 33.000000000000014,
+  "pixelWidth": 0.00416666666666667,
+  "pixelHeight": 0.00416666666666667,
+  "nodata": 4294967295,
+  "dtype": "uint32",
+  "byteOrder": "little-endian",
+  "layout": "row-major",
+  "sourceFile": "hyd_eu_acc_15s.tif",
+  "syntheticData": false
+}
