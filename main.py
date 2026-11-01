@@ -2524,30 +2524,102 @@ async def test_archive():
 init_prediction_db()
 
 # ============================================================
-# FORECAST-1J6G39A — NCM / Anwaa backend configuration precheck
-# This endpoint reports configuration only; it does not fetch NCM data.
-# Never return secrets or private provider URLs to clients.
+# FORECAST-1J6G39B — NCM / Anwaa controlled connectivity readiness
+# NCM endpoint schema/auth are NOT assumed. Probe is opt-in and admin-only.
+# No official weather data is returned by this diagnostic endpoint.
 # ============================================================
+from fastapi import Header, HTTPException
+from urllib.parse import urlparse
+import hmac
+import ipaddress
+import socket
+
+
+def _ncm_config():
+    key = os.getenv("NCM_API_KEY", "").strip()
+    base_url = os.getenv("NCM_API_BASE_URL", "").strip().rstrip("/")
+    probe_path = os.getenv("NCM_PROBE_PATH", "").strip()
+    auth_mode = os.getenv("NCM_AUTH_MODE", "bearer").strip().lower()
+    admin_token = os.getenv("NCM_PROBE_ADMIN_TOKEN", "").strip()
+    enabled = os.getenv("NCM_PROBE_ENABLED", "false").lower() == "true"
+    return key, base_url, probe_path, auth_mode, admin_token, enabled
+
+
+def _ncm_safe_endpoint(base_url, path):
+    # Host allowlisting is required even for environment-configured URLs.
+    allowed_hosts = {h.strip().lower() for h in os.getenv("NCM_ALLOWED_HOSTS", "").split(",") if h.strip()}
+    p = urlparse(base_url)
+    if (p.scheme != "https" or not p.hostname or p.username or p.password
+            or p.query or p.fragment or p.path not in ("", "/")
+            or p.port not in (None, 443) or p.hostname.lower() not in allowed_hosts):
+        return None
+    if not path.startswith("/") or path.startswith("//") or "?" in path or "#" in path or "\\" in path:
+        return None
+    # Prevent local/metadata destinations, even if accidentally allowlisted.
+    try:
+        addresses = socket.getaddrinfo(p.hostname, 443, type=socket.SOCK_STREAM)
+        if not addresses or any(not ipaddress.ip_address(x[4][0]).is_global for x in addresses):
+            return None
+    except (OSError, ValueError):
+        return None
+    return base_url + path
+
 
 @app.get("/api/ncm/status")
 def ncm_connection_status():
-    api_key_present = bool(os.getenv("NCM_API_KEY", "").strip())
-    base_url_present = bool(os.getenv("NCM_API_BASE_URL", "").strip())
-    configured = api_key_present and base_url_present
-
+    key, base_url, probe_path, auth_mode, admin_token, enabled = _ncm_config()
+    configured = bool(key and base_url)
     return {
         "source": "NCM / Anwaa",
         "provider": "National Center for Meteorology",
         "official": True,
-        "version": "FORECAST-1J6G39A",
+        "version": "FORECAST-1J6G39B",
         "status": "CONFIGURED_NOT_VERIFIED" if configured else "PENDING_API",
         "configured": configured,
         "available": False,
         "connection_verified": False,
         "data_live": False,
-        "message": (
-            "Credentials and endpoint configured; official API connection not yet verified."
-            if configured else
-            "Awaiting official NCM API credentials and endpoint."
-        ),
+        "probe_ready": bool(configured and probe_path and admin_token and enabled
+                            and auth_mode in ("bearer", "x-api-key")
+                            and os.getenv("NCM_ALLOWED_HOSTS", "").strip()),
+        "message": "Connection has not been verified against the official NCM API."
+                   if configured else "Awaiting official NCM API credentials and endpoint."
     }
+
+
+@app.post("/api/ncm/probe")
+async def ncm_probe(x_ncm_admin_token: str | None = Header(default=None)):
+    key, base_url, probe_path, auth_mode, admin_token, enabled = _ncm_config()
+    # Never provide a public unauthenticated remote-request endpoint.
+    if not enabled or not admin_token:
+        raise HTTPException(status_code=404, detail="Probe disabled")
+    if not x_ncm_admin_token or not hmac.compare_digest(x_ncm_admin_token, admin_token):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if not key or not base_url or auth_mode not in ("bearer", "x-api-key"):
+        return {"status": "CONFIGURATION_INCOMPLETE", "connection_verified": False, "data_live": False}
+    if not probe_path:
+        return {"status": "PROBE_PATH_MISSING", "connection_verified": False, "data_live": False}
+    endpoint = _ncm_safe_endpoint(base_url, probe_path)
+    if endpoint is None:
+        return {"status": "ENDPOINT_NOT_ALLOWED", "connection_verified": False, "data_live": False}
+    headers = {"Accept": "application/json"}
+    headers["Authorization" if auth_mode == "bearer" else "X-API-Key"] = (
+        "Bearer " + key if auth_mode == "bearer" else key
+    )
+    try:
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=False, trust_env=False) as client:
+            response = await client.get(endpoint, headers=headers)
+        # A successful HTTP response alone does not prove official data validity.
+        if response.status_code == 200:
+            return {"status": "HTTP_REACHABLE_NOT_DATA_VERIFIED", "http_status": 200,
+                    "connection_verified": False, "data_live": False}
+        if response.status_code in (401, 403):
+            state = "AUTH_REJECTED"
+        elif response.status_code in (301, 302, 303, 307, 308):
+            state = "REDIRECT_REJECTED"
+        else:
+            state = "HTTP_ERROR"
+        return {"status": state, "http_status": response.status_code,
+                "connection_verified": False, "data_live": False}
+    except httpx.RequestError:
+        return {"status": "CONNECTION_ERROR", "connection_verified": False, "data_live": False}
