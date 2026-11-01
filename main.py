@@ -2523,3 +2523,31 @@ async def test_archive():
 
 init_prediction_db()
 
+# ============================================================
+# FORECAST-1J6G39A — NCM / Anwaa backend configuration precheck
+# This endpoint reports configuration only; it does not fetch NCM data.
+# Never return secrets or private provider URLs to clients.
+# ============================================================
+
+@app.get("/api/ncm/status")
+def ncm_connection_status():
+    api_key_present = bool(os.getenv("NCM_API_KEY", "").strip())
+    base_url_present = bool(os.getenv("NCM_API_BASE_URL", "").strip())
+    configured = api_key_present and base_url_present
+
+    return {
+        "source": "NCM / Anwaa",
+        "provider": "National Center for Meteorology",
+        "official": True,
+        "version": "FORECAST-1J6G39A",
+        "status": "CONFIGURED_NOT_VERIFIED" if configured else "PENDING_API",
+        "configured": configured,
+        "available": False,
+        "connection_verified": False,
+        "data_live": False,
+        "message": (
+            "Credentials and endpoint configured; official API connection not yet verified."
+            if configured else
+            "Awaiting official NCM API credentials and endpoint."
+        ),
+    }
