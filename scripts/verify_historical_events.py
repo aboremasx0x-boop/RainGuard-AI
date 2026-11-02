@@ -25,7 +25,7 @@ def verified(value):
 
 hourly = read(BASE / "hourly_rainfall.csv")
 windows = read(BASE / "rainfall_windows.csv")
-register = {r["event_id"]: r for r in read(REGISTER)}
+register = {r["event_id"]: r for r in read(REGISTER)} if REGISTER.exists() else {}
 independent = {r["event_id"]: r for r in read(INDEPENDENT)}
 
 result = []
