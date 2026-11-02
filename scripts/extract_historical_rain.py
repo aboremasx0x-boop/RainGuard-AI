@@ -7,7 +7,7 @@ HOURLY=['precipitation']
 rows=[]; summaries=[]; errors=[]
 for event,date,lat,lon in EVENTS:
     day=datetime.date.fromisoformat(date)
-    params={'latitude':lat,'longitude':lon,'start_date':str(day-datetime.timedelta(days=4)),'end_date':str(day+datetime.timedelta(days=1)),'hourly':','.join(HOURLY),'timezone':'Asia/Riyadh','models':'era5_land'}
+    params={'latitude':lat,'longitude':lon,'start_date':str(day-datetime.timedelta(days=4)),'end_date':str(day+datetime.timedelta(days=1)),'hourly':','.join(HOURLY),'timezone':'Asia/Riyadh','models':'era5'}
     url='https://archive-api.open-meteo.com/v1/archive?'+urllib.parse.urlencode(params)
     try:
         with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'RainGuardAI-Research/42B'}),timeout=90) as resp: data=json.load(resp)
