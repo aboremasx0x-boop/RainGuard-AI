@@ -30,10 +30,12 @@ jobs:
         with:
           name: rainguard-historical-rainfall-42b
           
+          
           path: |
-            data/historical_rainfall/historical_rainfall_results.csv
-            data/historical_rainfall/extraction_errors.csv
-            data/historical_rainfall/historical_rainfall_hourly.csv
+            historical_rainfall/hourly_rainfall.csv
+            historical_rainfall/rainfall_windows.csv
+            historical_rainfall/extraction_errors.csv
+
 
           if-no-files-found: warn
           retention-days: 30
