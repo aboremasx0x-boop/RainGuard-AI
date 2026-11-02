@@ -1,0 +1,37 @@
+
+name: RainGuard Historical Rainfall 42B
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract-rainfall:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Extract historical rainfall
+        run: python scripts/extract_historical_rain.py
+
+      - name: Upload rainfall results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rainguard-historical-rainfall-42b
+          path: |
+            historical_rainfall_results.csv
+            extraction_errors.csv
+            historical_rainfall_hourly.csv
+          if-no-files-found: warn
+          retention-days: 30
