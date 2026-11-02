@@ -13,6 +13,10 @@ for event,date,lat,lon in EVENTS:
         with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'RainGuardAI-Research/42B'}),timeout=90) as resp: data=json.load(resp)
         times=data.get('hourly',{}).get('time',[]); vals=data.get('hourly',{}).get('precipitation',[])
         if not times or len(times)!=len(vals): raise ValueError('missing/mismatched hourly precipitation')
+                if all(v is None for v in vals):
+            raise ValueError(
+                f"No valid precipitation values returned for {event}"
+            )
         series=[]
         for t,v in zip(times,vals):
             dt=datetime.datetime.fromisoformat(t)
