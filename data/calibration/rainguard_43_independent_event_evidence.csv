@@ -1,0 +1,4 @@
+﻿event_id,event_date,city,evidence_type,source_name,source_url,reported_rainfall_mm,measurement_scope,flood_documented,spatial_match_verified,hourly_match_verified,calibration_eligible,review_status
+JEDDAH_2009,2009-11-25,Jeddah,peer_reviewed_study,Yesubabu et al. 2016,https://doi.org/10.1002/qj.2654,,Event-level,YES,NO,NO,NO,NEEDS_STATION_AND_TIME_MATCH
+JEDDAH_2011,2011-01-26,Jeddah,peer_reviewed_study,Yesubabu et al. 2016,https://doi.org/10.1002/qj.2654,,Event-level,YES,NO,NO,NO,NEEDS_STATION_AND_TIME_MATCH
+JEDDAH_2022,2022-11-24,Jeddah,official_statement,Saudi Press Agency quoting NCM,https://www.spa.gov.sa/2404182,179.7,South Jeddah station maximum,YES,NO,NO,NO,NEEDS_STATION_AND_TIME_MATCH
