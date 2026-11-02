@@ -29,9 +29,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rainguard-historical-rainfall-42b
+          
           path: |
-            historical_rainfall_results.csv
-            extraction_errors.csv
-            historical_rainfall_hourly.csv
+            data/historical_rainfall/historical_rainfall_results.csv
+            data/historical_rainfall/extraction_errors.csv
+            data/historical_rainfall/historical_rainfall_hourly.csv
+
           if-no-files-found: warn
           retention-days: 30
