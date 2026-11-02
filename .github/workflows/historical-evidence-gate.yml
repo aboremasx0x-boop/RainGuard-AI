@@ -30,7 +30,7 @@ jobs:
         with:
           name: rainguard-historical-evidence-42c
           path: |
-            data/calibration/*.csv
-            data/calibration/*.json
+            historical_validation/*.csv
+            historical_validation/*.json
           if-no-files-found: warn
           retention-days: 30
