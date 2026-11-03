@@ -28,11 +28,11 @@ for event,date,lat,lon in EVENTS:
         for t,v in zip(times,vals):
             dt=datetime.datetime.fromisoformat(t)
             value=float(v) if v is not None else None
-            rows.append({'event_id':event,'reference_date':date,'reference_lat':lat,'reference_lon':lon,'timestamp_local':t,'precipitation_mm':value,'source':'Open-Meteo ERA5-Land','site_verified':False})
+            rows.append({'event_id':event,'reference_date':date,'reference_lat':lat,'reference_lon':lon,'timestamp_local':t,'precipitation_mm':value,'source':'Open-Meteo ERA5','site_verified':False})
             series.append((dt,value))
         # Windows END at end of event reference day (not verified event onset).
         end=datetime.datetime.combine(day+datetime.timedelta(days=1),datetime.time.min)
-        result={'event_id':event,'reference_date':date,'location_type':'CITY_REFERENCE_NOT_EVENT_SITE','source':'Open-Meteo ERA5-Land','event_onset_verified':False,'calibration_eligible':False}
+        result={'event_id':event,'reference_date':date,'location_type':'CITY_REFERENCE_NOT_EVENT_SITE','source':'Open-Meteo ERA5','event_onset_verified':False,'calibration_eligible':False}
         for hours in (6,12,24,48,72):
             segment=[v for t,v in series if end-datetime.timedelta(hours=hours)<=t<end]
             result[f'rain_{hours}h_mm']=round(sum(segment),3) if len(segment)==hours and all(v is not None for v in segment) else ''
