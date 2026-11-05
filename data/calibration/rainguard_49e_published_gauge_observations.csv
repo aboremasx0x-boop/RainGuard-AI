@@ -1,0 +1,7 @@
+
+event_id,year,station_id,annual_max_daily_rain_mm,source_doi,source_table,station_coordinates_verified,event_hourly_series_verified,era5_match_verified,calibration_eligible
+JEDDAH_2009,2009,J134,80,10.1080/19475705.2015.1012750,Table 3,NO,NO,NO,NO
+JEDDAH_2009,2009,41024,70,10.1080/19475705.2015.1012750,Table 3,NO,NO,NO,NO
+JEDDAH_2011,2011,J134,124,10.1080/19475705.2015.1012750,Table 3,NO,NO,NO,NO
+JEDDAH_2011,2011,SGS-1,111.6,10.1080/19475705.2015.1012750,Table 3,NO,NO,NO,NO
+JEDDAH_2011,2011,41024,29.2,10.1080/19475705.2015.1012750,Table 3,NO,NO,NO,NO
