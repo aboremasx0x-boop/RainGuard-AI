@@ -8,9 +8,7 @@ from pathlib import Path
 
 OFFICIAL = Path("data/official_stations/rainfall_observations.csv")
 ERA5 = Path("data/official_stations/era5_comparison.csv")
-OUTPUT = Path(
-    "historical_validation/official_era5_49n_summary.json"
-)
+OUTPUT = Path("historical_validation/official_era5_49n_summary.json")
 
 MAX_DISTANCE_KM = 15.0
 
@@ -28,6 +26,12 @@ ERA5_FIELDS = {
     "observation_interval_minutes",
 }
 
+def number(value, name):
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{name}: non-finite number")
+    return result
+
 def parse_utc(value):
     dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if dt.tzinfo is None or dt.utcoffset() != timedelta(0):
@@ -39,7 +43,6 @@ def distance_km(lat1, lon1, lat2, lon2):
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dp = math.radians(lat2 - lat1)
     dl = math.radians(lon2 - lon1)
-
     a = (
         math.sin(dp / 2) ** 2
         + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
@@ -47,14 +50,18 @@ def distance_km(lat1, lon1, lat2, lon2):
     return 2 * radius * math.asin(min(1, math.sqrt(a)))
 
 def read_csv(path, required):
-    with path.open(encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(line for line in f if line.strip())
+    with path.open(encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
         missing = required - set(reader.fieldnames or [])
         if missing:
             raise ValueError(
                 f"{path}: missing columns {sorted(missing)}"
             )
         return list(reader)
+
+def validate_coords(lat, lon):
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise ValueError("Invalid coordinates")
 
 def main():
     errors = []
@@ -63,7 +70,7 @@ def main():
 
     if not OFFICIAL.exists() or not ERA5.exists():
         result = {
-            "stage": "FORECAST-1J6G49N",
+            "stage": "FORECAST-1J6G49P",
             "technical_status": "WAITING_FOR_COMPARISON_DATA",
             "matched_records": 0,
             "calibration_eligible": 0,
@@ -75,46 +82,54 @@ def main():
             reanalysis = read_csv(ERA5, ERA5_FIELDS)
 
             era5_index = {}
+            official_keys = set()
 
             for row in reanalysis:
                 station = row["station_id"].strip()
                 timestamp = parse_utc(row["timestamp_utc"].strip())
                 interval = int(row["observation_interval_minutes"])
-                value = float(row["era5_rainfall_mm"])
-                lat = float(row["era5_latitude"])
-                lon = float(row["era5_longitude"])
+                rain = number(row["era5_rainfall_mm"], "ERA5 rainfall")
+                lat = number(row["era5_latitude"], "ERA5 latitude")
+                lon = number(row["era5_longitude"], "ERA5 longitude")
 
-                if not station or interval <= 0 or value < 0:
+                if not station or interval <= 0 or rain < 0:
                     raise ValueError("Invalid ERA5 record")
-                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                    raise ValueError("Invalid ERA5 coordinates")
+                validate_coords(lat, lon)
 
                 key = (station, timestamp, interval)
                 if key in era5_index:
-                    raise ValueError("Duplicate ERA5 key")
-                era5_index[key] = (value, lat, lon)
+                    raise ValueError("Duplicate ERA5 record")
+
+                era5_index[key] = (rain, lat, lon)
 
             for row in observations:
                 station = row["station_id"].strip()
                 timestamp = parse_utc(row["timestamp_utc"].strip())
                 interval = int(row["observation_interval_minutes"])
-                rain = float(row["rainfall_mm"])
-                lat = float(row["latitude"])
-                lon = float(row["longitude"])
+                rain = number(row["rainfall_mm"], "Official rainfall")
+                lat = number(row["latitude"], "Official latitude")
+                lon = number(row["longitude"], "Official longitude")
 
                 if not station or interval <= 0 or rain < 0:
-                    raise ValueError("Invalid station observation")
-                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                    raise ValueError("Invalid station coordinates")
+                    raise ValueError("Invalid official observation")
+                validate_coords(lat, lon)
 
-                if row["rainfall_measurement_type"] != "INTERVAL_TOTAL":
+                if row["rainfall_measurement_type"].strip() != "INTERVAL_TOTAL":
                     raise ValueError("Unsupported measurement type")
-                if row["rainfall_unit"] != "mm":
+                if row["rainfall_unit"].strip() != "mm":
                     raise ValueError("Unsupported rainfall unit")
-                if not row["source_agency"] or not row["source_reference"]:
-                    raise ValueError("Missing observation provenance")
+                if not row["source_agency"].strip():
+                    raise ValueError("Missing source agency")
+                if not row["source_reference"].strip():
+                    raise ValueError("Missing source reference")
 
                 key = (station, timestamp, interval)
+
+                if key in official_keys:
+                    raise ValueError("Duplicate official observation")
+
+                official_keys.add(key)
+
                 if key not in era5_index:
                     continue
 
@@ -133,14 +148,15 @@ def main():
                 })
 
             grouped = defaultdict(list)
+
             for match in matches:
                 grouped[match["station_id"]].append(match)
 
             for station, values in grouped.items():
-                n = len(values)
                 differences = [
                     value["difference_mm"] for value in values
                 ]
+                n = len(differences)
 
                 station_stats[station] = {
                     "matched_records": n,
@@ -150,15 +166,20 @@ def main():
                     ),
                     "bias_mm": sum(differences) / n,
                     "max_distance_km": max(
-                        x["distance_km"] for x in values
+                        value["distance_km"] for value in values
                     ),
                 }
 
-        except (ValueError, TypeError, KeyError) as exc:
+        except (ValueError, TypeError, KeyError, OverflowError) as exc:
             errors.append(str(exc))
 
+        # Never publish partial metrics after a validation error.
+        if errors:
+            matches = []
+            station_stats = {}
+
         result = {
-            "stage": "FORECAST-1J6G49N",
+            "stage": "FORECAST-1J6G49P",
             "technical_status": (
                 "FAIL" if errors else
                 "PASS" if matches else "NO_MATCHES"
