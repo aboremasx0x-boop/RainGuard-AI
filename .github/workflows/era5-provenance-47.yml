@@ -1,0 +1,35 @@
+
+name: RainGuard ERA5 Provenance 47
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-era5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Inspect ERA5 metadata and compare stored values
+        run: python scripts/verify_era5_provenance_47.py
+
+      - name: Upload provenance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rainguard-era5-provenance-47
+          path: |
+            historical_validation/era5_provenance_47.csv
+            historical_validation/era5_provenance_47_summary.json
+          if-no-files-found: error
+          retention-days: 30
