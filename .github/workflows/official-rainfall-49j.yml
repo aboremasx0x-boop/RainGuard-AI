@@ -1,0 +1,37 @@
+
+name: RainGuard Official Rainfall 49J
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/import_official_rainfall_49j.py"
+      - "data/official_stations/**"
+      - ".github/workflows/official-rainfall-49j.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate official rainfall data
+        run: python scripts/import_official_rainfall_49j.py
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-rainfall-49j-report
+          path: historical_validation/official_rainfall_49j_summary.json
+          if-no-files-found: error
