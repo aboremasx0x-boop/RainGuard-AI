@@ -1,0 +1,37 @@
+
+name: RainGuard Rainfall Timeseries 49L
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/verify_rainfall_timeseries_49l.py"
+      - "data/official_stations/**"
+      - ".github/workflows/rainfall-timeseries-49l.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify rainfall timeseries
+        run: python scripts/verify_rainfall_timeseries_49l.py
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rainfall-timeseries-49l-report
+          path: historical_validation/rainfall_timeseries_49l_summary.json
+          if-no-files-found: error
