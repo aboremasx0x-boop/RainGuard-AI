@@ -1,0 +1,8 @@
+
+event_id,station_id,station_name,station_operator,latitude,longitude,coordinate_source,coordinates_verified,observation_date,observation_start_utc,observation_end_utc,observed_rainfall_mm,observation_interval,observation_source,original_record_verified,era5_spatial_match_verified,era5_temporal_match_verified,calibration_eligible,verification_status
+JEDDAH_2009,J134,Jeddah J134,,,,,NO,2009-11-25,,,,,,,NO,NO,NO,NO,PENDING_OFFICIAL_DATA
+JEDDAH_2009,41024,Jeddah Airport,,,,,NO,2009-11-25,,,,,,,NO,NO,NO,NO,PENDING_OFFICIAL_DATA
+JEDDAH_2011,J134,Jeddah J134,,,,,NO,2011-01-26,,,,,,,NO,NO,NO,NO,PENDING_OFFICIAL_DATA
+JEDDAH_2011,SGS-1,Saudi Geological Survey SGS-1,,,,,NO,2011-01-26,,,,,,,NO,NO,NO,NO,PENDING_OFFICIAL_DATA
+JEDDAH_2011,41024,Jeddah Airport,,,,,NO,2011-01-26,,,,,,,NO,NO,NO,NO,PENDING_OFFICIAL_DATA
+JEDDAH_2022,UNKNOWN,South Jeddah Rain Gauge,,,,,NO,2022-11-24,,,,,,,NO,NO,NO,NO,PENDING_OFFICIAL_DATA
