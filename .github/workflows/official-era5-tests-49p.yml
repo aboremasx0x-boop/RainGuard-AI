@@ -1,0 +1,37 @@
+
+name: RainGuard Official ERA5 Tests 49P
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/match_official_era5_49n.py"
+      - "scripts/test_official_era5_49p.py"
+      - ".github/workflows/official-era5-tests-49p.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run hardened matching tests
+        run: python scripts/test_official_era5_49p.py
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-era5-tests-49p-report
+          path: historical_validation/official_era5_49p_tests.json
+          if-no-files-found: error
