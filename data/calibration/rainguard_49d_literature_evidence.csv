@@ -1,0 +1,8 @@
+
+event_id,source_id,source_type,source_url,evidence_description,station_id,station_coordinates_verified,hourly_observations_verified,era5_match_verified,calibration_eligible
+JEDDAH_2009,LIT_01,peer_reviewed,https://doi.org/10.1080/19475705.2015.1012750,Historical flood and rainfall station analysis,J134,NO,NO,NO,NO
+JEDDAH_2009,LIT_02,peer_reviewed,https://doi.org/10.1002/qj.2654,WRF rainfall forecasting study,UNKNOWN,NO,NO,NO,NO
+JEDDAH_2011,LIT_01,peer_reviewed,https://doi.org/10.1080/19475705.2015.1012750,Historical flood and rainfall station analysis,SGS-1,NO,NO,NO,NO
+JEDDAH_2011,LIT_02,peer_reviewed,https://doi.org/10.1002/qj.2654,WRF rainfall forecasting study,UNKNOWN,NO,NO,NO,NO
+JEDDAH_2022,LIT_03,peer_reviewed,https://doi.org/10.3390/w16141939,National flood forecasting study,UNKNOWN,NO,NO,NO,NO
+JEDDAH_2022,LIT_04,peer_reviewed,https://doi.org/10.1002/met.70100,Study using NCM observations from 53 regional stations,UNKNOWN,NO,NO,NO,NO
