@@ -1,0 +1,37 @@
+
+name: RainGuard Rainfall Timeseries Tests 49M
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/test_rainfall_timeseries_49m.py"
+      - "scripts/verify_rainfall_timeseries_49l.py"
+      - ".github/workflows/rainfall-timeseries-tests-49m.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run synthetic timeseries tests
+        run: python scripts/test_rainfall_timeseries_49m.py
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rainfall-timeseries-tests-49m-report
+          path: historical_validation/rainfall_timeseries_49m_tests.json
+          if-no-files-found: error
