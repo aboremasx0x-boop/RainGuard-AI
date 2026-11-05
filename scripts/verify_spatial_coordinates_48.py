@@ -46,7 +46,8 @@ if not SOURCE.exists():
     raise SystemExit(f"Missing required file: {SOURCE}")
 
 with SOURCE.open(encoding="utf-8-sig", newline="") as file:
-    reader = csv.DictReader(file)
+    lines = (line for line in file if line.strip())
+    reader = csv.DictReader(lines)
     required = {
         "event_id",
         "era5_reference_lat",
