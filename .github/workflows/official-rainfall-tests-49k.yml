@@ -1,0 +1,37 @@
+
+name: RainGuard Official Rainfall Tests 49K
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/test_official_rainfall_49k.py"
+      - "scripts/import_official_rainfall_49j.py"
+      - ".github/workflows/official-rainfall-tests-49k.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run synthetic rainfall tests
+        run: python scripts/test_official_rainfall_49k.py
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-rainfall-tests-49k-report
+          path: historical_validation/official_rainfall_49k_tests.json
+          if-no-files-found: error
