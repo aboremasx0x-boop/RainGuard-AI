@@ -30,22 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def force_cors_headers(request, call_next):
-    if request.method == "OPTIONS":
-        response = JSONResponse(content={"ok": True})
-    else:
-        response = await call_next(request)
-
-    response.headers["Access-Control-Allow-Origin"] = "https://rainguard-frontend.onrender.com"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-@app.get("/cors-test")
-def cors_test():
-    return {"ok": True, "cors": "enabled"}
-
-
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
