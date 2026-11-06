@@ -228,7 +228,6 @@ RG30.Orchestrator = {
 
     },
 
-
     getPhaseLabel(phase) {
 
         const value =
@@ -357,6 +356,7 @@ RG30.Orchestrator = {
             )
 
         );
+
 
         this.waitForEngines()
 
@@ -1073,6 +1073,7 @@ RG30.Orchestrator = {
 
     },
 
+
     async handlePhaseRequest(phase) {
         const normalized = String(phase || "").trim().toLowerCase();
         const phases = ["observe", "collect", "normalize", "verify", "compare", "conflict", "decide", "gate", "report", "learn"];
@@ -1093,7 +1094,6 @@ RG30.Orchestrator = {
         const target = document.querySelector(`[data-v30-panel="${normalized}"]`) || document.getElementById(`phase-${normalized}`);
         if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
     },
-
 
     async handleCommanderCommand(
         command
@@ -1524,6 +1524,7 @@ RG30.Orchestrator = {
        /* =====================================================
        REPORT
        ===================================================== */
+
 
     renderV30Report(
         summary,
@@ -1996,6 +1997,7 @@ RG30.Orchestrator = {
             : item.en;
 
     },
+
 
     translateDecisionReason(
         reason
