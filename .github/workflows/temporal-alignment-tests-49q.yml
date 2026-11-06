@@ -1,0 +1,37 @@
+
+name: RainGuard Temporal Alignment Tests 49Q
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/verify_temporal_alignment_49q.py"
+      - "scripts/test_temporal_alignment_49q.py"
+      - ".github/workflows/temporal-alignment-tests-49q.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run temporal alignment tests
+        run: python scripts/test_temporal_alignment_49q.py
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporal-alignment-tests-49q-report
+          path: historical_validation/temporal_alignment_49q_tests.json
+          if-no-files-found: error
