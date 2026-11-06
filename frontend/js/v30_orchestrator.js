@@ -1,3 +1,4 @@
+
 /* =========================================================
    RainGuard AI V30
    National Multi-Source Verification Orchestrator
@@ -24,6 +25,12 @@ RG30.Orchestrator = {
 
     intervalId:
         null,
+
+    runGeneration: 0,
+
+    currentPhase: "Stopped",
+
+    autoStartTimer: null,
 
     latestCycle:
         null,
@@ -221,6 +228,7 @@ RG30.Orchestrator = {
 
     },
 
+
     getPhaseLabel(phase) {
 
         const value =
@@ -379,11 +387,11 @@ RG30.Orchestrator = {
                         .automaticStart
                 ) {
 
-                    window.setTimeout(
+                    this.autoStartTimer = window.setTimeout(
 
                         () => {
 
-                            this.start();
+                            if (!this.running && !this.cycleInProgress) this.start();
 
                         },
 
@@ -550,353 +558,111 @@ RG30.Orchestrator = {
        ===================================================== */
 
     async start() {
-
-        if (
-            this.running
-        ) {
-
-            this.writeCommander(
-
-                this.text(
-                    "V30 is already running.",
-                    "نظام V30 يعمل بالفعل."
-                ),
-
-                "info"
-
-            );
-
+        if (this.running) {
+            this.writeCommander(this.text("V30 is already running.", "نظام V30 يعمل بالفعل."), "info");
             return;
-
         }
-
-        this.running =
-            true;
-
-        this.setSystemStatus(
-
-            this.text(
-                "Autonomous V30 Running",
-                "نظام V30 الذاتي يعمل"
-            )
-
-        );
-
-        this.writeCommander(
-
-            this.text(
-                "National Multi-Source Verification V30 started.",
-                "بدأ تشغيل نظام V30 الوطني للتحقق متعدد المصادر."
-            )
-
-        );
-
+        if (this.cycleInProgress) {
+            this.writeCommander(this.text("Wait for the active cycle to finish.", "انتظر انتهاء الدورة الحالية."), "warning");
+            return;
+        }
+        if (this.autoStartTimer !== null) {
+            clearTimeout(this.autoStartTimer);
+            this.autoStartTimer = null;
+        }
+        this.running = true;
+        const generation = ++this.runGeneration;
+        this.setSystemStatus(this.text("Autonomous V30 Running", "نظام V30 الذاتي يعمل"));
+        this.writeCommander(this.text("National Multi-Source Verification V30 started.", "بدأ تشغيل نظام V30 الوطني للتحقق متعدد المصادر."));
         await this.runCycle();
-
-        if (
-            this.intervalId
-        ) {
-
-            window.clearInterval(
-                this.intervalId
-            );
-
-        }
-
-        this.intervalId =
-            window.setInterval(
-
-                () => {
-
-                    if (
-                        this.running
-                    ) {
-
-                        this.runCycle();
-
-                    }
-
-                },
-
-                this.config
-                    .cycleInterval
-
-            );
-
+        if (!this.running || generation !== this.runGeneration) return;
+        if (this.intervalId !== null) clearInterval(this.intervalId);
+        this.intervalId = setInterval(() => {
+            if (this.running && !this.cycleInProgress) void this.runCycle();
+        }, this.config.cycleInterval);
     },
 
     stop() {
-
-        this.running =
-            false;
-
-        if (
-            this.intervalId
-        ) {
-
-            window.clearInterval(
-                this.intervalId
-            );
-
-            this.intervalId =
-                null;
-
+        this.running = false;
+        ++this.runGeneration;
+        if (this.intervalId !== null) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
         }
-
-        this.setSystemStatus(
-
-            this.text(
-                "V30 Stopped",
-                "تم إيقاف V30"
-            ),
-
-            "small"
-
-        );
-
-        this.setPhase(
-            "Stopped"
-        );
-
-        this.writeCommander(
-
-            this.text(
-                "V30 autonomous verification stopped.",
-                "تم إيقاف التحقق الذاتي في V30."
-            ),
-
-            "warning"
-
-        );
-
+        if (this.autoStartTimer !== null) {
+            clearTimeout(this.autoStartTimer);
+            this.autoStartTimer = null;
+        }
+        this.setSystemStatus(this.text("V30 Stopped", "تم إيقاف V30"), "small");
+        this.setPhase("Stopped");
+        this.writeCommander(this.text("V30 autonomous verification stopped. In-flight network work may finish without updating this cycle.", "تم إيقاف دورة V30. قد تكتمل طلبات الشبكة الجارية دون اعتماد نتائج هذه الدورة."), "warning");
     },
-       /* =====================================================
+
+    /* =====================================================
        MAIN CYCLE
        ===================================================== */
 
     async runCycle() {
-
-        if (
-            this.cycleInProgress
-        ) {
-
-            this.writeCommander(
-
-                this.text(
-                    "V30 cycle skipped because another cycle is active.",
-                    "تم تجاوز دورة V30 لأن دورة أخرى ما زالت نشطة."
-                ),
-
-                "warning"
-
-            );
-
+        if (this.cycleInProgress) {
+            this.writeCommander(this.text("V30 cycle skipped because another cycle is active.", "تم تجاوز دورة V30 لأن دورة أخرى ما زالت نشطة."), "warning");
             return null;
-
         }
-
-        this.cycleInProgress =
-            true;
-
-        const startedAt =
-            Date.now();
-
+        const generation = this.runGeneration;
+        const stillValid = () => generation === this.runGeneration;
+        this.cycleInProgress = true;
+        const startedAt = Date.now();
         try {
-
-            this.setPhase(
-                "Observe"
-            );
-
-            this.writeCommander(
-
-                this.text(
-                    "V30 cycle started: collecting national evidence.",
-                    "بدأت دورة V30: جارٍ جمع الأدلة الوطنية."
-                )
-
-            );
-
+            this.setPhase("Observe");
+            this.writeCommander(this.text("V30 cycle started.", "بدأت دورة V30."));
+            // The RG23 engine performs source collection internally; the UI shows its boundary.
+            this.setPhase("Collect");
             await this.runBaseAnalysis();
-
-            const cities =
-                window.RG23
-                    ?.Brain
-                    ?.latestCities ||
-                [];
-
-            if (
-                !Array.isArray(
-                    cities
-                ) ||
-                !cities.length
-            ) {
-
-                throw new Error(
-
-                    this.text(
-                        "The base analysis returned no cities.",
-                        "لم يُرجع التحليل الأساسي أي مدن."
-                    )
-
-                );
-
+            if (!stillValid()) return null;
+            const cities = window.RG23?.Brain?.latestCities || [];
+            if (!Array.isArray(cities) || !cities.length) {
+                throw new Error(this.text("The base analysis returned no cities.", "لم يُرجع التحليل الأساسي أي مدن."));
             }
-
-            this.setPhase(
-                "Verify"
-            );
-
-            this.writeCommander(
-
-                this.text(
-
-                    `Running multi-source verification for ${cities.length} cities.`,
-
-                    `جارٍ تشغيل التحقق متعدد المصادر لعدد ${cities.length} مدينة.`
-
-                )
-
-            );
-
-            const verificationEngine =
-                window.RG30
-                    ?.VerificationEngine;
-
-            if (
-                !verificationEngine ||
-                typeof verificationEngine.run !==
-                    "function"
-            ) {
-
-                throw new Error(
-
-                    this.text(
-                        "V30 Verification Engine is unavailable.",
-                        "محرك التحقق V30 غير متاح."
-                    )
-
-                );
-
+            // These are UI milestones, not claims of separate scientific engines.
+            this.setPhase("Normalize");
+            this.setPhase("Verify");
+            const verificationEngine = window.RG30?.VerificationEngine;
+            if (!verificationEngine || typeof verificationEngine.run !== "function") {
+                throw new Error(this.text("V30 Verification Engine is unavailable.", "محرك التحقق V30 غير متاح."));
             }
-
-            const results =
-                await verificationEngine
-                    .run(
-                        cities
-                    );
-
-            const summary =
-                verificationEngine
-                    .latestNationalSummary;
-
-            this.latestCycle = {
-
-                startedAt:
-                    new Date(
-                        startedAt
-                    )
-                    .toISOString(),
-
-                completedAt:
-                    new Date()
-                    .toISOString(),
-
-                durationMs:
-                    Date.now() -
-                    startedAt,
-
-                cities:
-                    cities.length,
-
-                results:
-                    Array.isArray(
-                        results
-                    )
-                        ? results
-                        : [],
-
-                summary:
-                    summary ||
-                    null
-
+            const results = await verificationEngine.run(cities);
+            if (!stillValid()) return null;
+            const summary = verificationEngine.latestNationalSummary;
+            this.setPhase("Compare");
+            this.setPhase("Conflict");
+            this.setPhase("Decide");
+            this.setPhase("Gate");
+            const cycle = {
+                startedAt: new Date(startedAt).toISOString(),
+                completedAt: new Date().toISOString(),
+                durationMs: Date.now() - startedAt,
+                cities: cities.length,
+                results: Array.isArray(results) ? results : [],
+                summary: summary || null
             };
-
-            this.latestReportSummary =
-                summary ||
-                null;
-
-            this.latestReportResults =
-                Array.isArray(
-                    results
-                )
-                    ? results
-                    : [];
-
-            this.setPhase(
-                "Decide"
-            );
-
-            this.updateNationalKPIs(
-                summary
-            );
-
-            this.renderV30Report(
-                summary,
-                this.latestReportResults
-            );
-
-            this.publishCycle(
-                this.latestCycle
-            );
-
-            this.writeCommander(
-
-                this.text(
-
-                    `V30 cycle completed. National confidence: ${summary?.nationalConfidence || 0}%.`,
-
-                    `اكتملت دورة V30. الثقة الوطنية: ${summary?.nationalConfidence || 0}%.`
-
-                )
-
-            );
-
-            return this.latestCycle;
-
+            this.latestCycle = cycle;
+            this.latestReportSummary = summary || null;
+            this.latestReportResults = cycle.results;
+            this.updateNationalKPIs(summary);
+            this.setPhase("Report");
+            this.renderV30Report(summary, cycle.results);
+            this.publishCycle(cycle);
+            this.setPhase("Learn");
+            this.writeCommander(this.text("V30 cycle completed. Scientific validation remains separate.", "اكتملت دورة V30. التحقق العلمي من الدقة إجراء مستقل."));
+            return cycle;
         } catch (error) {
-
-            console.error(
-                "V30 autonomous cycle error:",
-                error
-            );
-
-            this.writeCommander(
-
-                this.text(
-
-                    `V30 cycle error: ${error.message}`,
-
-                    `خطأ في دورة V30: ${error.message}`
-
-                ),
-
-                "danger"
-
-            );
-
-            this.setPhase(
-                "Error"
-            );
-
+            if (!stillValid()) return null;
+            console.error("V30 autonomous cycle error:", error);
+            this.writeCommander(this.text(`V30 cycle error: ${error.message}`, `خطأ في دورة V30: ${error.message}`), "danger");
+            this.setPhase("Error");
             return null;
-
         } finally {
-
-            this.cycleInProgress =
-                false;
-
+            this.cycleInProgress = false;
         }
-
     },
 
     async runBaseAnalysis() {
@@ -1307,116 +1073,27 @@ RG30.Orchestrator = {
 
     },
 
-    async handlePhaseRequest(
-        phase
-    ) {
-
-        const normalized =
-            String(
-                phase || ""
-            )
-                .trim()
-                .toLowerCase();
-
-        if (
-            normalized ===
-                "observe" ||
-            normalized ===
-                "collect" ||
-            normalized ===
-                "normalize" ||
-            normalized ===
-                "verify" ||
-            normalized ===
-                "compare" ||
-            normalized ===
-                "conflict" ||
-            normalized ===
-                "decide" ||
-            normalized ===
-                "gate" ||
-            normalized ===
-                "learn"
-        ) {
-
-            this.writeCommander(
-
-                this.text(
-
-                    `Phase ${phase} requested. Running a fresh V30 verification cycle.`,
-
-                    `تم طلب مرحلة ${this.getPhaseLabel(
-                        phase
-                    )}. جارٍ تشغيل دورة تحقق جديدة في V30.`
-
-                ),
-
-                "info"
-
-            );
-
-            await this.runCycle();
-
+    async handlePhaseRequest(phase) {
+        const normalized = String(phase || "").trim().toLowerCase();
+        const phases = ["observe", "collect", "normalize", "verify", "compare", "conflict", "decide", "gate", "report", "learn"];
+        if (!phases.includes(normalized)) return;
+        if (normalized === "report") {
+            const summary = this.latestReportSummary || window.RG30?.VerificationEngine?.latestNationalSummary;
+            const results = this.latestReportResults?.length ? this.latestReportResults : (window.RG30?.VerificationEngine?.latestVerification || []);
+            this.renderV30Report(summary, results);
+            this.scrollToElement("reportPanel");
             return;
-
         }
-
-        if (
-            normalized ===
-            "report"
-        ) {
-
-            const summary =
-                this.latestReportSummary ||
-                window.RG30
-                    ?.VerificationEngine
-                    ?.latestNationalSummary;
-
-            const results =
-                this.latestReportResults
-                    ?.length
-                    ? this.latestReportResults
-                    : (
-                        window.RG30
-                            ?.VerificationEngine
-                            ?.latestVerification ||
-                        []
-                    );
-
-            this.setPhase(
-                "Report"
-            );
-
-            this.renderV30Report(
-                summary,
-                results
-            );
-
-            this.scrollToElement(
-                "reportPanel"
-            );
-
-            return;
-
-        }
-
-        this.writeCommander(
-
-            this.text(
-
-                `Phase ${phase} is connected to the current V30 verification cycle.`,
-
-                `المرحلة ${this.getPhaseLabel(
-                    phase
-                )} مرتبطة بدورة التحقق الحالية في V30.`
-
-            ),
-
-            "info"
-
-        );
-
+        // A phase button is navigation, not a separate execution engine.
+        // Never start an entire new cycle merely by selecting a phase.
+        this.writeCommander(this.text(
+            `Phase ${this.getPhaseLabel(phase)} selected. Live execution follows the V30 cycle.`,
+            `تم اختيار مرحلة ${this.getPhaseLabel(phase)}. التنفيذ الفعلي يتبع دورة V30.`
+        ), "info");
+        const target = document.querySelector(`[data-v30-panel="${normalized}"]`) || document.getElementById(`phase-${normalized}`);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
     },
+
 
     async handleCommanderCommand(
         command
@@ -1729,6 +1406,8 @@ RG30.Orchestrator = {
     setPhase(
         phase
     ) {
+
+        this.currentPhase = String(phase ?? "");
 
         const rawPhase =
             String(
@@ -2712,6 +2391,8 @@ RG30.Orchestrator = {
             running:
                 this.running,
 
+            currentPhase: this.currentPhase,
+
             cycleInProgress:
                 this.cycleInProgress,
 
@@ -2749,6 +2430,9 @@ RG30.Orchestrator = {
 
         this.running =
             false;
+
+        ++this.runGeneration;
+        if (this.autoStartTimer !== null) { clearTimeout(this.autoStartTimer); this.autoStartTimer = null; }
 
         this.cycleInProgress =
             false;
