@@ -1,8 +1,13 @@
 (function(global){
   "use strict";
   const NAME="HydroSHEDSFlowAccumulationAdapterV32",VERSION="FORECAST-1J6G11.0";
-  const META_URL="/data/hydrology/saudi_hydrosheds_acc_15s.meta.json";
-  const DATA_URL="/data/hydrology/saudi_hydrosheds_acc_15s.u32";
+  
+  const META_URL =
+    "/frontend/data/hydrology/saudi_hydrosheds_acc_15s.meta.json";
+
+  const DATA_URL =
+    "/frontend/data/hydrology/saudi_hydrosheds_acc_15s.u32";
+
   const MAX_WINDOW_BYTES=4*1024*1024;
   let metadataPromise=null;
   const rad=x=>x*Math.PI/180;
