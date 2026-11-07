@@ -1,3 +1,4 @@
+
 /* =========================================================
    RainGuard AI V30
    National Source Adapter Layer
@@ -11,7 +12,7 @@ window.RG30 =
 RG30.SourceAdapter = {
 
     version:
-        "30.1.0-bilingual",
+        "30.1.1-bilingual-openmeteo-30.0.2",
 
     initialized:
         false,
@@ -998,6 +999,7 @@ RG30.SourceAdapter = {
 
                 error:
                     error
+
                         ?.message ||
                     String(
                         error
@@ -1498,6 +1500,7 @@ async collect(
 
                             details:
                                 sourceResult.details ||
+
                                 {}
                         }
                     });
@@ -2997,6 +3000,7 @@ async collect(
 
             rainAmount:
                 0,
+
 
             signalScore:
                 0,
@@ -4498,6 +4502,7 @@ async collect(
 
         if (
             !collection ||
+
             !collection.sourceStates
         ) {
 
@@ -5189,6 +5194,241 @@ async collect(
     }
 
 };
+
+
+/* =========================================================
+   OPEN-METEO V30.0.2 COMPATIBILITY FIX
+   Keep original public methods, events and V32 exports.
+   ========================================================= */
+(function installOpenMeteoCompatibility() {
+    const adapter = window.RG30.SourceAdapter;
+    const originalNormalize = adapter.normalizeSourceResult;
+    const originalCache = adapter.getCachedResult;
+    const originalVerify = adapter.toVerificationCities;
+    const originalBridge = adapter.collect;
+    const originalCity = adapter.normalizeCity;
+
+    function finite(value) {
+        if (value === null || value === undefined || value === "" ||
+            (typeof value !== "number" && typeof value !== "string")) return null;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    }
+    function bounded(value, min, max) {
+        const n = finite(value);
+        return n === null ? null : Math.max(min, Math.min(max, n));
+    }
+    function iso(value) {
+        if (typeof value !== "string" || !value.trim()) return null;
+        const t = Date.parse(value);
+        return Number.isFinite(t) ? new Date(t).toISOString() : null;
+    }
+    function age(value) {
+        const timestamp = iso(value);
+        return timestamp === null ? null : Math.max(0, Math.round((Date.now() - Date.parse(timestamp)) / 60000));
+    }
+    function normalizeConfidence(value, fallback) {
+        const n = finite(value);
+        if (n === null) return fallback;
+        return Math.max(0, Math.min(1, n > 1 ? n / 100 : n));
+    }
+    function normalizedProbability(value) {
+        const n = bounded(value, 0, 100);
+        return n === null ? null : n / 100;
+    }
+    function weatherMeta(source) {
+        return {
+            fetchedAt: iso(source.fetchedAt || source.details?.fetchedAt),
+            forecastValidTime: iso(source.forecastValidTime || source.details?.forecastValidTime || source.timestamp),
+            forecastWindows: source.forecastWindows || null,
+            rainDataAvailable: source.rainDataAvailable === true,
+            rainDataComplete6h: source.rainDataComplete6h === true,
+            currentRainAmount: bounded(source.currentRainAmount, 0, 10000),
+            currentRainProbability: bounded(source.currentRainProbability, 0, 100),
+            forecastRainAmount6h: bounded(source.forecastRainAmount6h, 0, 10000),
+            forecastRainProbability6h: bounded(source.forecastRainProbability6h, 0, 100),
+            forecastAgeMinutes: finite(source.forecastAgeMinutes)
+        };
+    }
+
+    adapter.normalizeCity = function (city, index = 0) {
+        const c = originalCity.call(this, city || {}, index);
+        c.lat = finite(city?.lat ?? city?.latitude);
+        c.lon = finite(city?.lon ?? city?.lng ?? city?.longitude);
+        c.region = city?.region ?? city?.area ?? null;
+        return c;
+    };
+
+    adapter.normalizeSourceResult = function (args) {
+        if (args.sourceKey !== "openMeteo") {
+            return originalNormalize.call(this, args);
+        }
+        const raw = args.rawResult && typeof args.rawResult === "object" ? args.rawResult : {};
+        const base = originalNormalize.call(this, args);
+        const available = raw.available === true && raw.ok !== false;
+        const meta = weatherMeta(raw);
+        const timestamp = meta.forecastValidTime;
+        const fetchedAt = meta.fetchedAt;
+        const result = {
+            ...base,
+            available,
+            status: available ? (raw.status || "AVAILABLE") : (raw.status || "UNAVAILABLE"),
+            timestamp,
+            fetchedAt,
+            forecastValidTime: timestamp,
+            ageMinutes: age(fetchedAt),
+            forecastAgeMinutes: age(timestamp),
+            rainProbability: bounded(raw.rainProbability, 0, 100),
+            rainAmount: bounded(raw.rainAmount, 0, 10000),
+            currentRainAmount: meta.currentRainAmount,
+            currentRainProbability: meta.currentRainProbability,
+            forecastRainAmount6h: meta.forecastRainAmount6h,
+            forecastRainProbability6h: meta.forecastRainProbability6h,
+            rainDataAvailable: meta.rainDataAvailable,
+            rainDataComplete6h: meta.rainDataComplete6h,
+            forecastWindows: meta.forecastWindows,
+            signalScore: bounded(raw.signalScore, 0, 100),
+            confidence: bounded(raw.confidence, 0, 100),
+            humidity: bounded(raw.humidity, 0, 100),
+            cloudCover: bounded(raw.cloudCover, 0, 100),
+            windSpeed: bounded(raw.windSpeed, 0, 1000),
+            windDirection: bounded(raw.windDirection, 0, 360),
+            temperature: finite(raw.temperature),
+            error: raw.error || null,
+            raw: raw.raw ?? null,
+            details: {
+                ...(raw.details || {}),
+                fetchedAt,
+                forecastValidTime: timestamp,
+                humidity: bounded(raw.humidity ?? raw.details?.humidity, 0, 100),
+                cloudCover: bounded(raw.cloudCover ?? raw.details?.cloudCover, 0, 100),
+                windSpeed: bounded(raw.windSpeed ?? raw.details?.windSpeed, 0, 1000),
+                pressure: finite(raw.details?.pressure),
+                currentRainAmount: meta.currentRainAmount,
+                forecastRainAmount6h: meta.forecastRainAmount6h,
+                rainDataAvailable: meta.rainDataAvailable,
+                rainDataComplete6h: meta.rainDataComplete6h
+            }
+        };
+        if (!available) {
+            result.rainAmount = null;
+            result.rainProbability = null;
+            result.signalScore = null;
+        }
+        return result;
+    };
+
+    adapter.getCachedResult = function (sourceKey, city) {
+        const result = originalCache.call(this, sourceKey, city);
+        if (!result || sourceKey !== "openMeteo") return result;
+        return {
+            ...result,
+            ageMinutes: age(result.fetchedAt),
+            forecastAgeMinutes: age(result.forecastValidTime)
+        };
+    };
+
+    adapter.toVerificationCities = function (collection) {
+        const data = originalVerify.call(this, collection);
+        const sourceCollection = collection || this.latestCollection || this.lastCollection;
+        if (!Array.isArray(sourceCollection?.cities)) return data;
+        return data.map((city, index) => {
+            const source = sourceCollection.cities[index]?.sources?.openMeteo || {};
+            const meta = weatherMeta(source);
+            return {
+                ...city,
+                openMeteoData: {
+                    ...city.openMeteoData,
+                    available: source.available === true,
+                    rainProbability: bounded(source.rainProbability, 0, 100),
+                    rainAmount: bounded(source.rainAmount, 0, 10000),
+                    humidity: bounded(source.humidity ?? source.details?.humidity, 0, 100),
+                    cloudCover: bounded(source.cloudCover ?? source.details?.cloudCover, 0, 100),
+                    windSpeed: bounded(source.windSpeed ?? source.details?.windSpeed, 0, 1000),
+                    pressure: finite(source.details?.pressure),
+                    confidence: bounded(source.confidence, 0, 100),
+                    signalScore: bounded(source.signalScore, 0, 100),
+                    timestamp: meta.forecastValidTime,
+                    fetchedAt: meta.fetchedAt,
+                    forecastValidTime: meta.forecastValidTime,
+                    ageMinutes: age(meta.fetchedAt),
+                    forecastAgeMinutes: age(meta.forecastValidTime),
+                    forecastWindows: meta.forecastWindows,
+                    rainDataAvailable: meta.rainDataAvailable,
+                    rainDataComplete6h: meta.rainDataComplete6h,
+                    currentRainAmount: meta.currentRainAmount,
+                    currentRainProbability: meta.currentRainProbability,
+                    forecastRainAmount6h: meta.forecastRainAmount6h,
+                    forecastRainProbability6h: meta.forecastRainProbability6h
+                }
+            };
+        });
+    };
+
+    adapter.collect = async function (context = {}) {
+        const output = await originalBridge.call(this, context);
+        const collection = this.latestCollection;
+        if (!collection?.ok || !Array.isArray(collection.cities)) return output;
+        const lookup = new Map();
+        collection.cities.forEach(city => {
+            const key = String(city.cityId);
+            const source = city.sources?.openMeteo;
+            if (source?.available === true) lookup.set(key, source);
+        });
+        // Original bridge mislabels six-hour precipitation totals as
+        // instantaneous rain intensity. Replace only Open-Meteo entries.
+        output.observations = (output.observations || []).map(entry => {
+            if (entry.source !== "openMeteo") return entry;
+            const source = lookup.get(String(entry.locationId));
+            if (!source) return entry;
+            const nowRain = bounded(source.currentRainAmount, 0, 10000);
+            return {
+                ...entry,
+                timestamp: iso(source.forecastValidTime) || null,
+                rainIntensity: null, // hourly rate is not provided by this adapter
+                rainAmountCurrent: nowRain,
+                rainProbability: normalizedProbability(source.currentRainProbability),
+                rainingNow: nowRain === null ? null : nowRain > 0,
+                confidence: normalizeConfidence(source.confidence, normalizeConfidence(source.reliability, 0)),
+                metadata: {
+                    ...(entry.metadata || {}),
+                    fetchedAt: iso(source.fetchedAt),
+                    forecastValidTime: iso(source.forecastValidTime),
+                    rainAmountCurrent: nowRain,
+                    rainAmount6h: bounded(source.forecastRainAmount6h, 0, 10000),
+                    forecastWindows: source.forecastWindows || null,
+                    rainDataAvailable: source.rainDataAvailable === true,
+                    rainDataComplete6h: source.rainDataComplete6h === true,
+                    rainIntensityAvailable: false
+                }
+            };
+        });
+        output.forecasts = (output.forecasts || []).map(entry => {
+            if (entry.source !== "openMeteo") return entry;
+            const source = lookup.get(String(entry.locationId));
+            if (!source) return entry;
+            return {
+                ...entry,
+                generatedAt: iso(source.fetchedAt),
+                forecastTimestamp: iso(source.forecastValidTime),
+                rainIntensity: null,
+                rainAmount6h: bounded(source.forecastRainAmount6h, 0, 10000),
+                rainProbability: normalizedProbability(source.forecastRainProbability6h ?? source.rainProbability),
+                confidence: normalizeConfidence(source.confidence, normalizeConfidence(source.reliability, 0)),
+                metadata: {
+                    ...(entry.metadata || {}),
+                    fetchedAt: iso(source.fetchedAt),
+                    forecastValidTime: iso(source.forecastValidTime),
+                    forecastWindows: source.forecastWindows || null,
+                    rainDataAvailable: source.rainDataAvailable === true,
+                    rainDataComplete6h: source.rainDataComplete6h === true,
+                    precipitationUnit: "mm_per_6h_total"
+                }
+            };
+        });
+        return output;
+    };
+})();
 
 /* =========================================================
    RECOVERY CORE V32 COMPATIBILITY EXPORT
