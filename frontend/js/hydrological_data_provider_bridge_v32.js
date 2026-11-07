@@ -128,6 +128,33 @@
             center, north, south, east, west, sampleMeters
         );
 
+       // FORECAST-1J3-WADI: Real HydroRIVERS integration
+let wadiResult = null;
+let wadiError = null;
+
+try {
+    const loader = window.HydroRiversTileLoaderV32;
+
+    if (typeof loader?.evaluateCity === "function") {
+        wadiResult = await loader.evaluateCity(city);
+    } else {
+        wadiError = "HYDRORIVERS_LOADER_NOT_READY";
+    }
+} catch (error) {
+    wadiError = String(error?.message || error);
+}
+
+const wadiDistance = Number(
+    wadiResult?.proximity?.distanceM
+);
+
+const wadiAvailable =
+    wadiResult?.status === "REAL_WADI_PROXIMITY_READY" &&
+    wadiResult?.proximity?.available === true &&
+    wadiResult?.available === true &&
+    Number.isFinite(wadiDistance) &&
+    wadiDistance >= 0;
+
         const evidence = {
             terrain: {
                 available: true,
@@ -159,10 +186,23 @@
             },
 
             wadi_proximity: {
-                available: false,
-                value: null,
-                source: null
-            },
+    available: wadiAvailable,
+    value: wadiAvailable ? wadiDistance : null,
+    unit: wadiAvailable ? "m" : null,
+    source: wadiAvailable ? "HydroRIVERS" : null,
+    observedAt: null,
+    quality: wadiAvailable
+        ? "DERIVED_FROM_REAL_EXTERNAL_DATA"
+        : null,
+    metadata: wadiAvailable
+        ? {
+            tile: wadiResult.tile,
+            featureCount: wadiResult.featureCount,
+            method: "nearest_watercourse_distance",
+            dataset: "HydroRIVERS"
+        }
+        : null
+},
 
             drainage_capacity: {
                 available: false,
@@ -211,13 +251,24 @@
                 west: round(west, 1)
             },
             context,
-            connectedFactors: ["terrain", "slope"],
-            pendingRealProviders: [
-                "wadi_proximity",
-                "drainage_capacity",
-                "soil_moisture",
-                "land_cover"
-            ]
+            connectedFactors: [
+    "terrain",
+    "slope",
+    ...(wadiAvailable ? ["wadi_proximity"] : [])
+],
+pendingRealProviders: [
+    ...(!wadiAvailable ? ["wadi_proximity"] : []),
+    "drainage_capacity",
+    "soil_moisture",
+    "land_cover"
+],
+wadiIntegration: {
+    available: wadiAvailable,
+    status: wadiResult?.status ??
+        "REAL_WADI_PROVIDER_UNAVAILABLE",
+    error: wadiError,
+    tile: wadiResult?.tile ?? null
+}
         };
 
         window.RG32 = window.RG32 || {};
