@@ -1,1633 +1,1443 @@
-/* =========================================================
-   RainGuard AI V30
-   Open-Meteo Forecast Adapter
-   File: frontend/js/openmeteo_adapter_v30.js
-   ========================================================= */
+
+/* RainGuard AI V30 - Open-Meteo Forecast Adapter
+ * Corrected version: 30.0.2
+ * File: frontend/js/openmeteo_adapter_v30.js
+ * Forecasts are model estimates, not official warnings.
+ */
 
 window.RG30 = window.RG30 || {};
 
 RG30.OpenMeteoAdapter = {
+  version: "30.0.2",
+  initialized: false,
 
-    version: "30.0.0",
+  lastRequestAt: null,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  lastError: null,
 
-    initialized: false,
+  cache: new Map(),
 
-    lastRequestAt: null,
-    lastSuccessAt: null,
-    lastFailureAt: null,
-    lastError: null,
+  config: {
+    enabled: true,
+    endpoint: "https://api.open-meteo.com/v1/forecast",
+    timezone: "Asia/Riyadh",
+    timeoutMs: 15000,
+    cacheMinutes: 10,
+    forecastDays: 4,
+    defaultReliability: 0.80,
 
-    cache: new Map(),
+    hourlyVariables: [
+      "temperature_2m",
+      "relative_humidity_2m",
+      "precipitation_probability",
+      "precipitation",
+      "rain",
+      "cloud_cover",
+      "wind_speed_10m",
+      "wind_direction_10m",
+      "weather_code"
+    ],
 
-    config: {
-        enabled: true,
+    currentVariables: [
+      "temperature_2m",
+      "relative_humidity_2m",
+      "precipitation",
+      "rain",
+      "cloud_cover",
+      "wind_speed_10m",
+      "wind_direction_10m",
+      "weather_code"
+    ]
+  },
 
-        endpoint:
-            "https://api.open-meteo.com/v1/forecast",
+  init() {
+    if (this.initialized) return;
 
-        timezone:
-            "Asia/Riyadh",
+    this.initialized = true;
 
-        timeoutMs:
-            15000,
+    console.log(
+      `RG30 Open-Meteo Adapter ${this.version} initialized.`
+    );
 
-        cacheMinutes:
-            10,
-
-        forecastDays:
-            4,
-
-        defaultReliability:
-            0.80,
-
-        hourlyVariables: [
-            "temperature_2m",
-            "relative_humidity_2m",
-            "precipitation_probability",
-            "precipitation",
-            "rain",
-            "cloud_cover",
-            "wind_speed_10m",
-            "wind_direction_10m",
-            "weather_code"
-        ],
-
-        currentVariables: [
-            "temperature_2m",
-            "relative_humidity_2m",
-            "precipitation",
-            "rain",
-            "cloud_cover",
-            "wind_speed_10m",
-            "wind_direction_10m",
-            "weather_code"
-        ]
-    },
-
-    /* =====================================================
-       INITIALIZATION
-       ===================================================== */
-
-    init() {
-        if (this.initialized) {
-            return;
+    window.dispatchEvent(
+      new CustomEvent("rg30:openmeteo-adapter-ready", {
+        detail: {
+          version: this.version,
+          endpoint: this.config.endpoint,
+          timestamp: new Date().toISOString()
         }
-
-        this.initialized = true;
-
-        console.log(
-            `RG30 Open-Meteo Adapter ${this.version} initialized.`
-        );
-
-        window.dispatchEvent(
-            new CustomEvent(
-                "rg30:openmeteo-adapter-ready",
-                {
-                    detail: {
-                        version:
-                            this.version,
-
-                        endpoint:
-                            this.config.endpoint,
-
-                        timestamp:
-                            new Date().toISOString()
-                    }
-                }
-            )
-        );
-    },
-
-    /* =====================================================
-       CONFIGURATION
-       ===================================================== */
-
-    configure(options = {}) {
-        if (
-            !options ||
-            typeof options !== "object"
-        ) {
-            return false;
-        }
-
-        this.config = {
-            ...this.config,
-            ...options
-        };
-
-        return true;
-    },
-
-    isConfigured() {
-        return Boolean(
-            this.config.enabled &&
-            this.config.endpoint
-        );
-    },
-
-    /* =====================================================
-       MAIN COLLECTION
-       ===================================================== */
-
-    async collect(city = {}) {
-        const normalizedCity =
-            this.normalizeCity(city);
-
-        if (!this.config.enabled) {
-            return this.createUnavailableResult(
-                normalizedCity,
-                "DISABLED",
-                "Open-Meteo adapter is disabled."
-            );
-        }
-
-        if (!this.isConfigured()) {
-            return this.createUnavailableResult(
-                normalizedCity,
-                "UNAVAILABLE",
-                "OPENMETEO_ENDPOINT_NOT_CONFIGURED"
-            );
-        }
-
-        const cached =
-            this.getCachedResult(
-                normalizedCity
-            );
-
-        if (cached) {
-            return {
-                ...cached,
-                fromCache: true
-            };
-        }
-
-        this.lastRequestAt =
-            new Date().toISOString();
-
-        const startedAt =
-            Date.now();
-
-        try {
-            const payload =
-                await this.fetchForecast(
-                    normalizedCity
-                );
-
-            const normalized =
-                this.normalizeForecastResponse(
-                    payload,
-                    normalizedCity
-                );
-
-            const result = {
-                sourceKey:
-                    "openMeteo",
-
-                sourceName:
-                    "Open-Meteo",
-
-                provider:
-                    "Open-Meteo Forecast API",
-
-                available:
-                    true,
-
-                ok:
-                    true,
-
-                official:
-                    false,
-
-                status:
-                    "AVAILABLE",
-
-                city:
-                    normalizedCity.name,
-
-                lat:
-                    normalizedCity.lat,
-
-                lon:
-                    normalizedCity.lon,
-
-                region:
-                    normalizedCity.region,
-
-                timestamp:
-                    normalized.timestamp,
-
-                ageMinutes:
-                    this.calculateAgeMinutes(
-                        normalized.timestamp
-                    ),
-
-                reliability:
-                    this.config
-                        .defaultReliability,
-
-                trust:
-                    this.config
-                        .defaultReliability,
-
-                rainProbability:
-                    normalized.rainProbability,
-
-                rainAmount:
-                    normalized.rainAmount,
-
-                signalScore:
-                    normalized.signalScore,
-
-                confidence:
-                    normalized.confidence,
-
-                warningLevel:
-                    normalized.warningLevel,
-
-                weatherCondition:
-                    normalized.weatherCondition,
-
-                temperature:
-                    normalized.temperature,
-
-                humidity:
-                    normalized.humidity,
-
-                cloudCover:
-                    normalized.cloudCover,
-
-                windSpeed:
-                    normalized.windSpeed,
-
-                windDirection:
-                    normalized.windDirection,
-
-                forecastWindows:
-                    normalized.forecastWindows,
-
-                details: {
-                    currentWeatherCode:
-                        normalized.weatherCode,
-
-                    currentWeatherText:
-                        this.weatherCodeToText(
-                            normalized.weatherCode
-                        ),
-
-                    modelLatitude:
-                        payload.latitude,
-
-                    modelLongitude:
-                        payload.longitude,
-
-                    elevation:
-                        payload.elevation,
-
-                    timezone:
-                        payload.timezone,
-
-                    utcOffsetSeconds:
-                        payload.utc_offset_seconds,
-
-                    responseTimeMs:
-                        Date.now() -
-                        startedAt,
-
-                    humidity:
-                        normalized.humidity,
-
-                    cloudCover:
-                        normalized.cloudCover,
-
-                    windSpeed:
-                        normalized.windSpeed,
-
-                    windDirection:
-                        normalized.windDirection,
-
-                    currentTemperature:
-                        normalized.temperature,
-
-                    hourlySampleCount:
-                        normalized.hourlySampleCount
-                },
-
-                raw:
-                    payload,
-
-                error:
-                    null
-            };
-
-            this.lastSuccessAt =
-                new Date().toISOString();
-
-            this.lastError =
-                null;
-
-            this.setCachedResult(
-                normalizedCity,
-                result
-            );
-
-            this.publishSuccess(
-                result
-            );
-
-            return result;
-
-        } catch (error) {
-            this.lastFailureAt =
-                new Date().toISOString();
-
-            this.lastError =
-                error?.message ||
-                String(error);
-
-            console.warn(
-                "RG30 Open-Meteo Adapter request failed:",
-                error
-            );
-
-            const failure =
-                this.createUnavailableResult(
-                    normalizedCity,
-                    "UNAVAILABLE",
-                    this.lastError
-                );
-
-            this.publishFailure(
-                failure
-            );
-
-            return failure;
-        }
-    },
-
-    /* =====================================================
-       API REQUEST
-       ===================================================== */
-
-    async fetchForecast(city) {
-        const params =
-            new URLSearchParams({
-                latitude:
-                    String(city.lat),
-
-                longitude:
-                    String(city.lon),
-
-                timezone:
-                    this.config.timezone,
-
-                forecast_days:
-                    String(
-                        this.config.forecastDays
-                    ),
-
-                current:
-                    this.config
-                        .currentVariables
-                        .join(","),
-
-                hourly:
-                    this.config
-                        .hourlyVariables
-                        .join(",")
-            });
-
-        const url =
-            `${this.config.endpoint}?${params.toString()}`;
-
-        const response =
-            await this.fetchWithTimeout(
-                url,
-                {
-                    method:
-                        "GET",
-
-                    headers: {
-                        Accept:
-                            "application/json"
-                    }
-                },
-                this.config.timeoutMs
-            );
-
-        if (!response.ok) {
-            throw new Error(
-                `OPENMETEO_HTTP_${response.status}`
-            );
-        }
-
-        const contentType =
-            response.headers.get(
-                "content-type"
-            ) || "";
-
-        if (
-            !contentType.includes(
-                "application/json"
-            )
-        ) {
-            throw new Error(
-                "OPENMETEO_INVALID_CONTENT_TYPE"
-            );
-        }
-
-        const payload =
-            await response.json();
-
-        if (
-            payload?.error === true
-        ) {
-            throw new Error(
-                payload.reason ||
-                "OPENMETEO_API_ERROR"
-            );
-        }
-
-        return payload;
-    },
-
-    /* =====================================================
-       RESPONSE NORMALIZATION
-       ===================================================== */
-
-    normalizeForecastResponse(
-        payload = {},
-        city = {}
+      })
+    );
+  },
+
+  configure(options = {}) {
+    if (
+      !options ||
+      typeof options !== "object" ||
+      Array.isArray(options)
     ) {
-        const current =
-            payload.current || {};
+      return false;
+    }
 
-        const hourly =
-            payload.hourly || {};
+    const old = JSON.stringify(this.config);
 
-        const times =
-            Array.isArray(hourly.time)
-                ? hourly.time
-                : [];
+    this.config = {
+      ...this.config,
+      ...options
+    };
 
-        const startIndex =
-            this.findCurrentHourIndex(
-                times
-            );
+    if (old !== JSON.stringify(this.config)) {
+      this.clearCache();
+    }
 
-        const currentRainProbability =
-            this.getHourlyValue(
-                hourly.precipitation_probability,
-                startIndex
-            );
+    return true;
+  },
 
-        const currentRainAmount =
-            this.firstNumber(
-                current.precipitation,
-                current.rain,
-                this.getHourlyValue(
-                    hourly.precipitation,
-                    startIndex
-                ),
-                this.getHourlyValue(
-                    hourly.rain,
-                    startIndex
-                )
-            );
+  isConfigured() {
+    return Boolean(
+      this.config.enabled &&
+      this.config.endpoint
+    );
+  },
 
-        const temperature =
-            this.firstNumber(
-                current.temperature_2m,
-                this.getHourlyValue(
-                    hourly.temperature_2m,
-                    startIndex
-                )
-            );
+  async collect(city = {}) {
+    const normalizedCity = this.normalizeCity(city);
 
-        const humidity =
-            this.firstNumber(
-                current.relative_humidity_2m,
-                this.getHourlyValue(
-                    hourly.relative_humidity_2m,
-                    startIndex
-                )
-            );
+    if (!this.config.enabled) {
+      return this.createUnavailableResult(
+        normalizedCity,
+        "DISABLED",
+        "Open-Meteo adapter is disabled."
+      );
+    }
 
-        const cloudCover =
-            this.firstNumber(
-                current.cloud_cover,
-                this.getHourlyValue(
-                    hourly.cloud_cover,
-                    startIndex
-                )
-            );
+    if (!this.isConfigured()) {
+      return this.createUnavailableResult(
+        normalizedCity,
+        "UNAVAILABLE",
+        "OPENMETEO_ENDPOINT_NOT_CONFIGURED"
+      );
+    }
 
-        const windSpeed =
-            this.firstNumber(
-                current.wind_speed_10m,
-                this.getHourlyValue(
-                    hourly.wind_speed_10m,
-                    startIndex
-                )
-            );
+    if (!this.validCoordinates(normalizedCity)) {
+      return this.createUnavailableResult(
+        normalizedCity,
+        "UNAVAILABLE",
+        "INVALID_CITY_COORDINATES"
+      );
+    }
 
-        const windDirection =
-            this.firstNumber(
-                current.wind_direction_10m,
-                this.getHourlyValue(
-                    hourly.wind_direction_10m,
-                    startIndex
-                )
-            );
+    const cached = this.getCachedResult(normalizedCity);
 
-        const weatherCode =
-            this.firstNumber(
-                current.weather_code,
-                this.getHourlyValue(
-                    hourly.weather_code,
-                    startIndex
-                )
-            );
+    if (cached) {
+      return {
+        ...cached,
+        fromCache: true
+      };
+    }
 
-        const forecastWindows = {
-            h6: this.calculateWindow(
-                hourly,
-                startIndex,
-                6
-            ),
+    this.lastRequestAt = new Date().toISOString();
 
-            h24: this.calculateWindow(
-                hourly,
-                startIndex,
-                24
-            ),
+    const startedAt = Date.now();
 
-            h72: this.calculateWindow(
-                hourly,
-                startIndex,
-                72
-            )
-        };
+    try {
+      const payload = await this.fetchForecast(normalizedCity);
 
-        const rainProbability =
-            this.clamp(
-                Math.max(
-                    currentRainProbability,
-                    forecastWindows.h6
-                        .maxProbability
-                ),
-                0,
-                100
-            );
+      const normalized = this.normalizeForecastResponse(
+        payload,
+        normalizedCity
+      );
 
-        const rainAmount =
-            this.clamp(
-                Math.max(
-                    currentRainAmount,
-                    forecastWindows.h6
-                        .rainAmount
-                ),
-                0,
-                1000
-            );
+      if (!normalized.hasWeatherData) {
+        throw new Error("OPENMETEO_NO_VALID_WEATHER_DATA");
+      }
 
-        const signalScore =
-            this.calculateSignalScore({
-                rainProbability,
-                rainAmount,
-                humidity,
-                cloudCover,
-                weatherCode
-            });
+      const fetchedAt = new Date().toISOString();
 
-        const confidence =
-            this.calculateConfidence({
-                rainProbability,
-                rainAmount,
-                humidity,
-                cloudCover,
-                sampleCount:
-                    times.length
-            });
+      const result = {
+        sourceKey: "openMeteo",
+        sourceName: "Open-Meteo",
+        provider: "Open-Meteo Forecast API",
 
-        const warningLevel =
-            this.getWarningLevel({
-                rainProbability,
-                rainAmount,
-                signalScore
-            });
+        available: true,
+        ok: true,
+        official: false,
+        status: "AVAILABLE",
 
-        return {
-            timestamp:
-                current.time ||
-                times[startIndex] ||
-                new Date().toISOString(),
+        city: normalizedCity.name,
+        lat: normalizedCity.lat,
+        lon: normalizedCity.lon,
+        region: normalizedCity.region,
 
-            rainProbability:
-                Math.round(
-                    rainProbability
-                ),
+        timestamp: normalized.forecastValidTime,
+        forecastValidTime: normalized.forecastValidTime,
+        fetchedAt,
 
-            rainAmount:
-                Number(
-                    rainAmount.toFixed(2)
-                ),
+        ageMinutes: 0,
 
-            signalScore:
-                Math.round(
-                    signalScore
-                ),
+        forecastAgeMinutes: this.calculateAgeMinutes(
+          normalized.forecastValidTime
+        ),
 
-            confidence:
-                Math.round(
-                    confidence
-                ),
+        reliability: this.config.defaultReliability,
+        trust: this.config.defaultReliability,
 
-            warningLevel,
+        rainProbability: normalized.rainProbability,
+        rainAmount: normalized.rainAmount,
 
-            weatherCondition:
-                this.weatherCodeToText(
-                    weatherCode
-                ),
+        currentRainProbability:
+          normalized.currentRainProbability,
 
-            weatherCode,
+        currentRainAmount:
+          normalized.currentRainAmount,
 
-            temperature:
-                Number(
-                    this.safeNumber(
-                        temperature,
-                        0
-                    ).toFixed(1)
-                ),
+        forecastRainProbability6h:
+          normalized.forecastRainProbability6h,
 
-            humidity:
-                Math.round(
-                    this.clamp(
-                        humidity,
-                        0,
-                        100
-                    )
-                ),
+        forecastRainAmount6h:
+          normalized.forecastRainAmount6h,
 
-            cloudCover:
-                Math.round(
-                    this.clamp(
-                        cloudCover,
-                        0,
-                        100
-                    )
-                ),
+        rainDataAvailable:
+          normalized.rainDataAvailable,
 
-            windSpeed:
-                Number(
-                    this.safeNumber(
-                        windSpeed,
-                        0
-                    ).toFixed(1)
-                ),
+        rainDataComplete6h:
+          normalized.rainDataComplete6h,
 
-            windDirection:
-                Math.round(
-                    this.clamp(
-                        windDirection,
-                        0,
-                        360
-                    )
-                ),
+        signalScore: normalized.signalScore,
+        confidence: normalized.confidence,
 
-            forecastWindows,
+        warningLevel: normalized.warningLevel,
+        weatherCondition: normalized.weatherCondition,
 
-            hourlySampleCount:
-                times.length
-        };
-    },
+        temperature: normalized.temperature,
+        humidity: normalized.humidity,
+        cloudCover: normalized.cloudCover,
+        windSpeed: normalized.windSpeed,
+        windDirection: normalized.windDirection,
 
-    /* =====================================================
-       FORECAST WINDOWS
-       ===================================================== */
+        forecastWindows: normalized.forecastWindows,
 
-    calculateWindow(
-        hourly = {},
-        startIndex = 0,
-        hours = 6
-    ) {
-        const probabilities =
-            this.sliceNumericArray(
-                hourly
-                    .precipitation_probability,
-                startIndex,
-                hours
-            );
+        details: {
+          currentWeatherCode: normalized.weatherCode,
 
-        const precipitation =
-            this.sliceNumericArray(
-                hourly.precipitation,
-                startIndex,
-                hours
-            );
+          currentWeatherText: this.weatherCodeToText(
+            normalized.weatherCode
+          ),
 
-        const rain =
-            this.sliceNumericArray(
-                hourly.rain,
-                startIndex,
-                hours
-            );
+          modelLatitude: payload.latitude,
+          modelLongitude: payload.longitude,
+          elevation: payload.elevation,
 
-        const cloudCover =
-            this.sliceNumericArray(
-                hourly.cloud_cover,
-                startIndex,
-                hours
-            );
+          timezone: payload.timezone,
+          utcOffsetSeconds: payload.utc_offset_seconds,
 
-        const humidity =
-            this.sliceNumericArray(
-                hourly
-                    .relative_humidity_2m,
-                startIndex,
-                hours
-            );
+          responseTimeMs: Date.now() - startedAt,
 
-        const windSpeed =
-            this.sliceNumericArray(
-                hourly.wind_speed_10m,
-                startIndex,
-                hours
-            );
+          humidity: normalized.humidity,
+          cloudCover: normalized.cloudCover,
+          windSpeed: normalized.windSpeed,
+          windDirection: normalized.windDirection,
 
-        const temperatures =
-            this.sliceNumericArray(
-                hourly.temperature_2m,
-                startIndex,
-                hours
-            );
+          currentTemperature: normalized.temperature,
 
-        const rainAmounts =
-            precipitation.length
-                ? precipitation
-                : rain;
+          hourlySampleCount:
+            normalized.hourlySampleCount,
 
-        return {
-            hours,
+          rainDataAvailable:
+            normalized.rainDataAvailable,
 
-            maxProbability:
-                Math.round(
-                    this.max(
-                        probabilities
-                    )
-                ),
+          rainDataComplete6h:
+            normalized.rainDataComplete6h,
 
-            averageProbability:
-                Math.round(
-                    this.average(
-                        probabilities
-                    )
-                ),
+          currentRainAmount:
+            normalized.currentRainAmount,
 
-            rainAmount:
-                Number(
-                    this.sum(
-                        rainAmounts
-                    ).toFixed(2)
-                ),
+          forecastRainAmount6h:
+            normalized.forecastRainAmount6h,
 
-            maxHourlyRain:
-                Number(
-                    this.max(
-                        rainAmounts
-                    ).toFixed(2)
-                ),
+          fetchedAt,
 
-            averageCloudCover:
-                Math.round(
-                    this.average(
-                        cloudCover
-                    )
-                ),
+          forecastValidTime:
+            normalized.forecastValidTime
+        },
 
-            averageHumidity:
-                Math.round(
-                    this.average(
-                        humidity
-                    )
-                ),
+        raw: payload,
+        error: null
+      };
 
-            maxWindSpeed:
-                Number(
-                    this.max(
-                        windSpeed
-                    ).toFixed(1)
-                ),
+      this.lastSuccessAt = fetchedAt;
+      this.lastError = null;
 
-            minTemperature:
-                Number(
-                    this.min(
-                        temperatures
-                    ).toFixed(1)
-                ),
+      this.setCachedResult(normalizedCity, result);
+      this.publishSuccess(result);
 
-            maxTemperature:
-                Number(
-                    this.max(
-                        temperatures
-                    ).toFixed(1)
-                ),
+      return result;
 
-            sampleCount:
-                Math.max(
-                    probabilities.length,
-                    rainAmounts.length
-                )
-        };
-    },
+    } catch (error) {
+      this.lastFailureAt = new Date().toISOString();
 
-    findCurrentHourIndex(times = []) {
-        if (!Array.isArray(times)) {
-            return 0;
+      this.lastError =
+        error?.message || String(error);
+
+      console.warn(
+        "RG30 Open-Meteo Adapter request failed:",
+        error
+      );
+
+      const failure = this.createUnavailableResult(
+        normalizedCity,
+        "UNAVAILABLE",
+        this.lastError
+      );
+
+      this.publishFailure(failure);
+
+      return failure;
+    }
+  },
+
+  async fetchForecast(city) {
+    const params = new URLSearchParams({
+      latitude: String(city.lat),
+      longitude: String(city.lon),
+      timezone: this.config.timezone,
+
+      forecast_days: String(
+        this.config.forecastDays
+      ),
+
+      current: this.config.currentVariables.join(","),
+      hourly: this.config.hourlyVariables.join(",")
+    });
+
+    const response = await this.fetchWithTimeout(
+      `${this.config.endpoint}?${params}`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
         }
+      },
+      this.config.timeoutMs
+    );
 
-        const now =
-            Date.now();
+    if (!response.ok) {
+      throw new Error(
+        `OPENMETEO_HTTP_${response.status}`
+      );
+    }
 
-        let nearestIndex = 0;
-        let nearestDifference =
-            Number.POSITIVE_INFINITY;
+    const contentType =
+      response.headers?.get("content-type") || "";
 
-        times.forEach(
-            (time, index) => {
-                const timestamp =
-                    new Date(time).getTime();
+    if (!contentType.toLowerCase().includes("json")) {
+      throw new Error(
+        "OPENMETEO_INVALID_CONTENT_TYPE"
+      );
+    }
 
-                if (
-                    !Number.isFinite(
-                        timestamp
-                    )
-                ) {
-                    return;
-                }
+    const payload = await response.json();
 
-                const difference =
-                    Math.abs(
-                        timestamp - now
-                    );
-
-                if (
-                    difference <
-                    nearestDifference
-                ) {
-                    nearestDifference =
-                        difference;
-
-                    nearestIndex =
-                        index;
-                }
-            }
-        );
-
-        return nearestIndex;
-    },
-
-    getHourlyValue(
-        values,
-        index
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      payload.error === true
     ) {
-        if (
-            !Array.isArray(values)
-        ) {
-            return 0;
-        }
+      throw new Error(
+        payload?.reason || "OPENMETEO_API_ERROR"
+      );
+    }
 
-        return this.safeNumber(
-            values[index],
-            0
-        );
-    },
+    return payload;
+  },
 
-    sliceNumericArray(
-        values,
+  // Convert model-local time to UTC.
+  parseModelTime(value, utcOffsetSeconds = 0) {
+    if (
+      typeof value !== "string" ||
+      !value.trim()
+    ) {
+      return null;
+    }
+
+    const s = value.trim();
+
+    if (/[zZ]$|[+-]\d\d:\d\d$/.test(s)) {
+      const t = Date.parse(s);
+
+      return Number.isFinite(t)
+        ? new Date(t).toISOString()
+        : null;
+    }
+
+    const match = s.match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
+    );
+
+    if (!match) return null;
+
+    const [, y, mo, d, h, mi, sec] = match;
+
+    const offset = this.safeNumber(
+      utcOffsetSeconds,
+      null
+    );
+
+    if (
+      offset === null ||
+      Math.abs(offset) > 86400
+    ) {
+      return null;
+    }
+
+    const wallTime = Date.UTC(
+      +y,
+      +mo - 1,
+      +d,
+      +h,
+      +mi,
+      +(sec || 0)
+    );
+
+    const check = new Date(wallTime);
+
+    if (
+      check.getUTCFullYear() !== +y ||
+      check.getUTCMonth() !== +mo - 1 ||
+      check.getUTCDate() !== +d ||
+      check.getUTCHours() !== +h ||
+      check.getUTCMinutes() !== +mi
+    ) {
+      return null;
+    }
+
+    return new Date(
+      wallTime - offset * 1000
+    ).toISOString();
+  },
+
+  normalizeForecastResponse(payload = {}, city = {}) {
+    const current = payload.current || {};
+    const hourly = payload.hourly || {};
+
+    const times = Array.isArray(hourly.time)
+      ? hourly.time
+      : [];
+
+    const offset = this.safeNumber(
+      payload.utc_offset_seconds,
+      0
+    );
+
+    const startIndex = this.findCurrentHourIndex(
+      times,
+      offset
+    );
+
+    const at = key => this.getHourlyValue(
+      hourly[key],
+      startIndex
+    );
+
+    const currentRainProbability =
+      at("precipitation_probability");
+
+    const currentRainAmount = this.firstNumber(
+      current.precipitation,
+      at("precipitation"),
+      current.rain,
+      at("rain")
+    );
+
+    const temperature = this.firstNumber(
+      current.temperature_2m,
+      at("temperature_2m")
+    );
+
+    const humidity = this.firstNumber(
+      current.relative_humidity_2m,
+      at("relative_humidity_2m")
+    );
+
+    const cloudCover = this.firstNumber(
+      current.cloud_cover,
+      at("cloud_cover")
+    );
+
+    const windSpeed = this.firstNumber(
+      current.wind_speed_10m,
+      at("wind_speed_10m")
+    );
+
+    const windDirection = this.firstNumber(
+      current.wind_direction_10m,
+      at("wind_direction_10m")
+    );
+
+    const weatherCode = this.firstNumber(
+      current.weather_code,
+      at("weather_code")
+    );
+
+    const forecastWindows = {
+      h6: this.calculateWindow(
+        hourly,
         startIndex,
-        length
-    ) {
-        if (
-            !Array.isArray(values)
-        ) {
-            return [];
-        }
+        6
+      ),
 
-        return values
-            .slice(
-                startIndex,
-                startIndex + length
-            )
-            .map(value =>
-                this.safeNumber(
-                    value,
-                    0
-                )
-            );
-    },
+      h24: this.calculateWindow(
+        hourly,
+        startIndex,
+        24
+      ),
 
-    /* =====================================================
-       SCORES
-       ===================================================== */
+      h72: this.calculateWindow(
+        hourly,
+        startIndex,
+        72
+      )
+    };
 
-    calculateSignalScore({
-        rainProbability,
-        rainAmount,
+    const h6 = forecastWindows.h6;
+
+    // Legacy fields use the six-hour forecast
+    // when available, not instantaneous rain.
+    const rainProbability = this.firstNumber(
+      h6.maxProbability,
+      currentRainProbability
+    );
+
+    const rainAmount = this.firstNumber(
+      h6.rainAmount,
+      currentRainAmount
+    );
+
+    const rainDataAvailable =
+      this.isValidNumber(currentRainAmount) ||
+      this.isValidNumber(h6.rainAmount);
+
+    const forecastValidTime =
+      this.parseModelTime(current.time, offset) ||
+      this.parseModelTime(
+        times[startIndex],
+        offset
+      );
+
+    const hasWeatherData = Boolean(
+      forecastValidTime &&
+      [
+        temperature,
         humidity,
         cloudCover,
+        windSpeed,
+        weatherCode,
+        rainAmount,
+        rainProbability
+      ].some(v => this.isValidNumber(v))
+    );
+
+    const signalScore =
+      rainDataAvailable ||
+      this.isValidNumber(rainProbability)
+        ? this.calculateSignalScore({
+            rainProbability,
+            rainAmount,
+            humidity,
+            cloudCover,
+            weatherCode
+          })
+        : null;
+
+    const confidence = this.calculateConfidence({
+      rainProbability,
+      rainAmount,
+      humidity,
+      cloudCover,
+      sampleCount: times.length,
+      validRainSamples: h6.validRainSamples,
+      expectedRainSamples: 6
+    });
+
+    const warningLevel =
+      rainDataAvailable ||
+      this.isValidNumber(rainProbability)
+        ? this.getWarningLevel({
+            rainProbability,
+            rainAmount,
+            signalScore
+          })
+        : "UNKNOWN";
+
+    return {
+      timestamp: forecastValidTime,
+      forecastValidTime,
+
+      rainProbability: this.roundOrNull(
+        rainProbability,
+        0
+      ),
+
+      rainAmount: this.roundOrNull(
+        rainAmount,
+        2
+      ),
+
+      currentRainProbability: this.roundOrNull(
+        currentRainProbability,
+        0
+      ),
+
+      currentRainAmount: this.roundOrNull(
+        currentRainAmount,
+        2
+      ),
+
+      forecastRainProbability6h: this.roundOrNull(
+        h6.maxProbability,
+        0
+      ),
+
+      forecastRainAmount6h: this.roundOrNull(
+        h6.rainAmount,
+        2
+      ),
+
+      rainDataAvailable,
+
+      rainDataComplete6h: h6.rainDataComplete,
+
+      signalScore: this.roundOrNull(
+        signalScore,
+        0
+      ),
+
+      confidence: this.roundOrNull(
+        confidence,
+        0
+      ),
+
+      warningLevel,
+
+      weatherCondition: this.weatherCodeToText(
         weatherCode
-    }) {
-        const amountScore =
-            this.rainAmountToScore(
-                rainAmount
-            );
+      ),
 
-        const humidityScore =
-            this.clamp(
-                (
-                    this.safeNumber(
-                        humidity,
-                        0
-                    ) - 35
-                ) * 1.3,
-                0,
-                100
-            );
+      weatherCode,
 
-        const cloudScore =
-            this.clamp(
-                cloudCover,
-                0,
-                100
-            );
+      temperature: this.roundOrNull(
+        temperature,
+        1
+      ),
 
-        const weatherCodeScore =
-            this.weatherCodeToScore(
-                weatherCode
-            );
-
-        return this.clamp(
-            rainProbability * 0.45 +
-            amountScore * 0.25 +
-            humidityScore * 0.10 +
-            cloudScore * 0.10 +
-            weatherCodeScore * 0.10,
-            0,
-            100
-        );
-    },
-
-    calculateConfidence({
-        rainProbability,
-        rainAmount,
+      humidity: this.roundOrNull(
         humidity,
+        0
+      ),
+
+      cloudCover: this.roundOrNull(
         cloudCover,
-        sampleCount
-    }) {
-        const coverageScore =
-            this.clamp(
-                sampleCount / 72 * 100,
-                0,
-                100
-            );
+        0
+      ),
 
-        const completenessScore =
-            [
-                rainProbability,
-                rainAmount,
-                humidity,
-                cloudCover
-            ].filter(value =>
-                Number.isFinite(
-                    Number(value)
-                )
-            ).length / 4 * 100;
+      windSpeed: this.roundOrNull(
+        windSpeed,
+        1
+      ),
 
-        return this.clamp(
-            this.config
-                .defaultReliability *
-                100 *
-                0.45 +
-            coverageScore *
-                0.30 +
-            completenessScore *
-                0.25,
-            0,
-            100
-        );
-    },
+      windDirection: this.roundOrNull(
+        windDirection,
+        0
+      ),
 
-    getWarningLevel({
+      forecastWindows,
+
+      hourlySampleCount: times.length,
+
+      hasWeatherData
+    };
+  },
+
+  calculateWindow(
+    hourly = {},
+    startIndex = 0,
+    hours = 6
+  ) {
+    const read = key => this.sliceNumericArray(
+      hourly[key],
+      startIndex,
+      hours
+    );
+
+    const probabilities = read(
+      "precipitation_probability"
+    );
+
+    const precipitation = read("precipitation");
+    const rain = read("rain");
+    const cloudCover = read("cloud_cover");
+
+    const humidity = read(
+      "relative_humidity_2m"
+    );
+
+    const windSpeed = read("wind_speed_10m");
+    const temperatures = read("temperature_2m");
+
+    // Prefer total precipitation per hour.
+    // Fill missing entries with rain values.
+    const amounts = Array.from(
+      { length: hours },
+      (_, i) => this.firstNumber(
+        precipitation[i],
+        rain[i]
+      )
+    );
+
+    const validRainSamples = amounts.filter(
+      v => this.isValidNumber(v)
+    ).length;
+
+    const probabilitySamples = probabilities.filter(
+      v => this.isValidNumber(v)
+    ).length;
+
+    const rainDataComplete =
+      validRainSamples === hours;
+
+    return {
+      hours,
+
+      maxProbability: this.roundOrNull(
+        this.max(probabilities),
+        0
+      ),
+
+      averageProbability: this.roundOrNull(
+        this.average(probabilities),
+        0
+      ),
+
+      rainAmount: rainDataComplete
+        ? this.roundOrNull(
+            this.sum(amounts),
+            2
+          )
+        : null,
+
+      partialRainAmount: validRainSamples
+        ? this.roundOrNull(
+            this.sum(amounts),
+            2
+          )
+        : null,
+
+      maxHourlyRain: this.roundOrNull(
+        this.max(amounts),
+        2
+      ),
+
+      averageCloudCover: this.roundOrNull(
+        this.average(cloudCover),
+        0
+      ),
+
+      averageHumidity: this.roundOrNull(
+        this.average(humidity),
+        0
+      ),
+
+      maxWindSpeed: this.roundOrNull(
+        this.max(windSpeed),
+        1
+      ),
+
+      minTemperature: this.roundOrNull(
+        this.min(temperatures),
+        1
+      ),
+
+      maxTemperature: this.roundOrNull(
+        this.max(temperatures),
+        1
+      ),
+
+      sampleCount: Math.max(
+        validRainSamples,
+        probabilitySamples
+      ),
+
+      validRainSamples,
+      probabilitySamples,
+      expectedSamples: hours,
+      rainDataComplete,
+
+      probabilityDataComplete:
+        probabilitySamples === hours
+    };
+  },
+
+  findCurrentHourIndex(
+    times = [],
+    utcOffsetSeconds = 0
+  ) {
+    if (
+      !Array.isArray(times) ||
+      !times.length
+    ) {
+      return 0;
+    }
+
+    const now = Date.now();
+
+    let index = 0;
+    let difference = Infinity;
+
+    times.forEach((time, i) => {
+      const iso = this.parseModelTime(
+        time,
+        utcOffsetSeconds
+      );
+
+      if (!iso) return;
+
+      const d = Math.abs(
+        Date.parse(iso) - now
+      );
+
+      if (d < difference) {
+        difference = d;
+        index = i;
+      }
+    });
+
+    return index;
+  },
+
+  getHourlyValue(values, index) {
+    return (
+      Array.isArray(values) &&
+      Number.isInteger(index) &&
+      index >= 0
+    )
+      ? this.safeNumber(
+          values[index],
+          null
+        )
+      : null;
+  },
+
+  sliceNumericArray(
+    values,
+    startIndex,
+    length
+  ) {
+    if (!Array.isArray(values)) {
+      return [];
+    }
+
+    return values
+      .slice(
+        startIndex,
+        startIndex + length
+      )
+      .map(
+        v => this.safeNumber(v, null)
+      );
+  },
+
+  calculateSignalScore({
+    rainProbability,
+    rainAmount,
+    humidity,
+    cloudCover,
+    weatherCode
+  }) {
+    const inputs = [
+      [
+        rainProbability,
+        0.45,
+        v => this.clamp(v, 0, 100)
+      ],
+      [
+        rainAmount,
+        0.25,
+        v => this.rainAmountToScore(v)
+      ],
+      [
+        humidity,
+        0.10,
+        v => this.clamp(
+          (v - 35) * 1.3,
+          0,
+          100
+        )
+      ],
+      [
+        cloudCover,
+        0.10,
+        v => this.clamp(v, 0, 100)
+      ],
+      [
+        weatherCode,
+        0.10,
+        v => this.weatherCodeToScore(v)
+      ]
+    ];
+
+    let score = 0;
+    let weight = 0;
+
+    for (const [value, w, transform] of inputs) {
+      if (!this.isValidNumber(value)) {
+        continue;
+      }
+
+      score += transform(value) * w;
+      weight += w;
+    }
+
+    return weight
+      ? this.clamp(
+          score / weight,
+          0,
+          100
+        )
+      : null;
+  },
+
+  calculateConfidence({
+    rainProbability,
+    rainAmount,
+    humidity,
+    cloudCover,
+    sampleCount,
+    validRainSamples,
+    expectedRainSamples
+  }) {
+    const coverageScore = this.clamp(
+      this.safeNumber(sampleCount, 0) /
+        72 * 100,
+      0,
+      100
+    );
+
+    const completenessScore = [
+      rainProbability,
+      rainAmount,
+      humidity,
+      cloudCover
+    ].filter(
+      v => this.isValidNumber(v)
+    ).length / 4 * 100;
+
+    const rainCoverage = expectedRainSamples
+      ? this.clamp(
+          this.safeNumber(
+            validRainSamples,
+            0
+          ) / expectedRainSamples * 100,
+          0,
+          100
+        )
+      : 0;
+
+    return this.clamp(
+      this.config.defaultReliability *
+        100 * 0.35 +
+      coverageScore * 0.20 +
+      completenessScore * 0.25 +
+      rainCoverage * 0.20,
+      0,
+      100
+    );
+  },
+
+  getWarningLevel({
+    rainProbability,
+    rainAmount,
+    signalScore
+  }) {
+    if (
+      ![
         rainProbability,
         rainAmount,
         signalScore
-    }) {
-        if (
-            signalScore >= 80 ||
-            rainAmount >= 25
-        ) {
-            return "EMERGENCY";
-        }
-
-        if (
-            signalScore >= 60 ||
-            rainAmount >= 10
-        ) {
-            return "WARNING";
-        }
-
-        if (
-            signalScore >= 35 ||
-            rainProbability >= 40
-        ) {
-            return "WATCH";
-        }
-
-        return "NORMAL";
-    },
-
-    /* =====================================================
-       WEATHER CODE
-       ===================================================== */
-
-    weatherCodeToText(code) {
-        const value =
-            Number(code);
-
-        const map = {
-            0: "CLEAR_SKY",
-            1: "MAINLY_CLEAR",
-            2: "PARTLY_CLOUDY",
-            3: "OVERCAST",
-
-            45: "FOG",
-            48: "RIME_FOG",
-
-            51: "LIGHT_DRIZZLE",
-            53: "MODERATE_DRIZZLE",
-            55: "DENSE_DRIZZLE",
-
-            56: "LIGHT_FREEZING_DRIZZLE",
-            57: "DENSE_FREEZING_DRIZZLE",
-
-            61: "SLIGHT_RAIN",
-            63: "MODERATE_RAIN",
-            65: "HEAVY_RAIN",
-
-            66: "LIGHT_FREEZING_RAIN",
-            67: "HEAVY_FREEZING_RAIN",
-
-            71: "SLIGHT_SNOW",
-            73: "MODERATE_SNOW",
-            75: "HEAVY_SNOW",
-
-            77: "SNOW_GRAINS",
-
-            80: "SLIGHT_RAIN_SHOWERS",
-            81: "MODERATE_RAIN_SHOWERS",
-            82: "VIOLENT_RAIN_SHOWERS",
-
-            85: "SLIGHT_SNOW_SHOWERS",
-            86: "HEAVY_SNOW_SHOWERS",
-
-            95: "THUNDERSTORM",
-            96: "THUNDERSTORM_WITH_HAIL",
-            99: "SEVERE_THUNDERSTORM_WITH_HAIL"
-        };
-
-        return map[value] ||
-            "UNKNOWN";
-    },
-
-    weatherCodeToScore(code) {
-        const value =
-            Number(code);
-
-        if (
-            [95, 96, 99]
-                .includes(value)
-        ) {
-            return 100;
-        }
-
-        if (
-            [65, 67, 82, 86]
-                .includes(value)
-        ) {
-            return 85;
-        }
-
-        if (
-            [63, 66, 75, 81]
-                .includes(value)
-        ) {
-            return 65;
-        }
-
-        if (
-            [61, 71, 80, 85]
-                .includes(value)
-        ) {
-            return 45;
-        }
-
-        if (
-            [51, 53, 55, 56, 57]
-                .includes(value)
-        ) {
-            return 25;
-        }
-
-        if (
-            [45, 48]
-                .includes(value)
-        ) {
-            return 15;
-        }
-
-        return 0;
-    },
-
-    rainAmountToScore(amount) {
-        const value =
-            this.safeNumber(
-                amount,
-                0
-            );
-
-        if (value <= 0) {
-            return 0;
-        }
-
-        if (value < 0.5) {
-            return 10;
-        }
-
-        if (value < 2) {
-            return 25;
-        }
-
-        if (value < 5) {
-            return 45;
-        }
-
-        if (value < 10) {
-            return 65;
-        }
-
-        if (value < 25) {
-            return 82;
-        }
-
-        return 100;
-    },
-
-    /* =====================================================
-       UNAVAILABLE RESULT
-       ===================================================== */
-
-    createUnavailableResult(
-        city,
-        status,
-        error
+      ].some(
+        v => this.isValidNumber(v)
+      )
     ) {
-        return {
-            sourceKey:
-                "openMeteo",
-
-            sourceName:
-                "Open-Meteo",
-
-            provider:
-                "Open-Meteo Forecast API",
-
-            available:
-                false,
-
-            ok:
-                false,
-
-            official:
-                false,
-
-            status:
-                status ||
-                "UNAVAILABLE",
-
-            city:
-                city.name,
-
-            lat:
-                city.lat,
-
-            lon:
-                city.lon,
-
-            region:
-                city.region,
-
-            timestamp:
-                new Date().toISOString(),
-
-            ageMinutes:
-                0,
-
-            reliability:
-                0,
-
-            trust:
-                0,
-
-            rainProbability:
-                0,
-
-            rainAmount:
-                0,
-
-            signalScore:
-                0,
-
-            confidence:
-                0,
-
-            warningLevel:
-                "UNKNOWN",
-
-            weatherCondition:
-                "UNAVAILABLE",
-
-            temperature:
-                0,
-
-            humidity:
-                0,
-
-            cloudCover:
-                0,
-
-            windSpeed:
-                0,
-
-            windDirection:
-                0,
-
-            forecastWindows: {
-                h6: {},
-                h24: {},
-                h72: {}
-            },
-
-            details: {},
-
-            raw:
-                null,
-
-            error:
-                error ||
-                "OPENMETEO_UNAVAILABLE"
-        };
-    },
-
-    /* =====================================================
-       CACHE
-       ===================================================== */
-
-    getCacheKey(city) {
-        return [
-            String(city.name)
-                .toLowerCase(),
-
-            Number(city.lat)
-                .toFixed(4),
-
-            Number(city.lon)
-                .toFixed(4)
-        ].join(":");
-    },
-
-    getCachedResult(city) {
-        const key =
-            this.getCacheKey(city);
-
-        const item =
-            this.cache.get(key);
-
-        if (!item) {
-            return null;
-        }
-
-        const maxAgeMs =
-            this.config.cacheMinutes *
-            60 *
-            1000;
-
-        if (
-            Date.now() -
-            item.savedAt >
-            maxAgeMs
-        ) {
-            this.cache.delete(key);
-            return null;
-        }
-
-        return item.result;
-    },
-
-    setCachedResult(
-        city,
-        result
-    ) {
-        this.cache.set(
-            this.getCacheKey(city),
-            {
-                savedAt:
-                    Date.now(),
-
-                result
-            }
-        );
-    },
-
-    clearCache() {
-        this.cache.clear();
-    },
-
-    /* =====================================================
-       EVENTS
-       ===================================================== */
-
-    publishSuccess(result) {
-        window.dispatchEvent(
-            new CustomEvent(
-                "rg30:openmeteo-data-received",
-                {
-                    detail:
-                        result
-                }
-            )
-        );
-    },
-
-    publishFailure(result) {
-        window.dispatchEvent(
-            new CustomEvent(
-                "rg30:openmeteo-data-failed",
-                {
-                    detail:
-                        result
-                }
-            )
-        );
-    },
-
-    /* =====================================================
-       STATE
-       ===================================================== */
-
-    getState() {
-        return {
-            version:
-                this.version,
-
-            initialized:
-                this.initialized,
-
-            configured:
-                this.isConfigured(),
-
-            enabled:
-                this.config.enabled,
-
-            endpoint:
-                this.config.endpoint,
-
-            lastRequestAt:
-                this.lastRequestAt,
-
-            lastSuccessAt:
-                this.lastSuccessAt,
-
-            lastFailureAt:
-                this.lastFailureAt,
-
-            lastError:
-                this.lastError,
-
-            cacheSize:
-                this.cache.size
-        };
-    },
-
-    /* =====================================================
-       HELPERS
-       ===================================================== */
-
-    normalizeCity(city = {}) {
-        return {
-            ...city,
-
-            name:
-                city.name ||
-                city.city ||
-                city.cityName ||
-                "Unknown",
-
-            region:
-                city.region ||
-                city.area ||
-                city.name ||
-                "Unknown",
-
-            lat:
-                this.safeNumber(
-                    city.lat ??
-                    city.latitude,
-                    24
-                ),
-
-            lon:
-                this.safeNumber(
-                    city.lon ??
-                    city.lng ??
-                    city.longitude,
-                    45
-                )
-        };
-    },
-
-    safeNumber(
-        value,
-        fallback = 0
-    ) {
-        const number =
-            Number(value);
-
-        return Number.isFinite(number)
-            ? number
-            : fallback;
-    },
-
-    firstNumber(...values) {
-        for (const value of values) {
-            const number =
-                Number(value);
-
-            if (
-                Number.isFinite(number)
-            ) {
-                return number;
-            }
-        }
-
-        return 0;
-    },
-
-    clamp(
-        value,
-        min = 0,
-        max = 100
-    ) {
-        const number =
-            this.safeNumber(
-                value,
-                min
-            );
-
-        return Math.min(
-            max,
-            Math.max(min, number)
-        );
-    },
-
-    average(values = []) {
-        const valid =
-            values.filter(value =>
-                Number.isFinite(
-                    Number(value)
-                )
-            );
-
-        if (!valid.length) {
-            return 0;
-        }
-
-        return valid.reduce(
-            (sum, value) =>
-                sum +
-                Number(value),
-            0
-        ) / valid.length;
-    },
-
-    sum(values = []) {
-        return values.reduce(
-            (sum, value) =>
-                sum +
-                this.safeNumber(
-                    value,
-                    0
-                ),
-            0
-        );
-    },
-
-    max(values = []) {
-        if (!values.length) {
-            return 0;
-        }
-
-        return Math.max(
-            ...values.map(value =>
-                this.safeNumber(
-                    value,
-                    0
-                )
-            )
-        );
-    },
-
-    min(values = []) {
-        if (!values.length) {
-            return 0;
-        }
-
-        return Math.min(
-            ...values.map(value =>
-                this.safeNumber(
-                    value,
-                    0
-                )
-            )
-        );
-    },
-
-    calculateAgeMinutes(timestamp) {
-        const time =
-            new Date(timestamp)
-                .getTime();
-
-        if (
-            !Number.isFinite(time)
-        ) {
-            return 0;
-        }
-
-        return Math.max(
-            0,
-            Math.round(
-                (
-                    Date.now() - time
-                ) /
-                60000
-            )
-        );
-    },
-
-    fetchWithTimeout(
-        url,
-        options,
-        timeoutMs
-    ) {
-        const controller =
-            new AbortController();
-
-        const timeout =
-            setTimeout(
-                () => {
-                    controller.abort();
-                },
-                timeoutMs
-            );
-
-        return fetch(
-            url,
-            {
-                ...options,
-                signal:
-                    controller.signal
-            }
-        ).finally(() => {
-            clearTimeout(timeout);
-        });
+      return "UNKNOWN";
     }
+
+    if (
+      (signalScore !== null && signalScore >= 80) ||
+      (rainAmount !== null && rainAmount >= 25)
+    ) {
+      return "EMERGENCY";
+    }
+
+    if (
+      (signalScore !== null && signalScore >= 60) ||
+      (rainAmount !== null && rainAmount >= 10)
+    ) {
+      return "WARNING";
+    }
+
+    if (
+      (signalScore !== null && signalScore >= 35) ||
+      (rainProbability !== null && rainProbability >= 40)
+    ) {
+      return "WATCH";
+    }
+
+    return "NORMAL";
+  },
+
+  weatherCodeToText(code) {
+    if (!this.isValidNumber(code)) {
+      return "UNKNOWN";
+    }
+
+    const map = {
+      0: "CLEAR_SKY",
+      1: "MAINLY_CLEAR",
+      2: "PARTLY_CLOUDY",
+      3: "OVERCAST",
+
+      45: "FOG",
+      48: "RIME_FOG",
+
+      51: "LIGHT_DRIZZLE",
+      53: "MODERATE_DRIZZLE",
+      55: "DENSE_DRIZZLE",
+
+      56: "LIGHT_FREEZING_DRIZZLE",
+      57: "DENSE_FREEZING_DRIZZLE",
+
+      61: "SLIGHT_RAIN",
+      63: "MODERATE_RAIN",
+      65: "HEAVY_RAIN",
+
+      66: "LIGHT_FREEZING_RAIN",
+      67: "HEAVY_FREEZING_RAIN",
+
+      71: "SLIGHT_SNOW",
+      73: "MODERATE_SNOW",
+      75: "HEAVY_SNOW",
+
+      77: "SNOW_GRAINS",
+
+      80: "SLIGHT_RAIN_SHOWERS",
+      81: "MODERATE_RAIN_SHOWERS",
+      82: "VIOLENT_RAIN_SHOWERS",
+
+      85: "SLIGHT_SNOW_SHOWERS",
+      86: "HEAVY_SNOW_SHOWERS",
+
+      95: "THUNDERSTORM",
+      96: "THUNDERSTORM_WITH_HAIL",
+      99: "SEVERE_THUNDERSTORM_WITH_HAIL"
+    };
+
+    return map[code] || "UNKNOWN";
+  },
+
+  weatherCodeToScore(code) {
+    if (!this.isValidNumber(code)) {
+      return null;
+    }
+
+    if ([95, 96, 99].includes(code)) {
+      return 100;
+    }
+
+    if ([65, 67, 82, 86].includes(code)) {
+      return 85;
+    }
+
+    if ([63, 66, 75, 81].includes(code)) {
+      return 65;
+    }
+
+    if ([61, 71, 80, 85].includes(code)) {
+      return 45;
+    }
+
+    if ([51, 53, 55, 56, 57].includes(code)) {
+      return 25;
+    }
+
+    if ([45, 48].includes(code)) {
+      return 15;
+    }
+
+    return 0;
+  },
+
+  rainAmountToScore(amount) {
+    if (!this.isValidNumber(amount)) {
+      return null;
+    }
+
+    if (amount <= 0) return 0;
+    if (amount < 0.5) return 10;
+    if (amount < 2) return 25;
+    if (amount < 5) return 45;
+    if (amount < 10) return 65;
+    if (amount < 25) return 82;
+
+    return 100;
+  },
+
+  createUnavailableResult(
+    city = {},
+    status = "UNAVAILABLE",
+    error = "OPENMETEO_UNAVAILABLE"
+  ) {
+    return {
+      sourceKey: "openMeteo",
+      sourceName: "Open-Meteo",
+      provider: "Open-Meteo Forecast API",
+
+      available: false,
+      ok: false,
+      official: false,
+      status,
+
+      city: city.name,
+      lat: city.lat,
+      lon: city.lon,
+      region: city.region,
+
+      timestamp: null,
+      forecastValidTime: null,
+      fetchedAt: null,
+
+      ageMinutes: null,
+      forecastAgeMinutes: null,
+
+      reliability: 0,
+      trust: 0,
+
+      rainProbability: null,
+      rainAmount: null,
+
+      currentRainProbability: null,
+      currentRainAmount: null,
+
+      forecastRainProbability6h: null,
+      forecastRainAmount6h: null,
+
+      rainDataAvailable: false,
+      rainDataComplete6h: false,
+
+      signalScore: null,
+      confidence: 0,
+
+      warningLevel: "UNKNOWN",
+      weatherCondition: "UNAVAILABLE",
+
+      temperature: null,
+      humidity: null,
+      cloudCover: null,
+      windSpeed: null,
+      windDirection: null,
+
+      forecastWindows: {
+        h6: {},
+        h24: {},
+        h72: {}
+      },
+
+      details: {},
+      raw: null,
+      error
+    };
+  },
+
+  getCacheKey(city) {
+    return [
+      String(city.name).toLowerCase(),
+      Number(city.lat).toFixed(4),
+      Number(city.lon).toFixed(4),
+      this.config.timezone,
+      this.config.forecastDays
+    ].join(":");
+  },
+
+  getCachedResult(city) {
+    const key = this.getCacheKey(city);
+
+    const item = this.cache.get(key);
+
+    if (!item) return null;
+
+    const maxAgeMs = this.safeNumber(
+      this.config.cacheMinutes,
+      0
+    ) * 60000;
+
+    if (
+      Date.now() - item.savedAt > maxAgeMs ||
+      maxAgeMs <= 0
+    ) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return {
+      ...item.result,
+
+      ageMinutes: this.calculateAgeMinutes(
+        item.result.fetchedAt
+      ),
+
+      forecastAgeMinutes: this.calculateAgeMinutes(
+        item.result.forecastValidTime
+      )
+    };
+  },
+
+  setCachedResult(city, result) {
+    this.cache.set(
+      this.getCacheKey(city),
+      {
+        savedAt: Date.now(),
+        result
+      }
+    );
+  },
+
+  clearCache() {
+    this.cache.clear();
+  },
+
+  publishSuccess(result) {
+    window.dispatchEvent(
+      new CustomEvent(
+        "rg30:openmeteo-data-received",
+        {
+          detail: result
+        }
+      )
+    );
+  },
+
+  publishFailure(result) {
+    window.dispatchEvent(
+      new CustomEvent(
+        "rg30:openmeteo-data-failed",
+        {
+          detail: result
+        }
+      )
+    );
+  },
+
+  getState() {
+    return {
+      version: this.version,
+      initialized: this.initialized,
+      configured: this.isConfigured(),
+      enabled: this.config.enabled,
+      endpoint: this.config.endpoint,
+
+      lastRequestAt: this.lastRequestAt,
+      lastSuccessAt: this.lastSuccessAt,
+      lastFailureAt: this.lastFailureAt,
+      lastError: this.lastError,
+
+      cacheSize: this.cache.size
+    };
+  },
+
+  normalizeCity(city = {}) {
+    return {
+      ...city,
+
+      name:
+        city.name ||
+        city.city ||
+        city.cityName ||
+        "Unknown",
+
+      region:
+        city.region ||
+        city.area ||
+        city.name ||
+        "Unknown",
+
+      lat: this.safeNumber(
+        city.lat ?? city.latitude,
+        null
+      ),
+
+      lon: this.safeNumber(
+        city.lon ??
+        city.lng ??
+        city.longitude,
+        null
+      )
+    };
+  },
+
+  validCoordinates(city) {
+    return (
+      this.isValidNumber(city.lat) &&
+      this.isValidNumber(city.lon) &&
+      city.lat >= -90 &&
+      city.lat <= 90 &&
+      city.lon >= -180 &&
+      city.lon <= 180
+    );
+  },
+
+  isValidNumber(value) {
+    return (
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      (
+        typeof value === "number" ||
+        typeof value === "string"
+      ) &&
+      Number.isFinite(Number(value))
+    );
+  },
+
+  safeNumber(value, fallback = 0) {
+    return this.isValidNumber(value)
+      ? Number(value)
+      : fallback;
+  },
+
+  firstNumber(...values) {
+    for (const value of values) {
+      if (this.isValidNumber(value)) {
+        return Number(value);
+      }
+    }
+
+    return null;
+  },
+
+  roundOrNull(value, digits = 0) {
+    return this.isValidNumber(value)
+      ? Number(
+          Number(value).toFixed(digits)
+        )
+      : null;
+  },
+
+  clamp(value, min = 0, max = 100) {
+    return this.isValidNumber(value)
+      ? Math.min(
+          max,
+          Math.max(min, Number(value))
+        )
+      : null;
+  },
+
+  average(values = []) {
+    const valid = values
+      .filter(v => this.isValidNumber(v))
+      .map(Number);
+
+    return valid.length
+      ? valid.reduce(
+          (a, b) => a + b,
+          0
+        ) / valid.length
+      : null;
+  },
+
+  sum(values = []) {
+    const valid = values
+      .filter(v => this.isValidNumber(v))
+      .map(Number);
+
+    return valid.length
+      ? valid.reduce(
+          (a, b) => a + b,
+          0
+        )
+      : null;
+  },
+
+  max(values = []) {
+    const valid = values
+      .filter(v => this.isValidNumber(v))
+      .map(Number);
+
+    return valid.length
+      ? Math.max(...valid)
+      : null;
+  },
+
+  min(values = []) {
+    const valid = values
+      .filter(v => this.isValidNumber(v))
+      .map(Number);
+
+    return valid.length
+      ? Math.min(...valid)
+      : null;
+  },
+
+  calculateAgeMinutes(timestamp) {
+    if (
+      typeof timestamp !== "string" ||
+      !timestamp
+    ) {
+      return null;
+    }
+
+    const t = Date.parse(timestamp);
+
+    return Number.isFinite(t)
+      ? Math.max(
+          0,
+          Math.round(
+            (Date.now() - t) / 60000
+          )
+        )
+      : null;
+  },
+
+  fetchWithTimeout(
+    url,
+    options = {},
+    timeoutMs = 15000
+  ) {
+    const controller = new AbortController();
+
+    const timeout = setTimeout(
+      () => controller.abort(),
+      timeoutMs
+    );
+
+    return fetch(
+      url,
+      {
+        ...options,
+        signal: controller.signal
+      }
+    ).finally(
+      () => clearTimeout(timeout)
+    );
+  }
 };
 
-/* =========================================================
-   INITIALIZATION
-   ========================================================= */
+/* Initialization */
 
-if (
-    document.readyState === "loading"
-) {
-    document.addEventListener(
-        "DOMContentLoaded",
-        () => {
-            RG30.OpenMeteoAdapter.init();
-        },
-        {
-            once: true
-        }
-    );
+if (document.readyState === "loading") {
+  document.addEventListener(
+    "DOMContentLoaded",
+    () => RG30.OpenMeteoAdapter.init(),
+    { once: true }
+  );
 } else {
-    RG30.OpenMeteoAdapter.init();
+  RG30.OpenMeteoAdapter.init();
 }
