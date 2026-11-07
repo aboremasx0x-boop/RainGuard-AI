@@ -86,12 +86,19 @@
           These weights are engineering screening defaults,
           not locally calibrated hydrological thresholds.
         */
-        const score = clamp(
-            amount * 0.40 +
-            intensity * 0.35 +
-            probability * 0.15 +
-            sourceSupport * 0.10
-        );
+        const hasRainSignal =
+    totalRainMm > 0 ||
+    peakRainMmH > 0 ||
+    rainProbability > 0;
+
+const score = hasRainSignal
+    ? clamp(
+        amount * 0.40 +
+        intensity * 0.35 +
+        probability * 0.15 +
+        sourceSupport * 0.10
+      )
+    : 0;
 
         const risk = classify(score);
 
