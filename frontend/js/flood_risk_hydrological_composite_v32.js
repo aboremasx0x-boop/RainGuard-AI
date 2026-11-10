@@ -18,7 +18,7 @@
   "use strict";
 
   const NAME = "FloodRiskHydrologicalCompositeV32";
-  const VERSION = "FORECAST-1J10.0";
+  const VERSION = "FORECAST-1J10.1";
 
   const HORIZONS = [6, 12, 24, 48, 72];
 
@@ -265,13 +265,18 @@
       rainScore !== null &&
       hydroScore !== null;
 
+    // Static hydrological susceptibility is not an active rainfall event.
+    // A verified zero rainfall score must not produce positive composite risk.
+    // Missing rainfall data still yields null, never a fabricated zero.
     const compositeScore = available
-      ? round(
-          clamp(
-            rainScore * RAIN_WEIGHT +
-            hydroScore * HYDRO_WEIGHT
-          )
-        )
+      ? (rainScore === 0
+          ? 0
+          : round(
+              clamp(
+                rainScore * RAIN_WEIGHT +
+                hydroScore * HYDRO_WEIGHT
+              )
+            ))
       : null;
 
     return {
@@ -363,12 +368,14 @@
 
             period,
 
-            compositeScore: round(
-              clamp(
-                rain * RAIN_WEIGHT +
-                hydro.score * HYDRO_WEIGHT
-              )
-            )
+            compositeScore: rain === 0
+              ? 0
+              : round(
+                  clamp(
+                    rain * RAIN_WEIGHT +
+                    hydro.score * HYDRO_WEIGHT
+                  )
+                )
           });
         }
       }
