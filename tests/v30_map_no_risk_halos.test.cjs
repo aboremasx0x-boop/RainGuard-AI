@@ -1,0 +1,10 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const brain = fs.readFileSync("frontend/js/ai_brain_v23.js", "utf8");
+const html = fs.readFileSync("frontend/national-ai-os-v30.html", "utf8");
+const section = brain.slice(brain.indexOf("L.circleMarker("),brain.indexOf("getTopCity(cities)"));
+assert.match(section,/L\.circleMarker\(/,"clickable city markers must remain");
+assert.match(section,/marker\.bindPopup\(/,"city popups must remain");
+assert.doesNotMatch(section,/L\.circle\(/,"large heuristic city risk circles must be removed");
+assert.ok(html.includes("ai_brain_v23.js?v=3011-no-risk-halos"),"V30 must load updated map script");
+console.log("PASS: large city risk halos removed; markers and popups retained");
