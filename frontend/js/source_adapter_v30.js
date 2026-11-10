@@ -720,6 +720,12 @@ RG30.SourceAdapter = {
                         lastSuccessAt:
                             null,
 
+                        lastDataFetchedAt:
+                            null,
+
+                        lastForecastValidTime:
+                            null,
+
                         lastFailureAt:
                             null,
 
@@ -2232,6 +2238,12 @@ async collect(
                     state.lastSuccessAt =
                         new Date()
                             .toISOString();
+
+                    // Preserve provenance from the upstream response, not cache reuse.
+                    state.lastDataFetchedAt =
+                        result.fetchedAt || result.details?.fetchedAt || null;
+                    state.lastForecastValidTime =
+                        result.forecastValidTime || result.details?.forecastValidTime || result.timestamp || null;
 
                     state.lastError =
                         null;
@@ -4694,8 +4706,8 @@ async collect(
             <b>
 
             ${this.text(
-                "Reliability",
-                "الاعتمادية"
+                "Configured source weight (not live reliability)",
+                "الوزن المحدد للمصدر (ليس اعتمادية الاتصال)"
             )}
 
             :</b>
@@ -4704,6 +4716,34 @@ async collect(
                 state.reliability *
                 100
             )}%
+
+            <br>
+
+            <b>${this.text("Live request success rate", "نسبة نجاح طلبات الاتصال الفعلية")}:</b>
+            ${state.successes + state.failures > 0
+                ? Math.round(100 * state.successes / (state.successes + state.failures)) + "%"
+                : this.text("Not measured", "لم تُقَس")}
+
+            <br>
+
+            <b>${this.text("Latest successful connection", "آخر اتصال ناجح")}:</b>
+            ${this.escapeHtml(state.lastSuccessAt || this.text("Unknown", "غير معروف"))}
+
+            <br>
+
+            <b>${this.text("Upstream fetch time", "وقت جلب البيانات من المصدر")}:</b>
+            ${this.escapeHtml(state.lastDataFetchedAt || this.text("Not provided", "غير متوفر"))}
+
+            <br>
+
+            <b>${this.text("Forecast valid time", "وقت صلاحية التوقع")}:</b>
+            ${this.escapeHtml(state.lastForecastValidTime || this.text("Not provided", "غير متوفر"))}
+
+            <br>
+
+            ${state.status === "CACHED"
+                ? `<strong>${this.text("Cached result; not a new live request.", "النتيجة من الذاكرة المؤقتة وليست اتصالًا حيًا جديدًا.")}</strong><br>`
+                : ""}
 
             <br>
 
