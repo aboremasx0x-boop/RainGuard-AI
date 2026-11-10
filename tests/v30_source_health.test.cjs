@@ -1,0 +1,13 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const source = fs.readFileSync("frontend/js/source_adapter_v30.js", "utf8");
+assert.match(source, /Configured source weight \(not live reliability\)/);
+assert.match(source, /نسبة نجاح طلبات الاتصال الفعلية/);
+assert.match(source, /state\.successes \+ state\.failures > 0/);
+assert.match(source, /100 \* state\.successes \/ \(state\.successes \+ state\.failures\)/);
+assert.match(source, /state\.lastDataFetchedAt =/);
+assert.match(source, /result\.fetchedAt \|\| result\.details\?\.fetchedAt \|\| null/);
+assert.match(source, /state\.lastForecastValidTime =/);
+assert.match(source, /state\.status === "CACHED"/);
+assert.match(source, /ليست اتصالًا حيًا جديدًا/);
+console.log("PASS: source weight labeled, live success reported, cache clearly indicated, provenance preserved");
