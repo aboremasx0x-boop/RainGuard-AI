@@ -1,0 +1,20 @@
+name: V30 source health transparency
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/source_adapter_v30.js'
+      - 'tests/v30_source_health.test.cjs'
+      - '.github/workflows/v30-source-health.yml'
+  workflow_dispatch:
+jobs:
+  source-health:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/js/source_adapter_v30.js
+      - run: node tests/v30_source_health.test.cjs
