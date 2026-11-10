@@ -1,0 +1,21 @@
+name: V30 city pin regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/ai_brain_v23.js'
+      - 'frontend/national-ai-os-v30.html'
+      - 'tests/v30_city_pins.test.cjs'
+      - '.github/workflows/v30-city-pins.yml'
+  workflow_dispatch:
+jobs:
+  city-pins:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/js/ai_brain_v23.js
+      - run: node tests/v30_city_pins.test.cjs
