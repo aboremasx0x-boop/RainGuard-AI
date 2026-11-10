@@ -1,0 +1,21 @@
+name: V30 map risk circles regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/ai_brain_v23.js'
+      - 'frontend/national-ai-os-v30.html'
+      - 'tests/v30_map_no_risk_halos.test.cjs'
+      - '.github/workflows/v30-map-no-risk-halos.yml'
+  workflow_dispatch:
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/js/ai_brain_v23.js
+      - run: node tests/v30_map_no_risk_halos.test.cjs
