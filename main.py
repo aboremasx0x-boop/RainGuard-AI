@@ -29,6 +29,8 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    # Restrict Vercel preview origins to this project/account only.
+    allow_origin_regex=r"^https://rain-guard-[a-z0-9-]+-aboremasx0x-boops-projects\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

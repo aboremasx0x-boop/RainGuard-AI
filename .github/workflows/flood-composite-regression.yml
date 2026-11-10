@@ -1,0 +1,20 @@
+name: Flood composite regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/flood_risk_hydrological_composite_v32.js'
+      - 'tests/forecast_zero_rain_composite.test.cjs'
+      - '.github/workflows/flood-composite-regression.yml'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run zero-rainfall composite regression
+        run: node tests/forecast_zero_rain_composite.test.cjs
