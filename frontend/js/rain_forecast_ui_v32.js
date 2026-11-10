@@ -165,7 +165,34 @@
         return panel;
     }
 
+    // The selection changes synchronously, even if an older forecast is in flight.
+    let requestedCityKey = null;
+    let displayedCityKey = null;
+
+    function cityKey(city) {
+        if (!city) return null;
+        const lat = city.lat ?? city.latitude;
+        const lon = city.lon ?? city.lng ?? city.longitude;
+        if (lat !== null && lat !== undefined && lon !== null && lon !== undefined &&
+            Number.isFinite(Number(lat)) && Number.isFinite(Number(lon))) {
+            return Number(lat).toFixed(4) + "|" + Number(lon).toFixed(4);
+        }
+        const name = city.name ?? city.city ?? (typeof city === "string" ? city : null);
+        return name ? String(name).trim().toLowerCase() : null;
+    }
+
+    function requestCity(city) {
+        requestedCityKey = cityKey(city);
+    }
+
+    function isCurrent(result) {
+        if (!requestedCityKey) return true;
+        const resultKey = cityKey(result);
+        return resultKey !== null && resultKey === requestedCityKey;
+    }
+
     function render(result) {
+        if (result && !isCurrent(result)) return false;
         ensureStyles();
         const panel = ensurePanel();
         if (!result) {
@@ -173,6 +200,7 @@
             return;
         }
         const cards = HORIZONS.map(hours => card(result.horizons?.[`${hours}h`], hours)).join("");
+        displayedCityKey = cityKey(result);
         panel.innerHTML = `
             <h2>توقع الأمطار — ${esc(result.city)}</h2>
             <div class="rgf-subtitle">توقع متعدد المصادر: أنواء + RainViewer + Open-Meteo + Visual Crossing</div>
@@ -187,6 +215,7 @@
     }
 
     async function showCity(city) {
+        requestCity(city);
         const fusion = window.RainForecastFusionV32;
         if (!fusion?.forecastCity) throw new Error("FORECAST_FUSION_ENGINE_NOT_AVAILABLE");
         const result = await fusion.forecastCity(city);
@@ -194,9 +223,11 @@
         return result;
     }
 
+    // A fusion event may arrive after a newer city selection; render() rejects it.
     window.addEventListener("rainguard:forecast-fusion-ready", event => render(event.detail));
 
-    const api = {name:NAME,version:VERSION,render,showCity};
+    const api = {name:NAME,version:VERSION,render,showCity,requestCity,
+        getSelectionStatus: () => ({requestedCityKey,displayedCityKey})};
     window.RainForecastUIV32 = api;
     console.log(`${NAME} ${VERSION} ready.`);
 })();
