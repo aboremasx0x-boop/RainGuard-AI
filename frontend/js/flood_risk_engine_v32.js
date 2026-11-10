@@ -1,272 +1,453 @@
+
 /* =========================================================
    RainGuard AI V32
-   FORECAST-1J1 — Rainfall-Driven Preliminary Flood Risk Engine
-   Version: FORECAST-1J1.0
+   FORECAST-1J11.0
+   Continuous Rainfall Screening Correction
 
-   IMPORTANT:
-   This is a preliminary rainfall-driven screening indicator.
-   It is NOT a confirmed flood prediction and does not yet include
-   terrain, wadis, drainage capacity, soil moisture, land cover,
-   or calibrated local hydrology.
+   Experimental screening only.
+   NOT a confirmed flood prediction.
+   NOT locally calibrated.
+
+   Compatible with:
+   - RainForecastFusionV32
+   - FloodRiskHydrologicalFusionV32
+   - FloodRiskHydrologicalCompositeV32
    ========================================================= */
 
 (function () {
-    "use strict";
+  "use strict";
 
-    const NAME = "FloodRiskEngineV32";
-    const VERSION = "FORECAST-1J1.0";
-    const HORIZONS = [6, 12, 24, 48, 72];
+  const NAME = "FloodRiskEngineV32";
+  const VERSION = "FORECAST-1J11.0";
+  const HORIZONS = [6, 12, 24, 48, 72];
 
-    const num = (v, fallback = 0) =>
-        Number.isFinite(Number(v)) ? Number(v) : fallback;
+  const WEIGHTS = Object.freeze({
+    rainfallAmount: 0.50,
+    rainfallIntensity: 0.40,
+    rainProbability: 0.10
+  });
 
-    const clamp = (v, min = 0, max = 100) =>
-        Math.min(max, Math.max(min, num(v)));
+  // Provisional scaling references, not flood thresholds.
+  const REFERENCE_RAIN_MM = 50;
+  const REFERENCE_INTENSITY_MM_H = 20;
 
-    const round = (v, d = 0) => {
-        const p = 10 ** d;
-        return Math.round(num(v) * p) / p;
+  function finite(v) {
+    return (
+      v !== null &&
+      v !== undefined &&
+      v !== "" &&
+      Number.isFinite(Number(v))
+    );
+  }
+
+  function num(v, fallback = 0) {
+    return finite(v) ? Number(v) : fallback;
+  }
+
+  function clamp(v, min = 0, max = 100) {
+    return Math.min(max, Math.max(min, num(v)));
+  }
+
+  function round(v, digits = 0) {
+    const p = 10 ** digits;
+    return Math.round(num(v) * p) / p;
+  }
+
+  function classify(score) {
+    if (score >= 75) {
+      return {
+        code: "VERY_HIGH",
+        labelAr: "مرتفع جدًا",
+        labelEn: "Very High"
+      };
+    }
+
+    if (score >= 50) {
+      return {
+        code: "HIGH",
+        labelAr: "مرتفع",
+        labelEn: "High"
+      };
+    }
+
+    if (score >= 25) {
+      return {
+        code: "MODERATE",
+        labelAr: "متوسط",
+        labelEn: "Moderate"
+      };
+    }
+
+    return {
+      code: "LOW",
+      labelAr: "منخفض",
+      labelEn: "Low"
+    };
+  }
+
+  function rainfallAmountScore(mm) {
+    return round(
+      clamp(
+        Math.max(0, num(mm)) /
+        REFERENCE_RAIN_MM * 100
+      ),
+      3
+    );
+  }
+
+  function intensityScore(mmPerHour) {
+    return round(
+      clamp(
+        Math.max(0, num(mmPerHour)) /
+        REFERENCE_INTENSITY_MM_H * 100
+      ),
+      3
+    );
+  }
+
+  function probabilityScore(probability) {
+    return clamp(probability);
+  }
+
+  function sourceSupportScore(h = {}) {
+    let score = clamp(h.sourceAgreement);
+
+    if (h.radarRainDetected === true) {
+      score = Math.min(100, score + 10);
+    }
+
+    return score;
+  }
+
+  function missingHydrology() {
+    return [
+      "terrain",
+      "wadi_proximity",
+      "drainage_capacity",
+      "soil_moisture",
+      "land_cover",
+      "local_hydrological_calibration"
+    ];
+  }
+
+  function unavailableHorizon(hours) {
+    return {
+      horizonHours: hours,
+      status: "INSUFFICIENT_FORECAST_DATA",
+      riskScore: null,
+      riskLevel: "UNKNOWN",
+      riskLabelAr: "غير متاح",
+      riskLabelEn: "Unavailable",
+      evidence: null,
+      limitations: {
+        preliminary: true,
+        rainfallDrivenOnly: true,
+        confirmedFloodPrediction: false,
+        locallyCalibrated: false,
+        missingHydrology: missingHydrology()
+      }
+    };
+  }
+
+  function analyzeHorizon(h = {}, hours) {
+    // Never convert missing rainfall inputs into zero.
+    const hasAmount = finite(h.totalRainMm);
+    const hasIntensity = finite(h.peakRainMmH);
+
+    if (
+      h.status !== "FUSION_READY" ||
+      !hasAmount ||
+      !hasIntensity
+    ) {
+      return unavailableHorizon(hours);
+    }
+
+    const totalRainMm = Math.max(
+      0,
+      Number(h.totalRainMm)
+    );
+
+    const peakRainMmH = Math.max(
+      0,
+      Number(h.peakRainMmH)
+    );
+
+    const hasProbability = finite(h.rainProbability);
+
+    const rainProbability = hasProbability
+      ? clamp(h.rainProbability)
+      : null;
+
+    const amount = rainfallAmountScore(totalRainMm);
+    const intensity = intensityScore(peakRainMmH);
+
+    const probability = hasProbability
+      ? probabilityScore(rainProbability)
+      : null;
+
+    // Probability is not a substitute for rainfall.
+    const hasRainSignal =
+      totalRainMm > 0 ||
+      peakRainMmH > 0;
+
+    // If probability is missing, do not invent it.
+    // Renormalize only the available weights.
+    let weightedTotal =
+      amount * WEIGHTS.rainfallAmount +
+      intensity * WEIGHTS.rainfallIntensity;
+
+    let availableWeight =
+      WEIGHTS.rainfallAmount +
+      WEIGHTS.rainfallIntensity;
+
+    if (probability !== null) {
+      weightedTotal +=
+        probability * WEIGHTS.rainProbability;
+
+      availableWeight +=
+        WEIGHTS.rainProbability;
+    }
+
+    const score = hasRainSignal
+      ? clamp(weightedTotal / availableWeight)
+      : 0;
+
+    const risk = classify(score);
+
+    const evidence = {
+      totalRainMm: round(totalRainMm, 3),
+      peakRainMmH: round(peakRainMmH, 3),
+      rainProbability:
+        rainProbability === null
+          ? null
+          : round(rainProbability, 1),
+
+      sourceAgreement: finite(h.sourceAgreement)
+        ? round(clamp(h.sourceAgreement), 1)
+        : null,
+
+      radarAvailable:
+        h.radarAvailable === true,
+
+      radarRainDetected:
+        h.radarRainDetected === true,
+
+      forecastSource:
+        h.forecastSource || "UNKNOWN",
+
+      rainfallAmountScore: round(amount, 2),
+      rainfallIntensityScore: round(intensity, 2),
+      rainProbabilityScore:
+        probability === null
+          ? null
+          : round(probability, 2),
+
+      sourceSupportScore:
+        finite(h.sourceAgreement)
+          ? round(sourceSupportScore(h), 2)
+          : null,
+
+      scoringMethod:
+        "continuous_rainfall_screening",
+
+      availableScoringWeight:
+        round(availableWeight, 2)
     };
 
-    function classify(score) {
-        if (score >= 75) {
-            return { code: "VERY_HIGH", labelAr: "مرتفع جدًا", labelEn: "Very High" };
-        }
-        if (score >= 50) {
-            return { code: "HIGH", labelAr: "مرتفع", labelEn: "High" };
-        }
-        if (score >= 25) {
-            return { code: "MODERATE", labelAr: "متوسط", labelEn: "Moderate" };
-        }
-        return { code: "LOW", labelAr: "منخفض", labelEn: "Low" };
+    return {
+      horizonHours: hours,
+      status: "PRELIMINARY_RISK_READY",
+      riskScore: round(score, 1),
+      riskLevel: risk.code,
+      riskLabelAr: risk.labelAr,
+      riskLabelEn: risk.labelEn,
+      evidence,
+      limitations: {
+        preliminary: true,
+        rainfallDrivenOnly: true,
+        confirmedFloodPrediction: false,
+        locallyCalibrated: false,
+        missingHydrology: missingHydrology()
+      }
+    };
+  }
+
+  function getFusionHorizon(fusionResult, hours) {
+    const horizons = fusionResult?.horizons;
+
+    if (!horizons) return null;
+
+    if (Array.isArray(horizons)) {
+      return horizons.find(h =>
+        Number(h?.horizonHours) === hours ||
+        h?.period === `${hours}h`
+      ) || null;
     }
 
-    function rainfallAmountScore(mm) {
-        const x = Math.max(0, num(mm));
-        if (x >= 50) return 100;
-        if (x >= 30) return 80;
-        if (x >= 15) return 60;
-        if (x >= 5) return 35;
-        if (x > 0) return 15;
-        return 0;
-    }
+    return horizons[`${hours}h`] || null;
+  }
 
-    function intensityScore(mmPerHour) {
-        const x = Math.max(0, num(mmPerHour));
-        if (x >= 20) return 100;
-        if (x >= 15) return 85;
-        if (x >= 7.5) return 65;
-        if (x >= 2.5) return 40;
-        if (x > 0) return 15;
-        return 0;
-    }
+  function evaluateFusion(fusionResult = {}) {
+    const horizons = {};
 
-    function probabilityScore(probability) {
-        return clamp(probability);
-    }
+    HORIZONS.forEach(hours => {
+      const h = getFusionHorizon(
+        fusionResult,
+        hours
+      );
 
-    function sourceSupportScore(h) {
-        let score = clamp(h?.sourceAgreement);
-        if (h?.radarRainDetected === true) score = Math.min(100, score + 10);
-        return score;
-    }
+      horizons[`${hours}h`] = h
+        ? analyzeHorizon(h, hours)
+        : unavailableHorizon(hours);
+    });
 
-    function analyzeHorizon(h = {}, hours) {
-        const totalRainMm = Math.max(0, num(h.totalRainMm));
-        const peakRainMmH = Math.max(0, num(h.peakRainMmH));
-        const rainProbability = clamp(h.rainProbability);
-        const sourceSupport = sourceSupportScore(h);
+    const ready = Object.values(horizons)
+      .filter(h =>
+        h.status === "PRELIMINARY_RISK_READY"
+      );
 
-        const amount = rainfallAmountScore(totalRainMm);
-        const intensity = intensityScore(peakRainMmH);
-        const probability = probabilityScore(rainProbability);
+    const highest = ready.length
+      ? ready.reduce((a, b) =>
+          b.riskScore > a.riskScore ? b : a
+        )
+      : null;
 
-        /*
-          Preliminary rainfall-driven weighting only.
-          These weights are engineering screening defaults,
-          not locally calibrated hydrological thresholds.
-        */
-        const hasRainSignal =
-    totalRainMm > 0 ||
-    peakRainMmH > 0 ||
-    rainProbability > 0;
+    const maxRiskScore = highest
+      ? highest.riskScore
+      : null;
 
-const score = hasRainSignal
-    ? clamp(
-        amount * 0.40 +
-        intensity * 0.35 +
-        probability * 0.15 +
-        sourceSupport * 0.10
-      )
-    : 0;
+    const result = {
+      engine: NAME,
+      version: VERSION,
 
-        const risk = classify(score);
+      status: ready.length
+        ? "PRELIMINARY_FLOOD_RISK_READY"
+        : "INSUFFICIENT_FORECAST_DATA",
 
-        const evidence = {
-            totalRainMm: round(totalRainMm, 1),
-            peakRainMmH: round(peakRainMmH, 1),
-            rainProbability: round(rainProbability, 0),
-            sourceAgreement: round(clamp(h.sourceAgreement), 0),
-            radarAvailable: h.radarAvailable === true,
-            radarRainDetected: h.radarRainDetected === true,
-            forecastSource: h.forecastSource || "UNKNOWN"
-        };
+      city: fusionResult?.city || "Unknown",
+      lat: fusionResult?.lat ?? null,
+      lon: fusionResult?.lon ?? null,
 
-        const missingHydrology = [
-            "terrain",
-            "wadi_proximity",
-            "drainage_capacity",
-            "soil_moisture",
-            "land_cover",
-            "local_hydrological_calibration"
-        ];
+      generatedAt: new Date().toISOString(),
 
-        return {
-            horizonHours: hours,
-            status: h.status === "FUSION_READY"
-                ? "PRELIMINARY_RISK_READY"
-                : "INSUFFICIENT_FORECAST_DATA",
-            riskScore: round(score, 0),
-            riskLevel: risk.code,
-            riskLabelAr: risk.labelAr,
-            riskLabelEn: risk.labelEn,
-            evidence,
-            limitations: {
-                preliminary: true,
-                rainfallDrivenOnly: true,
-                confirmedFloodPrediction: false,
-                missingHydrology
-            }
-        };
-    }
+      sourceFusionVersion:
+        fusionResult?.version || null,
 
-    function evaluateFusion(fusionResult = {}) {
-        const horizons = {};
+      methodology: {
+        type:
+          "continuous_rainfall_preliminary_screening",
 
-        HORIZONS.forEach(hours => {
-            const h = fusionResult?.horizons?.[`${hours}h`];
-            horizons[`${hours}h`] = h
-                ? analyzeHorizon(h, hours)
-                : {
-                    horizonHours: hours,
-                    status: "INSUFFICIENT_FORECAST_DATA",
-                    riskScore: null,
-                    riskLevel: "UNKNOWN",
-                    riskLabelAr: "غير متاح",
-                    riskLabelEn: "Unavailable",
-                    evidence: null,
-                    limitations: {
-                        preliminary: true,
-                        rainfallDrivenOnly: true,
-                        confirmedFloodPrediction: false
-                    }
-                };
-        });
+        weights: { ...WEIGHTS },
 
-        const ready = Object.values(horizons)
-            .filter(x => x.status === "PRELIMINARY_RISK_READY");
+        referenceRainMm:
+          REFERENCE_RAIN_MM,
 
-        const maxRiskScore = ready.length
-            ? Math.max(...ready.map(x => num(x.riskScore)))
-            : null;
+        referenceIntensityMmH:
+          REFERENCE_INTENSITY_MM_H,
 
-        const highest = ready.length
-            ? ready.reduce((a, b) =>
-                num(b.riskScore) > num(a.riskScore) ? b : a
-              )
-            : null;
+        sourceAgreementUsedInScore: false,
 
-        const result = {
-            engine: NAME,
-            version: VERSION,
-            status: ready.length
-                ? "PRELIMINARY_FLOOD_RISK_READY"
-                : "INSUFFICIENT_FORECAST_DATA",
-            city: fusionResult?.city || "Unknown",
-            lat: fusionResult?.lat ?? null,
-            lon: fusionResult?.lon ?? null,
-            generatedAt: new Date().toISOString(),
-            sourceFusionVersion: fusionResult?.version || null,
-            methodology: {
-                type: "rainfall_driven_preliminary_screening",
-                confirmedFloodPrediction: false,
-                locallyCalibrated: false,
-                note:
-                    "Risk score is a preliminary rainfall-driven screening indicator, not a confirmed flood forecast."
-            },
-            highestRisk: highest
-                ? {
-                    horizonHours: highest.horizonHours,
-                    riskScore: highest.riskScore,
-                    riskLevel: highest.riskLevel,
-                    riskLabelAr: highest.riskLabelAr
-                }
-                : null,
-            maxRiskScore,
-            horizons
-        };
+        confirmedFloodPrediction: false,
+        locallyCalibrated: false,
 
-        window.RG32 = window.RG32 || {};
-        window.RG32.latestFloodRisk = result;
+        note:
+          "Experimental rainfall screening only. " +
+          "Not a confirmed or calibrated flood forecast."
+      },
 
-        window.dispatchEvent(
-            new CustomEvent(
-                "rainguard:flood-risk-ready",
-                { detail: result }
-            )
-        );
+      highestRisk: highest
+        ? {
+            horizonHours:
+              highest.horizonHours,
 
-        return result;
-    }
+            riskScore:
+              highest.riskScore,
 
-    async function evaluateCity(city = {}) {
-        const fusion = window.RainForecastFusionV32;
+            riskLevel:
+              highest.riskLevel,
 
-        if (!fusion?.forecastCity) {
-            return {
-                engine: NAME,
-                version: VERSION,
-                status: "FUSION_ENGINE_NOT_AVAILABLE",
-                city: city.name || city.nameAr || "Unknown",
-                horizons: {}
-            };
-        }
+            riskLabelAr:
+              highest.riskLabelAr
+          }
+        : null,
 
-        const fusionResult = await fusion.forecastCity(city);
-        return evaluateFusion(fusionResult);
-    }
-
-    function getStatus() {
-        return {
-            engine: NAME,
-            version: VERSION,
-            ready: true,
-            horizons: [...HORIZONS],
-            preliminary: true,
-            rainfallDrivenOnly: true,
-            confirmedFloodPrediction: false
-        };
-    }
-
-    const api = {
-        name: NAME,
-        version: VERSION,
-        horizons: [...HORIZONS],
-        evaluateFusion,
-        evaluateCity,
-        getStatus
+      maxRiskScore,
+      horizons
     };
 
-    window.FloodRiskEngineV32 = api;
     window.RG32 = window.RG32 || {};
-    window.RG32.FloodRiskEngine = api;
 
-    console.log(`${NAME} ${VERSION} ready.`);
+    window.RG32.latestFloodRisk = result;
 
     window.dispatchEvent(
-        new CustomEvent(
-            "rainguard:flood-risk-engine-ready",
-            { detail: getStatus() }
-        )
+      new CustomEvent(
+        "rainguard:flood-risk-ready",
+        { detail: result }
+      )
     );
+
+    return result;
+  }
+
+  async function evaluateCity(city = {}) {
+    const fusion = window.RainForecastFusionV32;
+
+    if (
+      typeof fusion?.forecastCity !== "function"
+    ) {
+      return {
+        engine: NAME,
+        version: VERSION,
+        status: "FUSION_ENGINE_NOT_AVAILABLE",
+        city:
+          city.name ||
+          city.nameAr ||
+          "Unknown",
+        horizons: {}
+      };
+    }
+
+    const fusionResult =
+      await fusion.forecastCity(city);
+
+    return evaluateFusion(fusionResult);
+  }
+
+  function getStatus() {
+    return {
+      engine: NAME,
+      version: VERSION,
+      ready: true,
+      horizons: [...HORIZONS],
+      preliminary: true,
+      rainfallDrivenOnly: true,
+      locallyCalibrated: false,
+      confirmedFloodPrediction: false
+    };
+  }
+
+  const api = {
+    name: NAME,
+    version: VERSION,
+    horizons: [...HORIZONS],
+    evaluateFusion,
+    evaluateCity,
+    getStatus
+  };
+
+  window.FloodRiskEngineV32 = api;
+
+  window.RG32 = window.RG32 || {};
+  window.RG32.FloodRiskEngine = api;
+
+  console.log(
+    `${NAME} ${VERSION} ready.`
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "rainguard:flood-risk-engine-ready",
+      { detail: getStatus() }
+    )
+  );
 })();
