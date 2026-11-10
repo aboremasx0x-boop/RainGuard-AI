@@ -6,5 +6,5 @@ const section = brain.slice(brain.indexOf("L.circleMarker("),brain.indexOf("getT
 assert.match(section,/L\.circleMarker\(/,"clickable city markers must remain");
 assert.match(section,/marker\.bindPopup\(/,"city popups must remain");
 assert.doesNotMatch(section,/L\.circle\(/,"large heuristic city risk circles must be removed");
-assert.ok(html.includes("ai_brain_v23.js?v=3011-no-risk-halos"),"V30 must load updated map script");
+assert.ok(html.includes("ai_brain_v23.js?v=3011-small-city-pins"),"V30 must load updated map script");
 console.log("PASS: large city risk halos removed; markers and popups retained");

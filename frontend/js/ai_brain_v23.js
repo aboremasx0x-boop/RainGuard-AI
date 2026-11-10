@@ -731,43 +731,36 @@ window.RG23 = window.RG23 || {};
                                 risk
                             );
 
-                        const marker =
-                            L.circleMarker(
+                        // V30 shows compact neutral location pins rather than area-sized,
+                        // risk-colored circles. Risk indicators remain in the popup only.
+                        // The older V23 map keeps its existing markers.
+                        const isV30Map =
+                            this.map.getContainer?.()?.id === "v30Map";
 
-                                [
-                                    city.lat,
-                                    city.lon
-                                ],
-
+                        const marker = isV30Map
+                            ? L.marker(
+                                [city.lat, city.lon],
                                 {
-                                    radius:
-                                        Math.max(
-
-                                            7,
-
-                                            Math.min(
-                                                24,
-                                                risk / 2
-                                            )
-
-                                        ),
-
-                                    color,
-
-                                    fillColor:
-                                        color,
-
-                                    fillOpacity:
-                                        0.68,
-
-                                    weight:
-                                        2
+                                    icon: L.divIcon({
+                                        className: "rg30-city-pin",
+                                        html: '<span aria-hidden="true" style="display:block;position:relative;width:12px;height:12px;background:#2375e9;border:2px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 1px 5px rgba(0,0,0,.45)"></span>',
+                                        iconSize: [16, 16],
+                                        iconAnchor: [8, 16],
+                                        popupAnchor: [0, -17]
+                                    }),
+                                    title: String(city.name || "City")
                                 }
-
-                            )
-                            .addTo(
-                                this.map
-                            );
+                            ).addTo(this.map)
+                            : L.circleMarker(
+                                [city.lat, city.lon],
+                                {
+                                    radius: Math.max(7, Math.min(24, risk / 2)),
+                                    color,
+                                    fillColor: color,
+                                    fillOpacity: 0.68,
+                                    weight: 2
+                                }
+                            ).addTo(this.map);
 
                         marker.bindPopup(`
                             <div class="rg23-map-popup">
