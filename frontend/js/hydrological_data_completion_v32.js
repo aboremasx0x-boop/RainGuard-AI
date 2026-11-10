@@ -23,7 +23,10 @@
 
   // Leave empty until a verified classification API is ready.
   // It must return an ESA WorldCover class code.
-  const LAND_COVER_API = "";
+  
+const LAND_COVER_API =
+  "https://rainguard-ai.onrender.com/api/land-cover";
+
 
   const WORLD_COVER_CLASSES = {
     10: "Tree cover",
