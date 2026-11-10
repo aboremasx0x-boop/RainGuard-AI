@@ -19,7 +19,7 @@
     "use strict";
 
     const ENGINE_NAME = "RainForecastEngineV32";
-    const VERSION = "FORECAST-1A.1";
+    const VERSION = "FORECAST-1A.2";
 
     const HORIZONS = Object.freeze([
         6,
@@ -30,8 +30,14 @@
     ]);
 
     function number(value, fallback = 0) {
+        if (value === null || value === undefined || value === "" || typeof value === "boolean") return fallback;
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
+    }
+
+    function validNumber(value) {
+        return typeof value === "number" && Number.isFinite(value) ||
+            typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value));
     }
 
     function clamp(value, min, max) {
@@ -281,19 +287,25 @@
          Fall back to rain if precipitation is unavailable.
         */
 
-        const amountSeries =
-            windowPrecipitation.length
-                ? windowPrecipitation
-                : windowRain;
-
-        const totalRain =
-            sum(amountSeries);
-
-        const maximumProbability =
-            max(windowProbabilities);
-
-        const peakRain =
-            max(amountSeries);
+        // Validate each forecast hour independently; never turn missing rain into zero.
+        const amountSeries = Array.from({ length: hours }, (_, i) => {
+            const p = windowPrecipitation[i];
+            const r = windowRain[i];
+            return validNumber(p) && Number(p) >= 0 ? Number(p) :
+                validNumber(r) && Number(r) >= 0 ? Number(r) : null;
+        });
+        const validRainSamples = amountSeries.filter(validNumber).length;
+        const validProbabilitySamples = windowProbabilities.filter(v =>
+            validNumber(v) && Number(v) >= 0 && Number(v) <= 100
+        ).length;
+        const rainDataComplete = windowTimes.length === hours && validRainSamples === hours;
+        const probabilityDataComplete = windowTimes.length === hours && validProbabilitySamples === hours;
+        const totalRain = rainDataComplete ? sum(amountSeries) : null;
+        const validProbabilities = windowProbabilities.filter(v =>
+            validNumber(v) && Number(v) >= 0 && Number(v) <= 100
+        );
+        const maximumProbability = probabilityDataComplete ? max(validProbabilities) : null;
+        const peakRain = rainDataComplete ? max(amountSeries) : null;
 
         let peakIndex = -1;
 
@@ -301,7 +313,7 @@
             peakIndex =
                 amountSeries.findIndex(
                     value =>
-                        number(value) === peakRain
+                        peakRain !== null && validNumber(value) && Number(value) === peakRain
                 );
         }
 
@@ -314,7 +326,7 @@
 
         amountSeries.forEach(
             (value, index) => {
-                if (number(value) > 0) {
+                if (validNumber(value) && Number(value) > 0) {
                     rainyIndexes.push(index);
                 }
             }
@@ -337,16 +349,16 @@
                 ] || null;
         }
 
-        const severity =
-            getRainSeverity({
+        const severity = rainDataComplete && probabilityDataComplete
+            ? getRainSeverity({
                 totalRainMm: totalRain,
                 peakRainMmH: peakRain,
                 probability:
                     maximumProbability
-            });
+            }) : null;
 
         const confidence =
-            calculateConfidence({
+            rainDataComplete && probabilityDataComplete ? calculateConfidence({
                 sampleCount:
                     windowTimes.length,
 
@@ -357,7 +369,7 @@
                     maximumProbability,
 
                 totalRain
-            });
+            }) : null;
 
         return {
             horizonHours:
@@ -365,6 +377,12 @@
 
             sampleCount:
                 windowTimes.length,
+
+            expectedSamples: hours,
+            validRainSamples,
+            validProbabilitySamples,
+            rainDataComplete,
+            probabilityDataComplete,
 
             startTime:
                 windowTimes[0] || null,
@@ -374,23 +392,11 @@
                     windowTimes.length - 1
                 ] || null,
 
-            rainProbability:
-                round(
-                    maximumProbability,
-                    0
-                ),
+            rainProbability: maximumProbability === null ? null : round(maximumProbability, 0),
 
-            totalRainMm:
-                round(
-                    totalRain,
-                    2
-                ),
+            totalRainMm: totalRain === null ? null : round(totalRain, 2),
 
-            peakRainMmH:
-                round(
-                    peakRain,
-                    2
-                ),
+            peakRainMmH: peakRain === null ? null : round(peakRain, 2),
 
             peakTime,
 
@@ -403,9 +409,9 @@
             confidence,
 
             status:
-                windowTimes.length
+                rainDataComplete && probabilityDataComplete
                     ? "FORECAST_READY"
-                    : "NO_DATA"
+                    : "INSUFFICIENT_FORECAST_DATA"
         };
     }
 
@@ -477,7 +483,8 @@
                     VERSION,
 
                 status:
-                    "FORECAST_READY",
+                    Object.values(forecasts).some(h => h.status === "FORECAST_READY")
+                        ? "FORECAST_READY" : "INSUFFICIENT_FORECAST_DATA",
 
                 generatedAt:
                     new Date().toISOString(),
@@ -617,13 +624,13 @@
             return {
                 next24Hours: {
                     rainProbability:
-                        h24.rainProbability || 0,
+                        h24.rainProbability ?? null,
 
                     totalRainMm:
-                        h24.totalRainMm || 0,
+                        h24.totalRainMm ?? null,
 
                     peakRainMmH:
-                        h24.peakRainMmH || 0,
+                        h24.peakRainMmH ?? null,
 
                     peakTime:
                         h24.peakTime || null,
@@ -638,15 +645,15 @@
                         h24.severity || null,
 
                     confidence:
-                        h24.confidence || 0
+                        h24.confidence ?? null
                 },
 
                 next72Hours: {
                     rainProbability:
-                        h72.rainProbability || 0,
+                        h72.rainProbability ?? null,
 
                     totalRainMm:
-                        h72.totalRainMm || 0,
+                        h72.totalRainMm ?? null,
 
                     severity:
                         h72.severity || null
