@@ -1,33 +1,41 @@
 
 /*
  RainGuard AI V32
- FORECAST-1J9.1
+ FORECAST-1J10.0
 
  Preliminary Rainfall + Hydrology Composite
 
- FIX:
- - Read rainfallRiskScore from fusion horizons.
- - Support legacy riskScore.
- - Validate rainfall horizon status.
- - Preserve missing hydrological factors.
- - Prevent missing values becoming zero.
-
  IMPORTANT:
- Experimental screening only.
- NOT a confirmed flood forecast.
- NOT locally calibrated.
+ - Experimental screening only.
+ - NOT a confirmed flood forecast.
+ - NOT a flood probability.
+ - NOT locally calibrated.
+ - Missing values remain null.
+ - Do not use for operational safety decisions.
 */
 
 (function () {
   "use strict";
 
   const NAME = "FloodRiskHydrologicalCompositeV32";
-  const VERSION = "FORECAST-1J9.1";
+  const VERSION = "FORECAST-1J10.0";
 
   const HORIZONS = [6, 12, 24, 48, 72];
 
   const RAIN_WEIGHT = 0.60;
   const HYDRO_WEIGHT = 0.40;
+
+  // Provisional weights, not locally calibrated.
+  const WEIGHTS = Object.freeze({
+    terrain: 0.08,
+    slope: 0.16,
+    wadi_proximity: 0.24,
+    drainage_capacity: 0.20,
+    soil_moisture: 0.16,
+    land_cover: 0.16
+  });
+
+  const KEYS = Object.keys(WEIGHTS);
 
   const finite = v =>
     v !== null &&
@@ -36,46 +44,47 @@
     typeof v !== "boolean" &&
     Number.isFinite(Number(v));
 
-  const clamp = (v, min = 0, max = 100) =>
-    Math.max(min, Math.min(max, Number(v)));
-
   const round = v =>
     Math.round(v * 10) / 10;
 
-  function normalizeFactor(data) {
-    if (
-      !data ||
-      data.available !== true ||
-      !finite(data.value)
-    ) {
-      return null;
-    }
+  const clamp = (v, lo = 0, hi = 100) =>
+    Math.max(lo, Math.min(hi, v));
 
-    return Number(data.value);
-  }
+  const validScore = v =>
+    finite(v) &&
+    Number(v) >= 0 &&
+    Number(v) <= 100;
+
+  const normalized = obj =>
+    obj?.available === true && finite(obj.value)
+      ? Number(obj.value)
+      : null;
+
+  // -----------------------------------------
+  // 1. Calculate hydrological factor scores
+  // -----------------------------------------
 
   function factorScores(factors = {}) {
+
     const elevation =
-      normalizeFactor(factors.terrain);
+      normalized(factors.terrain);
 
     const slope =
-      normalizeFactor(factors.slope);
+      normalized(factors.slope);
 
     const wadi =
-      normalizeFactor(factors.wadi_proximity);
+      normalized(factors.wadi_proximity);
 
     const moisture =
-      normalizeFactor(factors.soil_moisture);
+      normalized(factors.soil_moisture);
 
     const cover =
-      normalizeFactor(factors.land_cover);
+      normalized(factors.land_cover);
 
-    /*
-      Provisional screening transforms.
-      These are not locally calibrated thresholds.
-    */
+    const drainage =
+      normalized(factors.drainage_capacity);
 
-    const landCoverScores = {
+    const coverMap = {
       10: 25,
       20: 45,
       30: 40,
@@ -89,197 +98,209 @@
       100: 30
     };
 
+    /*
+     These transforms are experimental.
+
+     Drainage capacity must be supplied as
+     an explicitly documented risk score
+     between 0 and 100.
+
+     Raw capacity in m3/s must not be
+     treated as a risk score.
+    */
+
+    const drainageIsScore =
+      factors.drainage_capacity?.unit ===
+        "risk_score_0_100" ||
+      factors.drainage_capacity?.valueType ===
+        "risk_score_0_100";
+
     return {
+
       terrain:
-        elevation === null
-          ? null
-          : round(
-              clamp(100 - elevation)
-            ),
+        elevation !== null && elevation >= 0
+          ? round(clamp(100 - elevation))
+          : null,
 
       slope:
-        slope === null
-          ? null
-          : round(
-              clamp((slope / 15) * 100)
-            ),
+        slope !== null && slope >= 0
+          ? round(clamp(slope / 15 * 100))
+          : null,
 
       wadi_proximity:
-        wadi === null
-          ? null
-          : round(
+        wadi !== null && wadi >= 0
+          ? round(
               clamp(
                 ((3000 - wadi) / 3000) * 100
               )
-            ),
+            )
+          : null,
+
+      drainage_capacity:
+        drainageIsScore && validScore(drainage)
+          ? round(drainage)
+          : null,
 
       soil_moisture:
-        moisture === null
-          ? null
-          : round(
+        moisture !== null &&
+        moisture >= 0 &&
+        moisture <= 1
+          ? round(
               clamp(
                 (moisture / 0.45) * 100
               )
-            ),
+            )
+          : null,
 
       land_cover:
-        cover === null
-          ? null
-          : (
-              landCoverScores[cover] ?? null
-            )
+        cover !== null
+          ? (coverMap[cover] ?? null)
+          : null
     };
   }
 
-  function weightedHydrology(scores = {}) {
-    const weights = {
-      terrain: 0.10,
-      slope: 0.20,
-      wadi_proximity: 0.30,
-      soil_moisture: 0.20,
-      land_cover: 0.20
-    };
+  // -----------------------------------------
+  // 2. Weighted hydrological calculation
+  // -----------------------------------------
 
-    let total = 0;
-    let weightSum = 0;
+  function weightedHydrology(
+    scores,
+    weights = WEIGHTS
+  ) {
 
-    for (
-      const [key, weight]
-      of Object.entries(weights)
-    ) {
-      const value = scores[key];
+    let sum = 0;
+    let availableWeight = 0;
 
-      if (finite(value)) {
-        total += Number(value) * weight;
-        weightSum += weight;
+    for (const key of KEYS) {
+
+      if (validScore(scores[key])) {
+
+        sum +=
+          Number(scores[key]) * weights[key];
+
+        availableWeight += weights[key];
       }
     }
 
     return {
+
       score:
-        weightSum > 0
-          ? round(total / weightSum)
+        availableWeight > 0
+          ? round(sum / availableWeight)
           : null,
 
       availableWeight:
-        round(weightSum),
+        round(availableWeight),
+
+      missingWeight:
+        round(1 - availableWeight),
 
       factorScores: scores
     };
   }
 
+  // -----------------------------------------
+  // 3. Find forecast horizon
+  // -----------------------------------------
+
   function getHorizon(horizons, hours) {
-    if (!horizons) {
-      return null;
-    }
 
     if (Array.isArray(horizons)) {
-      return (
-        horizons.find(h =>
-          Number(h?.horizonHours) === hours ||
-          h?.period === `${hours}h` ||
-          h?.horizon === `${hours}h`
-        ) || null
-      );
+
+      return horizons.find(h =>
+        Number(h?.horizonHours) === hours ||
+        h?.period === `${hours}h` ||
+        h?.horizon === `${hours}h`
+      ) || null;
     }
 
     return (
-      horizons[`${hours}h`] ||
-      horizons[hours] ||
+      horizons?.[`${hours}h`] ||
+      horizons?.[hours] ||
       null
     );
   }
 
-  function extractRainfallScore(rain) {
-    if (!rain || typeof rain !== "object") {
-      return null;
-    }
+  // -----------------------------------------
+  // 4. Extract rainfall score
+  // -----------------------------------------
+
+  function rainfallScore(rain) {
 
     const allowedStatuses = [
       "PRELIMINARY_RISK_READY",
       "PRELIMINARY_FLOOD_RISK_READY"
     ];
 
-    if (
-      !allowedStatuses.includes(rain.status)
-    ) {
+    if (!allowedStatuses.includes(rain?.status)) {
       return null;
     }
 
     const value =
       rain.rainfallRiskScore ??
-      rain.riskScore ??
-      null;
+      rain.riskScore;
 
-    if (!finite(value)) {
-      return null;
-    }
-
-    const score = Number(value);
-
-    if (score < 0 || score > 100) {
-      return null;
-    }
-
-    return score;
+    return validScore(value)
+      ? Number(value)
+      : null;
   }
 
-  function combineHorizon(rain, hydro) {
+  // -----------------------------------------
+  // 5. Combine rainfall and hydrology
+  // -----------------------------------------
+
+  function combineHorizon(
+    rain,
+    hydro,
+    quality
+  ) {
+
     const rainScore =
-      extractRainfallScore(rain);
+      rainfallScore(rain);
 
     const hydroScore =
-      finite(hydro?.score)
-        ? Number(hydro.score)
-        : null;
+      hydro.score;
 
-    if (
-      rainScore === null ||
-      hydroScore === null
-    ) {
-      return {
-        status: "INSUFFICIENT_COMPOSITE_DATA",
+    const available =
+      rainScore !== null &&
+      hydroScore !== null;
 
-        rainfallStatus:
-          rain?.status ?? null,
-
-        rainfallScore: rainScore,
-
-        hydrologicalScore: hydroScore,
-
-        compositeScore: null,
-
-        confirmedFloodPrediction: false,
-
-        locallyCalibrated: false
-      };
-    }
-
-    /*
-      Provisional 60/40 weighting.
-      Must be calibrated against
-      independent historical flood events.
-    */
-
-    const combined = clamp(
-      rainScore * RAIN_WEIGHT +
-      hydroScore * HYDRO_WEIGHT
-    );
+    const compositeScore = available
+      ? round(
+          clamp(
+            rainScore * RAIN_WEIGHT +
+            hydroScore * HYDRO_WEIGHT
+          )
+        )
+      : null;
 
     return {
-      status: "PRELIMINARY_COMPOSITE_READY",
+
+      status: available
+        ? "PRELIMINARY_COMPOSITE_READY"
+        : "INSUFFICIENT_COMPOSITE_DATA",
 
       rainfallStatus:
-        rain.status,
+        rain?.status ?? null,
 
       rainfallScore:
-        round(rainScore),
+        rainScore === null
+          ? null
+          : round(rainScore),
 
       hydrologicalScore:
-        round(hydroScore),
+        hydroScore,
 
-      compositeScore:
-        round(combined),
+      compositeScore,
+
+      dataCompletenessPercent:
+        quality.factorCompletenessPercent,
+
+      drainageCapacityAvailable:
+        quality.drainageCapacityAvailable,
+
+      qualityStatus:
+        quality.status,
 
       confirmedFloodPrediction: false,
 
@@ -287,24 +308,128 @@
     };
   }
 
+  // -----------------------------------------
+  // 6. Sensitivity analysis
+  // -----------------------------------------
+
+  function sensitivity(
+    scores,
+    rainfallScores
+  ) {
+
+    /*
+     Change each available factor weight
+     by -20% and +20%.
+
+     This is not a confidence interval
+     and does not validate the model.
+    */
+
+    const variants = [];
+
+    for (const key of KEYS) {
+
+      if (!validScore(scores[key])) {
+        continue;
+      }
+
+      for (const multiplier of [0.8, 1.2]) {
+
+        const weights = {
+          ...WEIGHTS,
+          [key]: WEIGHTS[key] * multiplier
+        };
+
+        const hydro =
+          weightedHydrology(scores, weights);
+
+        for (
+          const [period, rain]
+          of Object.entries(rainfallScores)
+        ) {
+
+          if (
+            rain === null ||
+            hydro.score === null
+          ) {
+            continue;
+          }
+
+          variants.push({
+
+            factor: key,
+
+            multiplier,
+
+            period,
+
+            compositeScore: round(
+              clamp(
+                rain * RAIN_WEIGHT +
+                hydro.score * HYDRO_WEIGHT
+              )
+            )
+          });
+        }
+      }
+    }
+
+    const byHorizon = {};
+
+    for (
+      const period of
+      HORIZONS.map(h => `${h}h`)
+    ) {
+
+      const values = variants
+        .filter(v => v.period === period)
+        .map(v => v.compositeScore);
+
+      byHorizon[period] = values.length
+        ? {
+            min: Math.min(...values),
+            max: Math.max(...values),
+            testedVariants: values.length
+          }
+        : null;
+    }
+
+    return {
+
+      method:
+        "one_factor_weight_perturbation_plus_minus_20_percent",
+
+      byHorizon,
+
+      warning:
+        "Sensitivity range is NOT a confidence interval or validated forecast uncertainty."
+    };
+  }
+
+  // -----------------------------------------
+  // 7. Main city evaluation
+  // -----------------------------------------
+
   async function evaluateCity(city = {}) {
+
     const fusion =
       window.FloodRiskHydrologicalFusionV32;
 
     if (
       typeof fusion?.evaluateCity !== "function"
     ) {
+
       return {
+
         engine: NAME,
+
         version: VERSION,
+
+        city:
+          city.name || "Unknown",
 
         status:
           "HYDROLOGICAL_FUSION_UNAVAILABLE",
-
-        city:
-          city.name ||
-          city.nameAr ||
-          "Unknown",
 
         horizons: {},
 
@@ -329,11 +454,6 @@
     const hydro =
       weightedHydrology(scores);
 
-    /*
-      The current fusion bridge places
-      rainfall results in base.horizons.
-    */
-
     const rainfallHorizons =
       base?.rainfall?.horizons ||
       base?.rainfallResult?.horizons ||
@@ -341,32 +461,75 @@
       base?.horizons ||
       {};
 
-    const missingHydrology = [
-      "terrain",
-      "slope",
-      "wadi_proximity",
-      "drainage_capacity",
-      "soil_moisture",
-      "land_cover"
-    ].filter(key =>
-      factors[key]?.available !== true
-    );
+    // Identify unavailable factors.
+    const missingFactors =
+      KEYS.filter(
+        key => !validScore(scores[key])
+      );
+
+    // Data completeness is separate
+    // from the calculated risk score.
+    const factorCompletenessPercent =
+      round(
+        100 *
+        (KEYS.length - missingFactors.length) /
+        KEYS.length
+      );
+
+    const drainageCapacityAvailable =
+      validScore(scores.drainage_capacity);
+
+    const quality = {
+
+      status:
+        missingFactors.length
+          ? "PARTIAL_HYDROLOGICAL_DATA"
+          : "ALL_FACTORS_PRESENT_UNVALIDATED",
+
+      factorCompletenessPercent,
+
+      availableWeight:
+        hydro.availableWeight,
+
+      missingWeight:
+        hydro.missingWeight,
+
+      missingFactors,
+
+      drainageCapacityAvailable,
+
+      sourceCompletenessPercent:
+        finite(hydrology.completenessPercent)
+          ? Number(hydrology.completenessPercent)
+          : null,
+
+      locallyValidated: false
+    };
 
     const horizons = {};
+    const rainfallScores = {};
 
     for (const hours of HORIZONS) {
+
+      const period = `${hours}h`;
+
       const rain =
         getHorizon(
           rainfallHorizons,
           hours
         );
 
-      horizons[`${hours}h`] = {
+      rainfallScores[period] =
+        rainfallScore(rain);
+
+      horizons[period] = {
+
         horizonHours: hours,
 
         ...combineHorizon(
           rain,
-          hydro
+          hydro,
+          quality
         )
       };
     }
@@ -381,14 +544,20 @@
     const maxCompositeScore =
       ready.length
         ? Math.max(
-            ...ready.map(h =>
-              h.compositeScore
+            ...ready.map(
+              h => h.compositeScore
             )
           )
         : null;
 
+    // -------------------------------------
+    // 8. Final result
+    // -------------------------------------
+
     const result = {
+
       engine: NAME,
+
       version: VERSION,
 
       city:
@@ -413,6 +582,7 @@
         new Date().toISOString(),
 
       methodology: {
+
         type:
           "experimental_rainfall_hydrology_screening",
 
@@ -422,43 +592,69 @@
         hydrologyWeight:
           HYDRO_WEIGHT,
 
+        hydrologyFactorWeights: {
+          ...WEIGHTS
+        },
+
+        scoreIsProbability: false,
+
         locallyCalibrated: false,
 
         confirmedFloodPrediction: false,
 
-        note:
-          "Experimental screening score, not a confirmed flood prediction."
+        historicalValidationStatus:
+          "NOT_VALIDATED",
+
+        warning:
+          "Do not use as an operational flood warning or probability."
       },
 
+      dataQuality:
+        quality,
+
       hydrology: {
+
         completenessPercent:
-          hydrology.completenessPercent ??
-          null,
+          quality.sourceCompletenessPercent,
+
+        factorCompletenessPercent,
 
         availableWeight:
           hydro.availableWeight,
+
+        missingWeight:
+          hydro.missingWeight,
 
         score:
           hydro.score,
 
         factorScores:
-          hydro.factorScores,
+          scores,
 
-        missingFactors:
-          missingHydrology,
+        missingFactors,
 
-        drainageCapacityAvailable:
-          factors.drainage_capacity
-            ?.available === true
+        drainageCapacityAvailable
       },
 
       maxCompositeScore,
 
+      sensitivity:
+        sensitivity(
+          scores,
+          rainfallScores
+        ),
+
       horizons,
 
       errors:
-        base?.errors || []
+        Array.isArray(base?.errors)
+          ? base.errors
+          : []
     };
+
+    // -------------------------------------
+    // 9. Publish result
+    // -------------------------------------
 
     window.RG32 =
       window.RG32 || {};
@@ -478,9 +674,16 @@
     return result;
   }
 
+  // -----------------------------------------
+  // 10. Engine status
+  // -----------------------------------------
+
   function getStatus() {
+
     return {
+
       engine: NAME,
+
       version: VERSION,
 
       ready: true,
@@ -496,10 +699,13 @@
   }
 
   const api = {
+
     name: NAME,
+
     version: VERSION,
 
     evaluateCity,
+
     getStatus
   };
 
@@ -516,4 +722,5 @@
     VERSION,
     "ready"
   );
+
 })();
