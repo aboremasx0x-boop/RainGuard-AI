@@ -1091,8 +1091,33 @@ RG30.Orchestrator = {
             `Phase ${this.getPhaseLabel(phase)} selected. Live execution follows the V30 cycle.`,
             `تم اختيار مرحلة ${this.getPhaseLabel(phase)}. التنفيذ الفعلي يتبع دورة V30.`
         ), "info");
-        const target = document.querySelector(`[data-v30-panel="${normalized}"]`) || document.getElementById(`phase-${normalized}`);
-        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        // These are existing dashboard views, not separate executable phases.
+        // Fall back to real V30 panels when no dedicated phase panel exists.
+        const panelByPhase = {
+            observe: "v30Map",
+            collect: "sourceAdapterStatusPanel",
+            normalize: "verificationSourceMatrix",
+            verify: "multiSourceVerificationPanel",
+            compare: "verificationSourceMatrix",
+            conflict: "multiSourceVerificationPanel",
+            decide: "decisionPanel",
+            gate: "decisionPanel",
+            learn: "adaptive-motion-learning-panel"
+        };
+        const target = document.querySelector(`[data-v30-panel="${normalized}"]`)
+            || document.getElementById(`phase-${normalized}`)
+            || document.getElementById(panelByPhase[normalized]);
+        if (target) {
+            (target.closest("article.panel") || target).scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        } else {
+            this.writeCommander(this.text(
+                `No dashboard panel is configured for ${this.getPhaseLabel(phase)}.`,
+                `لا توجد لوحة مرتبطة بمرحلة ${this.getPhaseLabel(phase)}.`
+            ), "warning");
+        }
     },
 
     async handleCommanderCommand(
