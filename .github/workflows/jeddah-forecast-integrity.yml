@@ -1,0 +1,20 @@
+name: Jeddah forecast integrity regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/rain_forecast_engine_v32.js'
+      - 'tests/jeddah_forecast_integrity.test.cjs'
+      - '.github/workflows/jeddah-forecast-integrity.yml'
+  workflow_dispatch:
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/js/rain_forecast_engine_v32.js
+      - run: node tests/jeddah_forecast_integrity.test.cjs
