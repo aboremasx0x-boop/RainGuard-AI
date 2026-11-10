@@ -12,6 +12,10 @@ from statistics import mean
 
 app = FastAPI(title="RainGuard AI API", version="14.0")
 
+from land_cover_api import router as land_cover_router
+app.include_router(land_cover_router)
+
+
 
 ALLOWED_ORIGINS = [
     "https://rainguard-frontend.onrender.com",
