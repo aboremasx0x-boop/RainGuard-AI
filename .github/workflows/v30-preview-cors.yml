@@ -1,0 +1,20 @@
+name: RainGuard V30 preview CORS regression
+on:
+  pull_request:
+    paths:
+      - 'main.py'
+      - 'tests/test_v30_preview_cors.py'
+      - '.github/workflows/v30-preview-cors.yml'
+  workflow_dispatch:
+jobs:
+  cors:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify trusted and rejected preview origins
+        run: python -m unittest discover -s tests -p 'test_v30_preview_cors.py' -v
