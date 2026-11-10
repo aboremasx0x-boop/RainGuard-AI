@@ -1,0 +1,21 @@
+name: V30 phase navigation regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/v30_orchestrator.js'
+      - 'frontend/national-ai-os-v30.html'
+      - 'tests/v30_phase_navigation.test.cjs'
+      - '.github/workflows/v30-phase-navigation.yml'
+  workflow_dispatch:
+jobs:
+  navigation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/js/v30_orchestrator.js
+      - run: node tests/v30_phase_navigation.test.cjs
