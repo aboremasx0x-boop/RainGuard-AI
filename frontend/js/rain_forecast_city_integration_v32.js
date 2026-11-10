@@ -134,10 +134,15 @@
         const key =
             cityKey(city);
 
+        // Record the desired city before duplicate checks or a running request.
+        window.RG32 = window.RG32 || {};
+        window.RG32.activeForecastCity = city;
+        window.RainForecastUIV32?.requestCity?.(city);
+
         /*
          * Avoid duplicate requests.
          */
-        if (!force && key === lastCityKey) {
+        if (!force && key === lastCityKey && !running) {
             return (
                 window.RG32
                     ?.latestRainForecastFusion ||
@@ -181,11 +186,17 @@
             const result =
                 await ui.showCity(city);
 
+            // A queued newer selection supersedes this completed result.
+            if (pendingCity && cityKey(pendingCity) !== key) {
+                return null;
+            }
+
+            if (cityKey(window.RG32?.activeForecastCity || city) !== key) {
+                return null;
+            }
+
             lastCityKey =
                 key;
-
-            window.RG32 =
-                window.RG32 || {};
 
             window.RG32.activeForecastCity =
                 city;
