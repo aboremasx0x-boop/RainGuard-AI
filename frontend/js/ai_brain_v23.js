@@ -825,44 +825,8 @@ window.RG23 = window.RG23 || {};
                             marker
                         );
 
-                        if (
-                            risk >= 25
-                        ) {
-
-                            const circle =
-                                L.circle(
-
-                                    [
-                                        city.lat,
-                                        city.lon
-                                    ],
-
-                                    {
-                                        radius:
-                                            risk * 2600,
-
-                                        color,
-
-                                        fillColor:
-                                            color,
-
-                                        fillOpacity:
-                                            0.07,
-
-                                        weight:
-                                            1
-                                    }
-
-                                )
-                                .addTo(
-                                    this.map
-                                );
-
-                            this.mapLayers.push(
-                                circle
-                            );
-
-                        }
+                        // Oversized, heuristic risk-halo circles removed from V30.
+                        // Keep clickable city markers and radar overlays intact.
 
                     }
                 );
