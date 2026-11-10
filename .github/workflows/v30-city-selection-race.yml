@@ -1,0 +1,23 @@
+name: V30 city forecast selection race regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/rain_forecast_ui_v32.js'
+      - 'frontend/js/rain_forecast_city_integration_v32.js'
+      - 'frontend/national-ai-os-v30.html'
+      - 'tests/v30_city_selection_race.test.cjs'
+      - '.github/workflows/v30-city-selection-race.yml'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/js/rain_forecast_ui_v32.js
+      - run: node --check frontend/js/rain_forecast_city_integration_v32.js
+      - run: node tests/v30_city_selection_race.test.cjs
