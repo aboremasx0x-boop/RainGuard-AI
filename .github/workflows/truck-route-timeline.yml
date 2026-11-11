@@ -1,0 +1,24 @@
+name: Truck provider ETA timeline safety
+on:
+  pull_request:
+    paths:
+      - 'truck_route_timeline.py'
+      - 'valhalla_truck_routes.py'
+      - 'here_truck_routes.py'
+      - 'tests/test_truck_route_timeline.py'
+      - '.github/workflows/truck-route-timeline.yml'
+  workflow_dispatch:
+jobs:
+  timeline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -p test_truck_route_timeline.py -v
+      - run: python -m unittest discover -s tests -p test_valhalla_truck_routes.py -v
+      - run: python -m unittest discover -s tests -p test_here_truck_routes.py -v

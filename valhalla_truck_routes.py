@@ -9,6 +9,9 @@ import math
 import os
 from urllib.parse import urlparse
 from typing import Optional
+from datetime import datetime
+from pydantic import field_validator
+from truck_route_timeline import route_timeline
 
 import httpx
 from fastapi import APIRouter, Header
@@ -38,6 +41,14 @@ class RouteRequest(BaseModel):
     origin: Location
     destination: Location
     vehicle: Vehicle
+    departure_time_utc: Optional[datetime] = None
+
+    @field_validator("departure_time_utc")
+    @classmethod
+    def valid_departure(cls, value):
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("timezone required")
+        return value
 
 
 def backend_url() -> Optional[str]:
@@ -90,7 +101,7 @@ def build_payload(request: RouteRequest) -> dict:
     }
 
 
-def normalize_result(payload: object) -> dict:
+def normalize_result(payload: object, departure_time_utc: Optional[datetime] = None) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("INVALID_PROVIDER_PAYLOAD")
     trip = payload.get("trip")
@@ -110,13 +121,27 @@ def normalize_result(payload: object) -> dict:
     for leg in legs:
         if not isinstance(leg, dict) or not isinstance(leg.get("shape"), str) or not 0 < len(leg["shape"]) < 150000:
             raise ValueError("INVALID_ROUTE_SHAPE")
-        sections.append({"encodedPolyline6": leg["shape"], "geometryStatus": "PROVIDER_ESTIMATE"})
+        # Valhalla may omit per-leg time/length. Never derive road segment
+        # durations by splitting the route total across legs.
+        leg_summary = leg.get("summary") or {}
+        seg_minutes = leg_summary.get("time")
+        seg_km = leg_summary.get("length")
+        validated = all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v >= 0
+            for v in (seg_minutes, seg_km)
+        )
+        sections.append({
+            "encodedPolyline6": leg["shape"], "geometryStatus": "PROVIDER_ESTIMATE",
+            "distanceKm": round(seg_km, 2) if validated else None,
+            "durationMinutes": round(seg_minutes / 60, 4) if validated else None,
+        })
     return {
         "provider": "Self-hosted Valhalla / OpenStreetMap",
         "costing": "truck",
         "distanceKm": round(length, 2),
         "estimatedTravelMinutes": round(seconds / 60, 1),
         "sections": sections,
+        "timeline": route_timeline(sections, departure_time_utc, seconds / 60, length),
         "routeStatus": "ROUTE_COMPUTED_SAFETY_UNVERIFIED",
         "restrictionsCoverage": "UNKNOWN_OSM_COMPLETENESS",
         "roadClosures": "NOT_VERIFIED",
@@ -144,7 +169,7 @@ async def route_truck(
             response = await client.post(endpoint, json=build_payload(request))
         if response.status_code != 200 or len(response.content) > MAX_BODY_BYTES:
             raise ValueError("ROUTING_UPSTREAM_FAILURE")
-        result = normalize_result(response.json())
+        result = normalize_result(response.json(), request.departure_time_utc)
         return {"success": True, **result}
     except (httpx.HTTPError, ValueError, KeyError, TypeError, OverflowError):
         return JSONResponse(status_code=502, content={"success": False, "error": "ROUTE_PROVIDER_UNAVAILABLE"})

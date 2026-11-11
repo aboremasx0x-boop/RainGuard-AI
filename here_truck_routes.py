@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
+from truck_route_timeline import route_timeline
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -67,7 +68,7 @@ def route_parameters(request: RouteRequest, key: str) -> dict:
     }
 
 
-def parse_route_payload(payload: object):
+def parse_route_payload(payload: object, departure_time_utc: Optional[datetime] = None):
     """Whitelisted output; no upstream URL, API key, tracking data, or PII."""
     if not isinstance(payload, dict) or not isinstance(payload.get("routes"), list):
         raise ValueError("INVALID_ROUTE_RESPONSE")
@@ -113,6 +114,7 @@ def parse_route_payload(payload: object):
         "distanceKm": round(distance / 1000, 2),
         "estimatedTravelMinutes": round(duration / 60, 1),
         "sections": sanitized,
+        "timeline": route_timeline(sanitized, departure_time_utc, duration / 60, distance / 1000),
         "criticalVehicleRestrictions": critical,
         "roadClosureVerification": "NOT_VERIFIED_INDEPENDENTLY",
         "hydrologyVerification": "NOT_VERIFIED",
@@ -128,7 +130,7 @@ async def fetch_route(request: RouteRequest, api_key: str):
         response = await client.get(HERE_ENDPOINT, params=route_parameters(request, api_key))
         if response.status_code != 200:
             raise ValueError("HERE_ROUTING_UPSTREAM_ERROR")
-        return parse_route_payload(response.json())
+        return parse_route_payload(response.json(), request.departure_time_utc)
 
 
 @router.post("/here")
