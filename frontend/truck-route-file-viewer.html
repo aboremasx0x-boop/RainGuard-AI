@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI — عرض ملف مسار Valhalla التجريبي</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;color:#eaf3ff;background:#07182b}
+*{box-sizing:border-box}
+body{max-width:1140px;margin:auto;padding:24px 16px;line-height:1.8}
+a{color:#9ee4ff}
+h1{font-size:clamp(1.6rem,4vw,2.4rem);margin:8px 0}
+.panel{background:#102942;border:1px solid #315b7a;border-radius:16px;padding:20px;margin:15px 0}
+.caution{color:#ffdfb7;background:#4a301d;border:1px solid #bd894b;border-radius:10px;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.metric{background:#163851;padding:12px;border-radius:12px}
+.metric strong{display:block;font-size:1.5rem}
+label{display:block;font-weight:bold;margin-bottom:8px}
+input{display:block;color:inherit;max-width:100%;background:#132f49;padding:10px;border:1px solid #6d9fb5;border-radius:10px}
+#routeMap{height:450px;width:100%;display:block;border-radius:12px;border:1px solid #3a789c;background:linear-gradient(120deg,#0c2741,#123a50)}
+small,.muted{color:#b3cee0}
+#routeMap text{font-family:Tahoma,Arial,sans-serif;fill:#fff;font-size:18px}
+#routeMap .route{fill:none;stroke:#56d9f2;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+#routeMap circle{fill:#ffd472;stroke:#061a30;stroke-width:3}
+@media(max-width:600px){.grid{grid-template-columns:1fr}#routeMap{height:310px}}
+</style>
+</head>
+<body>
+<nav><a href="truck-journey-command-view.html">العودة إلى لوحة رحلات الشاحنات</a></nav>
+<main>
+<h1>عرض مسار الشاحنة — ملف Valhalla تجريبي</h1>
+<p class="muted">هذه الصفحة تقرأ ملف GeoJSON من جهازك داخل المتصفح فقط، وتعرض هندسة المسار بشكل تخطيطي دون إرسال الملف إلى RainGuard أو Valhalla أو أي خادم. لا تستخدم خرائط خارجية أو اتصالًا بخدمة توجيه.</p>
+<div class="caution" role="alert"><strong>غير مخصص للملاحة أو قيادة الشاحنات.</strong> المسار من خدمة مجتمعية تجريبية. لا توجد مصادقة لقيود الشاحنات أو حالة فتح الطريق أو مخاطر السيول أو الإغلاقات الرسمية.</div>
+<section class="panel">
+<label for="routeFile">اختر ملف <span dir="ltr">jeddah_makkah_route_demo.geojson</span> الذي أنشأته من PowerShell</label>
+<input type="file" id="routeFile" accept=".geojson,.json,application/geo+json,application/json">
+<p id="fileStatus" role="status">لم يُحدد ملف مسار بعد. لن نرسم خطًا افتراضيًا مكان الطريق الحقيقي.</p>
+</section>
+<section class="grid" aria-label="ملخص المسار">
+<div class="metric">المسافة المحسوبة<strong id="routeDistance">غير متاح</strong></div>
+<div class="metric">زمن الرحلة التقديري<strong id="routeDuration">غير متاح</strong></div>
+<div class="metric">السلامة وحالة الطريق<strong>غير متحقق منها</strong></div>
+</section>
+<section class="panel">
+<h2>المسار المستخرج من الملف</h2>
+<svg id="routeMap" viewBox="0 0 1000 450" role="img" aria-label="لن يظهر المسار حتى تختار ملف GeoJSON صحيحًا" xmlns="http://www.w3.org/2000/svg"></svg>
+<p class="muted">رسم هندسي تقريبي لإحداثيات الملف، وليس خريطة ملاحة أو صور أقمار صناعية. مصدر البيانات FOSSGIS Valhalla / OpenStreetMap. يلزم مراعاة التراخيص والإسناد عند إعادة النشر.</p>
+</section>
+</main>
+<script src="js/truck_route_geojson_viewer_v1.js?v=1" defer></script>
+</body></html>
