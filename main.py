@@ -1724,6 +1724,7 @@ async def weatherapi_weather(
             "source": "weatherapi",
             "provider": "WeatherAPI.com",
             "forecastHours": hourly,
+            "retrievedAt": datetime.utcnow().isoformat() + "Z",
             "timezone": payload.get("location", {}).get("tz_id"),
             "location": {
                 "lat": payload.get("location", {}).get("lat"),
