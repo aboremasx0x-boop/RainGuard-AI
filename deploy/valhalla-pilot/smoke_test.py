@@ -1,6 +1,8 @@
 """Local-only Valhalla truck routing smoke test. NEVER certifies road safety."""
 import argparse
 import json
+import math
+import sys
 import urllib.error
 import urllib.request
 
@@ -22,7 +24,8 @@ def inspect(payload):
     if not isinstance(trip, dict):
         return {"success": False, "reason": "NO_ROUTE", "safeToDrive": None}
     s = trip.get("summary") or {}
-    if not isinstance(s.get("length"), (int, float)) or not isinstance(s.get("time"), (int, float)):
+    if any(not isinstance(s.get(k),(int,float)) or isinstance(s.get(k),bool)
+           or not math.isfinite(s[k]) or s[k]<=0 for k in ("length","time")):
         return {"success": False, "reason": "ROUTE_SUMMARY_MISSING", "safeToDrive": None}
     return {"success": True, "provider": "LOCAL_VALHALLA_TRUCK",
             "estimatedDistanceKm": s["length"],
@@ -50,4 +53,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default=DEFAULT_URL)
     args = parser.parse_args()
-    print(json.dumps(run(args.url), ensure_ascii=False, indent=2))
+    result=run(args.url)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if not result["success"]:
+        sys.exit(1)

@@ -17,5 +17,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest discover -s tests -p 'test_valhalla_pilot.py'
+      - run: bash -n deploy/valhalla-pilot/run_pilot.sh
+      - run: bash deploy/valhalla-pilot/run_pilot.sh check
       - run: python deploy/valhalla-pilot/prepare_extract.py --dry-run
       - run: python -m py_compile deploy/valhalla-pilot/prepare_extract.py deploy/valhalla-pilot/smoke_test.py
