@@ -1,0 +1,28 @@
+name: Truck live city weather integration
+on:
+  pull_request:
+    paths:
+      - 'main.py'
+      - 'frontend/js/truck_live_data_v1.js'
+      - 'frontend/truck-journey-command-view.html'
+      - 'tests/truck_live_data_integration.test.cjs'
+      - '.github/workflows/truck-live-city-weather.yml'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/truck_live_data_integration.test.cjs
+      - run: node tests/truck_journey_command_view.test.cjs
+      - run: node tests/operations_truck_hub.test.cjs
+      - run: node --check frontend/js/truck_live_data_v1.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m py_compile main.py
