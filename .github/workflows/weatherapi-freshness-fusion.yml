@@ -1,0 +1,33 @@
+name: WeatherAPI freshness and fusion checks
+on:
+  pull_request:
+    paths:
+      - "main.py"
+      - "frontend/js/weatherapi_adapter_v32.js"
+      - "frontend/js/source_adapter_v30.js"
+      - "frontend/js/rain_forecast_fusion_v32.js"
+      - "frontend/js/rain_forecast_ui_v32.js"
+      - "frontend/national-ai-os-v30.html"
+      - "tests/weatherapi_freshness_fusion.test.cjs"
+      - ".github/workflows/weatherapi-freshness-fusion.yml"
+  workflow_dispatch:
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m py_compile main.py
+      - run: node --check frontend/js/weatherapi_adapter_v32.js
+      - run: node --check frontend/js/source_adapter_v30.js
+      - run: node --check frontend/js/rain_forecast_fusion_v32.js
+      - run: node --check frontend/js/rain_forecast_ui_v32.js
+      - run: node tests/weatherapi_freshness_fusion.test.cjs
+      - run: node tests/weatherapi_optional_source.test.cjs
