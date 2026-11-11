@@ -1,0 +1,22 @@
+name: Valhalla open-source truck routing tests
+on:
+  pull_request:
+    paths:
+      - "main.py"
+      - "valhalla_truck_routes.py"
+      - "tests/test_valhalla_truck_routes.py"
+      - ".github/workflows/valhalla-truck-routes.yml"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install fastapi httpx pydantic
+      - run: python -m py_compile main.py valhalla_truck_routes.py
+      - run: python -m unittest discover -s tests -p 'test_valhalla_truck_routes.py'
