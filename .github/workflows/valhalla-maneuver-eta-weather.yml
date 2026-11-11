@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/valhalla_maneuver_timing.py'
+      - 'scripts/valhalla_timing_diagnostics.py'
+      - 'tests/test_valhalla_timing_diagnostics.py'
       - 'scripts/export_public_valhalla_route_geojson.py'
       - 'frontend/js/truck_route_geojson_viewer_v1.js'
       - 'frontend/js/truck_route_spatial_weather_v1.js'
@@ -26,6 +28,7 @@ jobs:
         with:
           node-version: '22'
       - run: python -m unittest discover -s tests -p test_valhalla_maneuver_timing.py -v
+      - run: python -m unittest discover -s tests -p test_valhalla_timing_diagnostics.py -v
       - run: python -m unittest discover -s tests -p test_valhalla_public_geojson_export.py -v
       - run: python scripts/export_public_valhalla_route_geojson.py --dry-run
       - run: node tests/truck_maneuver_eta_weather.test.cjs
