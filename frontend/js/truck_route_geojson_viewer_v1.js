@@ -29,7 +29,32 @@ function parse(input){
    if(lon<34||lon>56||lat<16||lat>33)throw Error("OUTSIDE_SAUDI_TEST_BOUNDS");
    return [lon,lat];
  });
+ let timingAnchors=null;
+ if(props.maneuverTimingStatus==="PROVIDER_ESTIMATED_ANCHORS"){
+   const a=props.maneuverTimeAnchors;
+   if(!Array.isArray(a)||a.length!==3)throw Error("INVALID_TIME_ANCHORS");
+   const expected=[0,null,coordinates.length-1];
+   const values=a.map((x,i)=>{
+     if(!x||x.sampleId!==i+1||x.source!=="VALHALLA_MANEUVER_BOUNDARY_ESTIMATE"||
+       x.timeVerifiedAgainstObservations!==false||x.arrivalTimeUtc!==null||
+       !Number.isInteger(x.pointIndex)||x.pointIndex<0||x.pointIndex>=coordinates.length||
+       typeof x.elapsedSeconds!=="number"||!Number.isFinite(x.elapsedSeconds)||
+       x.elapsedSeconds<0||x.elapsedSeconds>props.estimatedTravelMinutes*60+60)
+       throw Error("INVALID_TIME_ANCHORS");
+     if(expected[i]!==null&&x.pointIndex!==expected[i])throw Error("INVALID_TIME_ANCHORS");
+     return {sampleId:x.sampleId,pointIndex:x.pointIndex,elapsedSeconds:x.elapsedSeconds,
+       source:x.source,timeVerifiedAgainstObservations:false};
+   });
+   if(values[0].elapsedSeconds!==0||!(values[0].pointIndex<values[1].pointIndex&&
+       values[1].pointIndex<values[2].pointIndex&&
+       values[0].elapsedSeconds<values[1].elapsedSeconds&&
+       values[1].elapsedSeconds<values[2].elapsedSeconds)||
+       Math.abs(values[2].elapsedSeconds-props.estimatedTravelMinutes*60)>Math.max(60,props.estimatedTravelMinutes*3))
+       throw Error("INVALID_TIME_ANCHORS");
+   timingAnchors=values;
+ }
  return {coordinates,distanceKm:props.distanceKm,minutes:props.estimatedTravelMinutes,
+         timingAnchors,
          status:"GEOMETRY_VIEW_ONLY_SAFETY_UNVERIFIED",safeToDrive:null};
 }
 function path(coords){
