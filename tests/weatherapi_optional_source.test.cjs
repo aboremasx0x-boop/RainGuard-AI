@@ -34,8 +34,9 @@ async function check(){
  assert.ok(!calls[0].includes("key="));
  rows[2].precip_mm=null;
  const missing=await a.collect({name:"Jeddah",lat:21.5,lon:39.2});
- assert.equal(missing.horizons["6h"].available,false);
- assert.equal(missing.horizons["6h"].totalRainMm,null);
+ assert.equal(missing.available,false);
+ assert.equal(missing.error,"WEATHERAPI_INSUFFICIENT_HOURLY");
+ assert.equal(missing.rainAmount,undefined);
  assert.equal((await a.collect({lat:999,lon:39})).available,false);
  console.log("PASS: WeatherAPI proxy-only client, valid hourly horizons, missing data protected and Anwaa disabled");
 }
