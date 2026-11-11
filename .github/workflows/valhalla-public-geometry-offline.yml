@@ -1,0 +1,32 @@
+name: Offline Valhalla route geometry visualization
+on:
+  pull_request:
+    paths:
+      - 'scripts/export_public_valhalla_route_geojson.py'
+      - 'frontend/truck-route-file-viewer.html'
+      - 'frontend/js/truck_route_geojson_viewer_v1.js'
+      - 'frontend/truck-journey-command-view.html'
+      - 'tests/test_valhalla_public_geojson_export.py'
+      - 'tests/truck_route_file_viewer.test.cjs'
+      - 'docs/valhalla-public-geometry-offline.md'
+      - '.github/workflows/valhalla-public-geometry-offline.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s tests -p test_valhalla_public_geojson_export.py -v
+      - run: python scripts/export_public_valhalla_route_geojson.py --dry-run
+      - run: python -m py_compile scripts/export_public_valhalla_route_geojson.py
+      - run: node tests/truck_route_file_viewer.test.cjs
+      - run: node tests/truck_journey_command_view.test.cjs
+      - run: node --check frontend/js/truck_route_geojson_viewer_v1.js
