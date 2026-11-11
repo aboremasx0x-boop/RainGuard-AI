@@ -1,0 +1,22 @@
+name: Local HydroRIVERS route proximity research
+on:
+  pull_request:
+    paths:
+      - 'scripts/scan_route_hydrorivers_local.py'
+      - 'tests/test_route_hydrorivers_local.py'
+      - 'docs/truck-hydrorivers-local-pilot.md'
+      - '.github/workflows/truck-hydrorivers-local-pilot.yml'
+  workflow_dispatch:
+jobs:
+  scan-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_route_hydrorivers_local.py -v
+      - run: python -m unittest discover -s tests -p test_truck_hydrology_evidence_gate.py -v
+      - run: python -m py_compile scripts/scan_route_hydrorivers_local.py
