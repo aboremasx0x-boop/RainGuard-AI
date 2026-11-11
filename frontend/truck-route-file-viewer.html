@@ -45,6 +45,15 @@ small,.muted{color:#b3cee0}
 <svg id="routeMap" viewBox="0 0 1000 450" role="img" aria-label="لن يظهر المسار حتى تختار ملف GeoJSON صحيحًا" xmlns="http://www.w3.org/2000/svg"></svg>
 <p class="muted">رسم هندسي تقريبي لإحداثيات الملف، وليس خريطة ملاحة أو صور أقمار صناعية. مصدر البيانات FOSSGIS Valhalla / OpenStreetMap. يلزم مراعاة التراخيص والإسناد عند إعادة النشر.</p>
 </section>
+<section class="panel" aria-labelledby="samplingTitle">
+<h2 id="samplingTitle">فحص المطر على ثلاث نقاط من هندسة الطريق</h2>
+<p class="muted">يمكن طلب توقعات الساعات القادمة عند نقطة الانطلاق، ومنتصف طول هندسة الطريق، ونقطة الوصول من خدمة WeatherAPI عبر خادم RainGuard. <strong>هذه ليست توقعات مطابقة لوقت مرور الشاحنة؛ لا توجد أوقات موثقة للمقاطع.</strong></p>
+<button id="sampleRouteWeather" type="button" disabled style="font:inherit;padding:11px 18px;border-radius:10px;border:1px solid #86b5d4;background:#185270;color:white;cursor:pointer">طلب توقعات المطر لثلاث نقاط فقط</button>
+<p id="sampleWeatherStatus" role="status">اختر ملف المسار أولًا.</p>
+<ol id="sampleWeatherResults" aria-live="polite"></ol>
+<div class="caution" role="note">بيانات المطر المكانية لا تؤكد وجود سيول أو عدم وجودها. لا توجد بيانات رسمية عن إغلاقات الطرق، ولا يجوز بناء توصية قيادة أو مسار بديل من هذه النتائج.</div>
+</section>
 </main>
 <script src="js/truck_route_geojson_viewer_v1.js?v=1" defer></script>
+<script src="js/truck_route_spatial_weather_v1.js?v=1" defer></script>
 </body></html>
