@@ -38,10 +38,15 @@ const adapter={
   name:"WeatherAPIAdapter",
   version:"1.0.0",
   apiBase:global.RG_BACKEND_URL || global.RAINGUARD_API_BASE || "https://rainguard-ai.onrender.com",
+  cache:new Map(),
+  cacheTtlMs:10*60*1000,
   isConfigured(){return !!this.apiBase;},
   async collect(city={}) {
     const coord=coordinates(city);
     if(!coord)return unavailable("INVALID_CITY_COORDINATES",city);
+    const cacheKey=coord.lat.toFixed(4)+":"+coord.lon.toFixed(4);
+    const cached=this.cache.get(cacheKey);
+    if(cached && Date.now()-cached.savedAt<this.cacheTtlMs)return {...cached.result,fromCache:true};
     const url=this.apiBase.replace(/\/$/,"")+"/api/weather/weatherapi?lat="+encodeURIComponent(coord.lat)+"&lon="+encodeURIComponent(coord.lon);
     try{
       const response=await fetch(url,{headers:{Accept:"application/json"}});
@@ -60,10 +65,12 @@ const adapter={
       HORIZONS.forEach(h=>{horizons[h+"h"]=aggregate(unique,h);});
       const available=HORIZONS.some(h=>horizons[h+"h"].available);
       if(!available)return unavailable("WEATHERAPI_INSUFFICIENT_HOURLY",city);
-      return {ok:true,available:true,status:"FORECAST_READY",provider:"WeatherAPI.com",source:"weatherapi",
+      const result={ok:true,available:true,status:"FORECAST_READY",provider:"WeatherAPI.com",source:"weatherapi",
         city:city.name??city.city??null,lat:coord.lat,lon:coord.lon,
         fetchedAt:new Date().toISOString(),horizons,
         rainProbability:horizons["6h"].rainProbability,rainAmount:horizons["6h"].totalRainMm};
+      this.cache.set(cacheKey,{savedAt:Date.now(),result});
+      return result;
     }catch(_error){return unavailable("WEATHERAPI_FETCH_FAILED",city);}
   }
 };
