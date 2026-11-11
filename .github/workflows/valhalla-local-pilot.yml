@@ -1,0 +1,21 @@
+name: Local Valhalla pilot preparation
+on:
+  pull_request:
+    paths:
+      - 'deploy/valhalla-pilot/**'
+      - 'tests/test_valhalla_pilot.py'
+      - '.github/workflows/valhalla-local-pilot.yml'
+  workflow_dispatch:
+jobs:
+  offline-pilot-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_valhalla_pilot.py'
+      - run: python deploy/valhalla-pilot/prepare_extract.py --dry-run
+      - run: python -m py_compile deploy/valhalla-pilot/prepare_extract.py deploy/valhalla-pilot/smoke_test.py
