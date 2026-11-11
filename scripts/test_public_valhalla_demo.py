@@ -9,7 +9,11 @@ import argparse
 import json
 import math
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 ENDPOINT = "https://valhalla1.openstreetmap.de/route"
 CLIENT_ID = "RainGuard-AI-research-test"
@@ -63,7 +67,7 @@ def inspect(data):
     }
 
 
-def run(opener=urlopen):
+def run(opener=None):
     # One bounded POST only. Never redirect request data to other hosts.
     request = Request(
         ENDPOINT,
@@ -76,6 +80,8 @@ def run(opener=urlopen):
         },
         method="POST",
     )
+    if opener is None:
+        opener = build_opener(NoRedirect()).open
     try:
         with opener(request, timeout=15) as response:
             if response.status != 200:
