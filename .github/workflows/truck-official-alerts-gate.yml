@@ -1,0 +1,20 @@
+name: Truck official alert evidence safety
+on:
+  pull_request:
+    paths:
+      - 'truck_official_alerts_gate.py'
+      - 'tests/test_truck_official_alerts_gate.py'
+      - '.github/workflows/truck-official-alerts-gate.yml'
+  workflow_dispatch:
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_truck_official_alerts_gate.py -v
+      - run: python -m py_compile truck_official_alerts_gate.py
