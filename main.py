@@ -25,6 +25,41 @@ app.include_router(valhalla_truck_router)
 
 
 
+# Public capability discovery only. No credentials, private router URLs,
+# unverified road-state claims or sensitive backend diagnostics are returned.
+@app.get("/api/truck-routes/capabilities")
+def truck_route_capabilities():
+    here_enabled = (
+        os.getenv("HERE_TRUCK_ROUTING_ENABLED", "").lower() == "true"
+        and bool(os.getenv("HERE_ROUTING_API_KEY"))
+        and bool(os.getenv("RAINGUARD_ROUTE_ACCESS_TOKEN"))
+    )
+    from valhalla_truck_routes import backend_url
+    valhalla_enabled = (
+        os.getenv("VALHALLA_TRUCK_ROUTING_ENABLED", "").lower() == "true"
+        and backend_url() is not None
+        and bool(os.getenv("RAINGUARD_ROUTE_ACCESS_TOKEN"))
+    )
+    return {
+        "status": "CAPABILITIES_ONLY_NOT_A_SAFETY_CHECK",
+        "weatherAPI": {"configured": bool(os.getenv("WEATHERAPI_API_KEY")),
+                       "cityHourlyForecastEndpoint": "/api/weather/weatherapi"},
+        "truckRouting": {
+            "hereServerConfigured": here_enabled,
+            "valhallaServerConfigured": valhalla_enabled,
+            "publicRouteCalculationAvailable": False,
+            "requiresTrustedServerAuthentication": True,
+        },
+        "officialRoadClosuresConnected": False,
+        "officialNCMWarningsConnected": False,
+        "hydrologyValidatedForRouting": False,
+        "safeToDrive": None,
+        "alternativeRouteApproved": False,
+        "operationalWarningApproved": False,
+    }
+
+
+
 ALLOWED_ORIGINS = [
     "https://rainguard-frontend.onrender.com",
     "https://rain-guard-ai.vercel.app",
