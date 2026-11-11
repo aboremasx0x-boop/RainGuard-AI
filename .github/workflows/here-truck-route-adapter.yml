@@ -1,0 +1,22 @@
+name: Protected nationwide truck routing adapter
+on:
+  pull_request:
+    paths:
+      - 'main.py'
+      - 'here_truck_routes.py'
+      - 'tests/test_here_truck_routes.py'
+      - '.github/workflows/here-truck-route-adapter.yml'
+  workflow_dispatch:
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install fastapi httpx pydantic
+      - run: python -m py_compile main.py here_truck_routes.py
+      - run: python -m unittest discover -s tests -p 'test_here_truck_routes.py'
