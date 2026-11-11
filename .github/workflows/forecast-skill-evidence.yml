@@ -1,0 +1,26 @@
+name: Forecast skill evidence gate
+on:
+  pull_request:
+    paths:
+      - 'scripts/evaluate_forecast_skill.py'
+      - 'tests/test_forecast_skill_gate.py'
+      - 'frontend/js/rain_forecast_ui_v32.js'
+      - 'frontend/national-ai-os-v30.html'
+      - '.github/workflows/forecast-skill-evidence.yml'
+  workflow_dispatch:
+jobs:
+  verify-evidence-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s tests -p 'test_forecast_skill_gate.py'
+      - run: python -m py_compile scripts/evaluate_forecast_skill.py
+      - run: node --check frontend/js/rain_forecast_ui_v32.js
