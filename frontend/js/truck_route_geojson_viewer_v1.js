@@ -39,11 +39,18 @@ function parse(input){
        x.timeVerifiedAgainstObservations!==false||x.arrivalTimeUtc!==null||
        !Number.isInteger(x.pointIndex)||x.pointIndex<0||x.pointIndex>=coordinates.length||
        typeof x.elapsedSeconds!=="number"||!Number.isFinite(x.elapsedSeconds)||
-       x.elapsedSeconds<0||x.elapsedSeconds>props.estimatedTravelMinutes*60+60)
+       x.elapsedSeconds<0||x.elapsedSeconds>props.estimatedTravelMinutes*60+60||
+       (x.alongRouteFraction!==undefined&&
+        (typeof x.alongRouteFraction!=="number"||!Number.isFinite(x.alongRouteFraction)||
+         x.alongRouteFraction<0||x.alongRouteFraction>1))||
+       (x.checkpointKind!==undefined&&
+         x.checkpointKind!==["START","TIMED_MANEUVER_BOUNDARY","END"][i]))
        throw Error("INVALID_TIME_ANCHORS");
      if(expected[i]!==null&&x.pointIndex!==expected[i])throw Error("INVALID_TIME_ANCHORS");
      return {sampleId:x.sampleId,pointIndex:x.pointIndex,elapsedSeconds:x.elapsedSeconds,
-       source:x.source,timeVerifiedAgainstObservations:false};
+       source:x.source,timeVerifiedAgainstObservations:false,
+       alongRouteFraction:typeof x.alongRouteFraction==="number"?x.alongRouteFraction:null,
+       checkpointKind:x.checkpointKind||null};
    });
    if(values[0].elapsedSeconds!==0||!(values[0].pointIndex<values[1].pointIndex&&
        values[1].pointIndex<values[2].pointIndex&&

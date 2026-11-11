@@ -74,12 +74,12 @@ def timing_diagnostic(legs, points_by_leg, trip_seconds):
     idx,time=min(candidates,key=lambda item:abs(dist[item[0]]-total/2))
     deviation=abs(dist[idx]-total/2)/total*100
     result["closestBoundaryOffsetFromHalfPct"]=round(deviation,2)
-    if deviation>25:
-        return fail("NO_TIMED_BOUNDARY_WITHIN_MIDPOINT_WINDOW")
     anchors=build_time_anchors(legs,points_by_leg,trip_seconds)
     if not anchors:
         return fail("INCOMPLETE_ANCHOR_VALIDATION")
     result["status"]="PROVIDER_ESTIMATED_ANCHORS"
-    result["reason"]="OK_PROVIDER_ESTIMATE_NOT_OBSERVED"
-    result["recommendedAction"]="Use estimated maneuver boundaries for research only; never certify road safety."
+    result["reason"]=("OK_SPARSE_MANEUVER_CHECKPOINT_NOT_MIDPOINT" if deviation>25
+                      else "OK_PROVIDER_ESTIMATE_NOT_OBSERVED")
+    result["checkpointIsGeometricMidpoint"]=False
+    result["recommendedAction"]="Use actual provider-timed maneuver checkpoint only; do not label it the route midpoint or certify driving safety."
     return result

@@ -51,8 +51,16 @@ class DiagnosticsTests(unittest.TestCase):
         early=[{"maneuvers":[{"begin_shape_index":0,"end_shape_index":1,"time":100},
                             {"begin_shape_index":1,"end_shape_index":4,"time":4016}]}]
         d=timing_diagnostic(early,[long_coords],4116)
-        self.assertEqual(d["reason"],"NO_TIMED_BOUNDARY_WITHIN_MIDPOINT_WINDOW")
+        self.assertEqual(d["reason"],"OK_SPARSE_MANEUVER_CHECKPOINT_NOT_MIDPOINT")
+        self.assertEqual(d["status"],"PROVIDER_ESTIMATED_ANCHORS")
+        self.assertFalse(d["checkpointIsGeometricMidpoint"])
         self.assertGreater(d["closestBoundaryOffsetFromHalfPct"],25)
+        from valhalla_maneuver_timing import build_time_anchors
+        anchors=build_time_anchors(early,[long_coords],4116)
+        self.assertEqual([a["pointIndex"] for a in anchors],[0,1,4])
+        self.assertLess(anchors[1]["alongRouteFraction"],0.25)
+        self.assertEqual(anchors[1]["checkpointKind"],"TIMED_MANEUVER_BOUNDARY")
+        self.assertEqual(anchors[1]["elapsedSeconds"],100)
 
     def test_invalid_time(self):
         self.assertEqual(self.review(time=0)["reason"],"INVALID_TOTAL_TIME")
