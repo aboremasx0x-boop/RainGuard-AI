@@ -32,6 +32,10 @@ async function check(){
  assert.equal(good.horizons["72h"].available,true);
  assert.ok(calls[0].includes("/api/weather/weatherapi?"));
  assert.ok(!calls[0].includes("key="));
+ const cached=await a.collect({name:"Jeddah",lat:21.5,lon:39.2});
+ assert.equal(cached.fromCache,true);
+ assert.equal(calls.length,1);
+ a.cache.clear();
  rows[2].precip_mm=null;
  const missing=await a.collect({name:"Jeddah",lat:21.5,lon:39.2});
  assert.equal(missing.available,false);
