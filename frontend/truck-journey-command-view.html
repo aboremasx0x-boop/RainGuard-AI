@@ -46,6 +46,13 @@ h2{font-size:1.12rem;margin:0 0 12px}
 @media(max-width:950px){.layout{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.kpis,.detail-grid{grid-template-columns:1fr}.toolbar select{min-width:0;width:100%}main{padding:16px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+.live-panel{border:1px solid #387d94;border-radius:17px;background:#0b2b43;padding:18px;margin-bottom:17px}
+.live-panel h2{color:#e0f8ff}
+.live-select{width:100%;max-width:320px;font:inherit;color:#f6fbff;background:#143951;border:1px solid #74a9c2;border-radius:9px;padding:10px}
+.live-rows{margin:12px 0;padding-right:20px;display:grid;gap:6px}
+.live-rows li{padding:5px 0;border-bottom:1px solid #2d546e}
+.live-freshness{font-size:.9rem;color:#b8d4e7}
 </style>
 </head>
 <body>
@@ -58,6 +65,15 @@ h2{font-size:1.12rem;margin:0 0 12px}
 <p class="lead">عرض تفاعلي يوضح كيف ستجمع المنصة زمن مرور الشاحنة، واحتمال التعرض للمطر، والتحقق من الأودية، وإغلاقات الطرق في سجل واحد لكل مقطع.</p>
 <div class="note" role="alert"><strong>محاكاة تعليمية فقط.</strong> جميع الأوقات والمسافات والاحتمالات في السيناريو التجريبي مصطنعة. لا توجد خريطة طريق حقيقية، ولا اتصال مباشر بإغلاقات الطرق الرسمية. لا تستخدم هذه اللوحة لاتخاذ قرار قيادة أو اختيار مسار بديل.</div>
 </header>
+<section class="live-panel" id="cityWeatherLive" aria-labelledby="liveWeatherTitle">
+<h2 id="liveWeatherTitle">الربط المباشر: توقعات الأمطار للمدن</h2>
+<p class="lead">يعرض هذا القسم بيانات WeatherAPI الساعية عند توفرها عبر خادم RainGuard على Render. وهي معلومات عن مركز المدينة، وليست عن مسار الشاحنة أو الأودية أو إغلاق الطريق.</p>
+<label for="liveWeatherCity">اختر مدينة لرؤية التوقعات الساعية</label>
+<select id="liveWeatherCity" class="live-select"></select>
+<p id="liveWeatherStatus" role="status" class="live-freshness">لم تُجلب بيانات الطقس بعد.</p>
+<ul id="liveWeatherRows" class="live-rows" aria-live="polite"></ul>
+<p class="note"><strong>حالة خدمة التوجيه:</strong> <span id="liveRouteCapabilities">غير متحقق منها</span></p>
+</section>
 <section class="toolbar" aria-label="اختيار السيناريو">
 <label for="scenario">حالة البيانات التجريبية</label>
 <select id="scenario">
@@ -95,5 +111,6 @@ h2{font-size:1.12rem;margin:0 0 12px}
 </div>
 </main>
 <script src="js/truck_journey_command_view_v1.js?v=1" defer></script>
+<script src="js/truck_live_data_v1.js?v=1" defer></script>
 </body>
 </html>
