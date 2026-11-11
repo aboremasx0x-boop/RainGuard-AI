@@ -34,9 +34,10 @@ function compareAll(o,v,w){
 }
 function agreement({official,om,vc,cmp,ra,rd,p,a}){let s=0;if(official)s+=35;if(om)s+=20;if(vc)s+=20;if(ra)s+=10;if(cmp?.available){if(cmp.level==="HIGH")s+=10;else if(cmp.level==="MEDIUM")s+=5}if(rd&&(p>0||a>0))s+=5;return clamp(s)}
 async function safe(adapter,city){try{return adapter?.collect?await adapter.collect(city):null}catch(e){console.warn("[RainForecastFusionV32] source failed:",e);return null}}
+async function safeForecast(engine,city){try{return engine?.forecastCity?await engine.forecastCity(city):null}catch(e){console.warn("[RainForecastFusionV32] forecast source failed:",e);return null}}
 async function forecastCity(city={}){
  const rr=window.RG30?.RainViewerAdapter, oe=window.RainForecastEngineV32, va=window.VisualCrossingForecastAdapterV32||window.RG32?.VisualCrossingAdapter, wa=window.RG30?.WeatherAPIAdapter;
- const [rview,open,visual,weatherapi]=await Promise.all([safe(rr,city),oe?.forecastCity?oe.forecastCity(city):Promise.resolve(null),safe(va,city),safe(wa,city)]);
+ const [rview,open,visual,weatherapi]=await Promise.all([safe(rr,city),safeForecast(oe,city),safe(va,city),safe(wa,city)]);
  const official=false, r=radar(rview), om=omReady(open), vc=vcReady(visual), wr=waReady(weatherapi), horizons={};
  for(const h of HORIZONS){
   const a=null,o=om?nw(open,h):null,v=vc?nw(visual,h):null,w=wr?nw(weatherapi,h):null,base=o||v||w,cmp=compare(o,v),all=compareAll(o,v,w),p=base?.probability??null,amt=base?.rainAmount??null;
