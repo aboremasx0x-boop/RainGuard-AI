@@ -1,0 +1,21 @@
+name: Truck route prototype safety regression
+on:
+  pull_request:
+    paths:
+      - "frontend/js/truck_route_risk_prototype_v1.js"
+      - "frontend/truck-routes-prototype.html"
+      - "tests/truck_route_risk_prototype.test.cjs"
+      - ".github/workflows/truck-route-risk-prototype.yml"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --check frontend/js/truck_route_risk_prototype_v1.js
+      - run: node tests/truck_route_risk_prototype.test.cjs
