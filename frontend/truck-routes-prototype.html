@@ -17,14 +17,35 @@ button{background:#2c84dc;color:white;border:0;border-radius:9px;padding:10px 22
 .segment{background:#173653;border:1px solid #456788;border-radius:12px;padding:12px}
 .flag{display:inline-block;background:#554321;color:#ffe9b8;border-radius:7px;padding:2px 9px;font-size:13px}
 small{color:#b6cbe5}a{color:#9ad7ff}ul{padding-right:24px}time{direction:ltr;display:inline-block}
-#nationalMap{height:340px;border-radius:12px;border:1px solid #496c8c;margin-top:14px;background:#102945}.field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.field-row select{width:100%;background:#071b31;color:#fff;border:1px solid #7396b5;padding:10px;border-radius:9px}.field-row label{font-weight:600}.place-point{padding:8px;border-radius:9px;background:#183e5f}.notice small{color:#ffe5c4}</style>
+#nationalMap{height:340px;border-radius:12px;border:1px solid #496c8c;margin-top:14px;background:#102945}.field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.field-row select{width:100%;background:#071b31;color:#fff;border:1px solid #7396b5;padding:10px;border-radius:9px}.field-row label{font-weight:600}.place-point{padding:8px;border-radius:9px;background:#183e5f}.notice small{color:#ffe5c4}
+.route-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0 24px;flex-wrap:wrap}
+.route-topbar a{display:inline-flex;align-items:center;gap:8px;border:1px solid #49718d;background:#123455;padding:9px 16px;border-radius:10px;text-decoration:none;font-weight:700}
+.route-title{padding:28px;border:1px solid #3a708e;border-radius:22px;background:radial-gradient(circle at 10% 0%,#12495c,#0b2d4a 45%,#07182c);margin-bottom:14px}
+.route-title h1{font-size:clamp(1.6rem,4vw,2.5rem)}.route-title .notice{margin-top:20px}
+.route-stage{display:inline-flex;border:1px solid #b88e46;color:#ffe3aa;border-radius:999px;padding:3px 11px;font-size:.79rem;margin:8px 0}
+.route-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.route-step{border:1px solid #37627d;background:#12304e;padding:15px;border-radius:12px;line-height:1.6}
+.route-step b{display:block;color:#bdeffc}
+.route-horizon{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0}
+.route-horizon label{display:inline-flex;align-items:center;gap:6px;border:1px solid #3b6e90;border-radius:10px;padding:8px 12px;background:#0c2845;margin:0;cursor:pointer}
+.route-horizon input{width:auto;max-width:none;accent-color:#2ec0d5}
+.route-readout{padding:14px;border:1px solid #396d90;border-radius:10px;background:#102d48;margin:12px 0}
+@media(max-width:620px){.route-title{padding:18px}.route-steps{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-<header>
+<nav class="route-topbar" aria-label="التنقل"><strong>RainGuard AI / Smart Safe Routes</strong><a href="national-ai-os-v30.html">العودة إلى مركز العمليات ↗</a></nav>
+<header class="route-title">
+<span class="route-stage">نموذج تجريبي • ليس نظام ملاحة أو إنذارًا رسميًا</span>
 <p class="muted">RainGuard AI / النموذج البحثي الأول — Smart Safe Routes</p>
 <h1>تقييم تجريبي لمخاطر مسار الشاحنات</h1>
 <p>مثال تعليمي على رحلة جدة — مكة، مع تقدير وقت المرور بمقاطع افتراضية.</p>
 <div class="notice" role="alert"><strong>تنبيه: محاكاة فقط وليست بيانات حية.</strong> أوقات الوصول ومقاطع الطريق وتوقعات الأمطار هنا مصطنعة للاختبار. لا تعتمد هذه الصفحة للقيادة أو لاختيار طريق بديل؛ راجع الإغلاقات والتنبيهات الرسمية.</div>
+<div class="route-steps" aria-label="مراحل التقييم">
+<div class="route-step"><b>01 — اختر الموقع</b> 13 منطقة إدارية ومراكز مدن تقريبية</div>
+<div class="route-step"><b>02 — وقت المرور</b> نموذج يوضح أثر ساعة الوصول على التوقع</div>
+<div class="route-step"><b>03 — تحقق من الأدلة</b> لا قرار قيادة قبل التوجيه والإغلاقات الرسمية</div>
+</div>
 </header>
 <main>
 <section class="panel" id="nationwidePanel">
@@ -55,12 +76,18 @@ small{color:#b6cbe5}a{color:#9ad7ff}ul{padding-right:24px}time{direction:ltr;dis
 <label for="departure">وقت الانطلاق (حسب توقيت جهازك)</label>
 <input id="departure" type="datetime-local" required>
 <p class="muted">مدى المرور الافتراضي بالمقاطع: بعد 20، 45، 70 دقيقة. لا تمثل هذه القيم زمن السفر الفعلي.</p>
-<button type="submit">تشغيل المحاكاة</button>
+<fieldset class="route-horizon" aria-label="المدة الزمنية للعرض"><legend>المقاطع المعروضة بعد الانطلاق (محاكاة زمنية)</legend>
+<label><input type="radio" name="previewHorizon" value="30"> 30 دقيقة</label>
+<label><input type="radio" name="previewHorizon" value="60" checked> بعد ساعة</label>
+<label><input type="radio" name="previewHorizon" value="120"> 120 دقيقة</label>
+</fieldset>
+<button type="submit">عرض أثر وقت المرور (محاكاة)</button>
 </form>
 </section>
 <section class="panel" aria-live="polite">
 <h2>النتيجة</h2>
 <p id="status" class="muted">أدخل وقت الرحلة وشغّل المحاكاة.</p>
+<div class="route-readout" id="routeReadout" aria-live="polite">المدد والمقاطع افتراضية، وليست أوقات وصول محسوبة من شبكة الطرق.</div>
 <div id="results" class="grid"></div>
 </section>
 <section class="panel">
@@ -142,7 +169,7 @@ element("nationalRouteForm").addEventListener("submit",event=>{
 });
 })();
 </script>
-<script src="./js/truck_route_risk_prototype_v1.js"></script>
+<script src="./js/truck_route_risk_prototype_v1.js?v=truck-preview-horizon-1"></script>
 <script>
 (function(){
 "use strict";
@@ -158,7 +185,10 @@ if(!Number.isFinite(ms)){$("status").textContent="وقت الانطلاق غير
 const result=window.RainGuardTruckRoutePrototype.syntheticDemo(new Date(ms).toISOString());
 $("status").textContent="حالة التقييم: بيانات غير كافية للتحقق من سلامة الطريق — محاكاة لا تمثل إنذارًا فعليًا";
 const parent=$("results");parent.replaceChildren();
-for(const segment of result.segmentResults){
+const horizon=Number(document.querySelector('input[name="previewHorizon"]:checked')?.value || 60);
+const visible=result.segmentResults.filter(segment=>segment.etaMinutes<=horizon);
+$("routeReadout").textContent="النطاق المعروض: أول "+horizon+" دقيقة بعد الانطلاق — "+visible.length+" مقطع/مقاطع تجريبية من أصل "+result.segmentResults.length+". أوقات الوصول والبيانات مصطنعة؛ لا يُستنتج منها أن أي طريق آمن.";
+for(const segment of visible){
 const box=document.createElement("article");box.className="segment";
 box.append(text("h3",segment.label),text("p","وقت المرور المفترض: بعد "+segment.etaMinutes+" دقيقة"));
 const flag=text("span","لا تتوفر أدلة كافية عن سلامة الطريق");flag.className="flag";box.append(flag);
