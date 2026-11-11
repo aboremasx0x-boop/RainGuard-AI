@@ -19,6 +19,10 @@ app.include_router(land_cover_router)
 from here_truck_routes import router as truck_routes_router
 app.include_router(truck_routes_router)
 
+# Free self-hosted Valhalla alternative; disabled unless separately configured.
+from valhalla_truck_routes import router as valhalla_truck_router
+app.include_router(valhalla_truck_router)
+
 
 
 ALLOWED_ORIGINS = [
