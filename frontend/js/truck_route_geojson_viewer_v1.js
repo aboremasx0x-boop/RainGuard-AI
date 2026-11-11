@@ -93,6 +93,7 @@ function init(doc){
    distance.textContent="غير متاح";duration.textContent="غير متاح";
    status.textContent=reason;
    if(typeof window!=="undefined"&&window.RainGuardRouteWeatherSamplerUI)window.RainGuardRouteWeatherSamplerUI.setRoute(null);
+   if(typeof window!=="undefined"&&window.RainGuardHydrology2UI)window.RainGuardHydrology2UI.setRoute(null);
  }
  function show(report){
    const route=path(report.coordinates);
@@ -109,6 +110,7 @@ function init(doc){
    duration.textContent=report.minutes.toFixed(1)+" دقيقة";
    status.textContent="تم تحميل ورسم هندسة المسار من ملفك المحلي. حالة سلامة الطريق غير معروفة.";
    if(typeof window!=="undefined"&&window.RainGuardRouteWeatherSamplerUI)window.RainGuardRouteWeatherSamplerUI.setRoute(report);
+   if(typeof window!=="undefined"&&window.RainGuardHydrology2UI)window.RainGuardHydrology2UI.setRoute(report);
  }
  input.addEventListener("change",async()=>{
    reset("جار التحقق من الملف المحلي...");
