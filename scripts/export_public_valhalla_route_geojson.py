@@ -13,6 +13,7 @@ from urllib.request import Request, build_opener
 
 from test_public_valhalla_demo import ENDPOINT, CLIENT_ID, BODY, NoRedirect
 from valhalla_maneuver_timing import build_time_anchors
+from valhalla_timing_diagnostics import timing_diagnostic
 
 MAX_RESPONSE_BYTES = 1_000_000
 MAX_POINTS = 60_000
@@ -102,6 +103,7 @@ def extract_geojson(payload):
         if len(all_points) > MAX_POINTS:
             raise ValueError("TOO_MANY_POINTS")
     time_anchors = build_time_anchors(legs, points_by_leg, seconds)
+    timing_info = timing_diagnostic(legs, points_by_leg, seconds)
     result = {
         "type":"FeatureCollection", "reportType":"RESEARCH_ONLY_PUBLIC_DEMO_GEOMETRY",
         "provider":"FOSSGIS Valhalla community demo",
@@ -115,6 +117,7 @@ def extract_geojson(payload):
             "vehicleWeightTons":18,"vehicleHeightMeters":4,
             "maneuverTimingStatus":"PROVIDER_ESTIMATED_ANCHORS" if time_anchors else "NOT_AVAILABLE",
             "maneuverTimeAnchors":time_anchors or [],
+            "maneuverTimingDiagnostic":timing_info,
             "safety":"UNKNOWN"},
             "geometry":{"type":"LineString","coordinates":all_points}}]
     }
@@ -167,6 +170,7 @@ def main():
         "estimatedTravelMinutes":route["features"][0]["properties"]["estimatedTravelMinutes"],
         "points":len(route["features"][0]["geometry"]["coordinates"]),
         "maneuverTimingStatus":route["features"][0]["properties"]["maneuverTimingStatus"],
+        "maneuverTimingDiagnostic":route["features"][0]["properties"]["maneuverTimingDiagnostic"],
         "safeToDrive":None},ensure_ascii=False))
 
 

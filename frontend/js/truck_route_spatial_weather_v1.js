@@ -88,7 +88,9 @@
       !(anchors[0].elapsedSeconds<anchors[1].elapsedSeconds&&anchors[1].elapsedSeconds<anchors[2].elapsedSeconds))return null;
    return anchors.map((anchor,i)=>{
      const coordinate=route.coordinates[anchor.pointIndex];
-     return {sampleId:i+1,kind:["الانطلاق","نقطة مناورة قرب منتصف الطريق","الوصول"][i],
+     const position=typeof anchor.alongRouteFraction==="number"?
+       " ("+(anchor.alongRouteFraction*100).toFixed(1)+"% من طول الطريق)":"";
+     return {sampleId:i+1,kind:["الانطلاق","نقطة مناورة مؤقتة — ليست بالضرورة منتصف الطريق","الوصول"][i]+(i===1?position:""),
        lat:Number(coordinate[1].toFixed(5)),lon:Number(coordinate[0].toFixed(5)),
        arrivalTimeUtc:null,elapsedProviderSeconds:anchor.elapsedSeconds,
        timingEvidence:"VALHALLA_MANEUVER_ESTIMATED_NOT_OBSERVED",

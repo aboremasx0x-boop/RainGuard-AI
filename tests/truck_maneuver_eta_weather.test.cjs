@@ -21,6 +21,18 @@ const base={
 const parsed=ui.parse(base);
 assert.equal(parsed.timingAnchors.length,3);
 assert.equal(weather.verifiedManeuverPoints(parsed)[1].elapsedProviderSeconds,1800);
+const sparse=JSON.parse(JSON.stringify(base));
+sparse.features[0].properties.maneuverTimeAnchors[1].alongRouteFraction=0.1271;
+sparse.features[0].properties.maneuverTimeAnchors[1].checkpointKind="TIMED_MANEUVER_BOUNDARY";
+const sparseParsed=ui.parse(sparse);
+const sparsePoint=weather.verifiedManeuverPoints(sparseParsed)[1];
+assert.match(sparsePoint.kind,/12\.7%/);
+assert.match(sparsePoint.kind,/ليست بالضرورة منتصف الطريق/);
+assert.equal(sparsePoint.elapsedProviderSeconds,1800);
+const fakeFractions=JSON.parse(JSON.stringify(sparse));
+fakeFractions.features[0].properties.maneuverTimeAnchors[1].alongRouteFraction=1.8;
+assert.throws(()=>ui.parse(fakeFractions),/INVALID_TIME_ANCHORS/);
+
 const invalid=JSON.parse(JSON.stringify(base));
 invalid.features[0].properties.maneuverTimeAnchors[1].pointIndex=20;
 assert.throws(()=>ui.parse(invalid),/INVALID_TIME_ANCHORS/);
