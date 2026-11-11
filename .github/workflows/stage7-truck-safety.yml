@@ -1,0 +1,25 @@
+name: Stage 7 end-to-end truck safety
+on:
+  pull_request:
+    paths:
+      - 'tests/test_stage7_end_to_end_truck_safety.py'
+      - 'docs/stage7-pilot-readiness.md'
+      - '.github/workflows/stage7-truck-safety.yml'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -p test_stage7_end_to_end_truck_safety.py -v
+      - run: python -m unittest discover -s tests -p test_truck_route_timeline.py -v
+      - run: python -m unittest discover -s tests -p test_truck_segment_weather_exposure.py -v
+      - run: python -m unittest discover -s tests -p test_truck_hydrology_evidence_gate.py -v
+      - run: python -m unittest discover -s tests -p test_truck_official_alerts_gate.py -v
+      - run: python -m unittest discover -s tests -p test_stage6_historical_calibration_readiness.py -v
