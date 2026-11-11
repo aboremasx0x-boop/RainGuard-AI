@@ -1,0 +1,22 @@
+name: Hydrology-4 ACC context readiness tests
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_hydrology4_acc_readiness.py'
+      - 'tests/test_hydrology4_acc_readiness.py'
+      - 'docs/hydrology4-acc-context-readiness.md'
+      - '.github/workflows/hydrology4-acc-readiness.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_hydrology4_acc_readiness.py -v
+      - run: python -m unittest discover -s tests -p test_hydrology3_evidence_register.py -v
+      - run: python -m py_compile scripts/audit_hydrology4_acc_readiness.py
