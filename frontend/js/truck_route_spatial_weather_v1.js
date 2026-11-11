@@ -58,7 +58,7 @@
      if(epoch===null||prob===null||mm===null)return null;
      if(epoch*1000<nowMs-30*60000||epoch*1000>nowMs+72*3600*1000)return null;
      return {timeUtc:new Date(epoch*1000).toISOString(),probabilityPct:prob,rainMm:mm};
-   }).filter(Boolean).sort((a,b)=>a.timeUtc.localeCompare(b.timeUtc)).slice(0,4);
+   }).filter(Boolean).sort((a,b)=>a.timeUtc.localeCompare(b.timeUtc));
    if(!rows.length)return unavailable;
    return {status:"FORECAST_AT_ROUTE_SAMPLE_AVAILABLE",issuedAtUtc:null,
      retrievedAtUtc:new Date(fetched).toISOString(),rows,
@@ -73,16 +73,61 @@
      return evaluate(await res.json(),nowMs);
    }catch(_err){return evaluate(null,nowMs);}
  }
- async function inspectRoute(route,fetcher,nowMs=Date.now()){
-   const points=samples(route.coordinates);
+ function verifiedManeuverPoints(route){
+   const anchors=route?.timingAnchors;
+   if(!Array.isArray(anchors)||anchors.length!==3||!Array.isArray(route.coordinates))return null;
+   if(anchors.some((a,i)=>!a||a.sampleId!==i+1||!Number.isInteger(a.pointIndex)||
+      a.pointIndex<0||a.pointIndex>=route.coordinates.length||
+      typeof a.elapsedSeconds!=="number"||!Number.isFinite(a.elapsedSeconds)||
+      a.timeVerifiedAgainstObservations!==false||
+      a.source!=="VALHALLA_MANEUVER_BOUNDARY_ESTIMATE"))return null;
+   if(anchors[0].pointIndex!==0||
+      anchors[2].pointIndex!==route.coordinates.length-1||
+      anchors[0].elapsedSeconds!==0||
+      !(anchors[0].pointIndex<anchors[1].pointIndex&&anchors[1].pointIndex<anchors[2].pointIndex)||
+      !(anchors[0].elapsedSeconds<anchors[1].elapsedSeconds&&anchors[1].elapsedSeconds<anchors[2].elapsedSeconds))return null;
+   return anchors.map((anchor,i)=>{
+     const coordinate=route.coordinates[anchor.pointIndex];
+     return {sampleId:i+1,kind:["الانطلاق","نقطة مناورة قرب منتصف الطريق","الوصول"][i],
+       lat:Number(coordinate[1].toFixed(5)),lon:Number(coordinate[0].toFixed(5)),
+       arrivalTimeUtc:null,elapsedProviderSeconds:anchor.elapsedSeconds,
+       timingEvidence:"VALHALLA_MANEUVER_ESTIMATED_NOT_OBSERVED",
+       forecastValidityAtPassage:"NOT_EVALUATED"};
+   });
+ }
+ function selectForecastHour(rows,arrivalMs){
+   if(!Number.isFinite(arrivalMs)||!Array.isArray(rows))return null;
+   // Hour is an estimated forecast validity interval, not actual precipitation observed.
+   return rows.find(x=>{
+     const t=Date.parse(x.timeUtc);return Number.isFinite(t)&&t<=arrivalMs&&arrivalMs<t+3600000;
+   })||null;
+ }
+ async function inspectRoute(route,fetcher,nowMs=Date.now(),departureTimeUtc=null){
+   const timed=verifiedManeuverPoints(route);
+   const points=timed||samples(route.coordinates);
+   const departureMs=typeof departureTimeUtc==="string"&&departureTimeUtc?
+     Date.parse(departureTimeUtc):NaN;
+   const validDeparture=Number.isFinite(departureMs)&&
+     departureMs>=nowMs-300000&&departureMs<=nowMs+72*3600000;
    // Exactly three sequential calls initiated by explicit UI action, not periodic polling.
    const output=[];
    for(const point of points){
-     output.push({point,forecast:await query(point,fetcher,nowMs)});
+     const forecast=await query(point,fetcher,nowMs);
+     const arrivalMs=timed&&validDeparture?departureMs+point.elapsedProviderSeconds*1000:NaN;
+     const forecastAtEstimatedArrival=timed&&validDeparture?
+       selectForecastHour(forecast.rows,arrivalMs):null;
+     const arrivalTimeUtc=Number.isFinite(arrivalMs)?new Date(arrivalMs).toISOString():null;
+     output.push({point,forecast,arrivalTimeUtc,
+       forecastAtEstimatedArrival,
+       estimatedHourSlotMatched:!!forecastAtEstimatedArrival,
+       arrivalIsObserved:false});
    }
-   return {type:"SPATIAL_WEATHER_SNAPSHOT_NOT_ETA_MATCHED",
+   return {type:timed&&validDeparture?"PROVIDER_ESTIMATED_MANEUVER_ETA_WEATHER_EXPLORATION":
+     "SPATIAL_WEATHER_SNAPSHOT_NOT_ETA_MATCHED",
      provider:"WeatherAPI.com via RainGuard API",sampleCount:MAX_SAMPLES,
-     estimatedTravelMinutes:route.minutes,perSegmentEtaAvailable:false,
+     estimatedTravelMinutes:route.minutes,perSegmentEtaAvailable:!!timed,
+     timeSource:timed?"VALHALLA_MANEUVER_ESTIMATE":"UNAVAILABLE",
+     etaMatchedAgainstObservedTravel:false,
      officialRoadClosures:"NOT_VERIFIED",floodRisk:"NOT_EVALUATED",
      safeToDrive:null,alternativeRouteApproved:false,operationalWarningApproved:false,
      samples:output};
@@ -90,8 +135,9 @@
  function init(doc,fetcher){
    const action=doc?.getElementById("sampleRouteWeather"),
          state=doc?.getElementById("sampleWeatherStatus"),
-         list=doc?.getElementById("sampleWeatherResults");
-   if(!action||!state||!list)return false;
+         list=doc?.getElementById("sampleWeatherResults"),
+         departure=doc?.getElementById("departureTimeLocal");
+   if(!action||!state||!list||!departure)return false;
    let currentRoute=null,busy=false;
    const text=(tag,value)=>{const el=doc.createElement(tag);el.textContent=value;return el;};
    function setRoute(route){
@@ -107,15 +153,28 @@
      busy=true;action.disabled=true;list.replaceChildren();
      state.textContent="جار طلب 3 مواقع فقط من خادم توقعات RainGuard…";
      try{
-       const r=await inspectRoute(currentRoute,fetcher);
-       r.samples.forEach(({point,forecast})=>{
+       const localTime=departure.value;
+       const departureTimeUtc=localTime?new Date(localTime).toISOString():null;
+       const r=await inspectRoute(currentRoute,fetcher,Date.now(),departureTimeUtc);
+       r.samples.forEach(({point,forecast,arrivalTimeUtc,forecastAtEstimatedArrival})=>{
          const li=text("li",point.kind+" — "+point.lat+", "+point.lon+": ");
          const strong=text("strong",forecast.status==="FORECAST_AT_ROUTE_SAMPLE_AVAILABLE"?
            "توقعات مكانية متاحة، دون وقت مرور موثق":"المصدر غير متاح أو بياناته غير صالحة");
          li.append(strong);
+         if(arrivalTimeUtc){
+           li.append(text("p","وصول تقديري من مناورات Valhalla: "+
+             new Date(arrivalTimeUtc).toLocaleString("ar-SA",{timeZone:"Asia/Riyadh",day:"numeric",
+               month:"short",hour:"2-digit",minute:"2-digit"})+
+             " — غير مقاس ميدانيًا."));
+           li.append(text("p",forecastAtEstimatedArrival?
+             "التوقع الموافق لساعة الوصول المقدرة: احتمال مطر "+
+             forecastAtEstimatedArrival.probabilityPct+"%، كمية "+
+             forecastAtEstimatedArrival.rainMm+" ملم (ليس تحذير سيول).":
+             "لا توجد ساعة توقع متاحة تطابق الوصول المقدر؛ لا تستنتج غياب المطر."));
+         }
          if(forecast.rows.length){
            const items=text("ul","");
-           forecast.rows.forEach(w=>{
+           forecast.rows.slice(0,4).forEach(w=>{
              items.append(text("li",new Date(w.timeUtc).toLocaleString("ar-SA",{timeZone:"Asia/Riyadh",
                day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+
                " | احتمال المطر "+w.probabilityPct+"% | كمية "+w.rainMm+" ملم"));
@@ -124,7 +183,9 @@
          }
          list.append(li);
        });
-       state.textContent="اكتمل فحص 3 نقاط على هندسة الطريق. هذه توقعات مكانية، وليست تقييمًا للمطر وقت مرور الشاحنة أو تحذير سيول.";
+       state.textContent=r.perSegmentEtaAvailable?
+         "اكتمل الفحص. أوقات المناورات تقديرات من Valhalla فقط؛ تطابق ساعة التوقع لا يثبت المرور الفعلي أو سلامة الطريق.":
+         "اكتمل الفحص المكاني. الملف لا يحتوي أزمنة مناورات موثقة من مزود التوجيه؛ لا يمكن مطابقة وقت المرور.";
      }catch(_err){
        state.textContent="لم يكتمل الفحص؛ لا يجوز افتراض عدم وجود أمطار أو سلامة الطريق.";
      }finally{busy=false;action.disabled=!currentRoute;}
@@ -140,5 +201,5 @@
    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});
    else start();
  }
- return {samples,evaluate,query,inspectRoute,init};
+ return {samples,verifiedManeuverPoints,selectForecastHour,evaluate,query,inspectRoute,init};
 });
