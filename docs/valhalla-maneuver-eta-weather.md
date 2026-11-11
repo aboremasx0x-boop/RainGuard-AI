@@ -1,5 +1,36 @@
 # Valhalla maneuver-time research extension — not certified road forecasting
 
+## Diagnostic improvement for NOT_AVAILABLE
+
+The exported GeoJSON now includes a sanitized `maneuverTimingDiagnostic`
+object, and the export command prints the same structural verdict.
+It reveals *why* a maneuver ETA was rejected, without logging raw
+third-party response JSON, credentials or all road coordinates.
+
+Possible reasons: `MISSING_MANEUVER_ARRAY`,
+`MANEUVER_INDEX_OUT_OF_RANGE`, `NONCONTIGUOUS_MANEUVER_INDEX`,
+`MANEUVER_TIMES_DISAGREE_WITH_TOTAL`,
+`NO_INTERIOR_MANEUVER_BOUNDARY`,
+`NO_TIMED_BOUNDARY_WITHIN_MIDPOINT_WINDOW`, or success
+`OK_PROVIDER_ESTIMATE_NOT_OBSERVED`.
+
+Run **once** from Windows PowerShell, with a filename that does not exist:
+
+```powershell
+cd C:\Users\Najeeb\RainGuard-AI-fixed
+git pull origin main
+py .\scripts\export_public_valhalla_route_geojson.py --output jeddah_makkah_timing_diagnostic.geojson
+$r = Get-Content .\jeddah_makkah_timing_diagnostic.geojson -Raw | ConvertFrom-Json
+$r.features[0].properties.maneuverTimingDiagnostic | Format-List
+```
+
+Do not repeat the request if the community service denies it or rate-limits.
+The existing GeoJSON with `NOT_AVAILABLE` cannot identify the original
+failure because it did not preserve the raw maneuver data. It remains
+suitable for spatial-only weather analysis. The original safety guard
+continues to reject unverified intermediate ETAs.
+
+
 Valhalla's [route API](https://valhalla.github.io/valhalla/api/route/api-reference/) defines `directions_type=maneuvers`, with each maneuver's estimated travel `time` (seconds), plus `begin_shape_index` and `end_shape_index`. This update uses these **provider-reported maneuver durations**, rather than dividing total journey time equally between road segments.
 
 ## One-off test on Windows
