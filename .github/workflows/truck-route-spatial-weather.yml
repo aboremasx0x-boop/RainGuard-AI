@@ -1,0 +1,26 @@
+name: Route spatial weather sampling safety
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/truck_route_spatial_weather_v1.js'
+      - 'frontend/js/truck_route_geojson_viewer_v1.js'
+      - 'frontend/truck-route-file-viewer.html'
+      - 'tests/truck_route_spatial_weather.test.cjs'
+      - '.github/workflows/truck-route-spatial-weather.yml'
+      - 'docs/truck-route-spatial-weather.md'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/truck_route_spatial_weather.test.cjs
+      - run: node tests/truck_route_file_viewer.test.cjs
+      - run: node tests/truck_live_data_integration.test.cjs
+      - run: node --check frontend/js/truck_route_spatial_weather_v1.js
+      - run: node --check frontend/js/truck_route_geojson_viewer_v1.js
