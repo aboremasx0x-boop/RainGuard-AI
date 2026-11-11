@@ -15,6 +15,10 @@ app = FastAPI(title="RainGuard AI API", version="14.0")
 from land_cover_api import router as land_cover_router
 app.include_router(land_cover_router)
 
+# Protected, opt-in truck routing API. Disabled unless explicitly configured.
+from here_truck_routes import router as truck_routes_router
+app.include_router(truck_routes_router)
+
 
 
 ALLOWED_ORIGINS = [
