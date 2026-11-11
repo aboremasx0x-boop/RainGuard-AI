@@ -58,7 +58,7 @@ def backend_url() -> Optional[str]:
         if not url.hostname.endswith(".internal"):
             return None
     else:
-        if not (ip.is_private or ip.is_loopback):
+        if not (ip.is_private or ip.is_loopback) or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
             return None
     return value.rstrip("/") + "/route"
 
