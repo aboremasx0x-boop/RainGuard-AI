@@ -48,6 +48,9 @@ small,.muted{color:#b3cee0}
 <section class="panel" aria-labelledby="samplingTitle">
 <h2 id="samplingTitle">فحص المطر على ثلاث نقاط من هندسة الطريق</h2>
 <p class="muted">يمكن طلب توقعات الساعات القادمة عند نقطة الانطلاق، ومنتصف طول هندسة الطريق، ونقطة الوصول من خدمة WeatherAPI عبر خادم RainGuard. <strong>هذه ليست توقعات مطابقة لوقت مرور الشاحنة؛ لا توجد أوقات موثقة للمقاطع.</strong></p>
+<label for="departureTimeLocal">وقت الانطلاق المتوقع (اختياري؛ يُستخدم فقط مع ملف جديد يحتوي أزمنة مناورات Valhalla)</label>
+<input id="departureTimeLocal" type="datetime-local" aria-describedby="timingCaution">
+<p class="muted" id="timingCaution">إذا اخترت وقت الانطلاق، تُحوّل الصفحة أزمنة المناورات المقدرة إلى أوقات وصول عند نقاط الفحص. لا تُوزع مدة الرحلة بالتساوي. إن لم تتوفر أزمنة المناورات الصحيحة، سيظل التوقيت غير متاح.</p>
 <button id="sampleRouteWeather" type="button" disabled style="font:inherit;padding:11px 18px;border-radius:10px;border:1px solid #86b5d4;background:#185270;color:white;cursor:pointer">طلب توقعات المطر لثلاث نقاط فقط</button>
 <p id="sampleWeatherStatus" role="status">اختر ملف المسار أولًا.</p>
 <ol id="sampleWeatherResults" aria-live="polite"></ol>
