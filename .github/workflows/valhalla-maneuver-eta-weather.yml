@@ -1,0 +1,35 @@
+name: Valhalla maneuver ETA and weather research
+on:
+  pull_request:
+    paths:
+      - 'scripts/valhalla_maneuver_timing.py'
+      - 'scripts/export_public_valhalla_route_geojson.py'
+      - 'frontend/js/truck_route_geojson_viewer_v1.js'
+      - 'frontend/js/truck_route_spatial_weather_v1.js'
+      - 'frontend/truck-route-file-viewer.html'
+      - 'tests/test_valhalla_maneuver_timing.py'
+      - 'tests/truck_maneuver_eta_weather.test.cjs'
+      - 'docs/valhalla-maneuver-eta-weather.md'
+      - '.github/workflows/valhalla-maneuver-eta-weather.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s tests -p test_valhalla_maneuver_timing.py -v
+      - run: python -m unittest discover -s tests -p test_valhalla_public_geojson_export.py -v
+      - run: python scripts/export_public_valhalla_route_geojson.py --dry-run
+      - run: node tests/truck_maneuver_eta_weather.test.cjs
+      - run: node tests/truck_route_spatial_weather.test.cjs
+      - run: node tests/truck_route_file_viewer.test.cjs
+      - run: node --check frontend/js/truck_route_geojson_viewer_v1.js
+      - run: node --check frontend/js/truck_route_spatial_weather_v1.js
