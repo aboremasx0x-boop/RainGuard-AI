@@ -1,0 +1,33 @@
+name: Hydrology-2 route review site extraction
+on:
+  pull_request:
+    paths:
+      - 'scripts/build_hydrology2_review_sites.py'
+      - 'frontend/truck-route-file-viewer.html'
+      - 'frontend/js/truck_route_hydrology2_sites_v1.js'
+      - 'frontend/js/truck_route_geojson_viewer_v1.js'
+      - 'tests/test_hydrology2_review_sites.py'
+      - 'tests/truck_route_hydrology2_sites.test.cjs'
+      - 'docs/hydrology2-review-site-extraction.md'
+      - '.github/workflows/hydrology2-review-sites.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s tests -p test_hydrology2_review_sites.py -v
+      - run: python -m unittest discover -s tests -p test_route_hydrorivers_local.py -v
+      - run: node tests/truck_route_hydrology2_sites.test.cjs
+      - run: node tests/truck_route_file_viewer.test.cjs
+      - run: node tests/truck_maneuver_eta_weather.test.cjs
+      - run: node --check frontend/js/truck_route_hydrology2_sites_v1.js
+      - run: python -m py_compile scripts/build_hydrology2_review_sites.py
