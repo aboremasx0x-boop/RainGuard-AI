@@ -73,7 +73,7 @@ def review_official_notices(segment_indices, records, authority_registry, as_of_
         seen.add(identifier)
         authority = record.get("authorityId")
         kind = record.get("kind")
-        if not _is_identifier(authority) or kind not in ALERT_KINDS:
+        if not _is_identifier(authority) or not isinstance(kind, str) or kind not in ALERT_KINDS:
             rejected.append(_reject("UNKNOWN_AUTHORITY_OR_NOTICE_KIND", identifier))
             continue
         # Trusted, out-of-band source registry with explicit allowed categories.
