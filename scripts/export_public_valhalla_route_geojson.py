@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener
 
 from test_public_valhalla_demo import ENDPOINT, CLIENT_ID, BODY, NoRedirect
+from valhalla_maneuver_timing import build_time_anchors
 
 MAX_RESPONSE_BYTES = 1_000_000
 MAX_POINTS = 60_000
@@ -89,15 +90,18 @@ def extract_geojson(payload):
     if any(type(x) not in (int,float) or not math.isfinite(x) or x <= 0 for x in (length,seconds)):
         raise ValueError("INVALID_ROUTE_TOTALS")
     all_points = []
+    points_by_leg = []
     for leg in legs:
         if not isinstance(leg, dict):
             raise ValueError("INVALID_LEG")
         points = decode_polyline6(leg.get("shape"))
+        points_by_leg.append(points)
         if all_points and all_points[-1] == points[0]:
             points = points[1:]
         all_points.extend(points)
         if len(all_points) > MAX_POINTS:
             raise ValueError("TOO_MANY_POINTS")
+    time_anchors = build_time_anchors(legs, points_by_leg, seconds)
     result = {
         "type":"FeatureCollection", "reportType":"RESEARCH_ONLY_PUBLIC_DEMO_GEOMETRY",
         "provider":"FOSSGIS Valhalla community demo",
@@ -109,6 +113,8 @@ def extract_geojson(payload):
             "route":"Jeddah–Makkah (approximate centers; demonstration)",
             "distanceKm":round(length,2), "estimatedTravelMinutes":round(seconds/60,1),
             "vehicleWeightTons":18,"vehicleHeightMeters":4,
+            "maneuverTimingStatus":"PROVIDER_ESTIMATED_ANCHORS" if time_anchors else "NOT_AVAILABLE",
+            "maneuverTimeAnchors":time_anchors or [],
             "safety":"UNKNOWN"},
             "geometry":{"type":"LineString","coordinates":all_points}}]
     }
@@ -119,8 +125,11 @@ def extract_geojson(payload):
 def request_once(opener=None):
     if opener is None:
         opener = build_opener(NoRedirect()).open
+    # Maneuvers carry provider-estimated elapsed seconds and boundary indices;
+    # directions_type=none would silently omit the only timing evidence.
+    request_body = {**BODY, "directions_type": "maneuvers"}
     request = Request(
-        ENDPOINT, data=json.dumps(BODY,separators=(",",":")).encode("utf-8"),
+        ENDPOINT, data=json.dumps(request_body,separators=(",",":")).encode("utf-8"),
         headers={"Content-Type":"application/json","Accept":"application/json",
                  "X-Client-Id":CLIENT_ID,"User-Agent":"RainGuard-AI-research-test/1.0"},
         method="POST",
@@ -157,6 +166,7 @@ def main():
         "distanceKm":route["features"][0]["properties"]["distanceKm"],
         "estimatedTravelMinutes":route["features"][0]["properties"]["estimatedTravelMinutes"],
         "points":len(route["features"][0]["geometry"]["coordinates"]),
+        "maneuverTimingStatus":route["features"][0]["properties"]["maneuverTimingStatus"],
         "safeToDrive":None},ensure_ascii=False))
 
 
