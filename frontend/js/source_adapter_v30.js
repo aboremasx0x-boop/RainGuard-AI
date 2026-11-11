@@ -60,7 +60,7 @@ RG30.SourceAdapter = {
             official: {
 
                 enabled:
-                    true,
+                    false,
 
                 required:
                     false,
@@ -91,6 +91,15 @@ RG30.SourceAdapter = {
 
                 reliability:
                     0.80
+            },
+
+            weatherAPI: {
+                enabled: true,
+                required: false,
+                priority: 3,
+                adapterName: "WeatherAPIAdapter",
+                // Configured source weight, not empirically validated accuracy.
+                reliability: 0.80
             },
 
             radar: {
@@ -251,6 +260,11 @@ RG30.SourceAdapter = {
 
                 ar:
                     "Open-Meteo"
+            },
+
+            weatherAPI: {
+                en: "WeatherAPI.com",
+                ar: "WeatherAPI.com"
             },
 
             radar: {
