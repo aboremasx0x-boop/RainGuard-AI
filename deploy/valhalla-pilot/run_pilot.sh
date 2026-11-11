@@ -41,7 +41,10 @@ fi
 echo "STEP 2: Start Valhalla on LOCALHOST ONLY (127.0.0.1:8002)"
 docker compose up -d
 echo "STEP 3: Checking route once; tile-building may still be underway."
-python3 smoke_test.py
-echo "If route is unavailable, inspect: docker compose logs --tail=80 valhalla"
+if python3 smoke_test.py; then
+  echo "SUCCESS: locally computed example route. Road safety is NOT verified."
+else
+  echo "NOT READY: route not available yet. Inspect: docker compose logs --tail=80 valhalla"
+fi
 echo "When ready, run: bash run_pilot.sh test"
 echo "Stop using: bash run_pilot.sh stop"
