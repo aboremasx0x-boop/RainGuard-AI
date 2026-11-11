@@ -1,0 +1,24 @@
+name: Operations hub and truck preview
+on:
+  pull_request:
+    paths:
+      - 'frontend/national-ai-os-v30.html'
+      - 'frontend/truck-routes-prototype.html'
+      - 'frontend/css/national-ai-os-v30.css'
+      - 'tests/operations_truck_hub.test.cjs'
+      - '.github/workflows/operations-truck-hub.yml'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/operations_truck_hub.test.cjs
+      - run: node tests/truck_route_risk_prototype.test.cjs
+      - run: node tests/national_truck_geography.test.cjs
+      - run: node tests/v30_phase_navigation.test.cjs

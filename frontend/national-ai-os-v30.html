@@ -41,7 +41,7 @@
 
     <link
         rel="stylesheet"
-        href="css/national-ai-os-v30.css?v=3111"
+        href="css/national-ai-os-v30.css?v=operations-hub-1"
     >
 </head>
 
@@ -131,6 +131,39 @@
 
     </header>
 
+
+    <!-- RainGuard Operations Hub: navigation, not a claim of operational approval. -->
+    <section class="rg-ops-hub" id="operationsHub" aria-labelledby="rgOpsTitle" dir="rtl">
+        <div class="rg-ops-main">
+            <p class="rg-ops-eyebrow">RAIN GUARD / INTELLIGENCE OPERATIONS</p>
+            <h2 id="rgOpsTitle">مركز العمليات الذكي للأمطار والسيول</h2>
+            <p class="rg-ops-lead">الرصد الجوي، مقارنة المصادر، مخاطر الطرق، وإدارة الأدلة في واجهة واحدة. نتائج النماذج تقديرية وليست إنذارات رسمية أو تصريحًا باستخدام الطريق.</p>
+            <div class="rg-ops-actions">
+                <a class="rg-ops-primary" href="truck-routes-prototype.html" id="openTruckRoutes">استكشاف مسارات الشاحنات <span aria-hidden="true">↗</span></a>
+                <a class="rg-ops-secondary" href="#v30Map">الخريطة الوطنية</a>
+                <a class="rg-ops-secondary" href="#sourceAdapterStatusPanel">مراقبة مصادر الطقس</a>
+            </div>
+            <p class="rg-ops-caution"><strong>حالة مسارات الشاحنات:</strong> نموذج تجريبي. لم يُعتمد مسار ملاحي أو زمن مرور فعلي أو حالة إغلاق طريق.</p>
+        </div>
+        <div class="rg-ops-modules" aria-label="مستويات التطوير">
+            <a href="truck-routes-prototype.html" class="rg-ops-module">
+                <span class="rg-ops-module-icon" aria-hidden="true">🚚</span>
+                <span><strong>Smart Safe Routes</strong><small>اختيار جميع المناطق ومحاكاة الخطر الزمني — تجريبي</small></span>
+            </a>
+            <a href="#v30Map" class="rg-ops-module">
+                <span class="rg-ops-module-icon" aria-hidden="true">🗺️</span>
+                <span><strong>الرصد الوطني</strong><small>الخريطة والرادار وعلامات المدن</small></span>
+            </a>
+            <a href="#sourceAdapterStatusPanel" class="rg-ops-module">
+                <span class="rg-ops-module-icon" aria-hidden="true">☁️</span>
+                <span><strong>ذكاء المصادر</strong><small>WeatherAPI وOpen-Meteo وVisual Crossing</small></span>
+            </a>
+            <a href="#reportPanel" class="rg-ops-module">
+                <span class="rg-ops-module-icon" aria-hidden="true">📑</span>
+                <span><strong>التقارير والأدلة</strong><small>فصل المعطيات الفعلية عن تقديرات النماذج</small></span>
+            </a>
+        </div>
+    </section>
 
     <!-- =====================================================
          NATIONAL TOP KPIs
