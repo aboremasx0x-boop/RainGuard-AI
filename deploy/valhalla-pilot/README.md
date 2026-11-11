@@ -13,6 +13,57 @@ Sources:
 - Osmium command-line tool on Linux or WSL2: sudo apt update && sudo apt install osmium-tool
 - Internet to download the container and GCC OSM input, plus sufficient local RAM and disk for the graph build.
 
+## Simplified launch without any paid routing subscription
+
+Existing RainGuard pilot assets are in this folder. The new launch scripts
+make local preparation and testing easier. These scripts do NOT activate any
+server in Render/Vercel, and nothing is downloaded until you explicitly run
+`Build`.
+
+**Windows 10/11 with Docker Desktop + Ubuntu WSL2:**
+
+```powershell
+cd deploy/valhalla-pilot
+powershell -ExecutionPolicy Bypass -File .\run_pilot.ps1 -Mode Check
+powershell -ExecutionPolicy Bypass -File .\run_pilot.ps1 -Mode Build
+powershell -ExecutionPolicy Bypass -File .\run_pilot.ps1 -Mode Test
+```
+
+If Ubuntu was installed with a different WSL name, use `-Distro <name>`.
+Inside Ubuntu first install the free extraction tool using
+`sudo apt update && sudo apt install osmium-tool`. Start Docker Desktop
+with WSL integration enabled before Build.
+
+**Linux / WSL2 directly:**
+
+```bash
+cd deploy/valhalla-pilot
+bash run_pilot.sh check
+bash run_pilot.sh build
+bash run_pilot.sh test
+bash run_pilot.sh stop
+```
+
+The first build may need a large GCC OSM download and local tile processing.
+If Build reports `NOT READY`, read `docker compose logs --tail=80 valhalla`
+and re-run Test after graph building completes. **Only a successful Test**
+confirms an actual local sample route calculation; a working container or
+successful download alone does not.
+
+No credit-card account or paid routing API is required. Local disk, memory,
+download traffic, internet and electricity still have costs. Extract and
+container image licenses and attributions must be respected.
+
+**Connecting the existing local API to local Valhalla:** Run the RainGuard
+FastAPI backend *on the same trusted computer*, configure its private
+`VALHALLA_TRUCK_BACKEND_URL=http://127.0.0.1:8002`,
+`VALHALLA_TRUCK_ROUTING_ENABLED=true`, and a strong
+`RAINGUARD_ROUTE_ACCESS_TOKEN` known **only to trusted server-to-server
+callers**. The protected `POST /api/truck-routes/valhalla` cannot be called
+from the public Vercel page with a browser secret. Render cannot access
+your computer's loopback address. Do not open port 8002 to the internet
+or turn this local pilot into a public router.
+
 ## Steps (run inside WSL2 or Linux)
 1. cd deploy/valhalla-pilot
 2. python3 prepare_extract.py --dry-run
