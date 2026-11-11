@@ -16,7 +16,7 @@ from test_route_hydrorivers_local import route,tile
 class RegisterTests(unittest.TestCase):
     def setUp(self):
         self.hydro=make_report(route_points(route()),river_features(tile([
-            [[39.4,21.6],[39.4,21.4]],[[39.2,21.51],[39.2,21.48]]
+            [[39.4,21.6],[39.4,21.4]],[[39.7,21.5],[39.7,21.35]]
         ])))
         self.site=self.hydro["sites"][0]["siteId"]
 
