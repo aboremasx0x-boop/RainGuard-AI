@@ -1,0 +1,24 @@
+name: Independent forecast verification gate
+on:
+  pull_request:
+    paths:
+      - "scripts/verify_provider_forecasts.py"
+      - "tests/test_provider_forecast_verification.py"
+      - "data/calibration/independent_forecast_observation_pairs_TEMPLATE.csv"
+      - ".github/workflows/independent-forecast-verification.yml"
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m unittest discover -s tests -p test_provider_forecast_verification.py -v
+      - name: Verify empty evidence stays pending
+        run: |
+          python scripts/verify_provider_forecasts.py --pairs data/calibration/independent_forecast_observation_pairs_TEMPLATE.csv --output /tmp/rainguard-independent-validation.json
+          python -c 'import json; d=json.load(open("/tmp/rainguard-independent-validation.json")); assert d["status"]=="PENDING_INDEPENDENT_FORECAST_OBSERVATION_PAIRS" and d["accepted"]==0 and not d["source_ranking_authorized"]'
