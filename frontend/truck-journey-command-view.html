@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#07172d">
+<title>RainGuard AI | مركز تقييم رحلات الشاحنات — محاكاة</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;color:#eaf5ff;background:#071526}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 12% 4%,#16415b 0,#071526 42%);min-height:100vh;line-height:1.8}
+main{max-width:1300px;margin:auto;padding:25px 20px 55px}
+nav{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:22px}
+nav a,.control{color:#e8f9ff;background:#16344d;border:1px solid #4b7793;border-radius:10px;padding:9px 13px;text-decoration:none;font:inherit}
+a:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid #8ee6ff;outline-offset:3px}
+h1{font-size:clamp(1.5rem,3.5vw,2.5rem);margin:6px 0 10px}
+h2{font-size:1.12rem;margin:0 0 12px}
+.lead{color:#adc8d8;max-width:82ch;margin:0 0 18px}
+.hero{padding:clamp(18px,3vw,32px);border:1px solid #3b7891;border-radius:22px;background:linear-gradient(130deg,#0d344a,#10243e);margin-bottom:20px}
+.note{background:#3a291d;border:1px solid #af8452;border-radius:11px;color:#ffe2b4;padding:14px;margin:15px 0 0}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(250px,.82fr);gap:16px}
+.panel{border:1px solid #30516b;border-radius:17px;background:#0c253b;padding:18px;margin-bottom:16px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:17px}
+.metric{padding:13px;border-radius:12px;background:#14344b;border:1px solid #315a74;min-height:100px}
+.metric small{color:#a3c3d8;display:block}
+.metric strong{display:block;font-size:1.35rem;color:#f3fcff;margin:8px 0 0}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:15px}
+.toolbar select{min-width:230px;padding:11px;color:white;background:#12344e;border:1px solid #6b92b1;border-radius:9px;font:inherit}
+.toolbar label{font-weight:bold}
+.segment-list{display:grid;gap:12px}
+.segment{padding:15px;border:1px solid #3f6884;border-radius:13px;background:#112f48;cursor:pointer;text-align:right;color:inherit;width:100%;font:inherit}
+.segment:hover,.segment[aria-pressed=true]{border-color:#5fe4f1;background:#18405b}
+.segment strong,.segment small{display:block}
+.segment small{color:#b4cfe2}
+.segment-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.segment-status{font-size:.76rem;padding:3px 9px;border:1px solid #e5b565;color:#ffdcaa;border-radius:8px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{padding:10px 12px;border-radius:9px;border:1px solid #345b73;background:#122e44}
+.field small{display:block;color:#a9c5da}
+.field strong{display:block;overflow-wrap:anywhere}
+.missing{padding-right:19px;margin:10px 0}
+.missing li{padding:2px}
+.pending{color:#ffcb90;font-weight:700}
+.footerline{color:#abc3d2;font-size:.86rem}
+.code{direction:ltr;display:inline-block;font:inherit}
+@media(max-width:950px){.layout{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.kpis,.detail-grid{grid-template-columns:1fr}.toolbar select{min-width:0;width:100%}main{padding:16px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main>
+<nav><strong>RAIN GUARD AI / SMART ROUTE INTELLIGENCE</strong>
+<div><a href="national-ai-os-v30.html">مركز العمليات</a> <a href="truck-routes-prototype.html">اختيار المدن</a></div></nav>
+<header class="hero">
+<p class="footerline">RESEARCH PREVIEW • المرحلة السابعة</p>
+<h1>لوحة أدلة رحلات الشاحنات</h1>
+<p class="lead">عرض تفاعلي يوضح كيف ستجمع المنصة زمن مرور الشاحنة، واحتمال التعرض للمطر، والتحقق من الأودية، وإغلاقات الطرق في سجل واحد لكل مقطع.</p>
+<div class="note" role="alert"><strong>محاكاة تعليمية فقط.</strong> جميع الأوقات والمسافات والاحتمالات في السيناريو التجريبي مصطنعة. لا توجد خريطة طريق حقيقية، ولا اتصال مباشر بإغلاقات الطرق الرسمية. لا تستخدم هذه اللوحة لاتخاذ قرار قيادة أو اختيار مسار بديل.</div>
+</header>
+<section class="toolbar" aria-label="اختيار السيناريو">
+<label for="scenario">حالة البيانات التجريبية</label>
+<select id="scenario">
+<option value="missing">بيانات غير مكتملة — الوضع الافتراضي</option>
+<option value="rain">مثال مطر محتمل — بيانات اصطناعية</option>
+</select>
+</section>
+<section class="kpis" aria-label="ملخص الرحلة">
+<div class="metric"><small>نوع الرحلة</small><strong>سيناريو توضيحي</strong></div>
+<div class="metric"><small>مقاطع النموذج</small><strong id="segmentCount">3</strong></div>
+<div class="metric"><small>التعرض المحتمل للمطر</small><strong id="exposureCount">غير مقيم</strong></div>
+<div class="metric"><small>حالة سلامة الطريق</small><strong class="pending">غير مؤكدة</strong></div>
+</section>
+<div class="layout">
+<div>
+<section class="panel">
+<h2>المقاطع التجريبية — اختر مقطعًا لتفاصيله</h2>
+<div id="segmentList" class="segment-list" role="group" aria-label="مقاطع الرحلة"></div>
+</section>
+</div>
+<aside>
+<section class="panel" aria-live="polite" aria-atomic="true">
+<h2 id="detailTitle">تفاصيل المقطع</h2>
+<div id="details" class="detail-grid"></div>
+<h2 style="margin-top:18px">أدلة ناقصة</h2>
+<ul class="missing" id="missingList"></ul>
+<p class="note" id="detailWarning">المعلومات غير كافية لتحديد سلامة هذا المقطع.</p>
+</section>
+<section class="panel">
+<h2>ما الذي نحتاجه للتشغيل الفعلي؟</h2>
+<p class="footerline">خادم Valhalla أو HERE موثوق، هندسة مقاطع الطرق، توقعات ساعية موقّتة، بيانات الأودية والتصريف، وتنبيهات وإغلاقات رسمية موثّقة.</p>
+<p class="footerline">لا يعتمد هذا العرض على رموز وصول أو مفاتيح خفية، ولا يجلب ملفات مستخدمين أو بيانات GPS.</p>
+</section>
+</aside>
+</div>
+</main>
+<script src="js/truck_journey_command_view_v1.js?v=1" defer></script>
+</body>
+</html>
