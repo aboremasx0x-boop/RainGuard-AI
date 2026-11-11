@@ -1,0 +1,22 @@
+name: Hydrology-3 evidence-review register tests
+on:
+  pull_request:
+    paths:
+      - 'scripts/build_hydrology3_evidence_register.py'
+      - 'tests/test_hydrology3_evidence_register.py'
+      - 'docs/hydrology3-evidence-register.md'
+      - '.github/workflows/hydrology3-evidence-register.yml'
+  workflow_dispatch:
+jobs:
+  evidence-registry:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_hydrology3_evidence_register.py -v
+      - run: python -m unittest discover -s tests -p test_hydrology2_review_sites.py -v
+      - run: python -m py_compile scripts/build_hydrology3_evidence_register.py
