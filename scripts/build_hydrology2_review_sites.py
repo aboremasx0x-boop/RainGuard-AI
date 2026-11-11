@@ -30,44 +30,37 @@ def subtract(a, b):
 
 
 def closest_pair(a, b, c, d):
-    """Closest points and fractional positions on finite 2-D segments."""
-    u, v, w = subtract(b, a), subtract(d, c), subtract(a, c)
-    aa, bb, cc = dot(u, u), dot(u, v), dot(v, v)
-    dd, ee = dot(u, w), dot(v, w)
-    if aa < 1e-12 and cc < 1e-12:
-        return aa + cc + dot(w, w), 0.0, 0.0
-    if aa < 1e-12:
-        t = max(0.0, min(1.0, ee / cc))
-        q = (c[0] + t * v[0], c[1] + t * v[1])
-        z = subtract(a, q)
-        return dot(z, z), 0.0, t
-    if cc < 1e-12:
-        s = max(0.0, min(1.0, -dd / aa))
-        p = (a[0] + s * u[0], a[1] + s * u[1])
-        z = subtract(p, c)
-        return dot(z, z), s, 0.0
-    den = aa * cc - bb * bb
-    s_num, s_den = (bb * ee - cc * dd, den) if den > 1e-12 else (0.0, 1.0)
-    t_num = bb * s_num + ee * s_den
-    if s_num < 0:
-        s_num, t_num, t_den = 0.0, ee, cc
-    elif s_num > s_den:
-        s_num, t_num, t_den = s_den, ee + bb, cc
-    else:
-        t_den = s_den
-    if t_num < 0:
-        t_num = 0.0
-        s_num, s_den = (-dd, aa) if -dd > 0 else (aa, aa) if -dd > aa else (0.0, aa)
-    elif t_num > t_den:
-        t_num = t_den
-        value = bb - dd
-        s_num, s_den = (value, aa) if 0 < value < aa else (aa, aa) if value >= aa else (0.0, aa)
-    s = max(0.0, min(1.0, s_num / s_den))
-    t = max(0.0, min(1.0, t_num / t_den))
-    p = (a[0] + s * u[0], a[1] + s * u[1])
-    q = (c[0] + t * v[0], c[1] + t * v[1])
-    z = subtract(p, q)
-    return dot(z, z), s, t
+    """Exact closest coordinates on two planar finite segments, including intersections."""
+    u, v, w = subtract(b, a), subtract(d, c), subtract(c, a)
+    cross = lambda p, q: p[0] * q[1] - p[1] * q[0]
+    denom = cross(u, v)
+    if abs(denom) > 1e-12:
+        t = cross(w, v) / denom
+        s = cross(w, u) / denom
+        if 0 <= t <= 1 and 0 <= s <= 1:
+            return 0.0, t, s
+
+    def project(point, start, end):
+        direction = subtract(end, start)
+        denom = dot(direction, direction)
+        t = max(0.0, min(1.0, dot(subtract(point, start), direction) / denom)) if denom > 0 else 0.0
+        closest = (start[0] + t * direction[0], start[1] + t * direction[1])
+        diff = subtract(point, closest)
+        return dot(diff, diff), t
+
+    candidates = [
+        (*project(a, c, d), 0.0, "road"),  # road A vs river
+        (*project(b, c, d), 1.0, "road"),  # road B vs river
+        (*project(c, a, b), 0.0, "river"), # river C vs road
+        (*project(d, a, b), 1.0, "river"), # river D vs road
+    ]
+    distances = []
+    for dist, segment_fraction, endpoint_fraction, kind in candidates:
+        if kind == "road":
+            distances.append((dist, endpoint_fraction, segment_fraction))
+        else:
+            distances.append((dist, segment_fraction, endpoint_fraction))
+    return min(distances)
 
 
 def project_onto_route(route, rivers, threshold=DEFAULT_THRESHOLD_METERS):
