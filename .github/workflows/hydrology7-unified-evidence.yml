@@ -1,0 +1,23 @@
+name: Hydrology-7 unified evidence consistency
+on:
+  pull_request:
+    paths:
+      - 'scripts/build_hydrology7_unified_evidence.py'
+      - 'tests/test_hydrology7_unified_evidence.py'
+      - 'docs/hydrology7-unified-evidence.md'
+      - '.github/workflows/hydrology7-unified-evidence.yml'
+  workflow_dispatch:
+jobs:
+  evidence-join:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_hydrology7_unified_evidence.py -v
+      - run: python -m unittest discover -s tests -p test_hydrology6_local_terrain.py -v
+      - run: python -m unittest discover -s tests -p test_hydrology4_acc_readiness.py -v
+      - run: python -m py_compile scripts/build_hydrology7_unified_evidence.py
