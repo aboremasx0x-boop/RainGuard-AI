@@ -40,6 +40,26 @@ class PilotTests(unittest.TestCase):
         self.assertEqual(result["hydrology"], "NOT_VERIFIED")
         self.assertIsNone(smoke.inspect({"error": "no route"})["safeToDrive"])
 
+    def test_script_modes_and_no_public_router(self):
+        runner = (ROOT / "run_pilot.sh").read_text(encoding="utf-8")
+        powershell = (ROOT / "run_pilot.ps1").read_text(encoding="utf-8")
+        for mode in ("check", "build", "test", "stop"):
+            self.assertIn(mode, runner)
+        self.assertIn('127.0.0.1:8002', runner)
+        self.assertIn('prepare_extract.py --download', runner)
+        self.assertIn('docker compose up -d', runner)
+        self.assertIn('docker compose down', runner)
+        self.assertIn('CHECK ONLY: no network requests', runner)
+        self.assertIn('ValidateSet("Check","Build","Test","Stop")', powershell)
+        self.assertIn('wsl.exe', powershell)
+
+    def test_invalid_provider_totals_do_not_count_as_real_route(self):
+        for value in (float("nan"), float("inf"), -1, 0, True):
+            with self.subTest(value=value):
+                data = {"trip": {"summary": {"length": value, "time": 3600}}}
+                self.assertFalse(smoke.inspect(data)["success"])
+                self.assertIsNone(smoke.inspect(data)["safeToDrive"])
+
     def test_compose_localhost_only(self):
         yml = (ROOT / "compose.yaml").read_text(encoding="utf-8")
         self.assertIn("127.0.0.1:8002:8002", yml)
