@@ -14,7 +14,9 @@ assert.match(fusion,/WEATHERAPI/);
 assert.match(fusion,/w&&w.available!==false/);
 assert.match(backend,/WEATHERAPI_API_KEY = os\.getenv\("WEATHERAPI_API_KEY"\)/);
 assert.match(backend,/@app\.get\("\/api\/weather\/weatherapi"\)/);
-assert.doesNotMatch(backend,/detail": str\(exc\)/g.test(backend.slice(backend.indexOf("# WeatherAPI forecast"),backend.indexOf('@app.get("/rain-alert")'))?backend.slice(backend.indexOf("# WeatherAPI forecast"),backend.indexOf('@app.get("/rain-alert")')):"",/detail": str\(exc\)/);
+const proxySection=backend.slice(backend.indexOf("# WeatherAPI forecast"),backend.indexOf('@app.get("/rain-alert")'));
+assert.doesNotMatch(proxySection,/detail": str\(exc\)/);
+
 const code=fs.readFileSync("frontend/js/weatherapi_adapter_v32.js","utf8");
 async function check(){
  const calls=[];
