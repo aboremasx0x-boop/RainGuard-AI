@@ -50,9 +50,9 @@ class Tests(unittest.TestCase):
 
     def test_http_error_and_unreachable(self):
         from urllib.error import HTTPError, URLError
-        def forbidden(_request, _timeout):
+        def forbidden(_request, timeout):
             raise HTTPError(probe.ENDPOINT, 429, "Too many", {}, None)
-        def unreachable(_request, _timeout):
+        def unreachable(_request, timeout):
             raise URLError("network unavailable")
         self.assertEqual(probe.run(forbidden)["httpStatus"], 429)
         self.assertEqual(probe.run(unreachable)["status"], "DEMO_UNREACHABLE")
