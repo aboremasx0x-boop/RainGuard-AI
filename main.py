@@ -40,9 +40,11 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
 VISUAL_CROSSING_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+WEATHERAPI_URL = "https://api.weatherapi.com/v1/forecast.json"
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 VISUAL_CROSSING_API_KEY = os.getenv("VISUAL_CROSSING_API_KEY")
+WEATHERAPI_API_KEY = os.getenv("WEATHERAPI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -1635,6 +1637,107 @@ async def visual_crossing_weather(
                 "error": "VISUAL_CROSSING_REQUEST_FAILED",
                 "detail": str(exc)
             }
+        )
+
+
+
+# WeatherAPI forecast is optional. Never expose the private key or upstream URL
+# in error responses. Do not treat an unavailable source as zero rainfall.
+@app.get("/api/weather/weatherapi")
+async def weatherapi_weather(
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+):
+    if not WEATHERAPI_API_KEY:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "source": "weatherapi",
+                "error": "WEATHERAPI_API_KEY_NOT_CONFIGURED",
+            },
+        )
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(
+                WEATHERAPI_URL,
+                params={
+                    "key": WEATHERAPI_API_KEY,
+                    "q": f"{lat:.5f},{lon:.5f}",
+                    "days": 4,
+                    "aqi": "no",
+                    "alerts": "no",
+                },
+            )
+
+        if response.status_code != 200:
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "success": False,
+                    "source": "weatherapi",
+                    "upstream_status": response.status_code,
+                    "error": "WEATHERAPI_UPSTREAM_ERROR",
+                },
+            )
+
+        payload = response.json()
+        days = payload.get("forecast", {}).get("forecastday", [])
+        if not isinstance(days, list) or not days:
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "success": False,
+                    "source": "weatherapi",
+                    "error": "WEATHERAPI_FORECAST_MISSING",
+                },
+            )
+
+        # Whitelist fields: no key, upstream request, or provider metadata
+        # containing unexpected personal information in browser responses.
+        hourly = []
+        for day in days:
+            for hour in day.get("hour", []):
+                if not isinstance(hour, dict):
+                    continue
+                hourly.append({
+                    "time_epoch": hour.get("time_epoch"),
+                    "precip_mm": hour.get("precip_mm"),
+                    "chance_of_rain": hour.get("chance_of_rain"),
+                    "temp_c": hour.get("temp_c"),
+                    "humidity": hour.get("humidity"),
+                    "wind_kph": hour.get("wind_kph"),
+                })
+        if not hourly:
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "success": False,
+                    "source": "weatherapi",
+                    "error": "WEATHERAPI_HOURLY_MISSING",
+                },
+            )
+
+        return {
+            "success": True,
+            "source": "weatherapi",
+            "provider": "WeatherAPI.com",
+            "forecastHours": hourly,
+            "timezone": payload.get("location", {}).get("tz_id"),
+            "location": {
+                "lat": payload.get("location", {}).get("lat"),
+                "lon": payload.get("location", {}).get("lon"),
+            },
+        }
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+        return JSONResponse(
+            status_code=502,
+            content={
+                "success": False,
+                "source": "weatherapi",
+                "error": "WEATHERAPI_REQUEST_FAILED",
+            },
         )
 
 
