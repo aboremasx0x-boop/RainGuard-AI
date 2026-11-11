@@ -16,8 +16,10 @@ def haversine_km(a, b):
 def build_time_anchors(legs, coordinates_by_leg, total_seconds):
     """Return 3 at exact maneuver boundaries or None on incomplete evidence.
 
-    No inferred within-maneuver speed is used. Target midpoint is chosen
-    from maneuver boundaries by distance, with a maximum 25% off midpoint.
+    No inferred within-maneuver speed is used. The third checkpoint is the
+    route end; the internal checkpoint is an ACTUAL timed maneuver boundary
+    closest to midpoint, but may be far from geometric midpoint. Never
+    present it as a geometric-midpoint observation.
     """
     if (type(total_seconds) not in (int,float) or
         not math.isfinite(total_seconds) or total_seconds<=0 or
@@ -71,8 +73,6 @@ def build_time_anchors(legs, coordinates_by_leg, total_seconds):
     if not candidates:
         return None
     middle=min(candidates,key=lambda a:abs(cumulative[a["pointIndex"]]-total/2))
-    if abs(cumulative[middle["pointIndex"]]-total/2)>total*.25:
-        return None
     anchors_out=[anchors[0],middle,anchors[-1]]
     if not (0<anchors_out[1]["elapsedSeconds"]<anchors_out[2]["elapsedSeconds"]):
         return None
@@ -80,6 +80,8 @@ def build_time_anchors(legs, coordinates_by_leg, total_seconds):
         "sampleId":i+1,
         "pointIndex":a["pointIndex"],
         "elapsedSeconds":a["elapsedSeconds"],
+        "alongRouteFraction":round(cumulative[a["pointIndex"]]/total, 5),
+        "checkpointKind":("START" if i==0 else "TIMED_MANEUVER_BOUNDARY" if i==1 else "END"),
         "source":"VALHALLA_MANEUVER_BOUNDARY_ESTIMATE",
         "arrivalTimeUtc":None,
         "timeVerifiedAgainstObservations":False,
