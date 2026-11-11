@@ -2652,6 +2652,17 @@ async collect(
 
         };
 
+        // The generic normalization omits provider provenance. Preserve the
+        // backend receipt timestamp and final forecast validity separately.
+        if (sourceKey === "weatherAPI") {
+            normalized.fetchedAt = result.fetchedAt || null;
+            normalized.forecastValidTime = result.forecastValidTime || null;
+            normalized.timestamp = normalized.forecastValidTime || null;
+            normalized.rainProbability = result.rainProbability ?? null;
+            normalized.rainAmount = result.rainAmount ?? null;
+            normalized.forecastWindows = result.horizons || null;
+        }
+
         return this.enrichSourceResult(
 
             sourceKey,
@@ -4745,7 +4756,7 @@ async collect(
 
             <br>
 
-            <b>${this.text("Upstream fetch time", "وقت جلب البيانات من المصدر")}:</b>
+            <b>${this.text(state.key === "weatherAPI" ? "Backend fetch time" : "Upstream fetch time", state.key === "weatherAPI" ? "وقت استلام الخادم للبيانات" : "وقت جلب البيانات من المصدر")}:</b>
             ${this.escapeHtml(state.lastDataFetchedAt || this.text("Not provided", "غير متوفر"))}
 
             <br>
