@@ -1,0 +1,32 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const dashboard = fs.readFileSync("frontend/national-ai-os-v30.html","utf8");
+const truckPage = fs.readFileSync("frontend/truck-routes-prototype.html","utf8");
+const styles = fs.readFileSync("frontend/css/national-ai-os-v30.css","utf8");
+assert.match(dashboard,/id="operationsHub"/);
+assert.match(dashboard,/href="truck-routes-prototype\.html"/);
+assert.match(dashboard,/href="#v30Map"/);
+assert.match(dashboard,/href="#sourceAdapterStatusPanel"/);
+assert.match(dashboard,/href="#reportPanel"/);
+assert.match(dashboard,/css\/national-ai-os-v30\.css\?v=operations-hub-1/);
+assert.match(styles,/\.rg-ops-hub/);
+assert.match(styles,/@media\(max-width:540px\)/);
+assert.match(truckPage,/href="national-ai-os-v30\.html"/);
+assert.match(truckPage,/name="previewHorizon" value="60" checked/);
+assert.match(truckPage,/result\.segmentResults\.filter\(segment=>segment\.etaMinutes<=horizon\)/);
+assert.match(truckPage,/لا يُستنتج منها أن أي طريق آمن/);
+assert.doesNotMatch(truckPage,/>الطريق آمن</);
+const engine = require("../frontend/js/truck_route_risk_prototype_v1.js");
+const demo = engine.syntheticDemo(new Date().toISOString());
+assert.equal(demo.safeToDrive,null);
+assert.equal(demo.alternativeRouteApproved,false);
+assert.equal(demo.segmentResults.length,3);
+assert.equal(demo.segmentResults.filter(x=>x.etaMinutes<=30).length,1);
+assert.equal(demo.segmentResults.filter(x=>x.etaMinutes<=60).length,2);
+assert.equal(demo.segmentResults.filter(x=>x.etaMinutes<=120).length,3);
+for(const result of demo.segmentResults){
+ assert.notEqual(result.status,"SAFE");
+ assert.notEqual(result.status,"GO");
+}
+console.log("PASS: dashboard links, mobile styles, one-hour preview and safety gate preserved");
