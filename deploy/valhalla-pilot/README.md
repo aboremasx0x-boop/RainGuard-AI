@@ -64,6 +64,52 @@ from the public Vercel page with a browser secret. Render cannot access
 your computer's loopback address. Do not open port 8002 to the internet
 or turn this local pilot into a public router.
 
+## Next integration test: local RainGuard FastAPI → Valhalla
+
+After `bash run_pilot.sh test` succeeds, run the RainGuard Python API
+locally on the **same computer** as the Valhalla instance. The
+`VALHALLA_TRUCK_BACKEND_URL` must point to that machine's loopback
+interface. Never set `0.0.0.0` in the local API host command.
+
+In Linux/WSL, from the **repository root**, activate a local Python
+environment with `requirements.txt` installed and set environment
+variables in the local shell (**never save or commit the secret**):
+
+```bash
+export VALHALLA_TRUCK_ROUTING_ENABLED=true
+export VALHALLA_TRUCK_BACKEND_URL=http://127.0.0.1:8002
+read -r -s -p "Choose a strong local-only routing access token: " RAINGUARD_ROUTE_ACCESS_TOKEN
+echo
+export RAINGUARD_ROUTE_ACCESS_TOKEN
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+In a second local terminal, set the **same token** without displaying
+it and verify first:
+
+```bash
+python deploy/valhalla-pilot/test_protected_api.py --check
+python deploy/valhalla-pilot/test_protected_api.py
+```
+
+For production, use a cryptographically random secret managed by a
+proper secrets store; interactive short test tokens are not suitable
+for production. The smoke script rejects tokens shorter than 20
+characters, and it never prints them.
+
+A successful smoke test demonstrates that the private API can calculate
+one example truck route against a locally running Valhalla graph. It
+does **not** establish whether truck weight restrictions, flood hazards,
+official closures or actual road conditions are correct. The response
+always has `safeToDrive: null` and
+`alternativeRouteApproved: false`.
+
+Render is NOT attached to this local service. Public Vercel code must
+NOT call `/api/truck-routes/valhalla` with the token.
+Do not expose these local ports through a router, tunneling service
+or internet ingress. A permanent live service needs independently
+reviewed private networking, quotas, auditing and source validation.
+
 ## Steps (run inside WSL2 or Linux)
 1. cd deploy/valhalla-pilot
 2. python3 prepare_extract.py --dry-run
