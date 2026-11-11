@@ -1,14 +1,14 @@
 /* =========================================================
    RainGuard AI V32
    VISUALCROSSING-1E — Rain Forecast UI
-   Version: FORECAST-1E.3
+   Version: FORECAST-1E.4
    ========================================================= */
 
 (function () {
     "use strict";
 
     const NAME = "RainForecastUIV32";
-    const VERSION = "FORECAST-1E.3";
+    const VERSION = "FORECAST-1E.4";
     const HORIZONS = [6, 12, 24, 48, 72];
 
     function esc(value) {
@@ -76,7 +76,7 @@
         if (!c?.available) return "المقارنة غير متاحة";
         if (c.level === "HIGH") return "اتفاق مرتفع";
         if (c.level === "MEDIUM") return "اتفاق متوسط";
-        return "اختلاف بين المصدرين";
+        return "اختلاف بين المصادر";
     }
 
     function card(item, hours) {
@@ -105,7 +105,7 @@
                     <div><b>${item.totalRainMm == null ? "غير متوفر" : `${Number(item.totalRainMm).toFixed(1)} مم`}</b><span>الكمية المتوقعة</span></div>
                     <div><b>${item.peakRainMmH == null ? "غير متوفر" : `${Number(item.peakRainMmH).toFixed(1)} مم/س`}</b><span>أعلى شدة</span></div>
                     <div><b>${esc(severityLabel(item))}</b><span>التصنيف</span></div>
-                    <div><b>${Number(item.sourceAgreement || 0).toFixed(0)}%</b><span>اتفاق/توافر المصادر</span></div>
+                    <div><b>${Number(item.sourceAgreement || 0).toFixed(0)}%</b><span>مؤشر توافق تشغيلي تجريبي — ليس دقة التنبؤ</span></div>
                 </div>
 
                 <div class="rgf-compare">
