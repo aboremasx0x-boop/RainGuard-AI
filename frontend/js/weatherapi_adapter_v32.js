@@ -65,9 +65,11 @@ const adapter={
       HORIZONS.forEach(h=>{horizons[h+"h"]=aggregate(unique,h);});
       const available=HORIZONS.some(h=>horizons[h+"h"].available);
       if(!available)return unavailable("WEATHERAPI_INSUFFICIENT_HOURLY",city);
+      const retrievedAt=typeof payload.retrievedAt==="string" && Number.isFinite(Date.parse(payload.retrievedAt)) ? payload.retrievedAt : new Date().toISOString();
+      const forecastValidTime=unique.length ? new Date(number(unique[unique.length-1].time_epoch)*1000).toISOString() : null;
       const result={ok:true,available:true,status:"FORECAST_READY",provider:"WeatherAPI.com",source:"weatherapi",
         city:city.name??city.city??null,lat:coord.lat,lon:coord.lon,
-        fetchedAt:new Date().toISOString(),horizons,
+        fetchedAt:retrievedAt,forecastValidTime,horizons,
         rainProbability:horizons["6h"].rainProbability,rainAmount:horizons["6h"].totalRainMm};
       this.cache.set(cacheKey,{savedAt:Date.now(),result});
       return result;
