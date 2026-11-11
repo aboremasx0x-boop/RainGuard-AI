@@ -56,7 +56,17 @@ small,.muted{color:#b3cee0}
 <ol id="sampleWeatherResults" aria-live="polite"></ol>
 <div class="caution" role="note">بيانات المطر المكانية لا تؤكد وجود سيول أو عدم وجودها. لا توجد بيانات رسمية عن إغلاقات الطرق، ولا يجوز بناء توصية قيادة أو مسار بديل من هذه النتائج.</div>
 </section>
+<section class="panel" aria-labelledby="hydrology2Title">
+<h2 id="hydrology2Title">Hydrology-2 — مواقع المراجعة قرب المجاري المائية</h2>
+<p class="muted">بعد استخراج ملفات المراجعة باستخدام Python، اختر ملف <code>jeddah_makkah_hydro_review.geojson</code>. ستظهر علامات بنفسجية على رسم المسار الحالي، دون الاتصال بأي مصدر خارجي. المواقع نتائج قرب هندسي وتحتاج للتحقق الميداني والجيومكاني.</p>
+<label for="hydrologySitesFile">ملف مواقع التقارب المحلية (GeoJSON)</label>
+<input type="file" id="hydrologySitesFile" accept=".geojson,.json,application/geo+json,application/json" disabled>
+<p id="hydrologySitesStatus" role="status">حمّل ملف مسار Valhalla أولًا.</p>
+<ol id="hydrologySitesList" aria-live="polite"></ol>
+<div class="caution" role="note">علامات المواقع ليست تقاطعات أودية معتمدة ولا دليلًا على وجود خطر غمر أو عدم وجوده. لا تتضمن بيانات العبارات والجسور أو حالة الطرق الرسمية، ولا يجوز استخدامها لإصدار توجيه قيادة.</div>
+</section>
 </main>
 <script src="js/truck_route_geojson_viewer_v1.js?v=1" defer></script>
 <script src="js/truck_route_spatial_weather_v1.js?v=1" defer></script>
+<script src="js/truck_route_hydrology2_sites_v1.js?v=1" defer></script>
 </body></html>
