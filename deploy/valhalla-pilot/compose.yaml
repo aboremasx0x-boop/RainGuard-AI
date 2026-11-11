@@ -1,0 +1,18 @@
+services:
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:latest
+    container_name: rainguard-valhalla-pilot
+    restart: "no"
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - ./custom_files:/custom_files
+    environment:
+      serve_tiles: "True"
+      server_threads: "2"
+      build_admins: "True"
+      build_time_zones: "True"
+      build_tar: "True"
+      build_elevation: "False"
+      build_transit: "False"
+    mem_limit: 4g
