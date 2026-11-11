@@ -68,6 +68,11 @@ class TestOfficialNoticeGate(unittest.TestCase):
         self.assertEqual(x["roadClosureStatus"],"UNKNOWN")
         self.assertFalse(x["operationalWarningApproved"])
 
+    def test_malformed_notice_kind_fails_gracefully(self):
+        result=review_official_notices([0],[notice(kind=["ROAD_CLOSURE"])],REGISTRY,NOW)
+        self.assertEqual(result["recordsAccepted"],0)
+        self.assertEqual(result["rejectedRecords"][0]["reason"],"UNKNOWN_AUTHORITY_OR_NOTICE_KIND")
+
     def test_registry_is_required_and_invalid_input_fails(self):
         self.assertEqual(review_official_notices([0],[notice()],{},NOW)["recordsAccepted"],0)
         self.assertEqual(review_official_notices([0,0],[],REGISTRY,NOW)["status"],"INVALID_INPUT")
