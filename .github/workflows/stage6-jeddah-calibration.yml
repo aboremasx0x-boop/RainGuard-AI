@@ -1,0 +1,23 @@
+name: Stage 6 Jeddah historic calibration evidence
+on:
+  pull_request:
+    paths:
+      - 'scripts/stage6_historical_calibration_readiness.py'
+      - 'tests/test_stage6_historical_calibration_readiness.py'
+      - 'docs/stage6-jeddah-calibration.md'
+      - '.github/workflows/stage6-jeddah-calibration.yml'
+  workflow_dispatch:
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_stage6_historical_calibration_readiness.py -v
+      - run: python scripts/stage6_historical_calibration_readiness.py --output /tmp/stage6-evidence.json
+      - run: |
+          python -c 'import json; x=json.load(open("/tmp/stage6-evidence.json")); assert len(x["events"])==3; assert not x["historical_forecast_skill_available"]; assert all(not e["calibration_approved"] for e in x["events"])'
