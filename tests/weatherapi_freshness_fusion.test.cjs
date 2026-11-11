@@ -1,0 +1,65 @@
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const vm=require("node:vm");
+const source=fs.readFileSync("frontend/js/source_adapter_v30.js","utf8");
+const adapter=fs.readFileSync("frontend/js/weatherapi_adapter_v32.js","utf8");
+const fusion=fs.readFileSync("frontend/js/rain_forecast_fusion_v32.js","utf8");
+const ui=fs.readFileSync("frontend/js/rain_forecast_ui_v32.js","utf8");
+const html=fs.readFileSync("frontend/national-ai-os-v30.html","utf8");
+const backend=fs.readFileSync("main.py","utf8");
+assert.match(backend,/"retrievedAt": datetime.utcnow\(\).isoformat\(\) \+ "Z"/);
+assert.match(source,/normalized\.fetchedAt = result\.fetchedAt \|\| null/);
+assert.match(source,/normalized\.forecastValidTime = result\.forecastValidTime \|\| null/);
+assert.match(source,/normalized\.rainAmount = result\.rainAmount \?\? null/);
+assert.match(ui,/مقارنة المصادر الثلاثة/);
+assert.match(ui,/WeatherAPI\.com/);
+assert.match(ui,/فرق المطر/);
+assert.match(html,/weatherapi-comparison-1/);
+async function main(){
+ const now=Math.floor(Date.now()/3600000)*3600+3600;
+ const rows=Array.from({length:80},(_,i)=>({time_epoch:now+i*3600,precip_mm: i===0?1:0,chance_of_rain: i===0?45:10}));
+ const response={success:true,retrievedAt:"2026-11-11T03:00:00Z",forecastHours:rows};
+ const calls=[];
+ const w={};
+ vm.runInNewContext(adapter,{window:w,fetch:async url=>{calls.push(url);return{ok:true,json:async()=>response}},Date});
+ const a=w.RG30.WeatherAPIAdapter;
+ const c={name:"Jeddah",lat:21.5,lon:39.2};
+ const data=await a.collect(c);
+ assert.equal(data.fetchedAt,response.retrievedAt);
+ assert.equal(data.horizons["6h"].rainProbability,45);
+ assert.equal(data.horizons["6h"].totalRainMm,1);
+ assert.equal(data.forecastValidTime,new Date((now+79*3600)*1000).toISOString());
+ const cached=await a.collect(c);
+ assert.equal(cached.fromCache,true);
+ assert.equal(calls.length,1);
+ assert.equal(cached.fetchedAt,response.retrievedAt);
+ const engine={forecastCity:async()=>({status:"FORECAST_READY",horizons:{"6h":{rainProbability:40,totalRainMm:2,peakRainMmH:1}}})};
+ const vc={collect:async()=>({ok:true,status:"FORECAST_READY",source:"visual_crossing",horizons:{"6h":{rainProbability:50,totalRainMm:3}}})};
+ const customEvent=function(name,options){this.type=name;this.detail=options.detail};
+ const fw={RG30:{WeatherAPIAdapter:a,RainViewerAdapter:{collect:async()=>({available:false})}},
+  RainForecastEngineV32:engine,VisualCrossingForecastAdapterV32:vc,
+  dispatchEvent:()=>{},CustomEvent:customEvent};
+ vm.runInNewContext(fusion,{window:fw,CustomEvent:customEvent,console,Date});
+ const mixed=await fw.RainForecastFusionV32.forecastCity(c);
+ const h=mixed.horizons["6h"];
+ assert.equal(h.forecastSource,"OPEN_METEO");
+ assert.equal(h.weatherAPI.available,true);
+ assert.equal(h.sourceComparisons.comparedPairs,3);
+ assert.equal(h.sourceComparisons.pairs.openMeteoVsWeatherAPI.rainAmountDifferenceMm,1);
+ assert.equal(h.sourceComparisons.pairs.visualCrossingVsWeatherAPI.probabilityDifference,5);
+ assert.equal(mixed.horizons["72h"].status,"FUSION_READY"); // WeatherAPI fallbacks
+ engine.forecastCity=async()=>{throw Error("Open Meteo outage")};
+ vc.collect=async()=>{throw Error("Visual Crossing outage")};
+ const fallback=await fw.RainForecastFusionV32.forecastCity(c);
+ assert.equal(fallback.status,"FUSION_READY");
+ assert.equal(fallback.horizons["6h"].forecastSource,"WEATHERAPI");
+ assert.equal(fallback.horizons["6h"].sourceComparisons.available,false);
+ fw.RG30.WeatherAPIAdapter={collect:async()=>({ok:false,available:false,status:"UNAVAILABLE"})};
+ const absent=await fw.RainForecastFusionV32.forecastCity(c);
+ assert.equal(absent.status,"NO_FORECAST_DATA");
+ assert.equal(absent.horizons["6h"].rainProbability,null);
+ assert.equal(absent.horizons["6h"].totalRainMm,null);
+ assert.equal(absent.horizons["6h"].peakRainMmH,null);
+ console.log("PASS: provenance, cache, 3-provider comparisons, fallback, and missing-source protection");
+}
+main().catch(e=>{console.error(e);process.exitCode=1});

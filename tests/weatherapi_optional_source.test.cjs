@@ -5,7 +5,7 @@ const html=fs.readFileSync("frontend/national-ai-os-v30.html","utf8");
 const source=fs.readFileSync("frontend/js/source_adapter_v30.js","utf8");
 const fusion=fs.readFileSync("frontend/js/rain_forecast_fusion_v32.js","utf8");
 const backend=fs.readFileSync("main.py","utf8");
-assert.match(html,/weatherapi_adapter_v32\.js\?v=weatherapi-v1/);
+assert.match(html,/weatherapi_adapter_v32\.js\?v=weatherapi-freshness-1/);
 assert.ok(html.indexOf("weatherapi_adapter_v32.js")<html.indexOf("source_adapter_v30.js"));
 assert.match(source,/official:\s*\{\s*enabled:\s*false/);
 assert.match(source,/weatherAPI:\s*\{\s*enabled:\s*true/);

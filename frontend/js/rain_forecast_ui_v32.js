@@ -1,14 +1,14 @@
 /* =========================================================
    RainGuard AI V32
    VISUALCROSSING-1E — Rain Forecast UI
-   Version: FORECAST-1E.2
+   Version: FORECAST-1E.3
    ========================================================= */
 
 (function () {
     "use strict";
 
     const NAME = "RainForecastUIV32";
-    const VERSION = "FORECAST-1E.2";
+    const VERSION = "FORECAST-1E.3";
     const HORIZONS = [6, 12, 24, 48, 72];
 
     function esc(value) {
@@ -24,6 +24,7 @@
             ANWAA_NCM: "أنواء / المركز الوطني للأرصاد",
             OPEN_METEO: "Open-Meteo",
             VISUAL_CROSSING: "Visual Crossing",
+            WEATHERAPI: "WeatherAPI.com",
             NO_FORECAST_SOURCE: "لا يوجد مصدر"
         };
         return labels[source] || source || "--";
@@ -44,6 +45,10 @@
                 <div class="rgf-source ${s.openMeteo?.available ? "ok" : "off"}">
                     <b>Open-Meteo</b>
                     <span>${s.openMeteo?.available ? "التوقع متصل" : "غير متاح"}</span>
+                </div>
+                <div class="rgf-source ${s.weatherAPI?.available ? "ok" : "off"}">
+                    <b>WeatherAPI.com</b>
+                    <span>${s.weatherAPI?.available ? "التوقع متصل" : "غير متاح"}</span>
                 </div>
                 <div class="rgf-source ${s.visualCrossing?.available ? "ok" : "off"}">
                     <b>Visual Crossing</b>
@@ -67,7 +72,7 @@
     }
 
     function comparisonLabel(item) {
-        const c = item?.numericalComparison;
+        const c = item?.sourceComparisons;
         if (!c?.available) return "المقارنة غير متاحة";
         if (c.level === "HIGH") return "اتفاق مرتفع";
         if (c.level === "MEDIUM") return "اتفاق متوسط";
@@ -83,6 +88,9 @@
 
         const om = item.openMeteo;
         const vc = item.visualCrossing;
+        const wa = item.weatherAPI;
+        const pairs = item.sourceComparisons?.pairs || {};
+        const pairText = pair => pair?.available ? `فرق الاحتمال ${pair.probabilityDifference}%، فرق المطر ${pair.rainAmountDifferenceMm} مم` : "لا تتوفر بيانات للمقارنة";
 
         return `
             <div class="rgf-card">
@@ -90,12 +98,12 @@
                     <h4>${hours} ساعة</h4>
                     <span class="rgf-source-tag">${esc(sourceLabel(item.forecastSource))}</span>
                 </div>
-                <div class="rgf-probability">${Number(item.rainProbability || 0).toFixed(0)}%</div>
+                <div class="rgf-probability">${item.rainProbability == null ? "غير متوفر" : `${Number(item.rainProbability).toFixed(0)}%`}</div>
                 <div class="rgf-caption">احتمال هطول الأمطار</div>
 
                 <div class="rgf-grid">
-                    <div><b>${Number(item.totalRainMm || 0).toFixed(1)} مم</b><span>الكمية المتوقعة</span></div>
-                    <div><b>${Number(item.peakRainMmH || 0).toFixed(1)} مم/س</b><span>أعلى شدة</span></div>
+                    <div><b>${item.totalRainMm == null ? "غير متوفر" : `${Number(item.totalRainMm).toFixed(1)} مم`}</b><span>الكمية المتوقعة</span></div>
+                    <div><b>${item.peakRainMmH == null ? "غير متوفر" : `${Number(item.peakRainMmH).toFixed(1)} مم/س`}</b><span>أعلى شدة</span></div>
                     <div><b>${esc(severityLabel(item))}</b><span>التصنيف</span></div>
                     <div><b>${Number(item.sourceAgreement || 0).toFixed(0)}%</b><span>اتفاق/توافر المصادر</span></div>
                 </div>
@@ -103,7 +111,11 @@
                 <div class="rgf-compare">
                     <div><span>Open-Meteo</span><b>${om?.available ? `${Number(om.rainProbability || 0).toFixed(0)}% / ${Number(om.totalRainMm || 0).toFixed(1)} مم` : "--"}</b></div>
                     <div><span>Visual Crossing</span><b>${vc?.available ? `${Number(vc.rainProbability || 0).toFixed(0)}% / ${Number(vc.totalRainMm || 0).toFixed(1)} مم` : "--"}</b></div>
-                    <div class="rgf-compare-state"><span>مقارنة المصدرين</span><b>${esc(comparisonLabel(item))}</b></div>
+                    <div><span>WeatherAPI.com</span><b>${wa?.available ? `${Number(wa.rainProbability).toFixed(0)}% / ${Number(wa.totalRainMm).toFixed(1)} مم` : "--"}</b></div>
+                    <div class="rgf-compare-state"><span>مقارنة المصادر الثلاثة</span><b>${esc(comparisonLabel(item))}</b></div>
+                    <div><span>Open-Meteo ↔ Visual Crossing</span><b>${esc(pairText(pairs.openMeteoVsVisualCrossing))}</b></div>
+                    <div><span>Open-Meteo ↔ WeatherAPI</span><b>${esc(pairText(pairs.openMeteoVsWeatherAPI))}</b></div>
+                    <div><span>Visual Crossing ↔ WeatherAPI</span><b>${esc(pairText(pairs.visualCrossingVsWeatherAPI))}</b></div>
                 </div>
 
                 <div class="rgf-times">
@@ -125,7 +137,7 @@
             #rainForecastNationalPanel{direction:rtl;margin:18px 0;padding:18px;border:1px solid rgba(73,168,255,.35);border-radius:18px;background:rgba(8,38,67,.94);color:#fff;font-family:inherit}
             #rainForecastNationalPanel h2{margin:0 0 6px;font-size:22px}
             .rgf-subtitle{opacity:.75;font-size:13px;margin-bottom:14px}
-            .rgf-sources{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+            .rgf-sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
             .rgf-source{padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
             .rgf-source b,.rgf-source span{display:block}
             .rgf-source span{margin-top:4px;font-size:12px;opacity:.8}
