@@ -1,0 +1,22 @@
+name: Hydrology-9 OSM mapped geometry audit
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_hydrology9_osm_geometry.py'
+      - 'tests/test_hydrology9_osm_geometry.py'
+      - 'docs/hydrology9-osm-geometry-audit.md'
+      - '.github/workflows/hydrology9-osm-geometry.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_hydrology9_osm_geometry.py -v
+      - run: python -m unittest discover -s tests -p test_hydrology8_osm_structures.py -v
+      - run: python -m py_compile scripts/audit_hydrology9_osm_geometry.py
