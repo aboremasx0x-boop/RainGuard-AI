@@ -1,0 +1,23 @@
+name: Nationwide truck geography regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/national_truck_geography_v1.js'
+      - 'frontend/truck-routes-prototype.html'
+      - 'tests/national_truck_geography.test.cjs'
+      - 'tests/truck_route_risk_prototype.test.cjs'
+      - '.github/workflows/national-truck-geography.yml'
+  workflow_dispatch:
+jobs:
+  nationwide:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check frontend/js/national_truck_geography_v1.js
+      - run: node tests/national_truck_geography.test.cjs
+      - run: node tests/truck_route_risk_prototype.test.cjs

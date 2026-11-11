@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RainGuard AI — النموذج التجريبي لمخاطر مسارات الشاحنات</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoY1ZV+1nqHu0=" crossorigin="">
 <style>
 :root{font-family:Tahoma,Arial,sans-serif;color-scheme:dark;background:#07182c;color:#ecf4ff}
 *{box-sizing:border-box}body{max-width:1060px;margin:0 auto;padding:28px 18px;line-height:1.8}
@@ -16,7 +17,7 @@ button{background:#2c84dc;color:white;border:0;border-radius:9px;padding:10px 22
 .segment{background:#173653;border:1px solid #456788;border-radius:12px;padding:12px}
 .flag{display:inline-block;background:#554321;color:#ffe9b8;border-radius:7px;padding:2px 9px;font-size:13px}
 small{color:#b6cbe5}a{color:#9ad7ff}ul{padding-right:24px}time{direction:ltr;display:inline-block}
-</style>
+#nationalMap{height:340px;border-radius:12px;border:1px solid #496c8c;margin-top:14px;background:#102945}.field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.field-row select{width:100%;background:#071b31;color:#fff;border:1px solid #7396b5;padding:10px;border-radius:9px}.field-row label{font-weight:600}.place-point{padding:8px;border-radius:9px;background:#183e5f}.notice small{color:#ffe5c4}</style>
 </head>
 <body>
 <header>
@@ -26,6 +27,28 @@ small{color:#b6cbe5}a{color:#9ad7ff}ul{padding-right:24px}time{direction:ltr;dis
 <div class="notice" role="alert"><strong>تنبيه: محاكاة فقط وليست بيانات حية.</strong> أوقات الوصول ومقاطع الطريق وتوقعات الأمطار هنا مصطنعة للاختبار. لا تعتمد هذه الصفحة للقيادة أو لاختيار طريق بديل؛ راجع الإغلاقات والتنبيهات الرسمية.</div>
 </header>
 <main>
+<section class="panel" id="nationwidePanel">
+<h2>اختيار مواقع الرحلة — جميع مناطق المملكة الـ13</h2>
+<p class="muted">اختر منطقتين ومدينتين. تُعرض مراكز المدن التقريبية على الخريطة فقط، وليس مسار القيادة. لا تتوفر حاليًا هندسة طرق أو حساب أوقات وصول حقيقية للشاحنات.</p>
+<form id="nationalRouteForm">
+<div class="field-row">
+<div><label for="fromRegion">منطقة الانطلاق</label><select id="fromRegion" required></select></div>
+<div><label for="fromCity">مدينة الانطلاق</label><select id="fromCity" required></select></div>
+<div><label for="toRegion">منطقة الوصول</label><select id="toRegion" required></select></div>
+<div><label for="toCity">مدينة الوصول</label><select id="toCity" required></select></div>
+</div>
+<div class="field-row">
+<div><label for="nationalDeparture">وقت الانطلاق</label><input id="nationalDeparture" type="datetime-local" required></div>
+<div><label for="truckWeight">وزن الشاحنة بالطن (اختياري)</label><input id="truckWeight" type="number" min="0.1" step="0.1" placeholder="مثال: 18"></div>
+<div><label for="truckHeight">ارتفاع الشاحنة بالمتر (اختياري)</label><input id="truckHeight" type="number" min="0.1" step="0.1" placeholder="مثال: 4"></div>
+</div>
+<button type="submit">عرض مواقع الرحلة المختارة</button>
+</form>
+<p id="nationalStatus" class="notice" role="status">الحالة: لم تُربط خدمة مسارات الشاحنات الفعلية. لا توجد توصية قيادة.</p>
+<div id="nationalMap" role="img" aria-label="خريطة مواقع مدن الانطلاق والوصول التقريبية، بدون خط مسار"></div>
+<div id="nationalEndpoints" class="grid" aria-live="polite"></div>
+<p class="muted">الطبقة الأساسية من OpenStreetMap عبر Leaflet، وليست الخارطة الوطنية الرسمية. للحدود الإدارية الرسمية تُستخدم بيانات الهيئة العامة للمساحة والمعلومات الجيومكانية وفق ترخيصها.</p>
+</section>
 <section class="panel">
 <h2>إعداد سيناريو الرحلة</h2>
 <form id="routeForm">
@@ -52,6 +75,73 @@ small{color:#b6cbe5}a{color:#9ad7ff}ul{padding-right:24px}time{direction:ltr;dis
 <p class="muted">لا تخزن هذه الصفحة بيانات شخصية أو مواقع GPS ولا تتصل بمزودي خرائط أو إنذارات.</p>
 </section>
 </main>
+<script src="./js/national_truck_geography_v1.js?v=all-regions-1"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function(){
+"use strict";
+const api=window.RainGuardNationalRoutes;
+const element=id=>document.getElementById(id);
+const fromRegion=element("fromRegion"),toRegion=element("toRegion");
+const fromCity=element("fromCity"),toCity=element("toCity");
+const regionList=api.regions();
+function option(value,label){const o=document.createElement("option");o.value=value;o.textContent=label;return o;}
+for(const region of regionList){fromRegion.append(option(region.id,region.name));toRegion.append(option(region.id,region.name));}
+fromRegion.value="makkah";toRegion.value="riyadh";
+function cities(region,selector){
+ selector.replaceChildren();
+ for(const city of api.regionCities(region.value))selector.append(option(city.id,city.name));
+}
+cities(fromRegion,fromCity);cities(toRegion,toCity);
+fromCity.value="jeddah";toCity.value="riyadh";
+fromRegion.addEventListener("change",()=>cities(fromRegion,fromCity));
+toRegion.addEventListener("change",()=>cities(toRegion,toCity));
+const nowLocal=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+element("nationalDeparture").value=nowLocal;
+let map=null,markers=[];
+try{
+ if(window.L){
+  map=L.map("nationalMap",{scrollWheelZoom:false}).setView([24.0,44.0],5);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+   maxZoom:16,attribution:"&copy; OpenStreetMap contributors"
+  }).addTo(map);
+ }else element("nationalMap").textContent="تعذّر تحميل طبقة الخريطة؛ يمكن اختيار المدن من القوائم.";
+}catch(error){element("nationalMap").textContent="الخريطة غير متاحة حاليًا؛ لا يؤثر ذلك على اختيار المدن.";}
+function readPositiveNumber(id){
+ const raw=element(id).value.trim();
+ if(!raw)return undefined;
+ const value=Number(raw);
+ if(!Number.isFinite(value)||value<=0)throw Error("INVALID_VEHICLE_INPUT");
+ return value;
+}
+element("nationalRouteForm").addEventListener("submit",event=>{
+ event.preventDefault();
+ try{
+  const d=new Date(element("nationalDeparture").value);
+  const p=api.plan({
+   originId:fromCity.value,destinationId:toCity.value,
+   departureTime:d.toISOString(),
+   vehicle:{weightTons:readPositiveNumber("truckWeight"),heightMeters:readPositiveNumber("truckHeight")}
+  });
+  element("nationalStatus").textContent="لم يُحتسب مسار قيادة أو زمن سفر: خدمة توجيه الشاحنات غير متصلة. مواقع المدن تقريبية. لا حكم بسلامة الطريق.";
+  const target=element("nationalEndpoints");target.replaceChildren();
+  for(const [label,city] of [["انطلاق",p.origin],["وجهة",p.destination]]){
+   const box=document.createElement("div");box.className="place-point";
+   const h=document.createElement("strong");h.textContent=label+" — "+city.name;
+   const txt=document.createElement("div");txt.textContent="مركز مدينة تقريبي، غير صالح للملاحة";
+   box.append(h,txt);target.append(box);
+  }
+  if(map){
+   for(const marker of markers)map.removeLayer(marker);
+   markers=[L.marker([p.origin.lat,p.origin.lon]).addTo(map),L.marker([p.destination.lat,p.destination.lon]).addTo(map)];
+   markers[0].bindPopup("انطلاق تقريبي: "+p.origin.name);
+   markers[1].bindPopup("وجهة تقريبية: "+p.destination.name);
+   map.fitBounds(L.latLngBounds([[p.origin.lat,p.origin.lon],[p.destination.lat,p.destination.lon]]).pad(0.35),{maxZoom:9});
+  }
+ }catch(error){element("nationalStatus").textContent="تعذر إعداد الاختيار: تحقق من المدينتين ووقت الانطلاق وقيود المركبة.";}
+});
+})();
+</script>
 <script src="./js/truck_route_risk_prototype_v1.js"></script>
 <script>
 (function(){
