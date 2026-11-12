@@ -73,7 +73,7 @@ test("Excel TSV neutralizes formulas and newlines within cells",()=>{
  const b=h13.excelTSV(d);
  const content=Buffer.from(b).subarray(2).toString("utf16le");
  assert.match(content,/'=HYPERLINK/);
- assert.match(content,/'\\+SUM/);
+ assert.ok(content.includes("'"+ "+SUM(A1:A2)"));
  assert.equal(content.split("\r\n").filter(Boolean).length,3);
  assert.equal(content.split("\r\n")[1].split("\t").length,20);
 });
