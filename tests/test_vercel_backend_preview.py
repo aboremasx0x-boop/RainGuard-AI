@@ -90,8 +90,10 @@ class PreviewBundleTests(unittest.TestCase):
                     "hourly":hourly,"daily":daily}}
             async def fake_secondary(*args,**kwargs):
                 return {"available":False,"reason":"not configured"}
-            with patch.object(index.legacy,"fetch_open_meteo",fake_primary), \\
-                 patch.object(index.legacy,"fetch_openweather",fake_secondary):
+            with (
+                patch.object(index.legacy,"fetch_open_meteo",fake_primary),
+                patch.object(index.legacy,"fetch_openweather",fake_secondary),
+            ):
                 result=client.get("/rain-alert?lat=21.5433&lon=39.1728&name=Jeddah")
             self.assertEqual(result.status_code,200)
             self.assertFalse(result.json()["error"])
