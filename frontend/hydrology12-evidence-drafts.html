@@ -23,12 +23,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:680px){.grid{grid-template-columns:1fr}}
 </style>
 <script src="js/hydrology11_local_review.js?v=1" defer></script>
-<script src="js/hydrology12_evidence_drafts.js?v=1" defer></script>
+<script src="js/hydrology12_evidence_drafts.js?v=2" defer></script>
+<script src="js/hydrology13_resume_drafts.js?v=1" defer></script>
 </head>
 <body>
 <nav><a href="hydrology11-local-review.html">العودة إلى لوحة Hydrology-11</a></nav>
 <main>
-<h1>Hydrology-12 — مسودات الأدلة الميدانية</h1>
+<h1>Hydrology-12 / 13 — مسودات الأدلة الميدانية واستكمالها</h1>
 <p class="muted">نموذج محلي لتوثيق مراجع الصور والمعاينات والقياسات والمستندات، ثم تنزيل مسودة JSON أو CSV على جهازك. لا يرفع ملفات أو صورًا إلى أي خادم ولا يحتفظ ببيانات بين الجلسات.</p>
 <div class="warning" role="alert"><strong>مسودات غير معتمدة.</strong> إدخال صور أو قياسات أو أسماء جهات لا يثبت صحتها، ولا يغير حالة الطريق أو خطر السيول. لا تستخدم النموذج لإصدار قرار تشغيل أو تصريح عبور.</div>
 <section class="panel">
@@ -38,7 +39,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <p id="loadStatus" role="status">اختر ملف Hydrology-10 الأصلي من جهازك.</p>
 </section>
 <section class="panel">
-<h2>2. اختيار سجل المراجعة</h2>
+<h2>2. استكمال مسودة سابقة (اختياري)</h2>
+<p class="muted">حمّل ملف Hydrology-10 الأصلي أعلاه أولًا، ثم اختر ملف JSON الذي صدّرته سابقًا من Hydrology-12. لا تستخدم ملف CSV أو XLSX لإعادة الاستيراد؛ لأنهما للعرض فقط.</p>
+<label for="resumeFile">استعادة ملف مسودة JSON غير معتمد</label>
+<input type="file" id="resumeFile" accept=".json,application/json" disabled>
+<p id="resumeStatus" role="status">حمّل التقرير الأصلي أولًا.</p>
+</section>
+<section class="panel">
+<h2>3. اختيار سجل المراجعة</h2>
 <label for="recordSelect">الموقع والمنشأة المرشحة</label>
 <select id="recordSelect" disabled></select>
 <p id="selectedInfo" class="muted"></p>
@@ -72,10 +80,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <p id="editStatus" role="status">لا توجد إدخالات.</p>
 </section>
 <section class="panel">
-<h2>3. تنزيل المسودة</h2>
+<h2>4. تنزيل المسودة</h2>
 <p class="muted">للحفظ الدائم اضغط أحد الزرين. اختر مجلدًا خاصًا، ولا ترفع صورًا شخصية أو ملاحظات غير منشورة إلى GitHub. تنزيل CSV لا يصادق على البيانات.</p>
 <button id="exportJSON" type="button" disabled>تصدير مسودة JSON</button>
-<button id="exportCSV" type="button" disabled>تصدير مسودة CSV لبرنامج Excel</button>
+<button id="exportCSV" type="button" disabled>تصدير مسودة CSV</button>
+<button id="exportExcel" type="button" disabled>تصدير جدول Excel عربي (TSV)</button>
+<p class="muted">للعرض في Excel افتح ملف TSV الجديد مباشرةً، ثم احفظه بصيغة XLSX. وللاستكمال داخل RainGuard احتفظ دائمًا بملف JSON أيضًا.</p>
 </section>
 </main>
 </body>
