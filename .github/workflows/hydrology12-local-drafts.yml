@@ -1,0 +1,24 @@
+name: Hydrology-12 local evidence draft checks
+on:
+  pull_request:
+    paths:
+      - 'frontend/js/hydrology12_evidence_drafts.js'
+      - 'frontend/hydrology12-evidence-drafts.html'
+      - 'frontend/hydrology11-local-review.html'
+      - 'tests/hydrology12_evidence_drafts.test.cjs'
+      - 'docs/hydrology12-local-evidence-drafts.md'
+      - '.github/workflows/hydrology12-local-drafts.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --check frontend/js/hydrology12_evidence_drafts.js
+      - run: node --test tests/hydrology12_evidence_drafts.test.cjs
+      - run: node --test tests/hydrology11_local_review.test.cjs

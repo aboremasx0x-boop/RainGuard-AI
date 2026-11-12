@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI — Hydrology-12 مسودات الأدلة المحلية</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;background:#07182b;color:#eaf3ff}
+*{box-sizing:border-box}
+body{max-width:1100px;margin:0 auto;padding:24px 16px;line-height:1.8}
+a{color:#9be1fc}
+h1{font-size:clamp(1.5rem,3vw,2.3rem)}
+.panel{background:#112a43;border:1px solid #305a79;border-radius:14px;padding:20px;margin:15px 0}
+.warning{background:#48311c;border:1px solid #b58b56;border-radius:12px;padding:15px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+label{display:block;font-weight:bold;margin:8px 0 4px}
+input,select,textarea,button{font:inherit}
+input,select,textarea{width:100%;background:#183954;color:#fff;border:1px solid #749bb6;border-radius:8px;padding:10px}
+textarea{min-height:100px;resize:vertical}
+button{background:#1b597a;border:1px solid #7db8d5;color:#fff;border-radius:9px;padding:10px 16px;cursor:pointer;margin:6px 6px 6px 0}
+button:disabled{opacity:.5;cursor:not-allowed}
+.muted{color:#c2d8e8}
+[hidden]{display:none!important}
+@media(max-width:680px){.grid{grid-template-columns:1fr}}
+</style>
+<script src="js/hydrology11_local_review.js?v=1" defer></script>
+<script src="js/hydrology12_evidence_drafts.js?v=1" defer></script>
+</head>
+<body>
+<nav><a href="hydrology11-local-review.html">العودة إلى لوحة Hydrology-11</a></nav>
+<main>
+<h1>Hydrology-12 — مسودات الأدلة الميدانية</h1>
+<p class="muted">نموذج محلي لتوثيق مراجع الصور والمعاينات والقياسات والمستندات، ثم تنزيل مسودة JSON أو CSV على جهازك. لا يرفع ملفات أو صورًا إلى أي خادم ولا يحتفظ ببيانات بين الجلسات.</p>
+<div class="warning" role="alert"><strong>مسودات غير معتمدة.</strong> إدخال صور أو قياسات أو أسماء جهات لا يثبت صحتها، ولا يغير حالة الطريق أو خطر السيول. لا تستخدم النموذج لإصدار قرار تشغيل أو تصريح عبور.</div>
+<section class="panel">
+<h2>1. استيراد التقرير الأصلي</h2>
+<label for="baselineFile">ملف <span dir="ltr">jeddah_makkah_hydrology10_review_package.json</span></label>
+<input type="file" id="baselineFile" accept=".json,application/json">
+<p id="loadStatus" role="status">اختر ملف Hydrology-10 الأصلي من جهازك.</p>
+</section>
+<section class="panel">
+<h2>2. اختيار سجل المراجعة</h2>
+<label for="recordSelect">الموقع والمنشأة المرشحة</label>
+<select id="recordSelect" disabled></select>
+<p id="selectedInfo" class="muted"></p>
+<form id="evidenceForm" hidden>
+<div class="grid">
+<div><label for="observedStructureType">نوع المنشأة المرصود (ادعاء يحتاج تحققًا)</label>
+<select id="observedStructureType" name="observedStructureType">
+<option value="">لم يُسجل</option><option value="bridge">جسر</option>
+<option value="culvert">عبّارة</option><option value="other">منشأة أخرى</option>
+<option value="not_observed">لم تُشاهد منشأة</option><option value="unknown">غير معروف</option>
+</select></div>
+<div><label for="observedCrossing">تقاطع طريق/مجرى مرصود ميدانيًا (غير معتمد)</label>
+<select id="observedCrossing" name="observedCrossing">
+<option value="">لم يُسجل</option><option value="yes_observed">يبدو موجودًا</option>
+<option value="no_observed">لم يُشاهد</option><option value="unknown">غير معروف</option></select></div>
+<div><label for="observationDate">تاريخ الزيارة</label><input id="observationDate" name="observationDate" type="date"></div>
+<div><label for="organization">الجهة التي قدمت المشاهدة</label><input id="organization" name="organization" maxlength="500" autocomplete="off"></div>
+<div><label for="photoReference">مرجع الصورة أو اسم الملف المحلي (دون رفع الصورة)</label><input id="photoReference" name="photoReference" maxlength="500" autocomplete="off"></div>
+<div><label for="surveyReference">مرجع المسح الموقعي</label><input id="surveyReference" name="surveyReference" maxlength="500"></div>
+<div><label for="culvertWidthMeters">عرض فتحة العبارة بالمتر (إن قيس)</label><input id="culvertWidthMeters" name="culvertWidthMeters" type="number" min="0.001" max="1000" step="0.001"></div>
+<div><label for="culvertHeightMeters">ارتفاع فتحة العبارة بالمتر (إن قيس)</label><input id="culvertHeightMeters" name="culvertHeightMeters" type="number" min="0.001" max="1000" step="0.001"></div>
+<div><label for="culvertOpeningCount">عدد فتحات العبارة (إن قيس)</label><input id="culvertOpeningCount" name="culvertOpeningCount" type="number" min="1" max="1000" step="1"></div>
+<div><label for="bridgeSurveyReference">مرجع رفع الجسر وارتفاع سطح الطريق</label><input id="bridgeSurveyReference" name="bridgeSurveyReference" maxlength="500"></div>
+<div><label for="authorityInventoryReference">رقم سجل الجهة المختصة</label><input id="authorityInventoryReference" name="authorityInventoryReference" maxlength="500"></div>
+<div><label for="officialClosureReference">مرجع إغلاق الطريق الرسمي (إن توفر)</label><input id="officialClosureReference" name="officialClosureReference" maxlength="500"></div>
+</div>
+<label for="notes">ملاحظات (غير معتمدة)</label>
+<textarea id="notes" name="notes" maxlength="1000"></textarea>
+<button type="submit">حفظ هذا الإدخال في المسودة مؤقتًا</button>
+</form>
+<p id="editStatus" role="status">لا توجد إدخالات.</p>
+</section>
+<section class="panel">
+<h2>3. تنزيل المسودة</h2>
+<p class="muted">للحفظ الدائم اضغط أحد الزرين. اختر مجلدًا خاصًا، ولا ترفع صورًا شخصية أو ملاحظات غير منشورة إلى GitHub. تنزيل CSV لا يصادق على البيانات.</p>
+<button id="exportJSON" type="button" disabled>تصدير مسودة JSON</button>
+<button id="exportCSV" type="button" disabled>تصدير مسودة CSV لبرنامج Excel</button>
+</section>
+</main>
+</body>
+</html>
