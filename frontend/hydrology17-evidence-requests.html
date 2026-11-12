@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RainGuard AI — Hydrology-17</title>
+<style>*{box-sizing:border-box}body{font:16px Tahoma,Arial,sans-serif;line-height:1.8;background:#07182b;color:#e9f5ff;max-width:1200px;margin:auto;padding:20px}a{color:#9ee1fb}main h1{font-size:27px}.panel{border-radius:13px;border:1px solid #365d78;background:#112b44;padding:20px;margin:16px 0}.warning{background:#45321f;border-color:#a78152}button,input,select{font:inherit;padding:9px;border-radius:7px}button{background:#185977;color:white;border:1px solid #8dbbd0;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}input{max-width:100%}table{width:100%;border-collapse:collapse;font-size:13px}td,th{border:1px solid #4a6880;padding:9px;text-align:right;vertical-align:top}th{background:#244963}.scroll{max-height:48vh;overflow:auto}textarea{width:100%;min-height:170px;background:#071d30;color:#eef5ff;border:1px solid #67869b;padding:12px;font:14px Tahoma,Arial,sans-serif}#status{white-space:pre-wrap}.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center}</style>
+<script defer src="js/hydrology17_evidence_requests.js"></script></head>
+<body><nav><a href="hydrology16-review-tracker.html">العودة إلى Hydrology-16</a></nav>
+<main><h1>Hydrology-17 — تجهيز طلبات المراجعة المستقلة</h1>
+<p>تجميع سجلات الموقع الواحد في طلب إداري مبدئي لإكمال الأدلة. التحليل محلي تمامًا ولا يرسل الرسائل.</p>
+<div class="panel warning" role="alert">لا توجد معاينة موثقة أو موافقة هندسية أو تقييم لمخاطر السيول. جميع طلبات هذه الصفحة مسودات غير مرسلة، وليست تعليمات مرورية.</div>
+<section class="panel"><h2>1. تحميل قائمة المتابعة من Hydrology-16</h2>
+<label for="source">اختر ملف <code>rainguard_hydrology16_followup_register.json</code> من التنزيلات</label>
+<p><input id="source" type="file" accept=".json,application/json"></p>
+<p id="status" role="status">لم يتم تحميل ملف.</p>
+<p id="summary"></p>
+</section>
+<section class="panel"><h2>2. طلبات استكمال الأدلة حسب الموقع</h2>
+<div class="scroll"><table><thead><tr><th>الموقع</th><th>عدد السجلات</th><th>بلا إدخالات</th><th>ناقصة</th><th>الحقول الناقصة</th><th>حالة الطلب</th></tr></thead><tbody id="results"></tbody></table></div>
+<p><button id="export" type="button" disabled>تنزيل خطة طلب الأدلة JSON</button></p>
+</section>
+<section class="panel"><h2>3. إنشاء نص طلب للمراجعة</h2>
+<div class="controls"><label for="site">الموقع:</label><select id="site" disabled><option>اختر الملف أولًا</option></select><button id="copy" type="button" disabled>نسخ نص الطلب</button></div>
+<p><textarea id="letter" readonly aria-label="نص طلب المراجعة" placeholder="اختر ملفًا وموقعًا لعرض نص الطلب"></textarea></p>
+<p>النص نموذج إداري للمراجعة قبل الإرسال، ولا يتضمن اسم جهة أو مفتش لم يتم التحقق منه.</p>
+</section></main>
+<script>window.addEventListener("DOMContentLoaded",()=>{
+"use strict";
+const $=id=>document.getElementById(id),source=$("source"),status=$("status"),summary=$("summary"),results=$("results"),site=$("site"),letter=$("letter"),exportButton=$("export"),copyButton=$("copy");let report=null;
+function showLetter(){const item=report&&report.requests.find(x=>x.siteId===site.value);letter.value=item?RainGuardHydrology17.requestText(item):"";copyButton.disabled=!item;}
+source.addEventListener("change",async()=>{
+report=null;summary.textContent="";results.replaceChildren();site.replaceChildren();letter.value="";site.disabled=true;exportButton.disabled=true;copyButton.disabled=true;
+const file=source.files&&source.files[0];if(!file){status.textContent="لم يتم اختيار ملف";return;}
+if(file.size<1||file.size>3*1024*1024||!file.name.toLowerCase().endsWith(".json")){status.textContent="ملف غير مقبول: اختر JSON بحجم أقل من 3 ميجابايت";return;}
+try{
+ const parsed=JSON.parse(await file.text());report=RainGuardHydrology17.plan(parsed);
+ status.textContent="تم إنشاء المسودات محليًا؛ لم تُرسل بيانات أو طلبات.";
+ const s=report.summary;summary.textContent="المواقع: "+s.sites+" | السجلات: "+s.records+" | بلا إدخالات: "+s.empty+" | ناقصة: "+s.incomplete+" | أدلة معتمدة: 0";
+ for(const r of report.requests){
+ const tr=document.createElement("tr");
+ for(const value of [r.siteId,r.recordIds.length,r.noInput,r.incomplete,r.missingFields.join("، ")||"لا يوجد نقص نصي",r.requestStatus]){
+ const td=document.createElement("td");td.textContent=String(value);tr.append(td);
+ }results.append(tr);
+ const opt=document.createElement("option");opt.value=r.siteId;opt.textContent=r.siteId;site.append(opt);
+ }
+ site.disabled=false;exportButton.disabled=false;showLetter();
+}catch(e){report=null;status.textContent="تعذر استيراد التقرير: "+String(e.message||e).slice(0,180);}
+});
+site.addEventListener("change",showLetter);
+copyButton.addEventListener("click",async()=>{if(!report||!letter.value)return;try{await navigator.clipboard.writeText(letter.value);status.textContent="تم نسخ نص المسودة؛ لم يتم إرسال أي طلب.";}catch(e){letter.focus();letter.select();status.textContent="انسخ النص المحدد يدويًا باستخدام Ctrl+C."; }});
+exportButton.addEventListener("click",()=>{if(!report)return;const b=new Blob([JSON.stringify(report,null,2)],{type:"application/json;charset=utf-8"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="rainguard_hydrology17_evidence_request_plan.json";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);});
+});</script></body></html>

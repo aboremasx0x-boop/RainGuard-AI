@@ -1,0 +1,23 @@
+name: Hydrology-17 evidence requests
+on:
+  push:
+    paths:
+      - 'frontend/js/hydrology17_evidence_requests.js'
+      - 'frontend/hydrology17-evidence-requests.html'
+      - 'tests/hydrology17_evidence_requests.test.cjs'
+      - '.github/workflows/hydrology17-evidence-requests.yml'
+  pull_request:
+    paths:
+      - 'frontend/js/hydrology17_evidence_requests.js'
+      - 'frontend/hydrology17-evidence-requests.html'
+      - 'tests/hydrology17_evidence_requests.test.cjs'
+      - '.github/workflows/hydrology17-evidence-requests.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/hydrology17_evidence_requests.test.cjs
