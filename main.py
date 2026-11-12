@@ -1221,155 +1221,13 @@ def build_current_from_openweather(openweather_data):
     }
 
 def build_hybrid_next_hours(openweather_data, hours=12):
-    """
-    بناء توقعات الساعات القادمة من OpenWeatherMap عند تعذر Open-Meteo.
-    """
-    base = build_current_from_openweather(openweather_data)
+    """Deprecated: never extrapolate observed conditions into invented forecasts."""
+    return []
 
-    base_score = safe_number(base["rain_score"])
-    base_temp = safe_number(base["temperature"])
-    base_humidity = safe_number(base["humidity"])
-    base_cloud = safe_number(base["cloud_cover"])
-
-    if base_cloud <= 0:
-        base_cloud = min(
-            100,
-            max(
-                safe_number(base["rain_probability"]) * 2,
-                safe_number(base["humidity"]) * 0.8
-            )
-        )
-
-    base_wind = safe_number(base["wind_speed"])
-    base_pressure = safe_number(base["pressure_hpa"], 1013)
-    base_rain = safe_number(base["precipitation_mm"])
-
-    rows = []
-
-    for i in range(hours):
-        time_value = now_utc() + timedelta(hours=i)
-
-        if i <= 2:
-            score = base_score
-        elif i <= 5:
-            score = max(base_score - 5, 0)
-        elif i <= 8:
-            score = max(base_score - 10, 0)
-        else:
-            score = max(base_score - 15, 0)
-
-        if base_score >= 60 and i in [1, 2, 3]:
-            score = min(score + 5, 100)
-
-        row = {
-            "time": time_value.isoformat() + "Z",
-            "temperature": round(base_temp + (i * 0.2), 1),
-            "humidity": max(round(base_humidity - (i * 0.8), 1), 0),
-            "dew_point": 0,
-            "rain_probability": score,
-            "precipitation_mm": base_rain if i == 0 else 0,
-            "cloud_cover": max(round(base_cloud - (i * 1.2), 1), 0),
-            "pressure_hpa": base_pressure,
-            "wind_speed": base_wind,
-            "flood_score": 0
-        }
-
-        row["rain_score"] = calculate_rain_score(row)
-
-        alert = classify(row["rain_score"])
-        row["alert_level"] = alert["level"]
-        row["advice"] = alert["advice"]
-
-        rows.append(row)
-
-    return rows
 
 def build_hybrid_daily_forecast(openweather_data):
-    """
-    بناء توقع يومي عند تشغيل Hybrid Recovery.
-    """
-    base = build_current_from_openweather(openweather_data)
-
-    base_score = safe_number(base["rain_score"])
-    base_temp = safe_number(base["temperature"])
-    base_wind = safe_number(base["wind_speed"])
-    base_rain = safe_number(base["precipitation_mm"])
-
-    days = []
-
-    for i in range(7):
-        daily_score = max(base_score - (i * 6), 0)
-        alert = classify(daily_score)
-
-        precipitation_sum = base_rain
-
-        if daily_score >= 80:
-            precipitation_sum = max(base_rain, 8)
-        elif daily_score >= 60:
-            precipitation_sum = max(base_rain, 4)
-        elif daily_score >= 40:
-            precipitation_sum = max(base_rain, 1.5)
-
-        days.append({
-            "date": (now_utc() + timedelta(days=i)).date().isoformat(),
-            "temperature_max": round(base_temp + 3 + i * 0.2, 1),
-            "temperature_min": round(base_temp - 4, 1),
-            "rain_probability_max": daily_score,
-            "precipitation_sum": round(precipitation_sum, 1),
-            "rain_sum": round(precipitation_sum, 1),
-            "wind_speed_max": base_wind,
-            "daily_rain_score": daily_score,
-            "alert_level": alert["level"],
-            "advice": alert["advice"]
-        })
-
-    return days
-
-
-def calculate_flood_risk_score(current, next_hours, daily_forecast):
-    """
-    حساب مؤشر خطر السيول بشكل مبسط.
-    """
-    current_score = safe_number(current.get("rain_score"))
-
-    max_hourly_rain = max(
-        [safe_number(h.get("precipitation_mm")) for h in next_hours],
-        default=0
-    )
-
-    max_hourly_score = max(
-        [safe_number(h.get("rain_score")) for h in next_hours],
-        default=0
-    )
-
-    max_daily_rain = max(
-        [safe_number(d.get("precipitation_sum")) for d in daily_forecast],
-        default=0
-    )
-
-    max_daily_score = max(
-        [safe_number(d.get("daily_rain_score")) for d in daily_forecast],
-        default=0
-    )
-
-    flood_score = 0
-    flood_score += current_score * 0.20
-    flood_score += max_hourly_score * 0.30
-    flood_score += max_daily_score * 0.20
-
-    if max_hourly_rain >= 1:
-        flood_score += 10
-
-    if max_hourly_rain >= 5:
-        flood_score += 10
-
-    if max_daily_rain >= 10:
-        flood_score += 10
-
-    if max_daily_rain >= 25:
-        flood_score += 10
-
-    return round(clamp(flood_score, 0, 100), 2)
+    """Deprecated: no model-backed daily forecast from current-only observations."""
+    return []
 
 
 def build_hybrid_recovery_result(lat, lon, name, openweather_data, reason, hours):
@@ -1608,7 +1466,8 @@ def build_open_meteo_result(
         "source_details": {
             "primary": "Open-Meteo",
             "secondary": "OpenWeatherMap" if has_secondary_source else None,
-            "adaptiveLearningValidated": bool(learning.get("ok") and learning.get("samples", 0) >= 5),
+            "adaptiveLearningValidated": False,  # Samples alone are not independent scientific validation.
+            "adaptiveLearningSampleCount": learning.get("samples", 0),
             "futureForecastAvailable": True,
             "syntheticForecast": False,
             "hourlyTimeAligned": True,
