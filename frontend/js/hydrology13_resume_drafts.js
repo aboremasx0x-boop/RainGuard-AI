@@ -1,7 +1,9 @@
 /* Hydrology-13: fail-closed local draft re-import and Excel-friendly TSV. */
 (function(root,factory){
   "use strict";
-  const api=factory(root&&root.RainGuardHydrology12);
+  const dependency=(root&&root.RainGuardHydrology12)||
+    (typeof module==="object"&&module.exports ? require("./hydrology12_evidence_drafts.js") : null);
+  const api=factory(dependency);
   if(typeof module==="object"&&module.exports)module.exports=api;
   if(root&&root.document)root.RainGuardHydrology13=api;
 })(typeof globalThis!=="undefined"?globalThis:this,function(h12){
