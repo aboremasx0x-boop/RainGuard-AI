@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI — Hydrology-11 مراجعة المنشآت</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;background:#07182b;color:#eaf3ff}
+*{box-sizing:border-box}
+body{max-width:1220px;margin:0 auto;padding:24px 16px;line-height:1.8}
+h1{font-size:clamp(1.5rem,3vw,2.3rem)}
+a{color:#91dffd}
+.panel{background:#102942;border:1px solid #315b7a;border-radius:14px;padding:18px;margin:14px 0}
+.warn{background:#46311e;border:1px solid #ba8b4f;color:#ffe4c6;border-radius:12px;padding:16px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.metric{border-radius:12px;background:#193950;padding:13px}
+.metric small{display:block;color:#b9d5e5}
+.metric strong{display:block;font-size:1.8rem}
+.controls{display:flex;gap:15px;flex-wrap:wrap;align-items:end}
+label{display:block;font-weight:600}
+input,select{font:inherit;background:#193950;color:white;border:1px solid #7fa0b8;border-radius:8px;padding:9px;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th,td{padding:11px 9px;border-bottom:1px solid #30536c;text-align:right}
+th{background:#17354a}
+.scroll{overflow-x:auto}
+.muted{color:#b9cedd}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}th,td{white-space:nowrap}}
+</style>
+<script src="js/hydrology11_local_review.js?v=1" defer></script>
+</head>
+<body>
+<nav><a href="truck-route-file-viewer.html">العودة إلى عرض مسار الشاحنات</a></nav>
+<main>
+<h1>Hydrology-11 — لوحة مراجعة الجسور والعبارات المرشحة</h1>
+<p class="muted">لوحة بحثية تفاعلية تقرأ ملف Hydrology-10 من جهازك فقط، دون رفع البيانات إلى RainGuard أو أي خادم. لا توجد اتصالات API أو خرائط خارجية.</p>
+<div class="warn" role="note"><strong>غير مخصصة لاتخاذ قرارات المرور.</strong> نتائج OpenStreetMap مرشحة وغير متحقق منها. لا يمكن استنتاج خطر السيول أو سلامة الطريق أو اعتماد العبارات من هذه الصفحة.</div>
+<section class="panel">
+<h2>تحميل التقرير المحلي</h2>
+<label for="reviewFile">اختر ملف <span dir="ltr">jeddah_makkah_hydrology10_review_package.json</span></label>
+<input id="reviewFile" type="file" accept=".json,application/json" aria-describedby="fileStatus">
+<p id="fileStatus" role="status">لم يُحدَّد ملف. لن تُعرض أي منشآت افتراضية.</p>
+</section>
+<section id="stats" class="grid" aria-label="مؤشرات الملف"></section>
+<section class="panel">
+<h2>سجلات المراجعة</h2>
+<div class="controls">
+<div><label for="siteFilter">الموقع</label><select id="siteFilter" disabled><option value="">كل المواقع</option></select></div>
+<div><label for="kindFilter">نوع النتيجة</label><select id="kindFilter">
+<option value="all">كل السجلات</option><option value="mapped">مطابقات OSM فقط</option>
+<option value="unmapped">مواقع بلا مرشحات</option></select></div>
+</div>
+<p class="muted" id="tableStatus" role="status">اختر ملف Hydrology-10 لعرض البيانات.</p>
+<div class="scroll"><table><thead><tr>
+<th>الموقع</th><th>رابط المنشأة المرشحة</th><th>نوع الوسم</th>
+<th>المسافة التقريبية للطريق</th><th>المسافة التقريبية للمجرى</th><th>حالة المعاينة</th>
+</tr></thead><tbody id="reviewRows"></tbody></table></div>
+</section>
+<section class="panel">
+<h2>ما الذي لا تؤكده هذه اللوحة؟</h2>
+<p>المطابقة الهندسية لا تثبت تقاطع طريق ووادٍ فعليًا. ولا توفر وسوم OSM قياسات فتحات العبّارات أو موافقة الجهات المختصة أو سجلات إغلاق الطرق. عدد السجلات ليس بالضرورة عدد منشآت مستقلة.</p>
+<p class="muted">تظل الصور والقياسات وأدلة الجهات الرسمية في سجلات Excel المحلية التي أعدتها Hydrology-10. لا تحفظ هذه الصفحة تعديلات على الملفات أو ترسلها.</p>
+</section>
+</main>
+</body>
+</html>
