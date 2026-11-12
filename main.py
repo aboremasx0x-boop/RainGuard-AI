@@ -1230,6 +1230,33 @@ def build_hybrid_daily_forecast(openweather_data):
     return []
 
 
+def calculate_flood_risk_score(current, next_hours, daily_forecast):
+    """Legacy forecast-window precipitation proxy; NOT engineered flood risk."""
+    current_score = safe_number(current.get("rain_score"))
+    max_hourly_rain = max(
+        [safe_number(h.get("precipitation_mm")) for h in next_hours], default=0
+    )
+    max_hourly_score = max(
+        [safe_number(h.get("rain_score")) for h in next_hours], default=0
+    )
+    max_daily_rain = max(
+        [safe_number(d.get("precipitation_sum")) for d in daily_forecast], default=0
+    )
+    max_daily_score = max(
+        [safe_number(d.get("daily_rain_score")) for d in daily_forecast], default=0
+    )
+    score = current_score * 0.20 + max_hourly_score * 0.30 + max_daily_score * 0.20
+    if max_hourly_rain >= 1:
+        score += 10
+    if max_hourly_rain >= 5:
+        score += 10
+    if max_daily_rain >= 10:
+        score += 10
+    if max_daily_rain >= 25:
+        score += 10
+    return round(clamp(score, 0, 100), 2)
+
+
 def build_hybrid_recovery_result(lat, lon, name, openweather_data, reason, hours):
     """Fail closed: current weather observations cannot support a future forecast."""
     current = build_current_from_openweather(openweather_data)
