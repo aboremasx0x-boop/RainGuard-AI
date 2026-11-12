@@ -109,14 +109,16 @@
     const form=doc.getElementById("evidenceForm");
     let source=null;
     let changes=Object.create(null);
+    let activeId="";
     function saveCurrent(){
-      if(!source||!recordSelect.value)return;
+      if(!source||!activeId)return;
       const entry={};
       for(const name of FIELDS)entry[name]=form.elements.namedItem(name).value;
-      changes[recordSelect.value]=normalize(entry);
+      changes[activeId]=normalize(entry);
     }
     function showSelected(){
       const target=recordSelect.value;
+      activeId=target;
       const row=source?.rows.find(x=>x.id===target);
       for(const name of FIELDS)form.elements.namedItem(name).value=
         (changes[target]||blank())[name];
@@ -142,7 +144,7 @@
       }
     }
     loader.addEventListener("change",async()=>{
-      source=null;changes=Object.create(null);form.hidden=true;
+      source=null;changes=Object.create(null);activeId="";form.hidden=true;
       recordSelect.replaceChildren();recordSelect.disabled=true;
       exportJSON.disabled=true;exportCSV.disabled=true;
       const f=loader.files?.[0];
