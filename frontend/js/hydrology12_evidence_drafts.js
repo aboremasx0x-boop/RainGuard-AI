@@ -106,6 +106,9 @@
     const editStatus=doc.getElementById("editStatus");
     const exportJSON=doc.getElementById("exportJSON");
     const exportCSV=doc.getElementById("exportCSV");
+    const resumeFile=doc.getElementById("resumeFile");
+    const exportExcel=doc.getElementById("exportExcel");
+    const resumeStatus=doc.getElementById("resumeStatus");
     const form=doc.getElementById("evidenceForm");
     let source=null;
     let changes=Object.create(null);
@@ -147,6 +150,9 @@
       source=null;changes=Object.create(null);activeId="";form.hidden=true;
       recordSelect.replaceChildren();recordSelect.disabled=true;
       exportJSON.disabled=true;exportCSV.disabled=true;
+      if(resumeFile){resumeFile.disabled=true;resumeFile.value="";}
+      if(exportExcel)exportExcel.disabled=true;
+      if(resumeStatus)resumeStatus.textContent="حمّل التقرير الأصلي أولًا.";
       const f=loader.files?.[0];
       if(!f){loadStatus.textContent="لم يتم اختيار ملف";return;}
       if(f.size<1||f.size>MAX_FILE){loadStatus.textContent="حجم الملف غير مسموح";return;}
@@ -158,12 +164,46 @@
           option.value=row.id;recordSelect.append(option);
         }
         recordSelect.disabled=false;exportJSON.disabled=false;exportCSV.disabled=false;
+        if(resumeFile)resumeFile.disabled=false;
+        if(exportExcel)exportExcel.disabled=false;
         loadStatus.textContent="تم تحميل "+source.worksheetCount+" سجلًا من جهازك. لم تُرفع البيانات.";
         showSelected();update();
       }catch(error){
         source=null;
         loadStatus.textContent="الملف مرفوض: "+String(error.message||error).slice(0,160);
       }
+    });
+    if(resumeFile)resumeFile.addEventListener("change",async()=>{
+      const f=resumeFile.files?.[0];
+      if(!source||!f){if(resumeStatus)resumeStatus.textContent="اختر التقرير الأصلي ومسودة JSON.";return;}
+      if(f.size<1||f.size>MAX_FILE){resumeStatus.textContent="حجم المسودة غير مسموح (3 ميجابايت).";return;}
+      try{
+        const h13=globalThis.RainGuardHydrology13;
+        assert(h13&&typeof h13.restore==="function","مكتبة الاستعادة غير متاحة");
+        // Save currently typed data first; a failed import must preserve it.
+        saveCurrent();
+        const parsed=JSON.parse(await f.text());
+        const restored=h13.restore(source,parsed);
+        changes=restored;
+        showSelected();update();
+        resumeStatus.textContent="تمت استعادة "+parsed.enteredDraftCount+
+          " مسودة غير معتمدة من الملف المحلي. احفظ التغييرات بتصدير جديد.";
+      }catch(e){resumeStatus.textContent="رُفضت المسودة دون استبدال البيانات الحالية: "+
+        String(e.message||e).slice(0,180);}
+    });
+    if(exportExcel)exportExcel.addEventListener("click",()=>{
+      try{
+        assert(source,"يجب تحميل الملف الأصلي");
+        saveCurrent();
+        const h13=globalThis.RainGuardHydrology13;
+        assert(h13&&typeof h13.excelTSV==="function","مكتبة Excel غير متاحة");
+        const draft=buildDraft(source,changes);
+        const stamp=new Date().toISOString().replace(/[:.]/g,"-");
+        download(h13.excelTSV(draft),"text/tab-separated-values;charset=utf-16le",
+          "rainguard_hydrology13_excel_"+stamp+".tsv");
+        update();
+        editStatus.textContent+=" تم تنزيل جدول Excel مفصول بعلامات تبويب، مع الاحتفاظ بنسخة JSON منفصلة للاستكمال.";
+      }catch(e){editStatus.textContent="تعذر تصدير Excel: "+String(e.message||e).slice(0,160);}
     });
     recordSelect.addEventListener("change",()=>{
       try{saveCurrent();}catch(e){editStatus.textContent=e.message;return;}
