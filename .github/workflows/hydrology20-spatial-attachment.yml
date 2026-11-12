@@ -1,0 +1,21 @@
+name: Hydrology-20 spatial attachment
+on:
+  push:
+    paths:
+      - 'scripts/build_hydrology20_spatial_attachment.py'
+      - 'tests/test_hydrology20_spatial_attachment.py'
+      - '.github/workflows/hydrology20-spatial-attachment.yml'
+  pull_request:
+    paths:
+      - 'scripts/build_hydrology20_spatial_attachment.py'
+      - 'tests/test_hydrology20_spatial_attachment.py'
+      - '.github/workflows/hydrology20-spatial-attachment.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -p 'test_hydrology20_spatial_attachment.py'
