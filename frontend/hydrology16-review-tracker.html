@@ -1,0 +1,53 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RainGuard AI — Hydrology-16</title>
+<style>*{box-sizing:border-box}body{font:16px Tahoma,Arial,sans-serif;line-height:1.8;max-width:1240px;margin:auto;background:#07182b;color:#e7f5ff;padding:20px}h1{font-size:28px}a{color:#95e0ff}.panel{background:#122c44;border:1px solid #386180;border-radius:14px;padding:18px;margin:16px 0}.warning{background:#46321c;border-color:#a68047}button,input,select{font:inherit;padding:10px;border-radius:8px}button{background:#1c5977;border:1px solid #8bbbd0;color:white;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}input{max-width:100%}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #42627e;padding:8px;text-align:right;vertical-align:top}th{background:#244761}.tablewrap{overflow:auto;max-height:65vh}td:first-child{direction:ltr;text-align:left;min-width:250px}#summary{font-weight:bold}</style>
+<script src="js/hydrology16_review_tracker.js" defer></script></head><body>
+<nav><a href="hydrology14-completeness.html">العودة إلى Hydrology-14</a></nav>
+<h1>Hydrology-16 — متابعة النواقص والمراجعة المستقلة</h1>
+<p>واجهة بحثية محلية لفرز السجلات والأدلة الناقصة وتحديد جهة المراجعة المقترحة. لا تُرسل ملفاتك إلى الخادم.</p>
+<section class="panel warning" role="alert">هذه ليست أداة لتقييم مخاطر السيول أو سلامة الطرق. كل السجلات تنتظر تحققًا مستقلًا ولا تسمح الصفحة بأي موافقة تشغيلية.</section>
+<section class="panel"><h2>1. تحميل تقرير Hydrology-14</h2>
+<label for="source">اختر ملف <code>rainguard_hydrology14_completeness.tsv</code> من التنزيلات</label>
+<p><input type="file" id="source" accept=".tsv,text/tab-separated-values"></p>
+<p id="status" role="status">لم يُحمّل تقرير بعد.</p></section>
+<section class="panel"><h2>2. لوحة متابعة الأدلة</h2><p id="summary" role="status">لا توجد نتائج.</p>
+<label for="filter">تصفية الحالة:</label>
+<select id="filter"><option value="ALL">كل السجلات</option><option value="NO_INPUT">لا توجد مدخلات</option><option value="MISSING_FIELDS">مدخلات ناقصة</option><option value="FIELDS_PRESENT_UNVERIFIED">حقول موجودة غير موثقة</option></select>
+<div class="tablewrap"><table><thead><tr><th>معرف السجل</th><th>الموقع</th><th>حالة البيانات</th><th>عدد الحقول</th><th>الأدلة الناقصة</th><th>مسار المتابعة المقترح</th><th>حالة المراجعة</th></tr></thead><tbody id="results"></tbody></table></div>
+<p><button type="button" id="download" disabled>تنزيل قائمة المتابعة JSON</button></p><p>لا يحتوي التصدير على أسماء مفتشين أو صور أو اعتماد. سجلات Excel في Hydrology-15 مرجع إداري مستقل ولا تُستورد مباشرة في هذه الواجهة.</p>
+</section>
+<script>
+window.addEventListener("DOMContentLoaded",()=>{
+"use strict";
+const source=document.getElementById("source"),status=document.getElementById("status"),summary=document.getElementById("summary"),results=document.getElementById("results"),filter=document.getElementById("filter"),download=document.getElementById("download");
+let report=null;
+function render(){
+ results.replaceChildren();
+ if(!report){summary.textContent="لا توجد نتائج.";return;}
+ const r=report.counts;
+ const selected=report.records.filter(x=>filter.value==="ALL"||x.category===filter.value);
+ summary.textContent="الإجمالي: "+r.total+" | بلا مدخلات: "+r.empty+" | ناقصة: "+r.incomplete+" | حقول موجودة غير موثقة: "+r.fieldsPresentUnverified+" | معتمدة: 0";
+ for(const item of selected){
+  const tr=document.createElement("tr");
+  for(const value of [item.recordId,item.siteId,item.category,item.present+"/"+item.total,item.missingFields.join("، ")||"لا يوجد نقص من الحقول المطلوبة",item.followUp,"في انتظار أدلة مستقلة"]){
+   const td=document.createElement("td");td.textContent=value;tr.append(td);
+  }results.append(tr);
+ }
+}
+source.addEventListener("change",async()=>{
+ report=null;download.disabled=true;render();
+ const f=source.files&&source.files[0];if(!f)return;
+ try{if(f.size>3*1024*1024||f.size<3||!f.name.toLowerCase().endsWith(".tsv"))throw Error("اختر ملف TSV الأصلي بحجم أقل من 3 ميجابايت");
+ const s=RainGuardHydrology16.decode(await f.arrayBuffer());report=RainGuardHydrology16.parse(s);
+ status.textContent="تم تحميل التقرير محليًا؛ لم تُرسل بيانات للخادم.";download.disabled=false;render();
+ }catch(e){status.textContent="تعذر قراءة التقرير: "+String(e.message||e).slice(0,180);}
+});
+filter.addEventListener("change",render);
+download.addEventListener("click",()=>{
+ if(!report)return;
+ const blob=new Blob([JSON.stringify(report,null,2)],{type:"application/json;charset=utf-8"});
+ const uri=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=uri;a.download="rainguard_hydrology16_followup_register.json";document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(uri),1000);
+});
+});
+</script></body></html>
