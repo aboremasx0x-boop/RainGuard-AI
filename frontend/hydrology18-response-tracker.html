@@ -1,0 +1,39 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI — Hydrology-18</title><style>*{box-sizing:border-box}body{font:16px Tahoma,Arial,sans-serif;line-height:1.8;max-width:1200px;margin:auto;background:#07182b;color:#e9f5ff;padding:20px}a{color:#9ee1fb}h1{font-size:28px}.panel{border:1px solid #42617d;background:#112b44;border-radius:13px;padding:20px;margin:16px 0}.warning{background:#47321f;border-color:#a78350}input,select,textarea,button{font:inherit;padding:9px;border-radius:7px;max-width:100%}input,select,textarea{background:#f6fbfd;color:#1b2933;border:1px solid #7791a7}textarea{width:100%;min-height:85px}button{background:#195978;color:white;border:1px solid #91c7dd;cursor:pointer}button:disabled{opacity:.4}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.scroll{overflow:auto;max-height:48vh}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #47647e;padding:8px;text-align:right}th{background:#2a4b66}#status{white-space:pre-wrap}</style>
+<script defer src="js/hydrology18_response_log.js"></script></head><body><nav><a href="hydrology17-evidence-requests.html">العودة إلى Hydrology-17</a></nav>
+<h1>Hydrology-18 — متابعة طلبات الأدلة والاستجابات</h1>
+<p>تسجيل إداري محلي لما تفيد به المراجع المتاحة. لا يُرسل الموقع أي طلب ولا يرفع الملفات.</p>
+<section class="panel warning">كل إدخال في هذه الصفحة هو ادعاء إداري يحتاج إلى إثبات مستقل. تسجيل مرجع إرسال أو رد لا يثبت وقوعه، ولا يعتمد منشأة أو طريقًا أو درجة خطر.</section>
+<section class="panel"><h2>1. تحميل خطة Hydrology-17</h2>
+<label for="source">اختر الملف <code>rainguard_hydrology17_evidence_request_plan.json</code></label>
+<p><input id="source" type="file" accept=".json,application/json"></p>
+<p id="status" role="status">لم تُحمّل خطة بعد.</p><p id="summary"></p>
+<label for="resume">اختياري: استعادة سجل Hydrology-18 محفوظ سابقًا</label>
+<p><input id="resume" type="file" accept=".json,application/json" disabled></p></section>
+<section class="panel"><h2>2. تسجيل متابعة إدارية (غير موثقة)</h2>
+<div class="grid">
+<div><label for="site">الموقع</label><p><select id="site" disabled></select></p></div>
+<div><label for="kind">نوع التسجيل</label><p><select id="kind"><option value="FOLLOWUP_NOTE">ملاحظة متابعة</option><option value="SENT_LOGGED">تسجيل ادعاء إرسال طلب</option><option value="RESPONSE_LOGGED">تسجيل ادعاء استلام رد</option></select></p></div>
+<div><label for="date">تاريخ الواقعة المسجلة</label><p><input id="date" type="date"></p></div>
+<div><label for="ref">رقم مرجع أو مستند (مطلوب للإرسال والرد)</label><p><input id="ref" maxlength="250" placeholder="رقم صادر/وارد أو مرجع مستند"></p></div>
+</div><label for="notes">ملاحظات مختصرة (لا تضع معلومات شخصية)</label>
+<textarea id="notes" maxlength="600"></textarea><p><button id="add" type="button" disabled>إضافة تسجيل محلي</button></p></section>
+<section class="panel"><h2>3. حالة المتابعة بحسب المواقع</h2><div class="scroll"><table><thead><tr><th>الموقع</th><th>عدد التدوينات</th><th>الحالة الإدارية غير الموثقة</th><th>المراجعة الهندسية</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p><button id="download" disabled>تنزيل سجل Hydrology-18 بصيغة JSON</button></p><p>احتفظ بالنسخة المحمّلة في مجلد خاص. لا ترفع بيانات رسمية أو حساسة إلى مستودع GitHub عام.</p></section>
+<script>window.addEventListener("DOMContentLoaded",()=>{
+"use strict";const $=id=>document.getElementById(id),source=$("source"),resume=$("resume"),status=$("status"),sum=$("summary"),rows=$("rows"),site=$("site"),add=$("add"),download=$("download");let plan=null,log=null;
+function draw(){rows.replaceChildren();if(!log)return;const ss=RainGuardHydrology18.summary(log);sum.textContent="المواقع: "+ss.length+" | التدوينات المحلية: "+log.events.length+" | الأدلة المعتمدة: 0 | قرارات سلامة الطرق: لا توجد";for(const x of ss){const tr=document.createElement("tr");for(const v of [x.siteId,x.events,x.administrativeState,x.independentReview]){const td=document.createElement("td");td.textContent=v;tr.append(td)}rows.append(tr)}}
+async function fileJson(f){if(!f||f.size<2||f.size>3*1024*1024||!f.name.toLowerCase().endsWith(".json"))throw Error("اختر JSON حجمه أقل من 3 ميجابايت");return JSON.parse(await f.text());}
+source.addEventListener("change",async()=>{
+plan=null;log=null;site.replaceChildren();rows.replaceChildren();add.disabled=true;download.disabled=true;resume.disabled=true;sum.textContent="";
+try{plan=RainGuardHydrology18.validatePlan(await fileJson(source.files?.[0]));log=RainGuardHydrology18.init(plan);
+for(const r of plan.requests){const opt=document.createElement("option");opt.value=r.siteId;opt.textContent=r.siteId;site.append(opt)}
+site.disabled=false;add.disabled=false;download.disabled=false;resume.disabled=false;status.textContent="تم تحميل خطة غير مرسلة؛ لم تتم أي مراسلة.";draw();
+}catch(e){status.textContent="رُفضت الخطة: "+String(e.message||e).slice(0,170)}});
+resume.addEventListener("change",async()=>{if(!plan)return;try{const saved=await fileJson(resume.files?.[0]);log=RainGuardHydrology18.resume(plan,saved);status.textContent="تمت استعادة سجل محلي غير موثق.";draw()}catch(e){status.textContent="تعذرت الاستعادة؛ لم تتغير السجلات: "+String(e.message||e).slice(0,170)}});
+add.addEventListener("click",()=>{if(!log)return;try{
+log=RainGuardHydrology18.append(log,{siteId:site.value,eventType:$("kind").value,recordedDate:$("date").value,reference:$("ref").value,notes:$("notes").value});
+status.textContent="تم تسجيل ملاحظة محلية غير موثقة. نزّل JSON لحفظها.";draw();
+}catch(e){status.textContent="لم يُسجل الإدخال: "+String(e.message||e).slice(0,170)}});
+download.addEventListener("click",()=>{if(!log)return;const blob=new Blob([JSON.stringify(log,null,2)],{type:"application/json;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="rainguard_hydrology18_response_log.json";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+});</script></body></html>
