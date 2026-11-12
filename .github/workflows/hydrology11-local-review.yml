@@ -1,0 +1,23 @@
+name: Hydrology-11 offline review dashboard
+on:
+  pull_request:
+    paths:
+      - 'frontend/hydrology11-local-review.html'
+      - 'frontend/js/hydrology11_local_review.js'
+      - 'frontend/truck-route-file-viewer.html'
+      - 'tests/hydrology11_local_review.test.cjs'
+      - 'docs/hydrology11-local-review.md'
+      - '.github/workflows/hydrology11-local-review.yml'
+  workflow_dispatch:
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --check frontend/js/hydrology11_local_review.js
+      - run: node --test tests/hydrology11_local_review.test.cjs
