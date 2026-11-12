@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI — Hydrology-14 اكتمال الأدلة</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;color:#ecf5ff;background:#07182b}
+*{box-sizing:border-box}body{max-width:1250px;margin:auto;padding:20px;line-height:1.7}
+a{color:#9be1fc}.panel{background:#112a43;border:1px solid #315d7c;border-radius:12px;padding:18px;margin:16px 0}
+.warning{background:#47321c;border-color:#b38b5a}
+input,select,button{font:inherit;color:inherit;padding:10px;background:#1b4766;border:1px solid #7ca4c0;border-radius:8px}
+input{max-width:100%}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}
+.tablewrap{max-width:100%;overflow:auto}table{border-collapse:collapse;width:100%;font-size:.85rem}
+th,td{padding:9px;border:1px solid #42627e;vertical-align:top;text-align:right}
+th{background:#264966}td{word-break:break-word}td:first-child{direction:ltr;text-align:left}
+#summary{font-weight:bold}label{display:block;margin:10px 0 5px}
+</style>
+<script src="js/hydrology12_evidence_drafts.js?v=2" defer></script>
+<script src="js/hydrology14_completeness.js?v=1" defer></script>
+</head>
+<body><nav><a href="hydrology12-evidence-drafts.html">العودة إلى محرر المسودات Hydrology-13</a></nav>
+<main><h1>Hydrology-14 — فحص اكتمال حقول الأدلة</h1>
+<p>افحص ملف مسودة JSON الذي صدّرته من Hydrology-12/13 دون رفعه إلى الإنترنت. يعرض الحقول غير المدخلة لكل سجل ومقدار اكتمال المعلومات النصية فقط.</p>
+<section class="panel warning" role="alert"><strong>مهم:</strong> ظهور كل الحقول لا يعني صحة المعاينة أو اعتماد الجسر أو كفاية العبارات أو سلامة الطريق. لا تُصدر هذه الصفحة أي تقييم لخطر السيول أو قرار عبور أو تحذير رسمي.</section>
+<section class="panel">
+<h2>1. اختر مسودة JSON</h2>
+<label for="draftFile">ملف rainguard_hydrology12_evidence_draft_*.json</label>
+<input type="file" id="draftFile" accept=".json,application/json">
+<p id="status" role="status">لا توجد بيانات محملة. يجب اختيار ملف JSON وليس TSV أو XLSX.</p>
+</section>
+<section class="panel">
+<h2>2. ملخص اكتمال السجلات</h2>
+<p id="summary" role="status">لا توجد نتائج.</p>
+<label for="filter">عرض السجلات بحسب الحالة</label>
+<select id="filter"><option value="ALL">كل السجلات</option>
+<option value="NO_INPUT">بلا إدخالات</option><option value="MISSING_FIELDS">حقول ناقصة</option>
+<option value="FIELDS_PRESENT_UNVERIFIED">حقول موجودة — غير معتمدة</option></select>
+<div class="tablewrap"><table><thead><tr><th>معرّف السجل</th><th>الموقع</th><th>حالة الاكتمال</th><th>حقول موجودة</th><th>الحقول الناقصة</th><th>توجد ملاحظات</th></tr></thead>
+<tbody id="resultsBody"></tbody></table></div>
+<p><button type="button" id="download" disabled>تنزيل تقرير النواقص لبرنامج Excel (TSV)</button></p>
+<p>احفظ ملف JSON الأصلي أيضًا؛ تقرير النواقص لا يُستورد كملاحظات ولا يُعدّل السجلات.</p>
+</section></main></body></html>
