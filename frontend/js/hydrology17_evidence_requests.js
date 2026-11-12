@@ -17,10 +17,10 @@ function plan(source){
  for(const r of source.records){
   requireOk(r&&typeof r==="object"&&RECORD.test(r.recordId)&&SITE.test(r.siteId)&&r.recordId.startsWith(r.siteId+"-")&&!ids.has(r.recordId),"INVALID_RECORD_ID");
   ids.add(r.recordId);
-  requireOk(STATES.has(r.category)&&ENTRIES.has(r.entryStatus)&&r.followUpStatus==="AWAITING_INDEPENDENT_EVIDENCE"&&r.verified===false,"INVALID_REVIEW_STATE");
+  requireOk(STATES.has(r.category)&&(!Object.prototype.hasOwnProperty.call(r,"entryStatus")||ENTRIES.has(r.entryStatus))&&r.followUpStatus==="AWAITING_INDEPENDENT_EVIDENCE"&&r.verified===false,"INVALID_REVIEW_STATE");
   requireOk(Array.isArray(r.missingFields)&&r.missingFields.length<=13&&r.missingFields.every(f=>FIELDS.has(f))&&new Set(r.missingFields).size===r.missingFields.length,"INVALID_MISSING_FIELDS");
   requireOk(Number.isInteger(r.total)&&Number.isInteger(r.present)&&r.total>0&&r.total<=13&&r.present>=0&&r.present<=r.total&&r.total-r.present===r.missingFields.length,"INCONSISTENT_COUNTS");
-  requireOk(r.category===(r.entryStatus==="NOT_ENTERED"?"NO_INPUT":r.missingFields.length?"MISSING_FIELDS":"FIELDS_PRESENT_UNVERIFIED"),"INCONSISTENT_CATEGORY");
+  requireOk(r.category==="NO_INPUT" ? (r.present===0&&r.missingFields.length===r.total&&(r.entryStatus===undefined||r.entryStatus==="NOT_ENTERED")) : r.category==="MISSING_FIELDS" ? (r.missingFields.length>0&&(r.entryStatus===undefined||r.entryStatus==="DRAFT_ENTERED_NOT_VERIFIED")) : (r.missingFields.length===0&&(r.entryStatus===undefined||r.entryStatus==="DRAFT_ENTERED_NOT_VERIFIED")),"INCONSISTENT_CATEGORY");
   if(r.category==="NO_INPUT")empty++;
   else if(r.category==="MISSING_FIELDS")incomplete++;
   else present++;
