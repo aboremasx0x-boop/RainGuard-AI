@@ -1,0 +1,22 @@
+name: Hydrology-10 offline field review forms
+on:
+  pull_request:
+    paths:
+      - 'scripts/build_hydrology10_field_review.py'
+      - 'tests/test_hydrology10_field_review.py'
+      - 'docs/hydrology10-field-review.md'
+      - '.github/workflows/hydrology10-field-review.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p test_hydrology10_field_review.py -v
+      - run: python -m unittest discover -s tests -p test_hydrology9_osm_geometry.py -v
+      - run: python -m py_compile scripts/build_hydrology10_field_review.py
