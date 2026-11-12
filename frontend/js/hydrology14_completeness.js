@@ -1,10 +1,12 @@
 /* Hydrology-14: local evidence completeness inventory, not evidence verification. */
 (function(root,factory){
  "use strict";
- const api=factory(root&&root.RainGuardHydrology12,root&&root.RainGuardHydrology13);
+ const dependency=(root&&root.RainGuardHydrology12)||
+  (typeof module==="object"&&module.exports?require("./hydrology12_evidence_drafts.js"):null);
+ const api=factory(dependency);
  if(typeof module==="object"&&module.exports)module.exports=api;
  if(root&&root.document){root.RainGuardHydrology14=api;root.document.addEventListener("DOMContentLoaded",()=>api.bind(root.document));}
-})(typeof globalThis!=="undefined"?globalThis:this,function(h12,h13){
+})(typeof globalThis!=="undefined"?globalThis:this,function(h12){
  "use strict";
  const MAX_FILE=3*1024*1024;
  const FIELDS=["observedStructureType","observedCrossing","observationDate","organization","photoReference",
