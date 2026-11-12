@@ -1,0 +1,23 @@
+name: Hydrology-19 readiness gaps
+on:
+  push:
+    paths:
+      - 'frontend/js/hydrology19_readiness_audit.js'
+      - 'frontend/hydrology19-readiness.html'
+      - 'tests/hydrology19_readiness_audit.test.cjs'
+      - '.github/workflows/hydrology19-readiness.yml'
+  pull_request:
+    paths:
+      - 'frontend/js/hydrology19_readiness_audit.js'
+      - 'frontend/hydrology19-readiness.html'
+      - 'tests/hydrology19_readiness_audit.test.cjs'
+      - '.github/workflows/hydrology19-readiness.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/hydrology19_readiness_audit.test.cjs
