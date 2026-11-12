@@ -1,0 +1,27 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RainGuard AI — Hydrology-19</title>
+<style>*{box-sizing:border-box}body{font:16px Tahoma,Arial,sans-serif;line-height:1.8;background:#07182b;color:#edf5fc;max-width:1200px;margin:auto;padding:20px}a{color:#9fe3fc}h1{font-size:28px}.panel{border:1px solid #3e5f7d;background:#112b44;border-radius:12px;margin:18px 0;padding:20px}.warning{background:#43301f;border-color:#ad8857}input,button{font:inherit;padding:10px;border-radius:7px;max-width:100%}button{border:1px solid #83b6d0;background:#185775;color:white;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}label{display:block;margin:7px 0}.stats{display:flex;gap:18px;flex-wrap:wrap}.stat{background:#20425d;padding:9px 15px;border-radius:8px}.scroll{max-height:55vh;overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #476782;padding:9px;text-align:right;vertical-align:top}th{background:#28516f}#status{white-space:pre-wrap}</style>
+<script src="js/hydrology18_response_log.js" defer></script>
+<script src="js/hydrology19_readiness_audit.js" defer></script></head><body>
+<nav><a href="hydrology18-response-tracker.html">العودة إلى Hydrology-18</a></nav>
+<h1>Hydrology-19 — تدقيق جاهزية الأدلة والفجوات</h1>
+<p>فحص محلي لاكتمال مستندات المتابعة والفجوات التي تمنع الانتقال إلى اعتماد هندسي أو تشغيلي.</p>
+<section class="panel warning"><strong>ملاحظة:</strong> هذا التقرير لا يقيس مخاطر السيول، ولا يتحقق من المستندات رسميًا، ولا يسمح بإصدار قرارات سلامة الطرق أو توجيه الشاحنات.</section>
+<section class="panel"><h2>1. تحميل ملفي المتابعة</h2>
+<label for="plan">خطة Hydrology-17 — ملف JSON</label><input id="plan" type="file" accept=".json,application/json">
+<label for="log">سجل Hydrology-18 — ملف JSON</label><input id="log" type="file" accept=".json,application/json">
+<p><button id="run" type="button">فحص الجاهزية</button></p><p id="status" role="status">اختر الملفين ثم اضغط فحص الجاهزية.</p></section>
+<section class="panel"><h2>2. نتيجة التدقيق</h2><div id="stats" class="stats"></div>
+<div class="scroll"><table><thead><tr><th>الموقع</th><th>عدد السجلات</th><th>بلا إدخالات</th><th>ناقصة</th><th>ادعاءات إرسال</th><th>ادعاءات رد</th><th>الفجوات التي تمنع الاعتماد</th><th>النتيجة</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p><button id="export" type="button" disabled>تنزيل تقرير Hydrology-19 JSON</button></p></section>
+<script>window.addEventListener("DOMContentLoaded",()=>{
+"use strict";const $=x=>document.getElementById(x);let result=null;
+async function parseFile(f){if(!f||f.size<2||f.size>3*1024*1024||!f.name.toLowerCase().endsWith(".json"))throw Error("اختر ملف JSON حجمه أقل من 3 ميجابايت");return JSON.parse(await f.text());}
+$("run").addEventListener("click",async()=>{result=null;$("rows").replaceChildren();$("stats").replaceChildren();$("export").disabled=true;
+try{const plan=await parseFile($("plan").files?.[0]),log=await parseFile($("log").files?.[0]);result=RainGuardHydrology19.audit(plan,log);
+const s=result.summary;for(const [label,value] of [["المواقع",s.sites],["السجلات",s.records],["المواقع غير الجاهزة",s.sitesBlocked],["الأدلة المعتمدة",s.independentlyVerifiedSites]]){const e=document.createElement("div");e.className="stat";e.textContent=label+": "+value;$("stats").append(e);}
+for(const r of result.sites){const tr=document.createElement("tr");for(const v of [r.siteId,r.recordCount,r.noInput,r.incomplete,r.administrativeClaims.sent,r.administrativeClaims.received,r.gaps.join("، "),r.readiness]){const td=document.createElement("td");td.textContent=String(v);tr.append(td)}$("rows").append(tr)}
+$("export").disabled=false;$("status").textContent="اكتمل التدقيق محليًا. جميع المواقع تحتاج تحققًا مستقلًا. لم تُرسل أي بيانات.";
+}catch(e){$("status").textContent="تعذر الفحص: "+String(e.message||e).slice(0,180)}});
+$("export").addEventListener("click",()=>{if(!result)return;const b=new Blob([JSON.stringify(result,null,2)],{type:"application/json;charset=utf-8"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="rainguard_hydrology19_readiness_gaps.json";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);});
+});</script></body></html>
