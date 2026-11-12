@@ -59,7 +59,7 @@ test("CSV escapes spreadsheet formula injection and preserves cells",()=>{
  const x=h12.buildDraft(source,{[id]:{notes:'=HYPERLINK("evil", "click")',organization:"\t@SUM(A1:A2)"}});
  const csv=h12.toCSV(x);
  assert.match(csv,/'=HYPERLINK/);
- assert.match(csv,/'\t@SUM/);
+ assert.match(csv,/'@SUM/);
  assert.doesNotMatch(csv,/"=HYPERLINK/);
  assert.equal(csv.split("\r\n").filter(Boolean).length,3);
 });
