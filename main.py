@@ -296,6 +296,10 @@ def get_verified_predictions(limit=300):
     جلب التوقعات التي تم التحقق منها من Supabase.
     يستخدمها Adaptive Learning Engine V1.
     """
+    # A cloud preview is deliberately disconnected from persistent history.
+    # Avoid even attempting a Supabase read in this restricted mode.
+    if os.getenv("RAINGUARD_VERCEL_READONLY") == "1":
+        return []
     try:
         if not supabase:
             return []
