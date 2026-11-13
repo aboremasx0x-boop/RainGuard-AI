@@ -21,7 +21,7 @@ class PreviewBundleTests(unittest.TestCase):
         data=build(out)
         self.assertFalse(data["deployed"])
         self.assertEqual(set(data["files"]),{
-            "main.py","land_cover_api.py","here_truck_routes.py","valhalla_truck_routes.py",
+            "legacy_rainguard.py","land_cover_api.py","here_truck_routes.py","valhalla_truck_routes.py",
             "truck_route_timeline.py","adaptive_learning.py","index.py",
             ".python-version","requirements.txt","vercel.json",
             "README-DO-NOT-DEPLOY-YET.txt"
@@ -31,6 +31,8 @@ class PreviewBundleTests(unittest.TestCase):
         self.assertNotIn("rewrites",(out/"vercel.json").read_text())
         self.assertNotIn(".env",data["files"])
         self.assertNotIn("frontend",data["files"])
+        self.assertNotIn("main.py",data["files"])
+        self.assertEqual((out/".python-version").read_text().strip(),"3.12")
         self.assertNotIn("rainguard_predictions.db",data["files"])
         with self.assertRaises(FileExistsError):
             build(out)
@@ -41,7 +43,7 @@ class PreviewBundleTests(unittest.TestCase):
         build(output)
         # Import the exact isolated entrypoint (not the repository's main.py).
         original_modules={name:sys.modules.get(name) for name in [
-            "index","main","land_cover_api","here_truck_routes",
+            "index","legacy_rainguard","land_cover_api","here_truck_routes",
             "valhalla_truck_routes","truck_route_timeline","adaptive_learning"
         ]}
         sys.path.insert(0,str(output))
