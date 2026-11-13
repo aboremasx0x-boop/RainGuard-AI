@@ -2,6 +2,7 @@ name: V33 interface smoke tests
 on:
   pull_request:
     paths:
+      - 'index.html'
       - 'frontend/national-ai-os-v30.html'
       - 'frontend/css/rainguard-v33-interface.css'
       - 'frontend/js/rainguard-v33-interface.js'
