@@ -5,6 +5,14 @@ const vm=require("node:vm");
 const script=fs.readFileSync("frontend/js/rainguard-v33-interface.js","utf8");
 const html=fs.readFileSync("frontend/national-ai-os-v30.html","utf8");
 const css=fs.readFileSync("frontend/css/rainguard-v33-interface.css","utf8");
+const root=fs.readFileSync("index.html","utf8");
+assert.match(root,/<html lang="ar" dir="rtl">/);
+assert.ok(root.includes("ذكاء الأمطار والسيول في واجهة واحدة"));
+assert.ok(root.includes("frontend/national-ai-os-v30.html"));
+assert.ok(root.includes('id="loadPanel"'));
+assert.ok(root.includes("frontend/css/rainguard-v33-interface.css?v=33-2"));
+assert.ok(!root.includes("منصة إنذار المطر الذكية V10"));
+
 function run({fetchImpl,hub=true}){
   const created=[];
   const anchor={parentNode:{insertBefore(el,before){assert.equal(before,anchor);created.push(el)}}};
