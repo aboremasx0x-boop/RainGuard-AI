@@ -4678,6 +4678,10 @@ async collect(
 
         }
 
+        if (state.status === "CACHED" || state.status === "DISABLED") {
+            css = "warning";
+        }
+
         return `
 
         <div class="item ${css}">
