@@ -1,0 +1,32 @@
+/* RainGuard AI V33 — visual refresh, progressive enhancement of V30. */
+:root{--rg33-surface:#0a1c31;--rg33-line:#2a4965;--rg33-text:#f2f7ff;--rg33-sub:#b7cde0;--rg33-accent:#51d2cb}
+body.rg-v33-ready{background:radial-gradient(circle at 82% -5%,#174963 0,transparent 35%),linear-gradient(160deg,#05111f 0%,#0b2540 70%,#071626 100%);color:var(--rg33-text)}
+.rg-v33-shell{direction:rtl;max-width:1480px;margin:0 auto 24px;padding:0 18px;font-family:inherit}
+.rg-v33-hero{position:relative;overflow:hidden;background:linear-gradient(110deg,#0d3552 0%,#102941 60%,#0a1e30 100%);border:1px solid #32617a;border-radius:24px;padding:30px;box-shadow:0 18px 60px #03111e65}
+.rg-v33-hero:before{content:"";position:absolute;inset:-140px auto auto -110px;width:370px;height:370px;border-radius:50%;background:radial-gradient(circle,#1db6b348,transparent 65%);pointer-events:none}
+.rg-v33-tag{font-size:12px;letter-spacing:.09em;color:#b6f2e9;font-weight:800}
+.rg-v33-hero h2{font-size:clamp(24px,3vw,42px);line-height:1.3;margin:10px 0;color:#fff}
+.rg-v33-hero p{max-width:840px;font-size:15px;line-height:1.95;color:#d1dfed;margin:0 0 20px}
+.rg-v33-chip-row{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0 20px}
+.rg-v33-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #397089;background:#102a42;color:#d8eff8;border-radius:999px;padding:8px 12px;font-size:12px}
+.rg-v33-chip.warning{border-color:#926633;color:#ffe1a0}
+.rg-v33-cta{display:flex;gap:10px;flex-wrap:wrap}
+.rg-v33-cta a,.rg-v33-cta button{padding:12px 18px;display:inline-flex;align-items:center;justify-content:center;border-radius:11px;background:#49dad0;color:#06273a;border:0;font-weight:800;font-size:14px;text-decoration:none;cursor:pointer;min-height:44px}
+.rg-v33-cta a.secondary{color:#edfaff;border:1px solid #567b97;background:#173b55}
+.rg-v33-nav{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:15px 0}
+.rg-v33-nav a{border:1px solid #31516a;background:#0b253c;box-shadow:0 4px 16px #03111d33;border-radius:15px;padding:17px 10px;text-align:center;text-decoration:none;color:#e9f7ff;display:flex;flex-direction:column;gap:8px;min-height:100px;justify-content:center;font-size:13px;font-weight:700}
+.rg-v33-nav a:hover,.rg-v33-nav a:focus-visible{outline:2px solid #67e2dc;outline-offset:2px;background:#153e55}
+.rg-v33-nav a b{font-size:24px;line-height:1}
+.rg-v33-panel{background:#0c2237;border:1px solid #2d526d;border-radius:16px;padding:18px 20px}
+.rg-v33-strip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:12px 0}
+.rg-v33-panel strong{display:block;font-size:14px;color:#edfaff;margin-bottom:7px}
+.rg-v33-panel small,.rg-v33-panel span{font-size:13px;color:var(--rg33-sub);line-height:1.8}
+.rg-v33-status{color:#ffdd92!important;font-weight:700}
+.rg-v33-panel a{color:#84e9e5}
+body.rg-v33-ready .rg-ops-hub{display:none}
+body.rg-v33-ready .v30-header{background:#071c30e8;border-color:#30526d;box-shadow:0 5px 24px #04111c55}
+body.rg-v33-ready .version-badge{background:#157d86;color:white}
+body.rg-v33-ready .v30-page{max-width:1540px}
+@media(max-width:1000px){.rg-v33-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.rg-v33-strip{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.rg-v33-shell{padding:0 9px}.rg-v33-hero{padding:19px;border-radius:17px}.rg-v33-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.rg-v33-strip{grid-template-columns:1fr}.rg-v33-nav a{min-height:82px}.rg-v33-hero p{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.rg-v33-shell *{scroll-behavior:auto!important}}
