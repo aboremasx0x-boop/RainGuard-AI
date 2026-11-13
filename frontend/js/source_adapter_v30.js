@@ -4594,6 +4594,11 @@ async collect(
 
                 ${collection.summary.coverage}%
 
+                <br><small style="display:block;line-height:1.8;margin:8px 0;color:#f9d99b">${this.text(
+                    "Coverage is the source-adapter collection metric for sampled cities, not national geographic coverage or verified forecasting accuracy.",
+                    "نسبة التغطية مؤشر جمع بيانات المحولات للمدن المختبرة، ولا تعني تغطية جغرافية وطنية أو دقة توقعات معتمدة."
+                )}</small>
+
                 <br>
 
                 <b>
@@ -4722,9 +4727,11 @@ async collect(
 
             :</b>
 
-            ${this.getHealthLabel(
-                health
-            )}
+            ${state.status === "CACHED"
+                ? this.text("Historical request success only (cached)", "نجاح طلبات سابق فقط (بيانات مخزنة)")
+                : state.status === "DISABLED"
+                    ? this.text("Disabled — not measured", "معطل — لم يُقَس")
+                    : this.getHealthLabel(health)}
 
             <br>
 
@@ -4744,7 +4751,7 @@ async collect(
 
             <br>
 
-            <b>${this.text("Live request success rate", "نسبة نجاح طلبات الاتصال الفعلية")}:</b>
+            <b>${this.text("Recorded request success rate (not fresh data)", "نسبة نجاح الطلبات المسجلة (لا تثبت حداثة البيانات)")}:</b>
             ${state.successes + state.failures > 0
                 ? Math.round(100 * state.successes / (state.successes + state.failures)) + "%"
                 : this.text("Not measured", "لم تُقَس")}
