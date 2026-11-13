@@ -1,0 +1,25 @@
+name: V33 interface smoke tests
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'frontend/js/long_horizon/national_rain_report_v32.js'
+      - 'frontend/js/rain_forecast_ui_v32.js'
+      - 'frontend/national-ai-os-v30.html'
+      - 'frontend/css/rainguard-v33-interface.css'
+      - 'frontend/js/rainguard-v33-interface.js'
+      - 'tests/test_v33_interface.cjs'
+      - '.github/workflows/v33-interface-smoke.yml'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: V33 regression tests
+        run: node tests/test_v33_interface.cjs

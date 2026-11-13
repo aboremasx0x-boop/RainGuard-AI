@@ -13,7 +13,7 @@ window.RG30 = window.RG30 || {};
         "rainguard_v30_language";
 
     const DEFAULT_LANGUAGE =
-        "en";
+        "ar";
 
     const SUPPORTED_LANGUAGES = [
         "ar",
