@@ -69,6 +69,7 @@ class PreviewBundleTests(unittest.TestCase):
                 def table(self,*args,**kwargs):
                     raise AssertionError("Unexpected Supabase write")
             index.legacy.supabase=FakeSupabase()
+            self.assertEqual(index.legacy.get_verified_predictions(), [])
             self.assertFalse(index.legacy.save_prediction_history(
                 "Jeddah",21.5,39.1,50,50,50,0,"MOCK"
             ))
