@@ -296,6 +296,10 @@ def get_verified_predictions(limit=300):
     جلب التوقعات التي تم التحقق منها من Supabase.
     يستخدمها Adaptive Learning Engine V1.
     """
+    # A cloud preview is deliberately disconnected from persistent history.
+    # Avoid even attempting a Supabase read in this restricted mode.
+    if os.getenv("RAINGUARD_VERCEL_READONLY") == "1":
+        return []
     try:
         if not supabase:
             return []
@@ -758,6 +762,8 @@ def save_prediction_history(
     """
     حفظ التوقع في Supabase مع العوامل اللازمة للتعلم التكيفي.
     """
+    if os.getenv("RAINGUARD_VERCEL_READONLY") == "1":
+        return False  # Preview must never insert into a persistent database.
     try:
         if not supabase:
             print("Supabase env missing:", bool(SUPABASE_URL), bool(SUPABASE_KEY))
@@ -2561,8 +2567,8 @@ async def test_archive():
         "results": results
     }
 
-init_prediction_db()
-
+if os.getenv("RAINGUARD_VERCEL_READONLY") != "1":
+    init_prediction_db()
 # ============================================================
 # FORECAST-1J6G39B — NCM / Anwaa controlled connectivity readiness
 # NCM endpoint schema/auth are NOT assumed. Probe is opt-in and admin-only.

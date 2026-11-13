@@ -1,0 +1,43 @@
+name: Vercel backend preview (build and offline tests ONLY)
+on:
+  pull_request:
+    paths:
+      - 'main.py'
+      - 'deploy/vercel-backend-preview/**'
+      - 'scripts/build_vercel_backend_preview.py'
+      - 'tests/test_vercel_backend_preview.py'
+      - '.github/workflows/vercel-backend-preview.yml'
+  push:
+    paths:
+      - 'main.py'
+      - 'deploy/vercel-backend-preview/**'
+      - 'scripts/build_vercel_backend_preview.py'
+      - 'tests/test_vercel_backend_preview.py'
+      - '.github/workflows/vercel-backend-preview.yml'
+jobs:
+  offline-preview-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source syntax
+        run: python -m py_compile main.py deploy/vercel-backend-preview/index.py scripts/build_vercel_backend_preview.py tests/test_vercel_backend_preview.py
+      - name: Build isolated local preview bundle (NO deploy)
+        run: python scripts/build_vercel_backend_preview.py
+      - name: Install bundle dependencies for local runtime test
+        run: python -m pip install -r dist/vercel-backend-preview/requirements.txt
+      - name: Run offline no-network test suite
+        run: python -m unittest discover -s tests -p test_vercel_backend_preview.py -v
+      - name: Assert only restricted app entrypoint and supported version
+        run: |
+          test ! -e dist/vercel-backend-preview/main.py
+          test -e dist/vercel-backend-preview/legacy_rainguard.py
+          grep -qx '3.12' dist/vercel-backend-preview/.python-version
+      - name: Prevent secrets/static source in bundle
+        run: |
+          test ! -e dist/vercel-backend-preview/.env
+          test ! -d dist/vercel-backend-preview/frontend
+          test ! -d dist/vercel-backend-preview/.github
+          test ! -e dist/vercel-backend-preview/rainguard_predictions.db
