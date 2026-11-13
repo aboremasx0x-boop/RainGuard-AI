@@ -1138,6 +1138,8 @@ resolveHorizonValue(
                     source
                 );
 
+            const hasRegionForecast = Object.keys(safeSource).length > 0;
+
             const rainNow =
                 normalizeRainValue(
                     firstDefined(
@@ -1255,7 +1257,9 @@ resolveHorizonValue(
                 regionEn:
                     region.en,
 
-                status,
+                status: hasRegionForecast ? status : "لا تتوفر بيانات إقليمية موثقة",
+
+                hasRegionForecast,
 
                 rainNow,
 
@@ -1819,6 +1823,10 @@ resolveHorizonValue(
                 "%."
             );
 
+            if (!rows.some(row => row.hasRegionForecast)) {
+                return "لا توجد توقعات إقليمية موثقة تغطي مناطق المملكة في مصادر التقرير الحالية؛ الأصفار الافتراضية لا تعني غياب الأمطار، ولا يمكن تقدير الثقة الوطنية أو سلامة المناطق من هذه البيانات. يرجى مراجعة توقعات المدن ومصادرها وتواريخها بصورة منفصلة.";
+            }
+
             return sections.join(
                 " "
             );
@@ -1942,6 +1950,9 @@ resolveHorizonValue(
         buildReportHTML(
             report
         ) {
+            const hasMeasuredRegions = report.rows.some(row => row.hasRegionForecast);
+            const displayRegion = (row, text) => row.hasRegionForecast ? text : "غير متوفر";
+            const displaySummary = value => hasMeasuredRegions ? value : "غير متوفر";
             const rowsHTML =
                 report.rows
                     .map(
@@ -1967,51 +1978,43 @@ resolveHorizonValue(
                                 </td>
 
                                 <td>
-                                    ${row.rainNow.toFixed(1)}
+                                    ${displayRegion(row, row.rainNow.toFixed(1))}
                                 </td>
 
                                 <td>
-                                    ${Math.round(row.rain6)}%
+                                    ${displayRegion(row, Math.round(row.rain6) + "%")}
                                 </td>
 
                                 <td>
-                                   ${Math.round(row.rain12)}%
+                                   ${displayRegion(row, Math.round(row.rain12) + "%")}
                                 </td>
 
                                 <td>
-                                   ${Math.round(row.rain24)}%
+                                   ${displayRegion(row, Math.round(row.rain24) + "%")}
                                 </td>
 
                                 <td>
-                                   ${Math.round(row.rain48)}%
+                                   ${displayRegion(row, Math.round(row.rain48) + "%")}
                                 </td>
 
                                 <td>
-                                  ${Math.round(row.rain72)}%
+                                  ${displayRegion(row, Math.round(row.rain72) + "%")}
                                 </td>
 
                                 <td>
-                                    ${escapeHTML(
-                                        row.arrivalText
-                                    )}
+                                    ${escapeHTML(displayRegion(row, row.arrivalText))}
                                 </td>
 
                                 <td>
-                                    ${Math.round(
-                                        row.confidence
-                                    )}%
+                                    ${displayRegion(row, Math.round(row.confidence) + "%")}
                                 </td>
 
                                 <td>
-                                    ${Math.round(
-                                        row.risk
-                                    )}%
+                                    ${displayRegion(row, Math.round(row.risk) + "%")}
                                 </td>
 
                                 <td>
-                                    ${escapeHTML(
-                                        row.riskLevel
-                                    )}
+                                    ${escapeHTML(displayRegion(row, row.riskLevel))}
                                 </td>
                             </tr>
                         `
@@ -2436,10 +2439,7 @@ resolveHorizonValue(
                 </div>
 
                 <div class="value">
-                    ${Math.round(
-                        report.summary
-                            .nationalConfidence
-                    )}%
+                    ${displaySummary(Math.round(report.summary.nationalConfidence) + "%")}
                 </div>
 
             </article>
@@ -2451,10 +2451,7 @@ resolveHorizonValue(
                 </div>
 
                 <div class="value">
-                    ${
-                        report.statistics
-                            .rainyRegionCount
-                    }
+                    ${displaySummary(report.statistics.rainyRegionCount)}
                 </div>
 
             </article>
@@ -2466,10 +2463,7 @@ resolveHorizonValue(
                 </div>
 
                 <div class="value">
-                    ${
-                        report.statistics
-                            .expectedRegionCount
-                    }
+                    ${displaySummary(report.statistics.expectedRegionCount)}
                 </div>
 
             </article>
@@ -2481,14 +2475,16 @@ resolveHorizonValue(
                 </div>
 
                 <div class="value">
-                    ${
-                        report.statistics
-                            .highRiskRegionCount
-                    }
+                    ${displaySummary(report.statistics.highRiskRegionCount)}
                 </div>
 
             </article>
 
+        </section>
+
+        <section class="executive-summary" style="background:#fff4df;border-right-color:#b47313;color:#72460a;margin:12px 0">
+            تنبيه جودة البيانات: التقرير بحثي وغير معتمد للإنذار أو الملاحة. المناطق التي لا تملك توقعًا إقليميًا مطابقًا تعرض «غير متوفر» بدل أصفار افتراضية. اتصال المحرك لا يثبت اكتمال البيانات أو صحتها.
+            ${hasMeasuredRegions ? "" : "<strong>لا تتوفر بيانات إقليمية كافية لحساب مؤشرات وطنية.</strong>"}
         </section>
 
         <h2 class="section-title">
@@ -2631,8 +2627,7 @@ resolveHorizonValue(
 
             <br>
 
-            قيم 6 و12 و24 و48 و72 ساعة تمثل
-            كميات المطر التراكمية المتاحة لكل أفق زمني.
+            قيم 6 و12 و24 و48 و72 ساعة في الجدول هي مؤشرات نسبية مأخوذة من مصادر المحرك بحسب توفرها، وليست كميات مطر بالملم. ولا تُعتمد مؤشرات الثقة والمخاطر دون تحقق مستقل.
 
             <br>
 
