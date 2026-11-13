@@ -1,16 +1,16 @@
 """Vercel read-only API preview: explicit allowlist, not the full legacy router.
 
 Build with: python scripts/build_vercel_backend_preview.py
-The builder copies this entrypoint into an isolated bundle alongside main.py.
+The builder copies this entrypoint into an isolated bundle alongside legacy_rainguard.py.
 """
 import os
 
-# MUST be set before importing the legacy application to avoid local SQLite
+# MUST be set before importing the legacy module to avoid local SQLite
 # initialization and prediction-history writes. Enforced in main.py as well.
 os.environ["RAINGUARD_VERCEL_READONLY"] = "1"
 
 from fastapi import FastAPI, Query
-import main as legacy
+import legacy_rainguard as legacy
 
 app = FastAPI(
     title="RainGuard AI Read-only Preview",
