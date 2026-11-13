@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'frontend/js/long_horizon/national_rain_report_v32.js'
       - 'frontend/js/rain_forecast_ui_v32.js'
       - 'frontend/national-ai-os-v30.html'
       - 'frontend/css/rainguard-v33-interface.css'
