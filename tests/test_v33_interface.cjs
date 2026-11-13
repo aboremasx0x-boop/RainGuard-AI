@@ -18,9 +18,9 @@ function run({fetchImpl,hub=true}){
   return {created,status,body};
 }
 (async()=>{
- assert.match(html,/rainguard-v33-interface\\.css\\?v=33-1/);
- assert.match(html,/rainguard-v33-interface\\.js\\?v=33-1/);
- assert.match(css,/@media\\(max-width:600px\\)/);
+ assert.ok(html.includes("rainguard-v33-interface.css?v=33-1"));
+ assert.ok(html.includes("rainguard-v33-interface.js?v=33-1"));
+ assert.ok(css.includes("@media(max-width:600px)"));
  const normal=run({fetchImpl:()=>Promise.resolve({ok:true,headers:{get:()=>"application/json"},json:async()=>({status:"ok",service:"RainGuard API"})})});
  assert.equal(normal.created.length,1);assert.match(normal.created[0].innerHTML,/الخريطة الوطنية/);
  for(const match of normal.created[0].innerHTML.matchAll(/href="#([^"]+)"/g)) assert.ok(html.includes('id="'+match[1]+'"'),"missing anchor: "+match[1]);
