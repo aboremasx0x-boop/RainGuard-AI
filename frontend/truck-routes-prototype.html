@@ -31,6 +31,16 @@ small{color:#b6cbe5}a{color:#9ad7ff}ul{padding-right:24px}time{direction:ltr;dis
 .route-horizon input{width:auto;max-width:none;accent-color:#2ec0d5}
 .route-readout{padding:14px;border:1px solid #396d90;border-radius:10px;background:#102d48;margin:12px 0}
 @media(max-width:620px){body{width:100%;overflow-x:hidden;padding:16px 10px}.panel{padding:12px;max-width:100%;min-width:0;overflow:hidden}.field-row,.grid{grid-template-columns:minmax(0,1fr)}.route-title{padding:18px}.route-steps{grid-template-columns:1fr}#nationalMap{height:300px;max-width:100%;overflow:hidden}.leaflet-container{max-width:100%;overflow:hidden!important}}
+
+/* Leaflet layout safety net: prevent detached map tiles if CDN CSS arrives late/partially. */
+#nationalMap.leaflet-container{position:relative!important;overflow:hidden!important;contain:layout paint!important;isolation:isolate;z-index:0}
+#nationalMap .leaflet-map-pane,#nationalMap .leaflet-pane,#nationalMap .leaflet-layer,#nationalMap .leaflet-tile-pane,#nationalMap .leaflet-overlay-pane,#nationalMap .leaflet-marker-pane,#nationalMap .leaflet-shadow-pane,#nationalMap .leaflet-tile-container{position:absolute;top:0;left:0}
+#nationalMap .leaflet-tile{position:absolute;left:0;top:0;max-width:none!important;max-height:none!important}
+#nationalMap .leaflet-control-container{position:relative;z-index:1000}
+#nationalMap .leaflet-top,#nationalMap .leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}
+#nationalMap .leaflet-top{top:0}#nationalMap .leaflet-bottom{bottom:0}
+#nationalMap .leaflet-left{left:0}#nationalMap .leaflet-right{right:0}
+#nationalMap .leaflet-control{pointer-events:auto}
 </style>
 </head>
 <body>
