@@ -40,7 +40,7 @@ def build(output: Path = DEFAULT_OUT) -> dict:
     ast.parse(ENTRY.read_text(encoding="utf-8"), filename=str(ENTRY))
     output.mkdir(parents=True, exist_ok=True)
     for src in SOURCES:
-        shutil.copyfile(ROOT / src, output / src)
+        # Do not leave main.py at the bundle root: Vercel may auto-detect\n        # it as a second, unrestricted FastAPI entrypoint.\n        target = "legacy_rainguard.py" if src == "main.py" else src\n        shutil.copyfile(ROOT / src, output / target)
     shutil.copyfile(ENTRY, output / "index.py")
     # Vercel 2026 supports 3.12+, so pin the deployed runtime to 3.12.\n    # Separate lightweight dependency set for this function.
     # rasterio is required by the imported land-cover module; only these
