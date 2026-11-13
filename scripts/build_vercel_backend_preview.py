@@ -1,7 +1,7 @@
 """Build an isolated Vercel FastAPI read-only preview bundle (NO DEPLOYMENT).
 
 Usage:
-  py -3.11 scripts/build_vercel_backend_preview.py
+  py -3.11 scripts/build_vercel_backend_preview.py  # builder can run with 3.11
   py -3.11 scripts/build_vercel_backend_preview.py --output C:/temp/rainguard-api-preview
 The builder copies an explicit allowlist of backend sources only; it never
 copies frontend, GitHub workflows, .env, data files, or credentials.
@@ -42,14 +42,14 @@ def build(output: Path = DEFAULT_OUT) -> dict:
     for src in SOURCES:
         shutil.copyfile(ROOT / src, output / src)
     shutil.copyfile(ENTRY, output / "index.py")
-    # Separate lightweight dependency set for this function.
+    # Vercel 2026 supports 3.12+, so pin the deployed runtime to 3.12.\n    # Separate lightweight dependency set for this function.
     # rasterio is required by the imported land-cover module; only these
     # server dependencies are permitted in the isolated bundle.
     (output / "requirements.txt").write_text(
         "fastapi>=0.115,<1\nhttpx>=0.27,<1\nsupabase>=2,<3\n"
         "rasterio>=1.4,<2\nuvicorn>=0.30,<1\n", encoding="utf-8"
     )
-    (output / ".python-version").write_text("3.11\n", encoding="utf-8")
+    (output / ".python-version").write_text("3.12\n", encoding="utf-8")
     # No catch-all SPA rewrite; the FastAPI app is the single backend entrypoint.
     (output / "vercel.json").write_text(
         json.dumps({"$schema":"https://openapi.vercel.sh/vercel.json"},indent=2)+"\n",
