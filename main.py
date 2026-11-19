@@ -61,6 +61,7 @@ def truck_route_capabilities():
 
 
 ALLOWED_ORIGINS = [
+    "https://rainguard-v33-preview.onrender.com",
     "https://rainguard-frontend.onrender.com",
     "https://rain-guard-ai.vercel.app",
     "http://localhost:3000",
