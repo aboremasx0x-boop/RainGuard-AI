@@ -15,7 +15,42 @@
 .section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin-bottom:22px}.section-head h2{font-size:clamp(24px,2.7vw,36px);margin:5px 0}.section-head p{max-width:550px;font-size:12px;margin:0}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.feature{border:1px solid var(--line);background:linear-gradient(140deg,#102d41,#0b2335);border-radius:21px;padding:25px;min-height:225px;display:flex;flex-direction:column;gap:8px;transition:transform .2s,border-color .2s}.feature:hover{transform:translateY(-4px);border-color:rgba(64,222,212,.48)}.icon{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:rgba(64,222,212,.10);border:1px solid rgba(64,222,212,.17);font-size:21px;color:var(--cyan)}.feature h3{margin:8px 0 0;font-size:16px}.feature p{color:var(--muted);font-size:11px;line-height:1.85;margin:0;flex:1}.feature .link{color:var(--cyan);font-size:11px;font-weight:800;align-self:flex-start}
 #weather{margin:80px 0 0}.weather{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.forecast{background:#112f42;border:1px solid var(--line);border-radius:23px;padding:26px}.weather-top{display:flex;align-items:center;justify-content:space-between;gap:15px}.weather-top h3{margin:0;font-size:17px}.weather-top select{border-radius:11px;background:#092336;color:white;border:1px solid rgba(154,199,219,.28);padding:10px 15px;min-width:110px}.weather-content{min-height:154px;padding-top:18px}.weather-status{font-size:11px;color:var(--muted)}.hour-list{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}.hour{background:#092739;border:1px solid var(--line);border-radius:13px;padding:11px;text-align:center}.hour time{display:block;color:var(--muted);font-size:10px}.hour b{font-size:21px;display:block;color:#e7fefa}.hour small{display:block;font-size:9px;color:var(--muted)}.notes{display:flex;flex-direction:column;gap:12px}.note{background:#0d283b;border:1px solid var(--line);border-radius:19px;padding:20px;flex:1}.note b{font-size:12px}.note p{color:var(--muted);font-size:10px;margin:7px 0 0}
 .cta{margin:80px 0 48px;border-radius:27px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:35px 40px;background:linear-gradient(115deg,rgba(32,119,129,.44),rgba(14,47,68,.88));border:1px solid rgba(64,222,212,.25)}.cta h2{margin:0;font-size:25px}.cta p{font-size:11px;color:#bcd4dd;margin:8px 0 0}.footer{border-top:1px solid var(--line);padding:24px 0 34px;display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:10px;color:var(--muted)}.footer strong{color:#e7f5f7}
-@media(max-width:950px){.nav{gap:14px}.hero{gap:25px}.features{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.shell{padding:0 17px}.header{height:75px}.header-cta{padding:8px 12px;font-size:10px}.nav{display:none}.brand{font-size:17px}.brand svg{width:37px;height:37px}.hero{grid-template-columns:1fr;gap:27px;padding:45px 0 30px;min-height:0}.hero h1{font-size:38px;letter-spacing:-1px}.hero p{font-size:12px}.visual{padding:14px}.map-art,.map-art svg{min-height:225px;height:225px}.strip{grid-template-columns:repeat(2,1fr);gap:10px;margin:27px 0 48px}.stat{padding:15px}.stat b{font-size:20px}.section-head{display:block}.features{grid-template-columns:1fr;gap:12px}.feature{min-height:0;padding:21px}.weather{grid-template-columns:1fr}.hour-list{grid-template-columns:repeat(2,1fr)}.cta{margin-top:54px;display:block;padding:27px}.cta .btn{margin-top:15px}.footer{flex-wrap:wrap}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+@media(max-width:950px){.nav{gap:14px}.hero{gap:25px}.features{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){.shell{padding:0 17px}.header{height:75px}.header-cta{padding:8px 12px;font-size:10px}.nav{display:none}.brand{font-size:17px}.brand svg{width:37px;height:37px}.hero{grid-template-columns:1fr;gap:27px;padding:45px 0 30px;min-height:0}.hero h1{font-size:38px;letter-spacing:-1px}.hero p{font-size:12px}.visual{padding:14px}.map-art,.map-art svg{min-height:225px;height:225px}.strip{grid-template-columns:repeat(2,1fr);gap:10px;margin:27px 0 48px}.stat{padding:15px}.stat b{font-size:20px}.section-head{display:block}.features{grid-template-columns:1fr;gap:12px}.feature{min-height:0;padding:21px}.weather{grid-template-columns:1fr}.hour-list{grid-template-columns:repeat(2,1fr)}.cta{margin-top:54px;display:block;padding:27px}.cta .btn{margin-top:15px}.footer{flex-wrap:wrap}}
+/* V34 mobile presentation polish: compact title, visible navigation, comfortable CTA sizes. */
+@media (max-width:700px){
+ .shell{padding-inline:18px}
+ .header{min-height:78px;height:auto;display:grid;grid-template-columns:1fr auto;gap:10px 8px;padding:15px 0 12px}
+ .brand{font-size:clamp(15px,4.3vw,18px);min-width:0;white-space:normal}
+ .brand small{font-size:7px;letter-spacing:1.5px;overflow-wrap:anywhere}
+ .header-cta{font-size:11px;padding:10px 12px;min-height:40px}
+ .nav{display:flex;grid-column:1/-1;grid-row:2;gap:8px;overflow-x:auto;scrollbar-width:none;white-space:nowrap;padding:2px 0 4px;font-size:11px}
+ .nav::-webkit-scrollbar{display:none}
+ .nav a{border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:rgba(255,255,255,.025);flex:none}
+ .hero{padding:34px 0 20px;gap:22px}
+ .hero h1{font-size:clamp(29px,7.9vw,42px);letter-spacing:-.7px;line-height:1.35;margin:12px 0 15px;overflow-wrap:normal}
+ .hero p{font-size:13px;line-height:1.9}
+ .eyebrow{font-size:10px;letter-spacing:.09em}
+ .pills{gap:7px;margin:18px 0}
+ .pill{font-size:10px;padding:6px 10px}
+ .hero-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}
+ .hero-actions .btn{font-size:clamp(10px,2.65vw,13px);padding:12px 8px;min-height:52px;text-align:center}
+ .visual{padding:12px;border-radius:23px}
+ .vis-top{font-size:11px}
+ .map-art,.map-art svg{min-height:210px;height:210px}
+ .stat{min-width:0}
+ .weather-top{flex-wrap:wrap}
+}
+@media(max-width:390px){
+ .header{grid-template-columns:1fr}
+ .header-cta{grid-row:2;justify-self:start}
+ .nav{grid-row:3}
+ .hero h1{font-size:clamp(27px,8vw,32px)}
+ .hero-actions{grid-template-columns:1fr}
+ .hero-actions .btn{width:100%;font-size:12px}
+ .brand small{letter-spacing:.8px}
+}
+
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
 </style>
 </head>
 <body>
