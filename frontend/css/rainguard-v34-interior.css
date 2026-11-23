@@ -62,3 +62,44 @@ body.rg34-page-national .rg34-evidence-notice p{font-size:12px;color:#e2eff5;mar
 body.rg34-page-national .rg34-evidence-notice span{font-size:11px;color:#bfcfdb}
 body.rg34-page-national .rg34-evidence-notice span b{color:#ffe0a6}
 @media(max-width:700px){body.rg34-page-national .rg34-evidence-notice{margin:6px 4px 18px;padding:13px}}
+
+/* V34 source adapter compact grid: real status information remains visible.
+   Reduces extremely tall, mostly blank cards; no data or metrics are modified. */
+body.rg34-page-national #sourceAdapterStatusPanel{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:12px!important;align-items:start!important;align-content:start!important;
+ grid-auto-rows:max-content!important;
+ height:auto!important;min-height:0!important;max-height:none!important;
+ overflow:visible!important;padding:12px!important;
+ direction:rtl;
+}
+body.rg34-page-national #sourceAdapterStatusPanel > .item{
+ box-sizing:border-box;min-width:0!important;min-height:0!important;
+ height:auto!important;max-height:none!important;margin:0!important;
+ padding:14px 16px!important;align-self:start!important;
+ border-radius:14px!important;border:1px solid rgba(114,186,208,.3)!important;
+ border-inline-start:3px solid #40d2ca!important;
+ background:#152f47!important;overflow-wrap:anywhere;
+ font-size:13px;line-height:1.8;
+}
+body.rg34-page-national #sourceAdapterStatusPanel > .item:first-child{
+ grid-column:1/-1;
+ background:linear-gradient(110deg,#11374c,#193451)!important;
+}
+body.rg34-page-national #sourceAdapterStatusPanel > .item.warning{
+ border-inline-start-color:#edbb62!important;
+}
+body.rg34-page-national #sourceAdapterStatusPanel > .item h3,
+body.rg34-page-national #sourceAdapterStatusPanel > .item h2{
+ font-size:clamp(15px,1.6vw,19px);line-height:1.5;margin:0 0 8px!important;
+}
+body.rg34-page-national #sourceAdapterStatusPanel > .item :is(p,div){
+ max-width:100%;
+}
+body.rg34-page-national #sourceAdapterStatusPanel > .item :is(b,strong){
+ font-weight:700;
+}
+@media(max-width:830px){
+ body.rg34-page-national #sourceAdapterStatusPanel{grid-template-columns:1fr!important;gap:10px!important}
+ body.rg34-page-national #sourceAdapterStatusPanel > .item{padding:13px!important;font-size:12px}
+}
