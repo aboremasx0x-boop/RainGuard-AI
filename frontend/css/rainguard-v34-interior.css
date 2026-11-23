@@ -17,3 +17,40 @@
 .rg34-page-route .field-row select,.rg34-page-journey select{min-height:43px}
 @media(max-width:720px){.rg34-top{padding:12px;margin:10px 10px 16px;gap:12px}.rg34-top .rg34-brand{font-size:16px}.rg34-top .rg34-links{order:3;width:100%;flex-wrap:nowrap;overflow-x:auto;padding:3px 0 6px;scrollbar-width:thin}.rg34-top .rg34-links a{flex:none;font-size:11px;min-height:39px;padding:8px 11px}.rg34-top .rg34-research{font-size:9px}.rg34-page-route{overflow-x:hidden}}
 @media(max-width:380px){.rg34-top .rg34-research{order:2}.rg34-top .rg34-brand small{font-size:8px}}
+
+
+/* V34 national console: one navigation, compact engine control toolbar.
+   Only old redundant V33 welcome hero is hidden; V30 control IDs, V33
+   quick internal sections, engine status and report panel remain intact. */
+body.rg34-page-national.rg-v33-ready .rg-v33-hero{display:none}
+body.rg34-page-national.rg-v33-ready .v30-page{padding-top:0}
+body.rg34-page-national.rg-v33-ready .v30-header{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ margin-top:10px;margin-bottom:14px;padding:12px 18px;
+ border:1px solid rgba(101,187,203,.3);border-radius:18px;
+ background:#091f31;box-shadow:0 10px 30px rgba(0,0,0,.15)
+}
+body.rg34-page-national.rg-v33-ready .v30-header .brand-block{flex:0 1 auto;min-width:180px}
+body.rg34-page-national.rg-v33-ready .v30-header .brand-title{font-size:clamp(16px,2vw,23px);line-height:1.3;margin:0}
+body.rg34-page-national.rg-v33-ready .v30-header .brand-subtitle{font-size:11px;margin:2px 0 0;max-width:390px}
+body.rg34-page-national.rg-v33-ready .v30-header .version-badge{width:45px;height:45px;font-size:14px;flex:none}
+body.rg34-page-national.rg-v33-ready .v30-header .header-actions{flex:0 1 auto;gap:7px;justify-content:flex-start}
+body.rg34-page-national.rg-v33-ready .v30-header .header-actions .action-button{
+ min-height:40px;padding:9px 12px;font-size:12px;border-radius:10px
+}
+body.rg34-page-national.rg-v33-ready .rg-v33-shell{max-width:1330px;margin:0 auto 20px;padding:0 14px}
+body.rg34-page-national.rg-v33-ready .rg-v33-nav{margin:9px 0;gap:8px}
+body.rg34-page-national.rg-v33-ready .rg-v33-nav a{min-height:75px;padding:12px 8px;font-size:12px}
+body.rg34-page-national.rg-v33-ready .rg-v33-nav a b{font-size:19px}
+@media(max-width:760px){
+ body.rg34-page-national.rg-v33-ready .v30-header{padding:12px;display:flex;flex-wrap:wrap;gap:10px}
+ body.rg34-page-national.rg-v33-ready .v30-header .brand-block{flex:1 1 100%}
+ body.rg34-page-national.rg-v33-ready .v30-header .header-actions{flex:1 1 100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%}
+ body.rg34-page-national.rg-v33-ready .v30-header .header-actions .action-button{min-width:0;padding:10px 5px;font-size:11px}
+ body.rg34-page-national.rg-v33-ready .rg-v33-nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+ body.rg34-page-national.rg-v33-ready .rg-v33-nav a{min-height:74px;padding:9px 4px;font-size:11px}
+ body.rg34-page-national.rg-v33-ready .rg-v33-strip{grid-template-columns:1fr}
+}
+@media(max-width:390px){
+ body.rg34-page-national.rg-v33-ready .rg-v33-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
