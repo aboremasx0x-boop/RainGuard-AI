@@ -49,10 +49,10 @@
 <div class="side">
 <div class="panel"><h2>حالة مصادر البيانات</h2><p class="sub">حالة الاستجابة للمدينة المختارة، وليس ضمانًا لجودة التوقع</p>
 <div class="statusrow"><span>WeatherAPI.com</span><span id="weatherState" class="state">لم يُفحص بعد</span></div>
-<div class="statusrow"><span>Open-Meteo</span><span class="state">غير مفحوص هنا</span></div>
-<div class="statusrow"><span>RainViewer</span><span class="state">غير مفحوص هنا</span></div>
-<div class="statusrow"><span>أنواء / NCM</span><span class="state">الربط الرسمي غير متاح</span></div>
-<p id="weatherTime" class="fine">آخر جلب: —</p>
+<div class="statusrow"><span>Open-Meteo</span><span id="openMeteoState" class="state">لم يُفحص بعد</span></div>
+<div class="statusrow"><span>RainViewer</span><span id="rainViewerState" class="state">لم يُفحص بعد</span></div>
+<div class="statusrow"><span>أنواء / NCM</span><span id="ncmState" class="state">لم يُفحص بعد</span></div>
+<p id="weatherTime" class="fine">آخر جلب WeatherAPI: —</p><p id="sourceStatusDetail" class="fine" role="status" aria-live="polite">الفحوصات تبيّن توفر بيانات API ولا تُثبت دقة التوقع أو التغطية الجغرافية.</p><button id="refreshSourceStatus" type="button" class="retry">فحص المصادر الآن</button>
 <a class="outline" href="national-ai-os-v30.html#sourceAdapterStatusPanel">تفاصيل المحولات والسجلات</a>
 </div>
 <div class="panel"><h2>حالة التحقق والأدلة</h2><p class="sub">فصل حالة البرمجيات عن الاعتماد العلمي</p>
@@ -86,13 +86,67 @@
 (function(){
 'use strict';
 const cities=[["جدة",21.5433,39.1728],["مكة المكرمة",21.3891,39.8579],["المدينة المنورة",24.4672,39.6111],["الرياض",24.7136,46.6753],["أبها",18.2164,42.5053],["الدمام",26.4207,50.0888],["جازان",16.8892,42.5511],["تبوك",28.3838,36.5662],["نجران",17.565,44.2289],["خليص",22,39.318]];
-const retry=document.getElementById('retryForecast'),sel=document.getElementById('citySelect'),selectedCityName=document.getElementById('selectedCityName'),weather=document.getElementById('weatherState'),status=document.getElementById('forecastStatus'),grid=document.getElementById('forecastGrid'),meter=document.getElementById('metricData'),meterNote=document.getElementById('metricDataNote'),time=document.getElementById('weatherTime');
+const refreshSourceStatus=document.getElementById('refreshSourceStatus'),openMeteoState=document.getElementById('openMeteoState'),rainViewerState=document.getElementById('rainViewerState'),ncmState=document.getElementById('ncmState'),sourceStatusDetail=document.getElementById('sourceStatusDetail'),retry=document.getElementById('retryForecast'),sel=document.getElementById('citySelect'),selectedCityName=document.getElementById('selectedCityName'),weather=document.getElementById('weatherState'),status=document.getElementById('forecastStatus'),grid=document.getElementById('forecastGrid'),meter=document.getElementById('metricData'),meterNote=document.getElementById('metricDataNote'),time=document.getElementById('weatherTime');
 let map=null,abort=null,markers=new Map();
 function mapMode(mode){if(!map)return;document.querySelectorAll('.switches button').forEach(b=>b.setAttribute('aria-pressed',String(b.id===mode)));if(mode==='westMap')map.fitBounds([[16.5,37.1],[26.9,43]],{padding:[15,15]});else if(mode==='selectedMap'){let [a,b]=sel.value.split(',').map(Number);map.setView([a,b],9);}else map.fitBounds([[16.5,34.5],[31.2,51.5]],{padding:[15,15]});}
 function updateSelectedMarker(){const selected=sel.options[sel.selectedIndex]?.textContent;selectedCityName.textContent="المدينة المحددة: "+selected;for(const [name,marker] of markers){const active=name===selected;marker.setStyle({radius:active?10:6,weight:active?4:2,color:active?"#ffdf97":"#b6fff5",fillColor:active?"#21d8c9":"#27bfb9"});if(active)marker.openTooltip();else marker.closeTooltip();}}
 function initMap(){const element=document.getElementById('map');if(!window.L){element.textContent='تعذر تحميل مكتبة الخريطة. يمكن متابعة توقعات المدينة دونها.';return;}element.textContent='';map=L.map(element,{scrollWheelZoom:false}).setView([23.5,44],5);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);cities.forEach(([name,lat,lon])=>{const marker=L.circleMarker([lat,lon],{radius:6,color:'#b6fff5',weight:2,fillColor:'#27bfb9',fillOpacity:.9}).addTo(map);marker.bindPopup(name+' — موقع مركز المدينة تقريبي');marker.bindTooltip(name,{direction:'top',offset:[0,-8],opacity:.92});markers.set(name,marker);marker.on('click',()=>{for(const o of sel.options){if(o.textContent===name){sel.value=o.value;updateSelectedMarker();mapMode('selectedMap');load();document.getElementById('forecast').scrollIntoView({behavior:'smooth',block:'start'});break}}});});updateSelectedMarker();mapMode('allMap');setTimeout(()=>map.invalidateSize(),250);}
 document.getElementById('allMap').addEventListener('click',()=>mapMode('allMap'));document.getElementById('westMap').addEventListener('click',()=>mapMode('westMap'));document.getElementById('selectedMap').addEventListener('click',()=>mapMode('selectedMap'));
 function numeric(v){return typeof v==='number'&&Number.isFinite(v)?v:null;}
+const monitorBase='https://rainguard-ai.onrender.com';
+const sourceFetchOptions={headers:{Accept:'application/json'},credentials:'omit',cache:'no-store'};
+let sourceAbort=null;
+function paintSource(element,label,success){element.textContent=label;element.classList.toggle('ok',success);}
+async function requestStatus(url,signal,timeoutMs=9000){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ const cancel=()=>controller.abort();
+ signal.addEventListener('abort',cancel,{once:true});
+ try{
+  const res=await fetch(url,{...sourceFetchOptions,signal:controller.signal});
+  if(!res.ok)throw new Error('HTTP_'+res.status);
+  return await res.json();
+ }finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);}
+}
+async function checkSources(){
+ if(sourceAbort)sourceAbort.abort();
+ const ctl=new AbortController();sourceAbort=ctl;
+ refreshSourceStatus.disabled=true;
+ paintSource(openMeteoState,'جارٍ الفحص...',false);
+ paintSource(rainViewerState,'جارٍ الفحص...',false);
+ paintSource(ncmState,'جارٍ الفحص...',false);
+ sourceStatusDetail.textContent='فحص اتصال المصادر دون حساب دقة التنبؤ أو إصدار تنبيهات.';
+ const [lat,lon]=sel.value.split(',').map(Number);
+ const tasks=[
+  requestStatus('https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(lat)+'&longitude='+encodeURIComponent(lon)+'&hourly=precipitation&forecast_days=1&timezone=UTC',ctl.signal).then(data=>{
+   const valid=data&&data.hourly&&Array.isArray(data.hourly.precipitation)&&Array.isArray(data.hourly.time)&&data.hourly.precipitation.length>0&&data.hourly.precipitation.length===data.hourly.time.length;
+   if(!valid)throw new Error('INVALID_OPEN_METEO');
+   if(ctl!==sourceAbort)return;
+   paintSource(openMeteoState,'بيانات API مستلمة',true);
+   return 'Open-Meteo: استجابة بيانات ساعية؛ لم تُراجع الدقة';
+  }).catch(()=>{if(ctl!==sourceAbort)return;paintSource(openMeteoState,'غير متاح / تعذر الفحص',false);return 'Open-Meteo: لم ينجح طلب البيانات';}),
+  requestStatus('https://api.rainviewer.com/public/weather-maps.json',ctl.signal).then(data=>{
+   const frames=data&&data.radar&&Array.isArray(data.radar.past)?data.radar.past:[];
+   const valid=frames.some(x=>Number.isFinite(x.time)&&typeof x.path==='string');
+   if(!valid)throw new Error('INVALID_RADAR_METADATA');
+   if(ctl!==sourceAbort)return;
+   paintSource(rainViewerState,'بيانات الرادار الوصفية متاحة',true);
+   return 'RainViewer: أحدث لقطة وصفية متاحة؛ تغطية المدينة لم تُثبت';
+  }).catch(()=>{if(ctl!==sourceAbort)return;paintSource(rainViewerState,'غير متاح / تعذر الفحص',false);return 'RainViewer: تعذر جلب بيانات الرادار الوصفية';}),
+  requestStatus(monitorBase+'/api/ncm/status',ctl.signal).then(data=>{
+   if(!data||typeof data.configured!=='boolean'||typeof data.connection_verified!=='boolean')throw new Error('INVALID_NCM');
+   if(ctl!==sourceAbort)return;
+   const verified=data.connection_verified===true&&data.data_live===true;
+   paintSource(ncmState,verified?'اتصال رسمي تم التحقق منه':data.configured?'مُعدّ ولكن غير موثَّق':'الربط الرسمي غير متاح',verified);
+   return 'أنواء: '+(verified?'اتصال رسمي موثّق من الخادم':'لم يثبت اتصال رسمي ببيانات حية');
+  }).catch(()=>{if(ctl!==sourceAbort)return;paintSource(ncmState,'تعذر قراءة حالة الربط',false);return 'أنواء: تعذر استلام حالة الربط من الخادم';})
+ ];
+ const results=await Promise.all(tasks);
+ if(ctl!==sourceAbort)return;
+ sourceStatusDetail.textContent=results.filter(Boolean).join(' | ');
+ refreshSourceStatus.disabled=false;
+}
+
 function clearCards(message){grid.replaceChildren();for(const h of [6,12,24,48,72]){const c=document.createElement('div');c.className='forecast-item';const head=document.createElement('h3');head.textContent=h+' ساعة';const p=document.createElement('small');p.textContent=message;c.append(head,p);grid.append(c);}}
 function addCard(hours,records,windowStartEpoch){
  const c=document.createElement('article');c.className='forecast-item';
@@ -138,8 +192,8 @@ try{const response=await fetch('https://rainguard-ai.onrender.com/api/weather/we
 catch(err){if(ctl!==abort)return;weather.textContent='غير متاح حاليًا';meter.textContent='غير متاحة';const error=String(err&&err.message||'');const unavailable=error==='HTTP_503';const timedOut=ctl.signal.aborted;const description=unavailable?'خدمة API أعادت HTTP 503 — تعذر توفير توقعات الآن.':timedOut?'انتهت مهلة الاتصال بخدمة التوقعات.':'تعذر طلب التوقعات أو التحقق من صحة الاستجابة.';meterNote.textContent=description;status.textContent=description+' لا يُستنتج من غياب البيانات عدم وجود أمطار.';clearCards('بيانات غير متاحة — يمكن إعادة الفحص');}
 finally{clearTimeout(timeout);if(ctl===abort)retry.disabled=false;}
 }
-sel.addEventListener('change',()=>{updateSelectedMarker();mapMode('selectedMap');load()});retry.addEventListener('click',()=>load());
-initMap();load();
+sel.addEventListener('change',()=>{updateSelectedMarker();mapMode('selectedMap');load();checkSources()});retry.addEventListener('click',()=>load());refreshSourceStatus.addEventListener('click',()=>checkSources());
+initMap();load();checkSources();
 })();
 </script>
 </body></html>
