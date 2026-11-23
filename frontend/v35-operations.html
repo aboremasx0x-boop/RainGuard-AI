@@ -87,7 +87,7 @@
 </div>
 <p id="qualityAudit" class="quality-foot" role="status" aria-live="polite">سجل الجلسة: لم تكتمل عملية جلب المصدرين بعد. لا يُحتفظ بالسجل على خادم أو قاعدة بيانات.</p>
 <details class="audit-details"><summary>سجل تدقيق جودة التوقعات V35.7</summary>
-<div class="audit-toolbar"><p class="fine">فحص محلي للساعات المفقودة والمكررة والبيانات غير الصالحة وأسباب استبعاد المقارنات. لا يُعد تحققًا ميدانيًا.</p><button class="retry" id="downloadAudit" type="button" disabled>تصدير تقرير Excel (CSV)</button></div>
+<div class="audit-toolbar"><p class="fine">فحص محلي للساعات المفقودة والمكررة والبيانات غير الصالحة وأسباب استبعاد المقارنات. لا يُعد تحققًا ميدانيًا.</p><button class="retry" id="downloadAudit" type="button" disabled>تصدير تقرير Excel (.xlsx)</button></div>
 <div class="audit-scroll"><table class="audit-table"><thead><tr><th>الفترة</th><th>المصدر</th><th>صالحة</th><th>مفقودة</th><th>مكررة</th><th>غير صالحة</th><th>قرار المقارنة</th></tr></thead><tbody id="auditTableBody"><tr><td colspan="7">بانتظار البيانات…</td></tr></tbody></table></div>
 <p class="fine" id="auditDetailMessage" role="status" aria-live="polite">الطوابع الزمنية بتوقيت UTC، ولا تحفظ البيانات على خادم.</p><section class="audit-missing"><h3>التوقيت الفعلي للساعات المفقودة والمستبعدة</h3><p class="fine">الأوقات أدناه مأخوذة من استجابات المصدرين لهذه الجلسة، ولا يمكن استنتاجها من تقرير V35.6 القديم الذي حفظ الأعداد فقط.</p><ol id="auditMissingList"><li>بانتظار جمع البيانات…</li></ol><p class="fine" id="auditReportInfo">رقم التقرير: —</p></section>
 </details>
@@ -275,31 +275,100 @@ function auditRender(weatherRows,meteoRows,start,received){
  auditReportInfo.textContent='رقم التقرير: '+reportId+' · وقت إنشاء التقرير: '+new Date(exportCreatedAt).toISOString()+' UTC · الأحداث المستبعدة: '+events.length;
  downloadAudit.disabled=false;
 }
-function csvSafe(v){
- let s=String(v===undefined||v===null?'':v);
- if(/^\s*[=+@-]/.test(s))s="'"+s;
- return '"'+s.replace(/"/g,'""')+'"';
+
+function excelXml(value){
+ return String(value===undefined||value===null?'':value)
+  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+function excelColumn(index){
+ let out='';
+ for(let n=index+1;n>0;n=Math.floor((n-1)/26))out=String.fromCharCode(65+(n-1)%26)+out;
+ return out;
+}
+function excelSheetXml(rows,widths){
+ const lastColumn=excelColumn(Math.max(0,...rows.map(r=>r.length-1)));
+ const cols=widths.map((width,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+width+'" customWidth="1"/>').join('');
+ const lines=rows.map((row,ri)=>{
+  const cells=row.map((value,ci)=>{
+   if(value===null||value===undefined||value==='')return '';
+   const cell=excelColumn(ci)+(ri+1);
+   const style=ri===0?' s="1"':'';
+   if(typeof value==='number'&&Number.isFinite(value))return '<c r="'+cell+'"'+style+'><v>'+value+'</v></c>';
+   return '<c r="'+cell+'" t="inlineStr"'+style+'><is><t xml:space="preserve">'+excelXml(value)+'</t></is></c>';
+  }).join('');
+  return '<row r="'+(ri+1)+'">'+cells+'</row>';
+ }).join('');
+ const range='A1:'+lastColumn+Math.max(rows.length,1);
+ return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+ +'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+ +'<dimension ref="'+range+'"/><sheetViews><sheetView workbookViewId="0" rightToLeft="1"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+ +'<sheetFormatPr defaultRowHeight="19"/><cols>'+cols+'</cols><sheetData>'+lines+'</sheetData>'
+ +'<autoFilter ref="'+range+'"/></worksheet>';
+}
+function excelZip(files){
+ const encoder=new TextEncoder(),parts=[],central=[];
+ let offset=0;
+ const u16=(v)=>[v&255,(v>>>8)&255],u32=(v)=>[v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255];
+ const table=new Uint32Array(256);
+ for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;table[n]=c>>>0;}
+ function checksum(bytes){let crc=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)crc=table[(crc^bytes[i])&255]^(crc>>>8);return (crc^0xFFFFFFFF)>>>0;}
+ const push=(array)=>{parts.push(array);offset+=array.length;};
+ for(const [filename,content] of files){
+  const name=encoder.encode(filename),data=encoder.encode(content),crc=checksum(data),where=offset;
+  const header=new Uint8Array([80,75,3,4,...u16(20),...u16(2048),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0)]);
+  push(header);push(name);push(data);
+  const record=new Uint8Array([80,75,1,2,...u16(20),...u16(20),...u16(2048),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(where)]);
+  central.push(record,name);
+ }
+ const centralStart=offset;
+ for(const x of central)push(x);
+ const count=files.length,centralSize=offset-centralStart;
+ push(new Uint8Array([80,75,5,6,...u16(0),...u16(0),...u16(count),...u16(count),...u32(centralSize),...u32(centralStart),...u16(0)]));
+ return new Blob(parts,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function excelReport(a){
+ const metadata=[
+  ['الحقل','القيمة'],['اسم التقرير','RainGuard AI V35.8 — Research Preview'],['رقم التقرير',a.reportId],
+  ['تاريخ إنشاء التقرير UTC',new Date(a.exportCreatedAt).toISOString()],['المدينة',a.city],
+  ['بداية التوقع UTC',new Date(a.start*1000).toISOString()],['نهاية الفترة UTC (غير مشمولة)',new Date((a.start+72*3600)*1000).toISOString()],
+  ['المنطقة الزمنية','UTC'],['مصدر 1','WeatherAPI.com عبر /api/weather/weatherapi'],
+  ['مصدر 2','Open-Meteo عبر api.open-meteo.com/v1/forecast'],
+  ['استلام WeatherAPI UTC',new Date(a.received.weather).toISOString()],
+  ['استلام Open-Meteo UTC',new Date(a.received.meteo).toISOString()],
+  ['وقت إصدار نموذج التوقع','غير متاح من المصدر'],['وقت انتهاء صلاحية النموذج','غير متاح من المصدر'],
+  ['التحقق من قياسات رصد مستقلة','لم يكتمل'],['مقاييس دقة التنبؤ','غير محسوبة'],
+  ['الإنذارات الرسمية','غير مرتبطة'],['اعتماد سلامة الطرق','غير متاح'],
+  ['ملاحظة علمية','المقارنة الزمنية لا تعني صحة التنبؤ أو سلامة الطرق']
+ ];
+ const comparisons=[
+  ['الفترة (ساعة)','المصدر','الساعات الصالحة','الساعات المفقودة','الساعات المكررة','قيم غير صالحة','الساعات المشتركة','قرار المقارنة'],
+  ...a.output.map(x=>[x.hours,x.name,x.valid,x.missing,x.duplicate,x.invalid,x.paired,x.decision])
+ ];
+ const missing=[
+  ['المصدر','نوع السجل','التوقيت UTC','العدد'],
+  ...a.events.map(x=>[x.source,x.category,x.timestampUtc,x.count||1])
+ ];
+ const paths=[
+  ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+  ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+  ['xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets><sheet name="معلومات التقرير" sheetId="1" r:id="rId1"/><sheet name="مقارنة الفترات" sheetId="2" r:id="rId2"/><sheet name="الساعات المفقودة" sheetId="3" r:id="rId3"/></sheets></workbook>'],
+  ['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+  ['xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF123A51"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="right"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+  ['xl/worksheets/sheet1.xml',excelSheetXml(metadata,[34,95])],
+  ['xl/worksheets/sheet2.xml',excelSheetXml(comparisons,[18,22,20,20,20,22,22,78])],
+  ['xl/worksheets/sheet3.xml',excelSheetXml(missing,[22,29,35,14])]
+ ];
+ return excelZip(paths);
 }
 function exportAudit(){
  if(!auditSnapshot)return;
  const a=auditSnapshot;
- const rows=[
- ['report','RainGuard AI V35.7 — RESEARCH PREVIEW'],['report_id',a.reportId],['report_created_at_utc',new Date(a.exportCreatedAt).toISOString()],
- ['city',a.city],['window_start_utc',new Date(a.start*1000).toISOString()],['window_end_utc_exclusive',new Date((a.start+72*3600)*1000).toISOString()],['timezone','UTC'],['weatherapi_endpoint','/api/weather/weatherapi'],['openmeteo_endpoint','api.open-meteo.com/v1/forecast'],
- ['weatherapi_response_received_utc',new Date(a.received.weather).toISOString()],
- ['openmeteo_response_received_utc',new Date(a.received.meteo).toISOString()],
- ['model_issue_time','NOT_PROVIDED'],['model_validity_until','NOT_PROVIDED'],['independent_observations','NOT_AVAILABLE'],
- ['forecast_accuracy','NOT_VALIDATED'],['safe_to_drive','UNKNOWN'],
- [],
- ['period_hours','source','valid_hours','missing_hours','duplicate_hours','invalid_hours','paired_hours','decision'],
- ...a.output.map(x=>[x.hours,x.name,x.valid,x.missing,x.duplicate,x.invalid,x.paired,x.decision]),
- [],['event_source','event_type','event_hour_utc','count'],
- ...a.events.map(x=>[x.source,x.category,x.timestampUtc,x.count||1])
- ];
- const csv='\uFEFF'+rows.map(r=>r.map(csvSafe).join(',')).join('\r\n');
- const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+ const blob=excelReport(a);
  const url=URL.createObjectURL(blob),link=document.createElement('a');
- link.href=url;link.download='rainguard_v35_7_quality_audit_'+a.reportId+'.csv';document.body.append(link);link.click();link.remove();
+ link.href=url;link.download='rainguard_v35_8_quality_audit_'+a.reportId+'.xlsx';
+ document.body.append(link);link.click();link.remove();
  setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 downloadAudit.addEventListener('click',exportAudit);
