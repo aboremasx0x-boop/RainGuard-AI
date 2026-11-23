@@ -54,3 +54,11 @@ body.rg34-page-national.rg-v33-ready .rg-v33-nav a b{font-size:19px}
 @media(max-width:390px){
  body.rg34-page-national.rg-v33-ready .rg-v33-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Research evidence disclosure below national KPI cards. */
+body.rg34-page-national .rg34-evidence-notice{direction:rtl;margin:4px 16px 20px;padding:16px 20px;background:linear-gradient(115deg,#123147,#102538);border:1px solid rgba(228,186,115,.55);border-radius:16px;color:#f3fbff;font-family:Cairo,Tahoma,Arial,sans-serif;line-height:1.85}
+body.rg34-page-national .rg34-evidence-notice strong{display:block;font-size:15px;color:#ffe0a6;margin-bottom:5px}
+body.rg34-page-national .rg34-evidence-notice p{font-size:12px;color:#e2eff5;margin:4px 0 7px}
+body.rg34-page-national .rg34-evidence-notice span{font-size:11px;color:#bfcfdb}
+body.rg34-page-national .rg34-evidence-notice span b{color:#ffe0a6}
+@media(max-width:700px){body.rg34-page-national .rg34-evidence-notice{margin:6px 4px 18px;padding:13px}}
