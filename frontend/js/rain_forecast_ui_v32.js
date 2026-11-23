@@ -74,6 +74,7 @@
     function comparisonLabel(item) {
         const c = item?.sourceComparisons;
         if (!c?.available) return "المقارنة غير متاحة";
+        if (c.rainAmountAgreementEvaluated === false) return c.rainAmountAgreementReason === "INSUFFICIENT_SOURCES" ? "غير مُقيَّم — مصادر غير كافية" : "غير مُقيَّم — كميات المطر المعروضة صفرية";
         if (c.level === "HIGH") return "اتفاق مرتفع";
         if (c.level === "MEDIUM") return "اتفاق متوسط";
         return "اختلاف بين المصادر";
@@ -90,7 +91,17 @@
         const vc = item.visualCrossing;
         const wa = item.weatherAPI;
         const pairs = item.sourceComparisons?.pairs || {};
-        const pairText = pair => pair?.available ? `فرق الاحتمال ${pair.probabilityDifference}%، فرق المطر ${pair.rainAmountDifferenceMm} مم` : "لا تتوفر بيانات للمقارنة";
+        const pairText = pair => !pair?.available ? "لا تتوفر بيانات للمقارنة" :
+            pair.rainAmountAgreementEvaluated === false
+                ? `فرق الاحتمال ${pair.probabilityDifference}%؛ توافق كمية المطر: غير مُقيَّم (0.0 مم لكل مصدر)`
+                : `فرق الاحتمال ${pair.probabilityDifference}%، فرق المطر ${pair.rainAmountDifferenceMm} مم`;
+        const rainAmountAgreementAssessed = item.rainAmountAgreementEvaluated !== false
+            && item.sourceComparisons?.rainAmountAgreementEvaluated !== false
+            && item.sourceAgreement != null;
+        const agreementValue = rainAmountAgreementAssessed ? `${Number(item.sourceAgreement).toFixed(0)}%` : "غير مُقيَّم";
+        const agreementNote = rainAmountAgreementAssessed
+            ? "مؤشر توافر/توافق تشغيلي تجريبي — ليس دقة التنبؤ"
+            : "توافق كميات المطر غير مُقيَّم عند الصفر المشترك أو نقص المصادر؛ ولا يدل على دقة التنبؤ";
 
         return `
             <div class="rgf-card">
@@ -105,7 +116,7 @@
                     <div><b>${item.totalRainMm == null ? "غير متوفر" : `${Number(item.totalRainMm).toFixed(1)} مم`}</b><span>الكمية المتوقعة</span></div>
                     <div><b>${item.peakRainMmH == null ? "غير متوفر" : `${Number(item.peakRainMmH).toFixed(1)} مم/س`}</b><span>أعلى شدة</span></div>
                     <div><b>${esc(severityLabel(item))}</b><span>التصنيف</span></div>
-                    <div><b>${Number(item.sourceAgreement || 0).toFixed(0)}%</b><span>مؤشر توافق تشغيلي تجريبي — ليس دقة التنبؤ</span></div>
+                    <div><b>${esc(agreementValue)}</b><span>${esc(agreementNote)}</span></div>
                 </div>
 
                 <div class="rgf-compare">
@@ -221,7 +232,7 @@
             <div class="rgf-footer">
                 آخر تحديث: ${esc(formatTime(result.generatedAt))}
                 — RainViewer للتحقق الراداري، وOpen-Meteo وVisual Crossing للمقارنة العددية عند عدم توفر الربط الرسمي لأنواء.
-                مؤشر اتفاق/توافر المصادر ليس نسبة دقة للتنبؤ.
+                توافر المصادر مختلف عن توافق كميات الأمطار، وكلاهما ليس دليلًا على دقة التنبؤ. عندما تكون كميات المطر المعروضة صفرية، لا تُحتسب درجة توافق كمية المطر.
             </div>
         `;
     }
