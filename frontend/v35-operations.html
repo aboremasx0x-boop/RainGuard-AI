@@ -15,7 +15,7 @@
 @media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bodygrid{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.forecast-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.wrap{padding:0 14px}.nav{padding:14px 0;align-items:flex-start;flex-wrap:wrap}.links{width:100%;flex-wrap:nowrap;overflow-x:auto;padding:3px 0 6px}.links a{flex:none}.head{margin:25px 0 18px;display:block}.head h1{font-size:28px}.head .chip{margin-top:13px}.metric{min-height:120px;padding:13px}.metric strong{font-size:17px}.bodygrid{margin:13px 0}.side{display:flex}.panel{padding:13px}.map{height:295px}.forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.forecast-item{min-height:170px;padding:14px}.forecast-item h3{font-size:16px}.forecast-item strong{font-size:24px}.section-links{grid-template-columns:1fr;gap:10px}.summary{display:block}.summary .outline{margin-top:11px}.bar{align-items:stretch}.bar .select{width:100%}}
 @media(max-width:370px){.forecast-grid{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.metric strong{font-size:15px}}
-.forecast-connection{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}.forecast-connection .sub{margin:0;flex:1}.retry{border:1px solid #5e9dac;border-radius:11px;background:#174455;color:#e8fffa;padding:8px 14px;cursor:pointer;font:700 12px Cairo,Tahoma,sans-serif}.retry:disabled{opacity:.5;cursor:wait}.forecast-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.forecast-metric{min-width:0;background:#183b50;border:1px solid #31586a;border-radius:12px;padding:10px 8px}.forecast-metric .value{display:block;font-size:clamp(17px,1.8vw,26px);color:#c2fff5;font-weight:900;line-height:1.3;white-space:nowrap}.forecast-metric .label{display:block;font-size:11px;color:#c1dce7;margin-top:5px;line-height:1.6}.forecast-summary{display:block;color:#ffdfa9;font-size:12px;margin:9px 0 0}.forecast-item{min-height:195px}.forecast-item .coverage{color:#c5e7ef}.leaflet-tooltip{font:700 12px Cairo,Tahoma,sans-serif!important;background:#092b39!important;border:1px solid #51c5ba!important;color:#fff!important;box-shadow:none!important}.leaflet-tooltip-top:before{border-top-color:#51c5ba!important}@media(max-width:700px){.forecast-metrics{grid-template-columns:1fr}.forecast-item{min-height:200px}.forecast-metric .value{font-size:23px}.forecast-metric .label{font-size:12px}}</style>
+.forecast-connection{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}.forecast-connection .sub{margin:0;flex:1}.retry{border:1px solid #5e9dac;border-radius:11px;background:#174455;color:#e8fffa;padding:8px 14px;cursor:pointer;font:700 12px Cairo,Tahoma,sans-serif}.retry:disabled{opacity:.5;cursor:wait}.forecast-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.forecast-metric{min-width:0;background:#183b50;border:1px solid #31586a;border-radius:12px;padding:10px 8px}.forecast-metric .value{display:block;font-size:clamp(17px,1.8vw,26px);color:#c2fff5;font-weight:900;line-height:1.3;white-space:nowrap}.forecast-metric .label{display:block;font-size:11px;color:#c1dce7;margin-top:5px;line-height:1.6}.forecast-summary{display:block;color:#ffdfa9;font-size:12px;margin:9px 0 0}.forecast-item{min-height:195px}.forecast-item .coverage{color:#c5e7ef}.leaflet-tooltip{font:700 12px Cairo,Tahoma,sans-serif!important;background:#092b39!important;border:1px solid #51c5ba!important;color:#fff!important;box-shadow:none!important}.leaflet-tooltip-top:before{border-top-color:#51c5ba!important}@media(max-width:700px){.forecast-metrics{grid-template-columns:1fr}.forecast-item{min-height:200px}.forecast-metric .value{font-size:23px}.forecast-metric .label{font-size:12px}}.provider-compare{margin-top:18px;padding-top:16px;border-top:1px solid #355a6a}.compare-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.compare-card{border:1px solid #38596b;border-radius:13px;background:#13364c;padding:13px;min-width:0}.compare-card h3{margin:0 0 6px;font-size:16px}.compare-card .pair{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:12px;padding:3px 0}.compare-card .pair strong{font-size:15px;color:#bff9f0}.compare-card .delta{color:#ffe2b1;border-top:1px solid #31566a;margin-top:8px;padding-top:7px;font-size:12px}.compare-card small{display:block;font-size:11px;color:#bad2db;line-height:1.65;margin-top:5px}.compare-card .unavailable{color:#ffe0a5}.provider-compare .fine{line-height:1.9}@media(max-width:1050px){.compare-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.compare-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.compare-card .pair{display:block}.compare-card .pair strong{display:block}}@media(max-width:370px){.compare-grid{grid-template-columns:1fr}}</style>
 </head>
 <body>
 <div class="wrap">
@@ -69,7 +69,13 @@
 <div class="forecast-grid" id="forecastGrid" aria-label="توقعات الفترات الخمس">
 <div class="forecast-item"><h3>6 ساعات</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>12 ساعة</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>24 ساعة</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>48 ساعة</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>72 ساعة</h3><span class="pending">بانتظار البيانات</span></div>
 </div>
-<p class="fine">تُجمع كميات المطر الساعية فقط عند اكتمال ساعات الفترة دون فجوات. الاحتمال المعروض هو <strong>أعلى احتمال لهطول المطر خلال ساعة واحدة</strong> داخل الفترة، وليس احتمال حدوث المطر طوال الفترة. عند نقص البيانات يظهر عدد الساعات المتاحة بدل كمية تقديرية. توافق المصادر غير مُقيَّم لأن هذا العرض يعتمد على مصدر واحد.</p>
+<p class="fine">تُجمع كميات المطر الساعية فقط عند اكتمال ساعات الفترة دون فجوات. الاحتمال المعروض هو <strong>أعلى احتمال لهطول المطر خلال ساعة واحدة</strong> داخل الفترة، وليس احتمال حدوث المطر طوال الفترة. عند نقص البيانات يظهر عدد الساعات المتاحة بدل كمية تقديرية. تُعرض مقارنة المصدرين بشكل مستقل عند وجود ساعات UTC متطابقة لكل فترة. الفروق بين توقعات النماذج ليست دقة مُعايرة ولا ضمانًا لسلامة الطرق.</p>
+<div class="provider-compare" aria-labelledby="comparisonHeading">
+<div class="bar"><div><span class="eyebrow">SAME UTC HOURLY WINDOWS · TWO INDEPENDENT SOURCES</span><h2 id="comparisonHeading">مقارنة توقعات المصدرين</h2></div><button type="button" class="retry" id="retryComparison">تحديث المقارنة</button></div>
+<p class="fine" id="comparisonStatus" aria-live="polite">تُقارن كميات المطر المتوقعة من WeatherAPI وOpen-Meteo للمدينة نفسها والساعات المتطابقة، دون احتساب «نسبة توافق» أو تقييم دقة علمية.</p>
+<div id="comparisonCards" class="compare-grid"><div class="compare-card">بانتظار بيانات المصدرين…</div></div>
+<p class="fine">الفروق المعروضة هي فروق <strong>كميات توقعات المصدرين</strong> فقط؛ ليست فروقًا مع أمطار مقاسة. لا تُجمع احتمالات الهطول أو تُقارن إلا إذا كان تعريفها وفترتها متكافئين. تعني الاستجابة المباشرة وصول البيانات فقط ولا تثبت دقتها.</p>
+</div>
 <div class="notice">تنبيه علمي: عدم ظهور أمطار أو عدم توفر توقعات لا يؤكد غياب خطر السيول. لا تُستخدم هذه الصفحة لقرارات القيادة أو الإخلاء أو الإنذار.</div>
 </section>
 <section class="summary"><div><strong>هل تحتاج التفاصيل التقنية؟</strong><p>أبقينا المحركات وبيانات المصادر والتقارير ضمن صفحاتها الأصلية، وخصصنا هذه الصفحة للعرض التنفيذي السريع.</p></div><a class="outline" href="national-ai-os-v30.html#rainForecastNationalPanel">فتح المقارنة العلمية الكاملة</a></section>
@@ -86,8 +92,8 @@
 (function(){
 'use strict';
 const cities=[["جدة",21.5433,39.1728],["مكة المكرمة",21.3891,39.8579],["المدينة المنورة",24.4672,39.6111],["الرياض",24.7136,46.6753],["أبها",18.2164,42.5053],["الدمام",26.4207,50.0888],["جازان",16.8892,42.5511],["تبوك",28.3838,36.5662],["نجران",17.565,44.2289],["خليص",22,39.318]];
-const refreshSourceStatus=document.getElementById('refreshSourceStatus'),openMeteoState=document.getElementById('openMeteoState'),rainViewerState=document.getElementById('rainViewerState'),ncmState=document.getElementById('ncmState'),sourceStatusDetail=document.getElementById('sourceStatusDetail'),retry=document.getElementById('retryForecast'),sel=document.getElementById('citySelect'),selectedCityName=document.getElementById('selectedCityName'),weather=document.getElementById('weatherState'),status=document.getElementById('forecastStatus'),grid=document.getElementById('forecastGrid'),meter=document.getElementById('metricData'),meterNote=document.getElementById('metricDataNote'),time=document.getElementById('weatherTime');
-let map=null,abort=null,markers=new Map();
+const comparisonStatus=document.getElementById('comparisonStatus'),comparisonCards=document.getElementById('comparisonCards'),retryComparison=document.getElementById('retryComparison'),refreshSourceStatus=document.getElementById('refreshSourceStatus'),openMeteoState=document.getElementById('openMeteoState'),rainViewerState=document.getElementById('rainViewerState'),ncmState=document.getElementById('ncmState'),sourceStatusDetail=document.getElementById('sourceStatusDetail'),retry=document.getElementById('retryForecast'),sel=document.getElementById('citySelect'),selectedCityName=document.getElementById('selectedCityName'),weather=document.getElementById('weatherState'),status=document.getElementById('forecastStatus'),grid=document.getElementById('forecastGrid'),meter=document.getElementById('metricData'),meterNote=document.getElementById('metricDataNote'),time=document.getElementById('weatherTime');
+let map=null,abort=null,markers=new Map(),lastWeatherSnapshot=null;
 function mapMode(mode){if(!map)return;document.querySelectorAll('.switches button').forEach(b=>b.setAttribute('aria-pressed',String(b.id===mode)));if(mode==='westMap')map.fitBounds([[16.5,37.1],[26.9,43]],{padding:[15,15]});else if(mode==='selectedMap'){let [a,b]=sel.value.split(',').map(Number);map.setView([a,b],9);}else map.fitBounds([[16.5,34.5],[31.2,51.5]],{padding:[15,15]});}
 function updateSelectedMarker(){const selected=sel.options[sel.selectedIndex]?.textContent;selectedCityName.textContent="المدينة المحددة: "+selected;for(const [name,marker] of markers){const active=name===selected;marker.setStyle({radius:active?10:6,weight:active?4:2,color:active?"#ffdf97":"#b6fff5",fillColor:active?"#21d8c9":"#27bfb9"});if(active)marker.openTooltip();else marker.closeTooltip();}}
 function initMap(){const element=document.getElementById('map');if(!window.L){element.textContent='تعذر تحميل مكتبة الخريطة. يمكن متابعة توقعات المدينة دونها.';return;}element.textContent='';map=L.map(element,{scrollWheelZoom:false}).setView([23.5,44],5);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);cities.forEach(([name,lat,lon])=>{const marker=L.circleMarker([lat,lon],{radius:6,color:'#b6fff5',weight:2,fillColor:'#27bfb9',fillOpacity:.9}).addTo(map);marker.bindPopup(name+' — موقع مركز المدينة تقريبي');marker.bindTooltip(name,{direction:'top',offset:[0,-8],opacity:.92});markers.set(name,marker);marker.on('click',()=>{for(const o of sel.options){if(o.textContent===name){sel.value=o.value;updateSelectedMarker();mapMode('selectedMap');load();document.getElementById('forecast').scrollIntoView({behavior:'smooth',block:'start'});break}}});});updateSelectedMarker();mapMode('allMap');setTimeout(()=>map.invalidateSize(),250);}
@@ -147,6 +153,99 @@ async function checkSources(){
  refreshSourceStatus.disabled=false;
 }
 
+
+let comparisonAbort=null;
+const comparisonPeriods=[6,12,24,48,72];
+function utcHourEpoch(iso){
+ if(typeof iso!=='string'||!/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(iso))return null;
+ const n=Date.parse(iso+'Z');
+ return Number.isFinite(n)&&n%3600000===0?Math.floor(n/1000):null;
+}
+function createHourlyIndex(rows,kind){
+ const result=new Map(),duplicate=new Set();
+ for(const row of rows){
+  const epoch=kind==='meteo'?utcHourEpoch(row.time):numeric(row.time_epoch);
+  const amount=numeric(kind==='meteo'?row.precipitation:row.precip_mm);
+  if(epoch===null||!Number.isInteger(epoch)||epoch%3600!==0||amount===null||amount<0)continue;
+  if(result.has(epoch)){duplicate.add(epoch);continue;}
+  result.set(epoch,amount);
+ }
+ for(const epoch of duplicate)result.delete(epoch);
+ return result;
+}
+function comparePeriod(hours,start,weatherIndex,meteoIndex){
+ let a=0,b=0,paired=0,aCovered=0,bCovered=0;
+ for(let i=0;i<hours;i++){
+  const t=start+3600*i;
+  const hasA=weatherIndex.has(t),hasB=meteoIndex.has(t);
+  if(hasA)aCovered++;
+  if(hasB)bCovered++;
+  if(hasA&&hasB){paired++;a+=weatherIndex.get(t);b+=meteoIndex.get(t);}
+ }
+ return {hours,paired,aCovered,bCovered,complete:paired===hours,weatherMm:a,meteoMm:b,diffMm:Math.abs(a-b)};
+}
+function drawComparison(weatherRows,meteoRows,start,meteoTimestamp){
+ comparisonCards.replaceChildren();
+ const a=createHourlyIndex(weatherRows,'weather'),b=createHourlyIndex(meteoRows,'meteo');
+ for(const h of comparisonPeriods){
+  const result=comparePeriod(h,start,a,b),card=document.createElement('article');
+  card.className='compare-card';
+  const title=document.createElement('h3');title.textContent=h+' ساعة';card.append(title);
+  if(!result.complete){
+   const missing=document.createElement('small');missing.className='unavailable';
+   missing.textContent='المقارنة غير مكتملة: '+result.paired+' من '+h+' ساعة مشتركة';
+   const meta=document.createElement('small');meta.textContent='WeatherAPI: '+result.aCovered+'/'+h+' · Open-Meteo: '+result.bCovered+'/'+h;
+   card.append(missing,meta);comparisonCards.append(card);continue;
+  }
+  for(const [label,value] of [['WeatherAPI',result.weatherMm],['Open-Meteo',result.meteoMm]]){
+   const line=document.createElement('div');line.className='pair';
+   const name=document.createElement('span');name.textContent=label;
+   const number=document.createElement('strong');number.textContent=value.toFixed(2)+' ملم';
+   line.append(name,number);card.append(line);
+  }
+  const delta=document.createElement('div');delta.className='delta';
+  delta.textContent='الفرق المطلق: '+result.diffMm.toFixed(2)+' ملم';
+  const details=document.createElement('small');details.textContent='ساعات UTC المتطابقة: '+result.paired+'/'+h;
+  card.append(delta,details);comparisonCards.append(card);
+ }
+ const formatTime=ts=>new Intl.DateTimeFormat('ar-SA',{timeZone:'Asia/Riyadh',dateStyle:'medium',timeStyle:'short'}).format(new Date(ts));
+ comparisonStatus.textContent='مقارنة توقعات الساعة نفسها في '+sel.options[sel.selectedIndex].textContent+
+ '; وقت طلب Open-Meteo: '+formatTime(meteoTimestamp)+'. البيانات قابلة للمقارنة زمنيًا وليست مُتحققًا من دقتها ميدانيًا.';
+}
+function clearComparison(message){
+ comparisonCards.replaceChildren();
+ for(const h of comparisonPeriods){
+  const card=document.createElement('div');card.className='compare-card';
+  const head=document.createElement('h3');head.textContent=h+' ساعة';
+  const desc=document.createElement('small');desc.className='unavailable';desc.textContent=message;
+  card.append(head,desc);comparisonCards.append(card);
+ }
+}
+async function loadComparison(weatherData,signal,start,lat,lon){
+ if(comparisonAbort)comparisonAbort.abort();
+ const ctl=new AbortController();comparisonAbort=ctl;
+ const cancel=()=>ctl.abort();signal.addEventListener('abort',cancel,{once:true});
+ retryComparison.disabled=true;
+ clearComparison('جاري استلام توقعات Open-Meteo...');
+ comparisonStatus.textContent='يُطابَق توقيت كل ساعة UTC قبل حساب أي فرق.';
+ const url='https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(lat)+'&longitude='+encodeURIComponent(lon)+'&hourly=precipitation&forecast_days=4&timezone=UTC';
+ try{
+  const fetchedAt=Date.now();
+  const meteo=await requestStatus(url,ctl.signal,12000);
+  if(ctl!==comparisonAbort||signal.aborted)return;
+  if(!meteo||!meteo.hourly||!Array.isArray(meteo.hourly.time)||!Array.isArray(meteo.hourly.precipitation)||meteo.hourly.time.length!==meteo.hourly.precipitation.length)throw new Error('INVALID_METEO');
+  const rows=meteo.hourly.time.map((time,i)=>({time,precipitation:meteo.hourly.precipitation[i]}));
+  drawComparison(weatherData.forecastHours,rows,start,fetchedAt);
+ }catch(e){
+  if(ctl!==comparisonAbort||signal.aborted)return;
+  comparisonStatus.textContent='تعذر استلام بيانات Open-Meteo للمقارنة؛ لا تُستبدل ببيانات افتراضية.';
+  clearComparison('لا تتوفر مقارنة موثوقة الآن');
+ }finally{
+  signal.removeEventListener('abort',cancel);
+  if(ctl===comparisonAbort)retryComparison.disabled=false;
+ }
+}
+
 function clearCards(message){grid.replaceChildren();for(const h of [6,12,24,48,72]){const c=document.createElement('div');c.className='forecast-item';const head=document.createElement('h3');head.textContent=h+' ساعة';const p=document.createElement('small');p.textContent=message;c.append(head,p);grid.append(c);}}
 function addCard(hours,records,windowStartEpoch){
  const c=document.createElement('article');c.className='forecast-item';
@@ -187,12 +286,12 @@ function addCard(hours,records,windowStartEpoch){
  agreement.textContent='توافق المصادر: غير مُقيَّم (مصدر واحد)';
  c.append(metrics,description,count,agreement);grid.append(c);
 }
-async function load(){if(abort)abort.abort();abort=new AbortController();const ctl=abort;retry.disabled=true;weather.textContent='جارٍ فحص المصدر';weather.classList.remove('ok');meter.textContent='جارٍ التحقق';meterNote.textContent='لا تعتبر الحالة التقنية مقياسًا للدقة';time.textContent='آخر جلب: —';status.textContent='جارٍ طلب بيانات المدينة...';clearCards('جارٍ التحميل');const [lat,lon]=sel.value.split(',');let timeout=setTimeout(()=>ctl.abort(),13000);
-try{const response=await fetch('https://rainguard-ai.onrender.com/api/weather/weatherapi?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{method:'GET',headers:{Accept:'application/json'},credentials:'omit',cache:'no-store',signal:ctl.signal});if(!response.ok)throw new Error('HTTP_'+response.status);const data=await response.json();if(!data||data.success!==true||!Array.isArray(data.forecastHours))throw new Error('INVALID_PROVIDER_DATA');const now=Math.floor(Date.now()/1000);const windowStartEpoch=Math.floor(now/3600)*3600;const hours=data.forecastHours.filter(x=>numeric(x.time_epoch)!==null&&x.time_epoch>=windowStartEpoch&&x.time_epoch<windowStartEpoch+72*3600).sort((a,b)=>a.time_epoch-b.time_epoch);if(!hours.length)throw new Error('NO_RECENT_FORECAST');if(ctl!==abort)return;weather.textContent='استجابة ناجحة';weather.classList.add('ok');meter.textContent='متاحة للعرض';meterNote.textContent='استجابة WeatherAPI؛ لا تعني تحقق دقة النتائج';const d=new Date(data.retrievedAt);time.textContent='وقت جلب البيانات: '+(Number.isFinite(d.getTime())?new Intl.DateTimeFormat('ar-SA',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Riyadh'}).format(d):'غير محدد');status.textContent='توقعات '+sel.options[sel.selectedIndex].textContent+' من WeatherAPI؛ تحليلات بحثية غير معتمدة.';grid.replaceChildren();for(const h of [6,12,24,48,72]){addCard(h,hours,windowStartEpoch);}}
-catch(err){if(ctl!==abort)return;weather.textContent='غير متاح حاليًا';meter.textContent='غير متاحة';const error=String(err&&err.message||'');const unavailable=error==='HTTP_503';const timedOut=ctl.signal.aborted;const description=unavailable?'خدمة API أعادت HTTP 503 — تعذر توفير توقعات الآن.':timedOut?'انتهت مهلة الاتصال بخدمة التوقعات.':'تعذر طلب التوقعات أو التحقق من صحة الاستجابة.';meterNote.textContent=description;status.textContent=description+' لا يُستنتج من غياب البيانات عدم وجود أمطار.';clearCards('بيانات غير متاحة — يمكن إعادة الفحص');}
+async function load(){if(abort)abort.abort();if(comparisonAbort)comparisonAbort.abort();lastWeatherSnapshot=null;comparisonStatus.textContent='بانتظار وصول المصدرين للمقارنة';clearComparison('بانتظار بيانات المصدرين');abort=new AbortController();const ctl=abort;retry.disabled=true;weather.textContent='جارٍ فحص المصدر';weather.classList.remove('ok');meter.textContent='جارٍ التحقق';meterNote.textContent='لا تعتبر الحالة التقنية مقياسًا للدقة';time.textContent='آخر جلب: —';status.textContent='جارٍ طلب بيانات المدينة...';clearCards('جارٍ التحميل');const [lat,lon]=sel.value.split(',');let timeout=setTimeout(()=>ctl.abort(),13000);
+try{const response=await fetch('https://rainguard-ai.onrender.com/api/weather/weatherapi?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{method:'GET',headers:{Accept:'application/json'},credentials:'omit',cache:'no-store',signal:ctl.signal});if(!response.ok)throw new Error('HTTP_'+response.status);const data=await response.json();if(!data||data.success!==true||!Array.isArray(data.forecastHours))throw new Error('INVALID_PROVIDER_DATA');const now=Math.floor(Date.now()/1000);const windowStartEpoch=Math.floor(now/3600)*3600;const hours=data.forecastHours.filter(x=>numeric(x.time_epoch)!==null&&x.time_epoch>=windowStartEpoch&&x.time_epoch<windowStartEpoch+72*3600).sort((a,b)=>a.time_epoch-b.time_epoch);if(!hours.length)throw new Error('NO_RECENT_FORECAST');if(ctl!==abort)return;weather.textContent='استجابة ناجحة';weather.classList.add('ok');meter.textContent='متاحة للعرض';meterNote.textContent='استجابة WeatherAPI؛ لا تعني تحقق دقة النتائج';const d=new Date(data.retrievedAt);time.textContent='وقت جلب البيانات: '+(Number.isFinite(d.getTime())?new Intl.DateTimeFormat('ar-SA',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Riyadh'}).format(d):'غير محدد');status.textContent='توقعات '+sel.options[sel.selectedIndex].textContent+' من WeatherAPI؛ تحليلات بحثية غير معتمدة.';grid.replaceChildren();for(const h of [6,12,24,48,72]){addCard(h,hours,windowStartEpoch);}lastWeatherSnapshot={data,start:windowStartEpoch,lat,lon};loadComparison(data,ctl.signal,windowStartEpoch,lat,lon);}
+catch(err){if(ctl!==abort)return;weather.textContent='غير متاح حاليًا';meter.textContent='غير متاحة';const error=String(err&&err.message||'');const unavailable=error==='HTTP_503';const timedOut=ctl.signal.aborted;const description=unavailable?'خدمة API أعادت HTTP 503 — تعذر توفير توقعات الآن.':timedOut?'انتهت مهلة الاتصال بخدمة التوقعات.':'تعذر طلب التوقعات أو التحقق من صحة الاستجابة.';meterNote.textContent=description;status.textContent=description+' لا يُستنتج من غياب البيانات عدم وجود أمطار.';clearCards('بيانات غير متاحة — يمكن إعادة الفحص');comparisonStatus.textContent='تعذر الحصول على WeatherAPI؛ لا يمكن مقارنة مصدرين.';clearComparison('WeatherAPI غير متاح');}
 finally{clearTimeout(timeout);if(ctl===abort)retry.disabled=false;}
 }
-sel.addEventListener('change',()=>{updateSelectedMarker();mapMode('selectedMap');load();checkSources()});retry.addEventListener('click',()=>load());refreshSourceStatus.addEventListener('click',()=>checkSources());
+sel.addEventListener('change',()=>{updateSelectedMarker();mapMode('selectedMap');load();checkSources()});retry.addEventListener('click',()=>load());retryComparison.addEventListener('click',()=>{if(lastWeatherSnapshot&&!abort.signal.aborted){const q=lastWeatherSnapshot;loadComparison(q.data,abort.signal,q.start,q.lat,q.lon);}else load();});refreshSourceStatus.addEventListener('click',()=>checkSources());
 initMap();load();checkSources();
 })();
 </script>
