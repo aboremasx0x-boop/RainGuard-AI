@@ -18,7 +18,24 @@ const waReady=r=>!!(r&&r.ok===true&&r.available===true&&r.status==="FORECAST_REA
 function aw(r,h){const w=r?.forecastWindows?.[`h${h}`];return w?{probability:clamp(w.probability),rainAmount:Math.max(0,num(w.rainAmount)),peakRainMmH:0,peakTime:null,rainStart:null,rainEnd:null,severity:null}:null}
 function nw(r,h){const w=r?.horizons?.[`${h}h`];return w&&w.available!==false&&w.rainProbability!=null&&w.totalRainMm!=null&&Number.isFinite(Number(w.rainProbability))&&Number.isFinite(Number(w.totalRainMm))?{probability:clamp(w.rainProbability),rainAmount:Math.max(0,num(w.totalRainMm)),peakRainMmH:Math.max(0,num(w.peakRainMmH)),peakTime:num(w.peakRainMmH)>0?w.peakTime:null,rainStart:w.rainStart??null,rainEnd:w.rainEnd??null,severity:w.severity??null}:null}
 function radar(r){if(!liveRadar(r))return{available:false,rainDetected:false,signalScore:0,rainAmount:0};const s=clamp(r.signalScore),a=Math.max(0,num(r.rainAmount));return{available:true,rainDetected:s>0||a>0||num(r.rainProbability)>0,signalScore:s,rainAmount:a,timestamp:r.timestamp??null}}
-function compare(o,v){if(!o||!v)return{available:false,probabilityDifference:null,rainAmountDifferenceMm:null,rainSignalAgreement:null,level:"NOT_COMPARABLE"};const pd=Math.abs(num(o.probability)-num(v.probability)),ad=Math.abs(num(o.rainAmount)-num(v.rainAmount)),or=num(o.probability)>=30||num(o.rainAmount)>0,vr=num(v.probability)>=30||num(v.rainAmount)>0,same=or===vr;let level="LOW";if(same&&pd<=15&&ad<=2)level="HIGH";else if(same&&pd<=30&&ad<=5)level="MEDIUM";return{available:true,probabilityDifference:round(pd,0),rainAmountDifferenceMm:round(ad,2),rainSignalAgreement:same,level}}
+// A displayed 0.0 mm can include very small amounts rounded to one decimal.
+// Agreement on zero rainfall is not independent forecast verification.
+// Keep probability differences, but do not score quantitative rain agreement.
+const displayedRainMm = source => source ? round(source.rainAmount, 1) : null;
+function compare(o,v){
+ if(!o||!v)return{available:false,probabilityDifference:null,rainAmountDifferenceMm:null,rainSignalAgreement:null,level:"NOT_COMPARABLE",rainAmountAgreementEvaluated:false};
+ const pd=Math.abs(num(o.probability)-num(v.probability));
+ const ad=Math.abs(num(o.rainAmount)-num(v.rainAmount));
+ const zeroAmounts=displayedRainMm(o)===0&&displayedRainMm(v)===0;
+ const or=num(o.probability)>=30||num(o.rainAmount)>0;
+ const vr=num(v.probability)>=30||num(v.rainAmount)>0;
+ const same=or===vr;
+ let level="LOW";
+ if(zeroAmounts)level="NOT_EVALUATED_ZERO_RAIN";
+ else if(same&&pd<=15&&ad<=2)level="HIGH";
+ else if(same&&pd<=30&&ad<=5)level="MEDIUM";
+ return{available:true,probabilityDifference:round(pd,0),rainAmountDifferenceMm:round(ad,2),rainSignalAgreement:same,level,rainAmountAgreementEvaluated:!zeroAmounts};
+}
 function compareAll(o,v,w){
  const pairs={
   openMeteoVsVisualCrossing:compare(o,v),
@@ -26,11 +43,18 @@ function compareAll(o,v,w){
   visualCrossingVsWeatherAPI:compare(v,w)
  };
  const comparable=Object.values(pairs).filter(x=>x.available);
+ // Quantitative rain agreement is meaningful only when at least two
+ // providers have data AND at least one forecasts a displayed non-zero amount.
+ const sources=[o,v,w].filter(Boolean);
+ const evaluated=sources.length>=2&&sources.some(x=>displayedRainMm(x)>0);
+ const scoredPairs=comparable.filter(x=>x.rainAmountAgreementEvaluated);
  return {pairs,available:comparable.length>0,comparedPairs:comparable.length,
-   // This describes cross-provider consistency, not forecast skill.
-   level:comparable.length===0?"NOT_COMPARABLE":
-     comparable.every(x=>x.level==="HIGH")?"HIGH":
-     comparable.some(x=>x.level==="LOW")?"LOW":"MEDIUM"};
+   rainAmountAgreementEvaluated:evaluated,
+   rainAmountAgreementReason:!evaluated?(sources.length<2?"INSUFFICIENT_SOURCES":"ZERO_DISPLAYED_RAIN_AMOUNTS"):null,
+   // Source probability differences remain available even when amount agreement is not assessed.
+   level:!evaluated?"NOT_EVALUATED":scoredPairs.length===0?"NOT_COMPARABLE":
+     scoredPairs.every(x=>x.level==="HIGH")?"HIGH":
+     scoredPairs.some(x=>x.level==="LOW")?"LOW":"MEDIUM"};
 }
 function agreement({official,om,vc,cmp,ra,rd,p,a}){let s=0;if(official)s+=35;if(om)s+=20;if(vc)s+=20;if(ra)s+=10;if(cmp?.available){if(cmp.level==="HIGH")s+=10;else if(cmp.level==="MEDIUM")s+=5}if(rd&&(p>0||a>0))s+=5;return clamp(s)}
 async function safe(adapter,city){try{return adapter?.collect?await adapter.collect(city):null}catch(e){console.warn("[RainForecastFusionV32] source failed:",e);return null}}
@@ -46,7 +70,11 @@ async function forecastCity(city={}){
    visualCrossing:v?{available:true,rainProbability:round(v.probability,0),totalRainMm:round(v.rainAmount,1)}:{available:false},
    weatherAPI:w?{available:true,rainProbability:round(w.probability,0),totalRainMm:round(w.rainAmount,1)}:{available:false},
    numericalComparison:cmp,sourceComparisons:all,radarAvailable:r.available,radarRainDetected:r.rainDetected,radarSignalScore:r.signalScore,
-   sourceAgreement:agreement({official:false,om,vc,cmp,ra:r.available,rd:r.rainDetected,p:p??0,a:amt??0}),status:base?"FUSION_READY":"NO_FORECAST_DATA"};
+   // Preserve operational availability separately; never present it as quantitative forecast agreement.
+   sourceAvailabilityScore:agreement({official:false,om,vc,cmp,ra:r.available,rd:r.rainDetected,p:p??0,a:amt??0}),
+   sourceAgreement:all.rainAmountAgreementEvaluated?agreement({official:false,om,vc,cmp,ra:r.available,rd:r.rainDetected,p:p??0,a:amt??0}):null,
+   rainAmountAgreementEvaluated:all.rainAmountAgreementEvaluated,
+   status:base?"FUSION_READY":"NO_FORECAST_DATA"};
  }
  const anyForecast=Object.values(horizons).some(h=>h.status==="FUSION_READY");
  const result={engine:ENGINE_NAME,version:VERSION,status:anyForecast?"FUSION_READY":"NO_FORECAST_DATA",city:city.name??city.nameAr??city.city??"Unknown",lat:city.lat??city.latitude??null,lon:city.lon??city.lng??city.longitude??null,
@@ -57,7 +85,7 @@ async function forecastCity(city={}){
  visualCrossing:{available:vc,status:visual?.status??"NOT_AVAILABLE",provider:visual?.provider??"Visual Crossing",version:visual?.version??null}},horizons,generatedAt:new Date().toISOString()};
  window.RG32=window.RG32||{};window.RG32.latestRainForecastFusion=result;window.dispatchEvent(new CustomEvent("rainguard:forecast-fusion-ready",{detail:result}));return result;
 }
-function getStatus(){return{engine:ENGINE_NAME,version:VERSION,ready:true,horizons:[...HORIZONS],priority:["OPEN_METEO","VISUAL_CROSSING","WEATHERAPI","RAINVIEWER_RADAR"],note:"sourceAgreement measures source/data agreement, not forecast accuracy."}}
+function getStatus(){return{engine:ENGINE_NAME,version:VERSION,ready:true,horizons:[...HORIZONS],priority:["OPEN_METEO","VISUAL_CROSSING","WEATHERAPI","RAINVIEWER_RADAR"],note:"sourceAvailabilityScore measures source/data availability, not forecast accuracy. Quantitative rainfall agreement is not evaluated when all available amounts display 0.0 mm or fewer than two sources are available."}}
 const api={name:ENGINE_NAME,version:VERSION,horizons:[...HORIZONS],forecastCity,getStatus};
 window.RainForecastFusionV32=api;window.RG32=window.RG32||{};window.RG32.RainForecastFusion=api;
 console.log(`${ENGINE_NAME} ${VERSION} ready.`);
