@@ -1,0 +1,19 @@
+/* RainGuard AI V34 shared interior presentation layer.
+   All selectors scoped to rg34 classes to preserve V30/route engines.
+   Non-operational identity; does not imply official flood warning or road approval. */
+.rg34-top{box-sizing:border-box;direction:rtl;font-family:Cairo,Tahoma,Arial,sans-serif;color:#f5feff;background:linear-gradient(116deg,#0b2738,#071a2b);border:1px solid rgba(107,199,209,.3);border-radius:19px;max-width:1330px;margin:16px auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;box-shadow:0 12px 33px rgba(1,11,22,.2)}
+.rg34-top *{box-sizing:border-box}
+.rg34-top .rg34-brand{display:flex;align-items:center;gap:11px;min-width:0;text-decoration:none;color:#f5feff;font-size:18px;font-weight:800;direction:ltr}
+.rg34-top .rg34-logo{display:grid;place-items:center;height:37px;width:37px;flex:none;border-radius:12px;color:#072534;background:linear-gradient(145deg,#70f0e0,#1f94ae);font-size:23px}
+.rg34-top .rg34-brand small{display:block;color:#aac2d0;font-size:9px;letter-spacing:.14em;line-height:1.5}
+.rg34-top .rg34-links{display:flex;gap:8px;align-items:center;flex-wrap:wrap;direction:rtl}
+.rg34-top .rg34-links a{display:inline-flex;align-items:center;min-height:40px;padding:7px 13px;border:1px solid rgba(128,204,219,.25);border-radius:11px;background:rgba(255,255,255,.03);color:#e9f8ff;text-decoration:none;font:700 12px/1.55 Cairo,Tahoma,Arial,sans-serif;white-space:nowrap}
+.rg34-top .rg34-links a:hover,.rg34-top .rg34-links a[aria-current=page]{background:rgba(64,222,212,.14);border-color:#52dcd1;color:#acfff6}
+.rg34-top a:focus-visible{outline:3px solid #e4ba73;outline-offset:3px}
+.rg34-top .rg34-research{font-size:10px;color:#ffe0a6;border:1px solid rgba(228,186,115,.4);padding:6px 10px;border-radius:999px;white-space:nowrap}
+.rg34-page-route .route-title,.rg34-page-route .panel,.rg34-page-journey .hero,.rg34-page-journey .panel{box-shadow:0 13px 36px rgba(1,9,23,.14);border-color:rgba(112,178,198,.38)}
+.rg34-page-route .route-title,.rg34-page-journey .hero{background:linear-gradient(130deg,#103d4d,#0a263b 70%,#091c2e)}
+.rg34-page-route button:not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out){border-radius:11px}
+.rg34-page-route .field-row select,.rg34-page-journey select{min-height:43px}
+@media(max-width:720px){.rg34-top{padding:12px;margin:10px 10px 16px;gap:12px}.rg34-top .rg34-brand{font-size:16px}.rg34-top .rg34-links{order:3;width:100%;flex-wrap:nowrap;overflow-x:auto;padding:3px 0 6px;scrollbar-width:thin}.rg34-top .rg34-links a{flex:none;font-size:11px;min-height:39px;padding:8px 11px}.rg34-top .rg34-research{font-size:9px}.rg34-page-route{overflow-x:hidden}}
+@media(max-width:380px){.rg34-top .rg34-research{order:2}.rg34-top .rg34-brand small{font-size:8px}}
