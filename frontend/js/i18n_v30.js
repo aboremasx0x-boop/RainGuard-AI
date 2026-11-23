@@ -57,13 +57,13 @@ window.RG30 = window.RG30 || {};
                 "Verification Phase",
 
             highestVerifiedRisk:
-                "Highest Verified Risk",
+                "Research Risk Indicator (Unvalidated)",
 
             highestRiskCity:
-                "Highest Risk City",
+                "City With Highest Research Indicator",
 
             verificationConfidence:
-                "Verification Confidence",
+                "Research Verification Score (Not Accuracy)",
 
             nationalStatus:
                 "National Status",
@@ -171,7 +171,7 @@ window.RG30 = window.RG30 || {};
                 "Evidence Score",
 
             finalConfidence:
-                "Final Confidence",
+                "Research Verification Score (Uncalibrated)",
 
             verificationStatus:
                 "Verification Status",
@@ -311,13 +311,13 @@ window.RG30 = window.RG30 || {};
                 "مرحلة التحقق",
 
             highestVerifiedRisk:
-                "أعلى خطر متحقق",
+                "أعلى مؤشر خطر بحثي (غير معتمد)",
 
             highestRiskCity:
-                "المدينة الأعلى خطرًا",
+                "المدينة الأعلى بالمؤشر البحثي",
 
             verificationConfidence:
-                "ثقة التحقق",
+                "درجة تحقق حسابية (ليست دقة التنبؤ)",
 
             nationalStatus:
                 "الحالة الوطنية",
@@ -424,7 +424,7 @@ window.RG30 = window.RG30 || {};
                 "درجة الأدلة",
 
             finalConfidence:
-                "الثقة النهائية",
+                "درجة التحقق البحثية (غير معايرة)",
 
             verificationStatus:
                 "حالة التحقق",
