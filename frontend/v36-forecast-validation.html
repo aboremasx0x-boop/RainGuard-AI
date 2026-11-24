@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#071625"><meta name="description" content="RainGuard AI V36: محرك بحثي لمطابقة التنبؤات السابقة مع مشاهدات مستقلة وحساب MAE وRMSE وPOD وFAR وBrier عند توفر المدخلات.">
-<title>التحقق العلمي من دقة التنبؤ | RainGuard AI V36</title>
+<title>التحقق العلمي من دقة التنبؤ | RainGuard AI V36.1</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
 :root{color-scheme:dark;--bg:#061726;--panel:#0f2c40;--card:#14364b;--line:#32566b;--mint:#4adbcf;--gold:#f0ca8c;--txt:#f1fbff;--sub:#b9cfdd}
@@ -10,9 +10,9 @@
 @media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.method{grid-template-columns:1fr 1fr}}@media(max-width:620px){.upload,.help,.method{grid-template-columns:1fr}.wrap{padding:0 15px}.grid{gap:8px}.metric{padding:12px}.nav{padding:14px 0}}
 </style>
 </head><body><div class="wrap">
-<header class="nav"><a class="brand" href="v35-operations.html">RainGuard AI<small>FORECAST VERIFICATION · V36</small></a><nav class="links"><a href="v35-operations.html">مركز العمليات</a><a href="v35-sponsor-showcase.html">الجهات الداعمة</a><a href="#methodology">المنهجية</a></nav></header>
+<header class="nav"><a class="brand" href="v35-operations.html">RainGuard AI<small>FORECAST VERIFICATION · V36.1</small></a><nav class="links"><a href="v35-operations.html">مركز العمليات</a><a href="v35-sponsor-showcase.html">الجهات الداعمة</a><a href="#methodology">المنهجية</a></nav></header>
 <main>
-<section class="head"><span class="eyebrow">RESEARCH VALIDATION ENGINE · JEDDAH FIRST</span><h1>التحقق العلمي من دقة التنبؤات</h1>
+<section class="head"><span class="eyebrow">RESEARCH VALIDATION ENGINE · V36.1 · JEDDAH FIRST</span><h1>التحقق العلمي من دقة التنبؤات</h1>
 <p class="lead">قارن توقعات المطر الساعية المحفوظة قبل وقوع الحدث مع قياسات رصد ساعية مستقلة تُحمَّل محليًا. تُحسب مؤشرات الخطأ وكشف الهطول فقط من أزواج زمنية صالحة، مع عرض أسباب استبعاد السجلات.</p>
 <div class="notice">لا توجد بيانات رصد مستقلة موصولة تلقائيًا في هذه الصفحة. الملفات يحمّلها المستخدم، ولا يُثبت رفعها وحده صحتها أو ترخيصها. المؤشرات حسابية بحثية وليست اعتمادًا لأداء النموذج أو إنذارًا رسميًا أو تقييمًا لسلامة الطريق.</div></section>
 <div class="grid" aria-label="المؤشرات الحسابية">
@@ -23,7 +23,7 @@
 </div>
 <section class="panel" aria-labelledby="uploadHeading"><div class="status-row"><h2 id="uploadHeading">استيراد بيانات التنبؤ والرصد</h2><span class="label">بيانات المستخدم · معالجة داخل المتصفح</span></div>
 <div class="upload">
-<div class="upload-card"><h3>1. توقعات محفوظة قبل الحدث (CSV)</h3><p>source,city,target_time_utc,issued_time_utc,forecast_mm,probability_pct</p><input id="forecastFile" type="file" accept=".csv,text/csv" aria-label="اختيار ملف التوقعات"><button class="btn" id="forecastTemplate" type="button">تنزيل قالب التوقعات</button></div>
+<div class="upload-card"><h3>1. توقعات محفوظة قبل الحدث (CSV)</h3><p>source,city,target_time_utc,issued_time_utc,forecast_mm,probability_pct,probability_event,probability_threshold_mm,station_id</p><input id="forecastFile" type="file" accept=".csv,text/csv" aria-label="اختيار ملف التوقعات"><button class="btn" id="forecastTemplate" type="button">تنزيل قالب التوقعات</button></div>
 <div class="upload-card"><h3>2. رصد مطري مستقل (CSV)</h3><p>city,target_time_utc,observed_mm,station_id,observation_source</p><input id="observationFile" type="file" accept=".csv,text/csv" aria-label="اختيار ملف الرصد"><button class="btn" id="observationTemplate" type="button">تنزيل قالب الرصد</button></div>
 </div>
 <div class="controls"><label for="threshold">عتبة تعريف المطر (ملم/ساعة):</label><input id="threshold" type="number" value="0.1" min="0.01" max="100" step="0.01"><button class="btn main" id="run" type="button">احسب المؤشرات</button><button class="btn" id="exportResult" type="button" disabled>تصدير نتائج CSV</button></div>
@@ -45,8 +45,12 @@
 <article><h3>مستوى الثقة في الرصد</h3><p>اسم المحطة والمصدر حقول مرجعية يزود بها المستخدم، ولا يعني ذلك أنها رُوجعت أو اعتمدت رسميًا.</p></article>
 <article><h3>حدود الاستنتاج</h3><p>أداء عينة صغيرة أو مدينة واحدة لا يعني قابلية تعميم النتائج على أحداث السيول أو سلامة الطرق. التحقق الخارجي مطلوب.</p></article>
 </div></section>
-<section class="panel"><h2>مواصفات ملفات الإدخال</h2><div class="help"><div><h3>ملف التوقعات</h3><pre>source,city,target_time_utc,issued_time_utc,forecast_mm,probability_pct
-WeatherAPI,Jeddah,2026-11-24T10:00:00Z,2026-11-24T04:00:00Z,0.4,40</pre><p class="fine">السطر مثال توضيحي لبنية الملف، وليس قياسًا أو توقعًا حقيقيًا. يجب استخدام توقعات سُجلت قبل الحدث.</p></div><div><h3>ملف الرصد</h3><pre>city,target_time_utc,observed_mm,station_id,observation_source
+<section class="panel" id="dataAcquisition"><h2>مسار الحصول على بيانات جدة التاريخية</h2><p class="fine">روابط مصادر رسمية وموثقة للمراجعة. لم يُربط رصد محطات حقيقي تلقائيًا، ولا تُصنف بيانات إعادة التحليل رصدًا مستقلًا.</p><div class="method">
+<article><h3>توقعات محفوظة قبل الحدث</h3><p>الاستعانة بتشغيلات نماذج قديمة مع توثيق وقت تشغيل النموذج والساعة المستهدفة، والتحقق من الترخيص.</p><p><a href="https://open-meteo.com/en/docs/single-runs-api" target="_blank" rel="noopener noreferrer">Single Runs API</a> · <a href="https://open-meteo.com/en/docs/previous-runs-api" target="_blank" rel="noopener noreferrer">Previous Runs API</a></p></article>
+<article><h3>رصد الساعات من المركز الوطني للأرصاد</h3><p>طلب الهطول الساعي مع هوية المحطة وإحداثياتها والتوقيت ومصدر القياس وحقوق الاستخدام؛ لن تُملأ أية قيم افتراضية.</p><p><a href="https://www.ncm.gov.sa/en/climate/interactive-climate" target="_blank" rel="noopener noreferrer">NCM البيانات المناخية</a> · <a href="https://new.ncm.gov.sa/en/e-services/request-services?service=32137" target="_blank" rel="noopener noreferrer">طلب خدمة بيانات تاريخية</a></p></article>
+<article><h3>قابلية المطابقة المكانية</h3><p>يجب توثيق المسافة بين المحطة ونقطة التوقع وتمثيل شبكة النموذج. مطابقة اسم المدينة فقط تبقى استكشافية.</p></article></div></section>
+<section class="panel"><h2>مواصفات ملفات الإدخال</h2><div class="help"><div><h3>ملف التوقعات</h3><pre>source,city,target_time_utc,issued_time_utc,forecast_mm,probability_pct,probability_event,probability_threshold_mm,station_id
+WeatherAPI,Jeddah,2026-11-24T10:00:00Z,2026-11-24T04:00:00Z,0.4,,,,EXAMPLE_STATION</pre><p class="fine">السطر مثال توضيحي لبنية الملف، وليس قياسًا أو توقعًا حقيقيًا. يتطلب حساب Brier التعريف hourly_precip_ge_threshold وعتبة مطابقة للوحة، وليس الاحتمال اليومي أو أعلى احتمال عبر عدة ساعات.</p></div><div><h3>ملف الرصد</h3><pre>city,target_time_utc,observed_mm,station_id,observation_source
 Jeddah,2026-11-24T10:00:00Z,0.0,EXAMPLE_STATION,EXAMPLE_ONLY</pre><p class="fine">السطر مثال اصطناعي للتوضيح فقط. لا تستخدم بيانات الأمثلة لاستنتاج دقة فعلية.</p></div></div></section>
 </main><footer class="footer">RainGuard AI V36 — نموذج للتحقق الحسابي المستند إلى ملفات المستخدم؛ المؤشرات ليست شهادة تحقق مستقلة أو إنذارًا رسميًا.</footer>
 </div>
@@ -110,9 +114,14 @@ function analyze(forecasts,observations,threshold){
   const key=city+'|'+time,list=obs.get(key)||[];list.push({mm,station,origin});obs.set(key,list);
  });
  const seenForecast=new Set();
+ const seenSample=new Set();
  forecasts.forEach((x,i)=>{
   const index='توقع '+(i+2),source=x.source?.trim(),city=x.city?.trim(),target=isoHour(x.target_time_utc),issued=isoIssued(x.issued_time_utc),mm=num(x.forecast_mm);
   const p=x.probability_pct?.trim()?num(x.probability_pct):null;
+  const pEvent=x.probability_event?.trim()||'';
+  const pThreshold=num(x.probability_threshold_mm??'');
+  const pUsable=p!==null&&pEvent==='hourly_precip_ge_threshold'&&pThreshold!==null&&Math.abs(pThreshold-threshold)<1e-9;
+  const targetStation=x.station_id?.trim()||'';
   if(!source||!city||target===null||issued===null||mm===null||mm<0||p!==null&&(p<0||p>100)){reject(index,source,'تاريخ/قيمة/مصدر غير صالح');return;}
   const lead=(target-issued)/3600000;
   if(lead<=0||lead>72){reject(index,source,'وقت إصدار التوقع لا يسبق ساعة الحدث أو خارج 72 ساعة');return;}
@@ -120,8 +129,12 @@ function analyze(forecasts,observations,threshold){
   if(seenForecast.has(fk)){reject(index,source,'توقع مكرر؛ استُبعدت النسخة الإضافية');return;}seenForecast.add(fk);
   const matched=obs.get(city+'|'+target);
   if(!matched||!matched.length){reject(index,source,'لا يوجد رصد مطابق للمدينة والساعة');return;}
-  if(matched.length!==1){reject(index,source,'أكثر من سجل رصد للمدينة والساعة؛ تتطلب مطابقة المحطة');return;}
-  rows.push({source,city,target,issued,forecastMm:mm,observedMm:matched[0].mm,station:matched[0].station,observationSource:matched[0].origin,probability:p,lead,bucket:bucket(lead)});
+  const stationMatches=targetStation?matched.filter(x=>x.station===targetStation):matched;
+  if(stationMatches.length!==1){reject(index,source,'الرصد غير فريد أو المحطة المطلوبة غير موجودة؛ راجع هوية محطة الرصد');return;}
+  const window=bucket(lead),sampleKey=source+'|'+city+'|'+target+'|'+stationMatches[0].station+'|'+window;
+  if(seenSample.has(sampleKey)){reject(index,source,'إصدار إضافي للمصدر والساعة والمحطة وفئة السبق؛ لا يُضاعف وزن الحدث');return;}
+  seenSample.add(sampleKey);
+  rows.push({source,city,target,issued,forecastMm:mm,observedMm:stationMatches[0].mm,station:stationMatches[0].station,observationSource:stationMatches[0].origin,probability:pUsable?p:null,lead,bucket:window});
  });
  const grouped=new Map();
  for(const x of rows){const key=x.source+'|'+x.bucket;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(x);}
@@ -148,7 +161,7 @@ function downloadCsv(name,rows){
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
 }
-$('forecastTemplate').addEventListener('click',()=>downloadCsv('rainguard_v36_forecasts_template.csv',[['source','city','target_time_utc','issued_time_utc','forecast_mm','probability_pct']]));
+$('forecastTemplate').addEventListener('click',()=>downloadCsv('rainguard_v36_forecasts_template.csv',[['source','city','target_time_utc','issued_time_utc','forecast_mm','probability_pct','probability_event','probability_threshold_mm','station_id']]));
 $('observationTemplate').addEventListener('click',()=>downloadCsv('rainguard_v36_observations_template.csv',[['city','target_time_utc','observed_mm','station_id','observation_source']]));
 for(const name of ['forecastFile','observationFile'])$(name).addEventListener('change',()=>{reset();$('message').textContent='تم تغيير ملف الإدخال. اضغط «احسب المؤشرات» للتحقق من السجلات.';});
 $('threshold').addEventListener('change',()=>{reset();$('message').textContent='تغيرت عتبة تعريف المطر؛ أعد تشغيل التحليل.';});
@@ -163,8 +176,8 @@ $('run').addEventListener('click',async()=>{
   const f=parseCSV(await forecastFile.text()),o=parseCSV(await observationFile.text());
   const mandatoryF=['source','city','target_time_utc','issued_time_utc','forecast_mm'];
   const mandatoryO=['city','target_time_utc','observed_mm','station_id','observation_source'];
-  for(const h of mandatoryF)if(f.length&&!Object.hasOwn(f[0],h))throw Error('عمود مفقود من التوقعات: '+h);
-  for(const h of mandatoryO)if(o.length&&!Object.hasOwn(o[0],h))throw Error('عمود مفقود من الرصد: '+h);
+  for(const h of mandatoryF)if(f.length&&!Object.prototype.hasOwnProperty.call(f[0],h))throw Error('عمود مفقود من التوقعات: '+h);
+  for(const h of mandatoryO)if(o.length&&!Object.prototype.hasOwnProperty.call(o[0],h))throw Error('عمود مفقود من الرصد: '+h);
   if(!f.length||!o.length)throw Error('لا تتوفر صفوف بيانات؛ القوالب فارغة عمدًا ولا تمثل رصدًا.');
   const result=analyze(f,o,threshold);
   if(!result.rows.length){
@@ -179,7 +192,7 @@ $('run').addEventListener('click',async()=>{
   $('samples').textContent=String(v.n);$('brier').textContent=fmt(v.brier,4)+' ('+v.brierN+')';
   $('excluded').textContent=String(result.rejected.length);$('sampleStatus').textContent='مؤشرات محسوبة من ملفات المستخدم';
   $('verification').textContent='يحتاج مراجعة';
-  $('coverage').textContent='الأزواج المستخدمة '+v.n+'؛ المصدر الرصدي مدخل من المستخدم ولم يُراجع مستقلًا. العتبة: '+threshold+' ملم/ساعة. قد تضم العينة عدة توقعات للساعة المرصودة نفسها بآفاق سبق مختلفة؛ تُعرض مقاييس المصدر والأفق منفصلة.';
+  $('coverage').textContent='الأزواج المستخدمة '+v.n+'؛ المصدر الرصدي مدخل من المستخدم ولم يُراجع مستقلًا. العتبة: '+threshold+' ملم/ساعة. يُحسب توقع واحد لكل مصدر وساعة ومحطة وفئة سبق؛ لا يُحسب Brier دون تطابق تعريف الحدث والعتبة.';
   fillTable($('resultRows'),result.table.map(x=>[x.source,x.lead+' س',x.n,fmt(x.mae),fmt(x.rmse),pct(x.pod),pct(x.far),fmt(x.brier,4)]));
   fillTable($('excludeRows'),result.rejected.length?result.rejected.slice(0,300).map(x=>[x.row,x.source,x.reason]):[['—','—','لا توجد توقعات مستبعدة']]);
   $('message').textContent='اكتمل الحساب من الأزواج المطابقة. لا تُعد المؤشرات تحققًا ميدانيًا معتمدًا؛ راجع مصدر المحطات وصحة أوقات التوقع.';
@@ -189,9 +202,9 @@ $('run').addEventListener('click',async()=>{
 $('exportResult').addEventListener('click',()=>{
  const x=lastResult;if(!x)return;
  downloadCsv('rainguard_v36_validation_results.csv',[
- ['type','RainGuard AI V36 RESEARCH VALIDATION (USER-SUPPLIED; UNVERIFIED)'],
+ ['type','RainGuard AI V36.1 RESEARCH VALIDATION (USER-SUPPLIED; UNVERIFIED)'],
  ['generated_at_utc',x.createdAt],['forecast_file',x.forecastName],['observation_file',x.observationName],
- ['rain_threshold_mm_per_hour',x.threshold],['observation_independently_verified','NO'],
+ ['rain_threshold_mm_per_hour',x.threshold],['observation_independently_verified','NO'],['brier_event_definition','hourly_precip_ge_threshold ONLY'],['unique_sample_rule','one per source/city/target/station/lead_bucket'],
  [],['source','lead_bucket_hours','sample_count','MAE_mm','RMSE_mm','POD','FAR','Brier_score','Brier_samples'],
  ...x.table.map(r=>[r.source,r.lead,r.n,r.mae,r.rmse,r.pod??'UNDEFINED',r.far??'UNDEFINED',r.brier??'UNDEFINED',r.brierN]),
  [],['excluded_record','source','reason'],...x.rejected.map(r=>[r.row,r.source,r.reason])
