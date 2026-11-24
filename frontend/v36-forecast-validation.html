@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071625"><meta name="description" content="RainGuard AI V36: محرك بحثي لمطابقة التنبؤات السابقة مع مشاهدات مستقلة وحساب MAE وRMSE وPOD وFAR وBrier عند توفر المدخلات.">
+<title>التحقق العلمي من دقة التنبؤ | RainGuard AI V36</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+:root{color-scheme:dark;--bg:#061726;--panel:#0f2c40;--card:#14364b;--line:#32566b;--mint:#4adbcf;--gold:#f0ca8c;--txt:#f1fbff;--sub:#b9cfdd}
+*{box-sizing:border-box}body{background:radial-gradient(ellipse at 90% -10%,#12495b 0,transparent 55%),var(--bg);color:var(--txt);font:14px/1.9 Cairo,Tahoma,sans-serif;margin:0}a{color:inherit;text-decoration:none}button,input{font:inherit}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}.wrap{max-width:1200px;padding:0 22px;margin:auto}.nav{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;align-items:center;min-height:82px;border-bottom:1px solid var(--line)}.brand{font-weight:900;font-size:20px;direction:ltr}.brand small{display:block;color:var(--sub);letter-spacing:2px;font-size:9px}.links{display:flex;gap:8px;flex-wrap:wrap}.links a{font-size:11px;border:1px solid var(--line);padding:7px 12px;border-radius:10px}.links a:hover{color:var(--mint)}h1{font-size:clamp(28px,3vw,42px);margin:8px 0 10px}h2{font-size:20px;margin:0 0 8px}h3{font-size:15px;margin:0 0 5px}.lead{color:var(--sub);max-width:880px;font-size:13px}.head{padding:38px 0 20px}.eyebrow{color:var(--mint);font-size:11px;font-weight:900;letter-spacing:.1em}.notice{border:1px solid #aa8553;border-radius:13px;padding:12px 16px;color:#ffdda3;background:#372e2a6a;font-size:12px;margin:12px 0 19px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric,.panel{border:1px solid var(--line);border-radius:17px;background:linear-gradient(140deg,var(--panel),#092536)}.metric{padding:17px}.metric label{display:block;color:var(--sub);font-size:11px}.metric strong{font-size:clamp(17px,2vw,26px);display:block;line-height:1.7}.metric small{font-size:11px;color:var(--sub)}.panel{padding:20px;margin:16px 0}.upload{display:grid;grid-template-columns:1fr 1fr;gap:14px}.upload-card{background:var(--card);border:1px solid #376177;padding:17px;border-radius:13px}.upload-card input{max-width:100%;font-size:12px;margin:12px 0}.upload-card p,.fine{color:var(--sub);font-size:12px;margin:7px 0}.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}.controls label{font-size:12px}.controls input[type=number]{width:100px;background:#14384a;border:1px solid #537587;border-radius:8px;color:white;padding:7px}.btn{display:inline-flex;justify-content:center;align-items:center;min-height:42px;padding:8px 15px;border-radius:10px;font-weight:800;border:1px solid #416a80;color:var(--txt);background:#1b4256;cursor:pointer;font-size:12px}.btn.main{background:var(--mint);color:#092c35;border-color:var(--mint)}.btn:disabled{opacity:.45;cursor:not-allowed}.message{color:var(--gold);font-size:12px}.tablewrap{overflow:auto;max-height:480px}.table{width:100%;border-collapse:collapse;min-width:760px;font-size:11px;text-align:right}.table th,.table td{padding:10px 11px;border-bottom:1px solid #325366}.table th{background:#194153;position:sticky;top:0}.table td{color:#d3e5ea}.empty{color:var(--sub);text-align:center}.status-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.label{border-radius:20px;padding:3px 11px;color:#ffdfa5;border:1px solid #a88c55;font-size:10px}.footer{margin:35px 0 20px;border-top:1px solid var(--line);padding-top:20px;color:var(--sub);font-size:11px}.help{display:grid;grid-template-columns:1fr 1fr;gap:14px}.help pre{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;font-size:10px;color:#d5e8eb;background:#091f30;padding:12px;border-radius:10px}.method{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.method article{padding:14px;background:#123347;border:1px solid #32576b;border-radius:12px}.method p{color:var(--sub);font-size:11px;margin:0}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.method{grid-template-columns:1fr 1fr}}@media(max-width:620px){.upload,.help,.method{grid-template-columns:1fr}.wrap{padding:0 15px}.grid{gap:8px}.metric{padding:12px}.nav{padding:14px 0}}
+</style>
+</head><body><div class="wrap">
+<header class="nav"><a class="brand" href="v35-operations.html">RainGuard AI<small>FORECAST VERIFICATION · V36</small></a><nav class="links"><a href="v35-operations.html">مركز العمليات</a><a href="v35-sponsor-showcase.html">الجهات الداعمة</a><a href="#methodology">المنهجية</a></nav></header>
+<main>
+<section class="head"><span class="eyebrow">RESEARCH VALIDATION ENGINE · JEDDAH FIRST</span><h1>التحقق العلمي من دقة التنبؤات</h1>
+<p class="lead">قارن توقعات المطر الساعية المحفوظة قبل وقوع الحدث مع قياسات رصد ساعية مستقلة تُحمَّل محليًا. تُحسب مؤشرات الخطأ وكشف الهطول فقط من أزواج زمنية صالحة، مع عرض أسباب استبعاد السجلات.</p>
+<div class="notice">لا توجد بيانات رصد مستقلة موصولة تلقائيًا في هذه الصفحة. الملفات يحمّلها المستخدم، ولا يُثبت رفعها وحده صحتها أو ترخيصها. المؤشرات حسابية بحثية وليست اعتمادًا لأداء النموذج أو إنذارًا رسميًا أو تقييمًا لسلامة الطريق.</div></section>
+<div class="grid" aria-label="المؤشرات الحسابية">
+<div class="metric"><label>MAE — متوسط الخطأ المطلق</label><strong id="mae">غير محسوب</strong><small>ملم لكل ساعة، الأقل أفضل</small></div>
+<div class="metric"><label>RMSE — جذر متوسط مربع الخطأ</label><strong id="rmse">غير محسوب</strong><small>ملم لكل ساعة، الأقل أفضل</small></div>
+<div class="metric"><label>POD — نسبة كشف الهطول</label><strong id="pod">غير محسوب</strong><small>من الأحداث المرصودة</small></div>
+<div class="metric"><label>FAR — نسبة الإنذارات الكاذبة</label><strong id="far">غير محسوب</strong><small>من أحداث المطر المتوقعة</small></div>
+</div>
+<section class="panel" aria-labelledby="uploadHeading"><div class="status-row"><h2 id="uploadHeading">استيراد بيانات التنبؤ والرصد</h2><span class="label">بيانات المستخدم · معالجة داخل المتصفح</span></div>
+<div class="upload">
+<div class="upload-card"><h3>1. توقعات محفوظة قبل الحدث (CSV)</h3><p>source,city,target_time_utc,issued_time_utc,forecast_mm,probability_pct</p><input id="forecastFile" type="file" accept=".csv,text/csv" aria-label="اختيار ملف التوقعات"><button class="btn" id="forecastTemplate" type="button">تنزيل قالب التوقعات</button></div>
+<div class="upload-card"><h3>2. رصد مطري مستقل (CSV)</h3><p>city,target_time_utc,observed_mm,station_id,observation_source</p><input id="observationFile" type="file" accept=".csv,text/csv" aria-label="اختيار ملف الرصد"><button class="btn" id="observationTemplate" type="button">تنزيل قالب الرصد</button></div>
+</div>
+<div class="controls"><label for="threshold">عتبة تعريف المطر (ملم/ساعة):</label><input id="threshold" type="number" value="0.1" min="0.01" max="100" step="0.01"><button class="btn main" id="run" type="button">احسب المؤشرات</button><button class="btn" id="exportResult" type="button" disabled>تصدير نتائج CSV</button></div>
+<p class="message" id="message" role="status" aria-live="polite">بانتظار تحميل ملفي التوقعات والرصد. لن تظهر نسبة دقة افتراضية.</p></section>
+<section class="panel"><div class="status-row"><h2>ملخص العينة والتحقق</h2><span class="label" id="sampleStatus">لم يُنفّذ الحساب</span></div><div class="grid">
+<div class="metric"><label>أزواج التوقع والرصد</label><strong id="samples">—</strong><small>أزواج متطابقة زمنيًا</small></div>
+<div class="metric"><label>عينات Brier Score</label><strong id="brier">—</strong><small>التنبؤ الاحتمالي بالمطر</small></div>
+<div class="metric"><label>السجلات المستبعدة</label><strong id="excluded">—</strong><small>أسباب موثقة</small></div>
+<div class="metric"><label>حالة المصدر الرصدي</label><strong id="verification">غير موثّق</strong><small>يتطلب تحققًا مستقلًا</small></div>
+</div><p class="fine" id="coverage">يُشترط توحيد المدينة والساعة UTC؛ الفترة المستهدفة ساعة واحدة لكل سجل، ولا تُقبل التوقعات الصادرة بعد بداية الساعة المستهدفة.</p></section>
+<section class="panel"><h2>الأداء حسب مصدر التوقع وفترة السبق</h2><p class="fine">تُفصل النتائج إلى أفق 0–6، و6–12، و12–24، و24–48، و48–72 ساعة؛ ولا تُجمع الفترات في «نسبة دقة عامة».</p>
+<div class="tablewrap"><table class="table"><thead><tr><th>المصدر</th><th>فترة السبق</th><th>العينات</th><th>MAE (ملم)</th><th>RMSE (ملم)</th><th>POD</th><th>FAR</th><th>Brier</th></tr></thead><tbody id="resultRows"><tr><td class="empty" colspan="8">لا توجد نتائج محسوبة.</td></tr></tbody></table></div></section>
+<section class="panel"><h2>سجل الاستبعاد وجودة المطابقة</h2><p class="fine">يظهر سبب عدم إدخال أي توقع في الحساب، مثل الرصد المفقود أو التكرار أو أن تاريخ إصدار التوقع لا يسبق ساعة الحدث.</p><div class="tablewrap"><table class="table"><thead><tr><th>السجل</th><th>المصدر</th><th>السبب</th></tr></thead><tbody id="excludeRows"><tr><td class="empty" colspan="3">لم تُحمَّل بيانات.</td></tr></tbody></table></div></section>
+<section class="panel" id="methodology"><h2>تعريفات التحقق وضوابط التفسير</h2><div class="method">
+<article><h3>MAE وRMSE</h3><p>الفروق بين كمية المطر المتوقعة والمرصودة في الساعة نفسها. MAE متوسط القيم المطلقة، وRMSE جذر متوسط مربعاتها.</p></article>
+<article><h3>POD وFAR</h3><p>عند العتبة المحددة: POD = TP/(TP+FN)، وFAR = FP/(TP+FP). المقامات الصفرية تُعرض «غير محسوب».</p></article>
+<article><h3>Brier Score</h3><p>متوسط مربع الفرق بين احتمال وقوع المطر (0–1) والحدث المرصود (0 أو 1). لا يُحسب إلا عند وجود احتمال مطر مطابق بالتعريف الزمني.</p></article>
+<article><h3>وقت إصدار التنبؤ</h3><p>issued_time_utc تاريخ حفظ/إصدار التوقع المُوثَّق. يجب أن يسبق وقت بداية ساعة التنبؤ؛ لا يجوز استبداله بوقت تصدير الملف.</p></article>
+<article><h3>مستوى الثقة في الرصد</h3><p>اسم المحطة والمصدر حقول مرجعية يزود بها المستخدم، ولا يعني ذلك أنها رُوجعت أو اعتمدت رسميًا.</p></article>
+<article><h3>حدود الاستنتاج</h3><p>أداء عينة صغيرة أو مدينة واحدة لا يعني قابلية تعميم النتائج على أحداث السيول أو سلامة الطرق. التحقق الخارجي مطلوب.</p></article>
+</div></section>
+<section class="panel"><h2>مواصفات ملفات الإدخال</h2><div class="help"><div><h3>ملف التوقعات</h3><pre>source,city,target_time_utc,issued_time_utc,forecast_mm,probability_pct
+WeatherAPI,Jeddah,2026-11-24T10:00:00Z,2026-11-24T04:00:00Z,0.4,40</pre><p class="fine">السطر مثال توضيحي لبنية الملف، وليس قياسًا أو توقعًا حقيقيًا. يجب استخدام توقعات سُجلت قبل الحدث.</p></div><div><h3>ملف الرصد</h3><pre>city,target_time_utc,observed_mm,station_id,observation_source
+Jeddah,2026-11-24T10:00:00Z,0.0,EXAMPLE_STATION,EXAMPLE_ONLY</pre><p class="fine">السطر مثال اصطناعي للتوضيح فقط. لا تستخدم بيانات الأمثلة لاستنتاج دقة فعلية.</p></div></div></section>
+</main><footer class="footer">RainGuard AI V36 — نموذج للتحقق الحسابي المستند إلى ملفات المستخدم؛ المؤشرات ليست شهادة تحقق مستقلة أو إنذارًا رسميًا.</footer>
+</div>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+let lastResult=null;
+function parseCSV(text){
+ text=String(text).replace(/^\uFEFF/,'');
+ const rows=[],row=[];let field='',quoted=false;
+ for(let i=0;i<text.length;i++){
+  const c=text[i];
+  if(quoted){
+   if(c==='"'&&text[i+1]==='"'){field+='"';i++}
+   else if(c==='"')quoted=false;else field+=c;
+  }else if(c==='"'){quoted=true}
+  else if(c===','){row.push(field.trim());field=''}
+  else if(c==='\n'||c==='\r'){
+   if(c==='\r'&&text[i+1]==='\n')i++;
+   row.push(field.trim());if(row.some(x=>x!==''))rows.push(row.slice());row.length=0;field='';
+  }else field+=c;
+ }
+ if(quoted)throw Error('علامة اقتباس غير مغلقة داخل CSV.');
+ row.push(field.trim());if(row.some(x=>x!==''))rows.push(row.slice());
+ if(!rows.length)throw Error('ملف CSV فارغ.');
+ const headers=rows.shift().map(x=>x.trim());
+ if(new Set(headers).size!==headers.length)throw Error('تكرار اسم عمود في CSV.');
+ if(rows.length>15000)throw Error('الحد الأعلى 15000 سجل للملف الواحد.');
+ return rows.map((r,i)=>{if(r.length!==headers.length)throw Error('عدد أعمدة غير متطابق في السطر '+(i+2));return Object.fromEntries(headers.map((h,k)=>[h,r[k]]))});
+}
+function isoHour(text){
+ if(typeof text!=='string'||! /^\d{4}-\d\d-\d\dT\d\d:00:00Z$/.test(text))return null;
+ const n=Date.parse(text);return Number.isFinite(n)&&new Date(n).toISOString()===text?n:null;
+}
+function isoIssued(text){
+ if(typeof text!=='string'||! /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(text))return null;
+ const n=Date.parse(text);return Number.isFinite(n)&&new Date(n).toISOString()===text?n:null;
+}
+function num(text){if(typeof text!=='string'||text.trim()==='')return null;const n=Number(text);return Number.isFinite(n)?n:null;}
+function bucket(hours){return hours<=6?'0–6':hours<=12?'6–12':hours<=24?'12–24':hours<=48?'24–48':'48–72';}
+function computeScores(rows,threshold){
+ const n=rows.length;
+ if(!n)return null;
+ let absolute=0,squared=0,tp=0,fn=0,fp=0,br=0,bn=0;
+ for(const x of rows){
+  const delta=x.forecastMm-x.observedMm;absolute+=Math.abs(delta);squared+=delta*delta;
+  const actual=x.observedMm>=threshold,predicted=x.forecastMm>=threshold;
+  if(actual&&predicted)tp++;else if(actual&&!predicted)fn++;else if(!actual&&predicted)fp++;
+  if(x.probability!==null){br+=(x.probability/100-Number(actual))**2;bn++;}
+ }
+ return {n,mae:absolute/n,rmse:Math.sqrt(squared/n),pod:tp+fn?tp/(tp+fn):null,far:tp+fp?fp/(tp+fp):null,brier:bn?br/bn:null,brierN:bn};
+}
+function analyze(forecasts,observations,threshold){
+ const rejected=[],obs=new Map(),rows=[];
+ const reject=(i,source,reason)=>rejected.push({row:i,source:source||'—',reason});
+ observations.forEach((x,i)=>{
+  const index=i+2,city=x.city?.trim(),station=x.station_id?.trim(),origin=x.observation_source?.trim();
+  const time=isoHour(x.target_time_utc),mm=num(x.observed_mm);
+  if(!city||!station||!origin||time===null||mm===null||mm<0){reject('رصد '+index,origin||'رصد','سجل رصد ناقص أو غير صالح');return;}
+  const key=city+'|'+time,list=obs.get(key)||[];list.push({mm,station,origin});obs.set(key,list);
+ });
+ const seenForecast=new Set();
+ forecasts.forEach((x,i)=>{
+  const index='توقع '+(i+2),source=x.source?.trim(),city=x.city?.trim(),target=isoHour(x.target_time_utc),issued=isoIssued(x.issued_time_utc),mm=num(x.forecast_mm);
+  const p=x.probability_pct?.trim()?num(x.probability_pct):null;
+  if(!source||!city||target===null||issued===null||mm===null||mm<0||p!==null&&(p<0||p>100)){reject(index,source,'تاريخ/قيمة/مصدر غير صالح');return;}
+  const lead=(target-issued)/3600000;
+  if(lead<=0||lead>72){reject(index,source,'وقت إصدار التوقع لا يسبق ساعة الحدث أو خارج 72 ساعة');return;}
+  const fk=source+'|'+city+'|'+target+'|'+issued;
+  if(seenForecast.has(fk)){reject(index,source,'توقع مكرر؛ استُبعدت النسخة الإضافية');return;}seenForecast.add(fk);
+  const matched=obs.get(city+'|'+target);
+  if(!matched||!matched.length){reject(index,source,'لا يوجد رصد مطابق للمدينة والساعة');return;}
+  if(matched.length!==1){reject(index,source,'أكثر من سجل رصد للمدينة والساعة؛ تتطلب مطابقة المحطة');return;}
+  rows.push({source,city,target,issued,forecastMm:mm,observedMm:matched[0].mm,station:matched[0].station,observationSource:matched[0].origin,probability:p,lead,bucket:bucket(lead)});
+ });
+ const grouped=new Map();
+ for(const x of rows){const key=x.source+'|'+x.bucket;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(x);}
+ const table=[...grouped].map(([key,items])=>({source:items[0].source,lead:items[0].bucket,...computeScores(items,threshold)}))
+ .sort((a,b)=>a.source.localeCompare(b.source)||['0–6','6–12','12–24','24–48','48–72'].indexOf(a.lead)-['0–6','6–12','12–24','24–48','48–72'].indexOf(b.lead));
+ return {rows,rejected,table,overall:computeScores(rows,threshold)};
+}
+function fmt(n,d=2){return n===null||n===undefined?'غير محسوب':n.toFixed(d);}
+function pct(n){return n===null||n===undefined?'غير محسوب':(100*n).toFixed(1)+'%';}
+function fillTable(node,rows){
+ node.replaceChildren();
+ for(const entries of rows){const tr=document.createElement('tr');for(const v of entries){const td=document.createElement('td');td.textContent=String(v);tr.append(td)}node.append(tr);}
+}
+function reset(){
+ for(const id of ['mae','rmse','pod','far'])$(id).textContent='غير محسوب';
+ for(const id of ['samples','brier','excluded'])$(id).textContent='—';
+ $('verification').textContent='غير موثّق';$('sampleStatus').textContent='لم يُنفّذ الحساب';
+ fillTable($('resultRows'),[['لا توجد نتائج محسوبة.']]);fillTable($('excludeRows'),[['بانتظار بيانات صالحة.']]);
+ $('exportResult').disabled=true;lastResult=null;
+}
+function csvQuote(v){let x=String(v??'');if(/^\s*[=+@-]/.test(x))x="'"+x;return '"'+x.replace(/"/g,'""')+'"';}
+function downloadCsv(name,rows){
+ const csv='\uFEFF'+rows.map(r=>r.map(csvQuote).join(',')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
+}
+$('forecastTemplate').addEventListener('click',()=>downloadCsv('rainguard_v36_forecasts_template.csv',[['source','city','target_time_utc','issued_time_utc','forecast_mm','probability_pct']]));
+$('observationTemplate').addEventListener('click',()=>downloadCsv('rainguard_v36_observations_template.csv',[['city','target_time_utc','observed_mm','station_id','observation_source']]));
+for(const name of ['forecastFile','observationFile'])$(name).addEventListener('change',()=>{reset();$('message').textContent='تم تغيير ملف الإدخال. اضغط «احسب المؤشرات» للتحقق من السجلات.';});
+$('threshold').addEventListener('change',()=>{reset();$('message').textContent='تغيرت عتبة تعريف المطر؛ أعد تشغيل التحليل.';});
+$('run').addEventListener('click',async()=>{
+ reset();$('message').textContent='جارٍ فحص بنية الملفات ومطابقة الساعات…';
+ try{
+  const forecastFile=$('forecastFile').files[0],observationFile=$('observationFile').files[0];
+  if(!forecastFile||!observationFile)throw Error('اختر ملفي التوقعات والرصد أولًا.');
+  if(forecastFile.size>2e6||observationFile.size>2e6)throw Error('الحد الأقصى لكل ملف 2 ميجابايت.');
+  const threshold=Number($('threshold').value);
+  if(!Number.isFinite(threshold)||threshold<=0||threshold>100)throw Error('عتبة المطر يجب أن تكون أكبر من صفر ولا تتجاوز 100 ملم.');
+  const f=parseCSV(await forecastFile.text()),o=parseCSV(await observationFile.text());
+  const mandatoryF=['source','city','target_time_utc','issued_time_utc','forecast_mm'];
+  const mandatoryO=['city','target_time_utc','observed_mm','station_id','observation_source'];
+  for(const h of mandatoryF)if(f.length&&!Object.hasOwn(f[0],h))throw Error('عمود مفقود من التوقعات: '+h);
+  for(const h of mandatoryO)if(o.length&&!Object.hasOwn(o[0],h))throw Error('عمود مفقود من الرصد: '+h);
+  if(!f.length||!o.length)throw Error('لا تتوفر صفوف بيانات؛ القوالب فارغة عمدًا ولا تمثل رصدًا.');
+  const result=analyze(f,o,threshold);
+  if(!result.rows.length){
+   $('excluded').textContent=String(result.rejected.length);
+   fillTable($('excludeRows'),result.rejected.slice(0,300).map(x=>[x.row,x.source,x.reason]));
+   $('message').textContent='لم تُوجد أزواج صالحة للحساب. راجع أوقات UTC، ووقت إصدار التوقع، وتكرار الرصد.';
+   return;
+  }
+  lastResult={...result,threshold,createdAt:new Date().toISOString(),forecastName:forecastFile.name,observationName:observationFile.name};
+  const v=result.overall;
+  $('mae').textContent=fmt(v.mae)+' ملم';$('rmse').textContent=fmt(v.rmse)+' ملم';$('pod').textContent=pct(v.pod);$('far').textContent=pct(v.far);
+  $('samples').textContent=String(v.n);$('brier').textContent=fmt(v.brier,4)+' ('+v.brierN+')';
+  $('excluded').textContent=String(result.rejected.length);$('sampleStatus').textContent='مؤشرات محسوبة من ملفات المستخدم';
+  $('verification').textContent='يحتاج مراجعة';
+  $('coverage').textContent='الأزواج المستخدمة '+v.n+'؛ المصدر الرصدي مدخل من المستخدم ولم يُراجع مستقلًا. العتبة: '+threshold+' ملم/ساعة. قد تضم العينة عدة توقعات للساعة المرصودة نفسها بآفاق سبق مختلفة؛ تُعرض مقاييس المصدر والأفق منفصلة.';
+  fillTable($('resultRows'),result.table.map(x=>[x.source,x.lead+' س',x.n,fmt(x.mae),fmt(x.rmse),pct(x.pod),pct(x.far),fmt(x.brier,4)]));
+  fillTable($('excludeRows'),result.rejected.length?result.rejected.slice(0,300).map(x=>[x.row,x.source,x.reason]):[['—','—','لا توجد توقعات مستبعدة']]);
+  $('message').textContent='اكتمل الحساب من الأزواج المطابقة. لا تُعد المؤشرات تحققًا ميدانيًا معتمدًا؛ راجع مصدر المحطات وصحة أوقات التوقع.';
+  $('exportResult').disabled=false;
+ }catch(e){reset();$('message').textContent='تعذر الحساب: '+String(e.message||e);}
+});
+$('exportResult').addEventListener('click',()=>{
+ const x=lastResult;if(!x)return;
+ downloadCsv('rainguard_v36_validation_results.csv',[
+ ['type','RainGuard AI V36 RESEARCH VALIDATION (USER-SUPPLIED; UNVERIFIED)'],
+ ['generated_at_utc',x.createdAt],['forecast_file',x.forecastName],['observation_file',x.observationName],
+ ['rain_threshold_mm_per_hour',x.threshold],['observation_independently_verified','NO'],
+ [],['source','lead_bucket_hours','sample_count','MAE_mm','RMSE_mm','POD','FAR','Brier_score','Brier_samples'],
+ ...x.table.map(r=>[r.source,r.lead,r.n,r.mae,r.rmse,r.pod??'UNDEFINED',r.far??'UNDEFINED',r.brier??'UNDEFINED',r.brierN]),
+ [],['excluded_record','source','reason'],...x.rejected.map(r=>[r.row,r.source,r.reason])
+ ]);
+});
+reset();
+})();
+</script></body></html>
