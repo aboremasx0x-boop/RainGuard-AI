@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#081d2d"><meta name="description" content="RainGuard AI V36.2: تجهيز وأرشفة توقعات تشغيلات نماذج تاريخية لمدينة جدة مع توثيق المصدر ووقت التشغيل وفجوات الرصد.">
+<title>تجهيز بيانات جدة التاريخية | RainGuard AI V36.2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+:root{color-scheme:dark;--bg:#061725;--panel:#103044;--line:#31576a;--mint:#49d9cd;--text:#f4fbff;--muted:#bdd2dc;--warn:#ffdb9d}
+*{box-sizing:border-box}body{font:14px/1.95 Cairo,Tahoma,Arial,sans-serif;background:radial-gradient(ellipse at 100% 0,#104558 0,transparent 50%),var(--bg);color:var(--text);margin:0}.wrap{max-width:1180px;margin:auto;padding:0 21px}header{min-height:82px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.brand{font-weight:900;font-size:21px;direction:ltr}.brand small{font-size:10px;display:block;letter-spacing:2px;color:var(--muted)}a{color:var(--mint)}nav{display:flex;gap:9px;flex-wrap:wrap}nav a{color:var(--text);font-size:11px;border:1px solid #487082;padding:6px 13px;border-radius:10px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ffd998;outline-offset:2px}h1{font-size:clamp(28px,3.4vw,43px);margin:9px 0}h2{font-size:20px;margin:0 0 8px}h3{font-size:15px;margin:0 0 5px}.eyebrow{color:var(--mint);font-size:11px;font-weight:900;letter-spacing:.1em}.intro{padding:36px 0 14px}.intro p,.muted{color:var(--muted);font-size:12px}.warning{padding:13px 16px;border:1px solid #ac8d5d;background:#362e2a99;color:var(--warn);border-radius:12px;font-size:12px}.panel{border:1px solid var(--line);background:linear-gradient(130deg,#123749,#0b2435);padding:21px;border-radius:19px;margin:16px 0}.formgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}label{display:block;color:#d6e5eb;font-size:12px}input,select{display:block;width:100%;background:#0b2638;color:var(--text);padding:10px;border-radius:10px;border:1px solid #477085;margin-top:5px;font:12px Cairo,Tahoma,Arial,sans-serif}input[type=checkbox]{width:auto;display:inline;margin:0 6px}button{font:800 12px Cairo,Tahoma,sans-serif;cursor:pointer;border:1px solid #477085;border-radius:10px;padding:11px 15px;background:#1a4557;color:var(--text)}button.primary{background:var(--mint);border-color:var(--mint);color:#092933}button:disabled{opacity:.5;cursor:not-allowed}.buttons{display:flex;gap:11px;flex-wrap:wrap;margin:16px 0 4px}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.stat{background:#123a4f;border:1px solid var(--line);padding:15px;border-radius:12px}.stat span{font-size:11px;color:var(--muted);display:block}.stat strong{font-size:24px;display:block}.status{color:var(--warn);font-size:12px}.tablewrap{overflow:auto;max-height:440px}.data{min-width:740px;border-collapse:collapse;width:100%;text-align:right;font-size:12px}.data th,.data td{padding:10px 12px;border-bottom:1px solid var(--line)}.data th{background:#17465a;position:sticky;top:0}.data td{color:#d5e9ec}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:#153b50;border:1px solid #386077;border-radius:12px;padding:16px}.card p{font-size:12px;color:var(--muted)}.foot{border-top:1px solid var(--line);padding:22px 0;margin-top:30px;font-size:11px;color:var(--muted)}code{background:#0b2435;border-radius:6px;padding:2px 5px;overflow-wrap:anywhere}#requestUrl{overflow-wrap:anywhere;direction:ltr;text-align:left;font-size:11px;color:#bfe8e5}.tiny{font-size:11px;color:var(--muted)}@media(max-width:900px){.formgrid{grid-template-columns:repeat(2,1fr)}.stats{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.wrap{padding:0 14px}.formgrid,.grid2{grid-template-columns:1fr}.panel{padding:15px}header{padding:12px 0}.intro{padding-top:20px}}
+</style></head><body><div class="wrap">
+<header><a class="brand" href="v35-operations.html" style="color:inherit;text-decoration:none">RainGuard AI<small>HISTORICAL DATA PREPARATION · V36.2</small></a><nav><a href="v36-forecast-validation.html">محرك التحقق V36.1</a><a href="v35-operations.html">مركز العمليات</a><a href="v35-sponsor-showcase.html">الجهات الداعمة</a></nav></header>
+<main>
+<section class="intro"><span class="eyebrow">JEDDAH FIRST · DATA PROVENANCE BEFORE ACCURACY</span><h1>تجهيز بيانات جدة التاريخية</h1>
+<p>تجهيز توقعات التشغيلات الفردية الصادرة من نماذج الطقس قبل أحداث المطر، وتسجيل مصدرها والساعة المستهدفة. لا تُحسب أي دقة حتى يتوافر رصد ساعي مستقل ووقت إتاحة موثق للتوقع.</p>
+<div class="warning">التمييز العلمي الإلزامي: وقت تهيئة تشغيل النموذج <strong>run initialization</strong> لا يساوي وقت إصدار النتائج أو إتاحتها. لذلك يُصدّر ملف مرحلي بعمود <code>issued_time_utc</code> فارغًا؛ لا يمكن استخدامه لقياس الدقة في V36.1 قبل توثيق وقت الإتاحة والتحقق من البيانات المرصودة.</div></section>
+<section class="panel" aria-labelledby="fetchTitle"><h2 id="fetchTitle">1. استرجاع تشغيل نموذج تاريخي — Open-Meteo Single Runs</h2><p class="muted">تستخدم الصفحة طلبًا مباشرًا من المتصفح إلى واجهة Open-Meteo الموثقة، بدون مفاتيح مخفية أو خدمات مدفوعة. صلاحية الوصول وخطط الاستخدام يحددها المزود؛ قد يرفض بعض الطلبات أو يتعذر الاتصال.</p>
+<div class="formgrid">
+<label>مدينة الدراسة<input id="city" value="Jeddah" readonly aria-label="المدينة"></label>
+<label>خط العرض<input id="lat" type="number" value="21.5433" min="-90" max="90" step="0.0001"></label>
+<label>خط الطول<input id="lon" type="number" value="39.1728" min="-180" max="180" step="0.0001"></label>
+<label>النموذج<select id="model"><option value="ecmwf_ifs025">ECMWF IFS 0.25°</option><option value="ecmwf_ifs">ECMWF IFS HRES (9km)</option><option value="gfs_global">NOAA GFS Global</option></select></label>
+<label>تاريخ التشغيل UTC<input id="runDate" type="date" value="2026-11-20"></label>
+<label>ساعة التشغيل UTC<select id="runHour"><option value="00">00</option><option value="06">06</option><option value="12">12</option><option value="18">18</option></select></label>
+<label>عدد الساعات المطلوب<select id="hours"><option value="24">24</option><option value="48">48</option><option value="72" selected>72</option></select></label>
+<label>المصدر المحتفظ به<input value="Open-Meteo / Single Runs" readonly></label>
+</div>
+<div class="buttons"><button class="primary" type="button" id="fetch">استرجاع تشغيل النموذج</button><button id="download" type="button" disabled>تصدير توقعات مرحلية CSV</button><button id="manifest" type="button" disabled>تصدير سجل مصدر JSON</button></div>
+<p class="status" role="status" aria-live="polite" id="status">لم يُجلب أي تشغيل بعد. النتائج لا تُنشأ أو تُستكمل افتراضيًا.</p><p id="requestUrl" aria-label="رابط الطلب المصدر"></p>
+</section>
+<div class="stats" aria-label="جودة البيانات التاريخية">
+<div class="stat"><span>ساعات مطلوبة</span><strong id="requested">72</strong></div>
+<div class="stat"><span>ساعات فعلية صالحة</span><strong id="valid">—</strong></div>
+<div class="stat"><span>ساعات مفقودة / مستبعدة</span><strong id="missing">—</strong></div>
+<div class="stat"><span>دقة التنبؤ</span><strong id="accuracy">غير محسوبة</strong></div>
+</div>
+<section class="panel"><h2>2. سجل الساعات وسبب القبول</h2><p class="muted" id="coverage">تظهر البيانات الفعلية فقط عند نجاح الاستجابة؛ الأرقام الافتراضية ممنوعة.</p>
+<div class="tablewrap"><table class="data"><thead><tr><th>الساعة المستهدفة UTC</th><th>الأمطار المتوقعة (ملم)</th><th>وقت بدء تشغيل النموذج UTC</th><th>حالة القيمة</th></tr></thead><tbody id="rows"><tr><td colspan="4">بانتظار استجابة API.</td></tr></tbody></table></div></section>
+<section class="panel"><h2>3. طلب رصد مستقل لمدينة جدة</h2><div class="grid2">
+<div class="card"><h3>المركز الوطني للأرصاد السعودي</h3><p>تطلب الدراسة كميات الهطول الساعي مع رمز المحطة وإحداثياتها وتواريخ القياس والتوقيت وبيانات جودة الرصد، ضمن تصريح استخدام بحثي. الخدمة قد تخضع لشروط ورسوم، ولا يبدأ طلب رسمي من هذه الصفحة.</p>
+<p><a href="https://www.ncm.gov.sa/ar/e-services/request-services?service=2897" target="_blank" rel="noopener noreferrer">طلب البيانات التاريخية رسميًا</a> · <a href="https://www.ncm.gov.sa/en/services/our-services/Historical%20Weather%20Data" target="_blank" rel="noopener noreferrer">وصف الخدمة</a></p></div>
+<div class="card"><h3>تجهيز الملفات للتحقق</h3><p>بعد الحصول على الرصد، يُراجع مصدر المحطة وموقعها والفترة والساعة UTC. بعدها يلزم توثيق وقت إتاحة التوقع الأصلي؛ وقت بدء التشغيل وحده غير كافٍ لإثبات السبق الزمني.</p><p><a href="v36-forecast-validation.html">فتح محرك التحقق V36.1</a> · <a href="https://open-meteo.com/en/docs/single-runs-api" target="_blank" rel="noopener noreferrer">توثيق تشغيلات Open-Meteo</a></p></div>
+</div></section>
+<section class="panel"><h2>4. حدود اعتماد البيانات</h2><p class="muted">البيانات تُعالج داخل المتصفح وتُحمَّل محليًا عند الضغط على التصدير، دون رفعها إلى قاعدة بيانات RainGuard. واجهة التشغيل قد تحتوي على نموذج شبكي لا يمثل موقع محطة الرصد بدقة. لا يُستنتج من توقع أمطار منخفضة غياب السيول، ولا يثبت توافق النماذج دقتها الميدانية.</p></section>
+</main><footer class="foot">RainGuard AI · V36.2 · إعداد بيانات تاريخية أولية — غير معتمد للإنذار أو توجيه الطرق.</footer>
+</div>
+<script>(function(){
+'use strict';
+const by=id=>document.getElementById(id), HOUR=3600000;let current=null,control=null;
+const stamp=ms=>new Date(ms).toISOString().replace('.000Z','Z');
+function buildRequest(lat,lon,model,run,hours){
+ if(!Number.isFinite(lat)||lat< -90||lat>90||!Number.isFinite(lon)||lon< -180||lon>180)throw Error('الإحداثيات غير صالحة.');
+ if(!/^\d{4}-\d\d-\d\dT(00|06|12|18):00$/.test(run))throw Error('وقت التشغيل غير صالح.');
+ const t=Date.parse(run+'Z');
+ if(!Number.isFinite(t)||new Date(t).toISOString().slice(0,16)!==run||t>=Date.now())throw Error('تاريخ التشغيل يجب أن يكون UTC صحيحًا وفي الماضي.');
+ if(!['ecmwf_ifs025','ecmwf_ifs','gfs_global'].includes(model))throw Error('النموذج غير مدعوم في القائمة.');
+ if(![24,48,72].includes(hours))throw Error('فترة التنبؤ غير صالحة.');
+ const url=new URL('https://single-runs-api.open-meteo.com/v1/forecast');
+ Object.entries({latitude:lat,longitude:lon,run,hourly:'precipitation',forecast_hours:hours,timezone:'UTC',models:model}).forEach(([k,v])=>url.searchParams.set(k,String(v)));
+ return {url:url.toString(),runEpoch:t};
+}
+function buildIndex(data,runEpoch,hours){
+ const times=data?.hourly?.time,values=data?.hourly?.precipitation;
+ if(!Array.isArray(times)||!Array.isArray(values)||times.length!==values.length)throw Error('استجابة المصدر لا تحتوي على توقع مطر ساعي مطابق.');
+ if(data.hourly_units?.precipitation&&data.hourly_units.precipitation!=='mm')throw Error('وحدة الهطول مختلفة عن المليمتر؛ تم رفض المقارنة.');
+ const entries=new Map(),duplicates=new Set();
+ for(let i=0;i<times.length;i++){
+  const t=Date.parse(times[i]+'Z');
+  if(!Number.isFinite(t)||t%HOUR!==0)continue;
+  if(entries.has(t)){duplicates.add(t);continue;}
+  const n=values[i];entries.set(t,typeof n==='number'&&Number.isFinite(n)&&n>=0?n:null);
+ }
+ for(const t of duplicates)entries.set(t,null);
+ const rows=[];
+ for(let i=0;i<hours;i++){
+  const time=runEpoch+i*HOUR,v=entries.has(time)?entries.get(time):null;
+  rows.push({time:stamp(time),precipitation:v,valid:v!==null,reason:!entries.has(time)?'MISSING':duplicates.has(time)?'DUPLICATE_OR_INVALID':'INVALID_OR_MISSING_VALUE'});
+  if(v!==null)rows[rows.length-1].reason='VALID';
+ }
+ return rows;
+}
+function drawTable(rows){
+ const body=by('rows');body.replaceChildren();
+ for(const x of rows){
+  const tr=document.createElement('tr');
+  [x.time,x.valid?x.precipitation.toFixed(2):'—',current.run,x.reason].forEach(v=>{const td=document.createElement('td');td.textContent=String(v);tr.append(td)});
+  body.append(tr);
+ }
+}
+function downloadBlob(name,blob){
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function quote(v){
+ let s=String(v??'');
+ if(/^\s*[=+@-]/.test(s))s="'"+s;
+ return '"'+s.replace(/"/g,'""')+'"';
+}
+function exportCsv(){
+ if(!current)return;
+ const fields=['source','city','target_time_utc','issued_time_utc','forecast_mm','probability_pct','probability_event','probability_threshold_mm','station_id','model','run_initialization_utc','retrieved_at_utc','record_status','api_url'];
+ const rows=[fields,...current.rows.map(x=>[current.model,'Jeddah',x.time,'',x.valid?x.precipitation:'','','','','',current.model,current.run,current.retrievedAt,x.reason,current.url])];
+ const csv='\uFEFF'+rows.map(r=>r.map(quote).join(',')).join('\r\n');
+ downloadBlob('rainguard_v36_2_forecasts_staging_'+current.run.slice(0,10)+'.csv',new Blob([csv],{type:'text/csv;charset=utf-8'}));
+}
+function exportJson(){
+ if(!current)return;
+ const manifest={version:'RainGuard V36.2',status:'STAGING_NOT_VALIDATED',source:'Open-Meteo Single Runs API',model:current.model,city:'Jeddah',latitude:current.lat,longitude:current.lon,run_initialization_utc:current.run,issue_time_utc:null,provider_publication_time_utc:null,earliest_publication_evidence:null,retrieved_at_utc:current.retrievedAt,request_url:current.url,expected_hours:current.rows.length,valid_hours:current.rows.filter(x=>x.valid).length,missing_or_invalid_hours:current.rows.filter(x=>!x.valid).map(x=>({hour:x.time,reason:x.reason})),observation_independently_verified:false,forecast_accuracy_validated:false,notes:'Model initialization is not forecast publication. Independent observations and documented forecast availability are required.'};
+ downloadBlob('rainguard_v36_2_provenance_'+current.run.slice(0,10)+'.json',new Blob([JSON.stringify(manifest,null,2)],{type:'application/json;charset=utf-8'}));
+}
+function reset(message){
+ current=null;by('download').disabled=true;by('manifest').disabled=true;
+ for(const name of ['valid','missing'])by(name).textContent='—';
+ by('accuracy').textContent='غير محسوبة';
+ by('rows').replaceChildren();const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='لا توجد بيانات مقبولة بعد.';tr.append(td);by('rows').append(tr);
+ by('status').textContent=message;by('coverage').textContent='بانتظار بيانات مستقاة مباشرة من المصدر.';by('requestUrl').textContent='';
+}
+async function executeFetch(){
+ if(control)control.abort();
+ const ctrl=new AbortController();control=ctrl;
+ reset('جارٍ التحقق من الطلب…');
+ const lat=Number(by('lat').value),lon=Number(by('lon').value),model=by('model').value,hours=Number(by('hours').value),run=by('runDate').value+'T'+by('runHour').value+':00';
+ let query;
+ try{query=buildRequest(lat,lon,model,run,hours);}
+ catch(e){by('status').textContent=String(e.message||e);return;}
+ by('requested').textContent=String(hours);by('fetch').disabled=true;by('requestUrl').textContent=query.url;by('status').textContent='جارٍ استرجاع توقعات تشغيل حقيقي من الأرشيف…';
+ const timeout=setTimeout(()=>ctrl.abort(),20000);
+ try{
+  const res=await fetch(query.url,{method:'GET',headers:{Accept:'application/json'},cache:'no-store',credentials:'omit',signal:ctrl.signal});
+  if(!res.ok)throw Error('فشل طلب المصدر (HTTP '+res.status+'). تحقق من توافر التشغيل والنموذج وحدود الوصول.');
+  const data=await res.json();if(ctrl!==control)return;
+  const rows=buildIndex(data,query.runEpoch,hours),valid=rows.filter(x=>x.valid).length;
+  if(!valid)throw Error('لم يعد المصدر أية ساعات صالحة للعرض ضمن فترة التشغيل المطلوبة.');
+  current={model,lat,lon,run:run+':00Z',retrievedAt:stamp(Date.now()),url:query.url,rows};
+  by('valid').textContent=String(valid);by('missing').textContent=String(hours-valid);
+  by('coverage').textContent='المصدر: '+model+'؛ ساعات مسترجعة: '+valid+'/'+hours+'. التقرير المرحلي لا يحتوي تاريخ إصدار متحققًا ولا رصدًا مستقلًا.';
+  by('status').textContent='استجابة API متاحة: '+valid+' من '+hours+' ساعة. هذه بيانات توقعات محفوظة، وليست إثباتًا لدقة التنبؤ.';
+  by('download').disabled=false;by('manifest').disabled=false;drawTable(rows);
+ }catch(e){if(ctrl===control)reset('تعذر الاسترجاع: '+String(e.message||e));}
+ finally{clearTimeout(timeout);if(ctrl===control)by('fetch').disabled=false;}
+}
+['lat','lon','model','runDate','runHour','hours'].forEach(k=>by(k).addEventListener('change',()=>{if(control)control.abort();reset('تغيرت معلمات التشغيل؛ يلزم جلب بيانات جديدة.');by('requested').textContent=by('hours').value;by('fetch').disabled=false;}));
+by('fetch').addEventListener('click',executeFetch);
+by('download').addEventListener('click',exportCsv);
+by('manifest').addEventListener('click',exportJson);
+})();</script>
+</body></html>
