@@ -80,11 +80,11 @@ function parseCSV(text){
 }
 function isoHour(text){
  if(typeof text!=='string'||! /^\d{4}-\d\d-\d\dT\d\d:00:00Z$/.test(text))return null;
- const n=Date.parse(text);return Number.isFinite(n)&&new Date(n).toISOString()===text?n:null;
+ const n=Date.parse(text);return Number.isFinite(n)&&new Date(n).toISOString().replace('.000Z','Z')===text?n:null;
 }
 function isoIssued(text){
  if(typeof text!=='string'||! /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(text))return null;
- const n=Date.parse(text);return Number.isFinite(n)&&new Date(n).toISOString()===text?n:null;
+ const n=Date.parse(text);return Number.isFinite(n)&&new Date(n).toISOString().replace('.000Z','Z')===text?n:null;
 }
 function num(text){if(typeof text!=='string'||text.trim()==='')return null;const n=Number(text);return Number.isFinite(n)?n:null;}
 function bucket(hours){return hours<=6?'0–6':hours<=12?'6–12':hours<=24?'12–24':hours<=48?'24–48':'48–72';}
