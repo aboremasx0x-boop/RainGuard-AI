@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071523">
+<meta name="description" content="RainGuard AI V35 — لوحة تنفيذية بحثية مختصرة للطقس والخريطة الوطنية ومراجعة الأدلة">
+<title>مركز العمليات الوطني | RainGuard AI V35</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+:root{color-scheme:dark;--bg:#061522;--panel:#0d293b;--card:#123348;--line:#294b60;--soft:#abc3d0;--aqua:#43dad0;--gold:#f0c27a;--white:#f4fcff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 100% 0%,#0c3a4a 0%,transparent 44%),var(--bg);color:var(--white);font:14px/1.9 Cairo,Tahoma,sans-serif;margin:0;overflow-x:hidden}a{color:inherit;text-decoration:none}button,select{font:inherit}a:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.wrap{max-width:1280px;margin:auto;padding:0 22px}.nav{min-height:79px;display:flex;gap:18px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{font-size:19px;font-weight:900;display:flex;gap:12px;align-items:center;white-space:nowrap}.mark{display:grid;place-items:center;background:linear-gradient(135deg,#68f6db,#1a93ac);width:43px;height:43px;border-radius:13px;color:#032c37;font-size:24px}.brand small{display:block;font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--soft);line-height:1.4}.links{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.links a{border:1px solid var(--line);padding:7px 12px;border-radius:12px;color:#e5f3f6;font-size:11px;font-weight:800}.links a[aria-current=page]{color:var(--aqua);border-color:var(--aqua)}.eyebrow{font-size:10px;letter-spacing:.1em;color:var(--aqua);font-weight:800}.head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:38px 0 24px}.head h1{font-size:clamp(27px,3.2vw,42px);margin:5px 0 9px;line-height:1.35}.head p{margin:0;max-width:780px;color:var(--soft);font-size:13px}.chip{display:inline-flex;align-items:center;gap:5px;background:#183447;border:1px solid #426276;padding:6px 12px;border-radius:30px;font-size:11px;color:#ffe1ae;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.metric,.panel{background:linear-gradient(150deg,#103146,#0a2336);border:1px solid var(--line);border-radius:18px}.metric{padding:19px 20px;min-height:137px}.metric .key{font-size:13px;color:#b2c9d6}.metric strong{display:block;font-size:clamp(17px,1.75vw,23px);margin:7px 0 4px;line-height:1.5}.metric small{font-size:12px;color:var(--soft);line-height:1.8;display:block}.bodygrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(290px,.65fr);gap:15px;margin:17px 0;align-items:start}.panel{padding:19px}.panel h2{font-size:19px;margin:0 0 6px}.sub{color:var(--soft);font-size:13px;margin:0 0 14px}.map{height:360px;border-radius:13px;overflow:hidden;background:#17394b;border:1px solid var(--line)}.leaflet-container{font-family:Arial,sans-serif}.map-note{color:#bdd4dd;font-size:12px;margin:12px 0 0}.switches{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}.switches button{cursor:pointer;border:1px solid #41677b;border-radius:10px;padding:7px 12px;background:#14384b;color:#eefafa;font-size:11px}.switches button[aria-pressed=true]{background:#1b5b64;border-color:var(--aqua)}.side{display:flex;flex-direction:column;gap:15px}.side .panel{flex:1}.statusrow{display:flex;align-items:center;justify-content:space-between;gap:13px;padding:10px 0;border-bottom:1px solid rgba(169,207,228,.12);font-size:14px}.statusrow:last-child{border:0}.state{font-size:12px;color:#ffdea5;font-weight:700;text-align:left}.state.ok{color:#83e1c7}.action{background:var(--aqua);color:#04292e;padding:10px 17px;border-radius:12px;font-size:12px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;min-height:44px}.outline{border:1px solid #42677a;padding:9px 15px;border-radius:12px;color:#effbff;font-size:12px;font-weight:800;display:inline-flex;justify-content:center;align-items:center;min-height:44px}.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:17px 0 15px}.bar h2{margin:0;font-size:23px}.select{background:#0e2b40;border:1px solid #466777;border-radius:11px;padding:10px;color:#f4ffff;min-width:175px}.forecast-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.forecast-item{padding:20px 16px;background:#103249;border:1px solid var(--line);border-radius:16px;min-height:160px}.forecast-item h3{font-size:18px;margin:0 0 7px}.forecast-item strong{font-size:28px;color:#b6fff2;display:block;line-height:1.5}.forecast-item small{font-size:12px;color:#bcd2db;display:block}.forecast-item .warning{color:#ffdda9;font-size:12px}.pending{color:#ffdfa9}.fine{font-size:12px;color:var(--soft)}.summary{display:flex;justify-content:space-between;align-items:center;gap:15px;margin:18px 0 10px;background:#0e2f42;border:1px solid #2c6170;padding:16px 19px;border-radius:17px}.summary strong{font-size:13px}.summary p{color:var(--soft);font-size:11px;margin:4px 0 0}.section-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:20px 0 50px}.section-links a{display:block;background:#0c2b40;border:1px solid var(--line);border-radius:16px;padding:19px}.section-links b{display:block;font-size:15px}.section-links small{font-size:11px;color:var(--soft)}.notice{margin:15px 0 0;padding:12px 16px;border:1px solid #80653f;color:#ffdfb4;border-radius:13px;font-size:11px;background:#2b2927}.footer{border-top:1px solid var(--line);padding:22px 0 30px;font-size:11px;color:var(--soft)}.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bodygrid{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.forecast-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.wrap{padding:0 14px}.nav{padding:14px 0;align-items:flex-start;flex-wrap:wrap}.links{width:100%;flex-wrap:nowrap;overflow-x:auto;padding:3px 0 6px}.links a{flex:none}.head{margin:25px 0 18px;display:block}.head h1{font-size:28px}.head .chip{margin-top:13px}.metric{min-height:120px;padding:13px}.metric strong{font-size:17px}.bodygrid{margin:13px 0}.side{display:flex}.panel{padding:13px}.map{height:295px}.forecast-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.forecast-item{min-height:170px;padding:14px}.forecast-item h3{font-size:16px}.forecast-item strong{font-size:24px}.section-links{grid-template-columns:1fr;gap:10px}.summary{display:block}.summary .outline{margin-top:11px}.bar{align-items:stretch}.bar .select{width:100%}}
+@media(max-width:370px){.forecast-grid{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.metric strong{font-size:15px}}
+.forecast-connection{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}.forecast-connection .sub{margin:0;flex:1}.retry{border:1px solid #5e9dac;border-radius:11px;background:#174455;color:#e8fffa;padding:8px 14px;cursor:pointer;font:700 12px Cairo,Tahoma,sans-serif}.retry:disabled{opacity:.5;cursor:wait}.forecast-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.forecast-metric{min-width:0;background:#183b50;border:1px solid #31586a;border-radius:12px;padding:10px 8px}.forecast-metric .value{display:block;font-size:clamp(17px,1.8vw,26px);color:#c2fff5;font-weight:900;line-height:1.3;white-space:nowrap}.forecast-metric .label{display:block;font-size:11px;color:#c1dce7;margin-top:5px;line-height:1.6}.forecast-summary{display:block;color:#ffdfa9;font-size:12px;margin:9px 0 0}.forecast-item{min-height:195px}.forecast-item .coverage{color:#c5e7ef}.leaflet-tooltip{font:700 12px Cairo,Tahoma,sans-serif!important;background:#092b39!important;border:1px solid #51c5ba!important;color:#fff!important;box-shadow:none!important}.leaflet-tooltip-top:before{border-top-color:#51c5ba!important}@media(max-width:700px){.forecast-metrics{grid-template-columns:1fr}.forecast-item{min-height:200px}.forecast-metric .value{font-size:23px}.forecast-metric .label{font-size:12px}}.provider-compare{margin-top:18px;padding-top:16px;border-top:1px solid #355a6a}.compare-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.compare-card{border:1px solid #38596b;border-radius:13px;background:#13364c;padding:13px;min-width:0}.compare-card h3{margin:0 0 6px;font-size:16px}.compare-card .pair{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:12px;padding:3px 0}.compare-card .pair strong{font-size:15px;color:#bff9f0}.compare-card .delta{color:#ffe2b1;border-top:1px solid #31566a;margin-top:8px;padding-top:7px;font-size:12px}.compare-card small{display:block;font-size:11px;color:#bad2db;line-height:1.65;margin-top:5px}.compare-card .unavailable{color:#ffe0a5}.provider-compare .fine{line-height:1.9}@media(max-width:1050px){.compare-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.compare-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.compare-card .pair{display:block}.compare-card .pair strong{display:block}}@media(max-width:370px){.compare-grid{grid-template-columns:1fr}}.quality-panel{border-top:1px solid #355a6a;margin-top:20px;padding-top:17px}.quality-chip{padding:5px 11px;border:1px solid #7d6b46;border-radius:12px;color:#ffe4ad;font-size:12px}.quality-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.quality-card{background:#12364b;border:1px solid #375b6e;border-radius:14px;padding:14px;min-width:0}.quality-card h3{margin:0 0 10px;font-size:16px;color:#dcfffa}.quality-card p{margin:6px 0;font-size:12px;overflow-wrap:anywhere;line-height:1.8;color:#cde1eb}.quality-card .quality-warning{color:#ffdfa4;font-weight:800}.quality-foot{border:1px solid #34596a;padding:11px 13px;border-radius:12px;margin:13px 0 0;font-size:12px;line-height:1.8;color:#bcd5e1}@media(max-width:1050px){.quality-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.quality-grid{grid-template-columns:1fr}} .audit-details{border:1px solid #345b6b;border-radius:13px;padding:13px;margin-top:15px}.audit-details summary{cursor:pointer;color:#b4f5e9;font-weight:800}.audit-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}.audit-scroll{overflow:auto;max-height:450px;margin:12px 0}.audit-table{min-width:740px;width:100%;border-collapse:collapse;font-size:12px;text-align:right}.audit-table th,.audit-table td{padding:9px;border-bottom:1px solid #355b6b}.audit-table th{position:sticky;top:0;background:#154052}.audit-table td{color:#d1e6e7}.audit-table .rejected{color:#ffe0ad}@media(max-width:700px){.audit-toolbar{display:block}} .audit-missing{padding:12px;border-radius:12px;background:#13364b;border:1px solid #31566a;margin-top:12px}.audit-missing h3{font-size:14px;margin:0 0 9px}.audit-missing ol{margin:7px 0;max-height:240px;overflow:auto;padding-inline-start:28px;font-size:12px}.audit-missing li{margin:5px 0;overflow-wrap:anywhere} </style>
+</head>
+<body>
+<div class="wrap">
+<header class="nav">
+<a class="brand" href="v34-showcase.html"><span class="mark" aria-hidden="true">◆</span><span>RainGuard AI<small>RESEARCH OPERATIONS · V35</small></span></a>
+<nav class="links" aria-label="الأقسام الرئيسية">
+<a href="v35-operations.html" aria-current="page">مركز العمليات</a>
+<a href="national-ai-os-v30.html">المحركات والخريطة المتقدمة</a>
+<a href="truck-routes-prototype.html">مسارات الشاحنات</a>
+<a href="truck-journey-command-view.html">أدلة الرحلات</a>
+<a href="v35-sponsor-showcase.html">عرض الجهات الداعمة</a><a href="v36-forecast-validation.html">دقة التنبؤ V36</a><a href="v36-historical-data.html">بيانات جدة V36.3</a><a href="v36-run-comparison.html">تطور التوقعات V36.5</a><a href="v34-showcase.html">واجهة العرض</a>
+</nav>
+</header>
+<main>
+<section class="head" aria-labelledby="heading">
+<div><span class="eyebrow">RAIN GUARD AI / NATIONAL RESEARCH DASHBOARD</span><h1 id="heading">مركز العمليات الوطني</h1><p>نظرة موحّدة ومختصرة على المدن والطقس وحالة التحقق والمصادر. تُعرض النتائج بوصفها بيانات بحثية، وليست تنبيهات رسمية أو تقييمًا لسلامة الطرق.</p></div><span class="chip">● نسخة استكشافية غير تشغيلية</span>
+</section>
+<section class="grid" aria-label="الملخص التنفيذي">
+<div class="metric"><span class="key">حالة بيانات الطقس</span><strong id="metricData">بانتظار الفحص</strong><small id="metricDataNote">يُتحقق من استجابة المصدر عند اختيار المدينة</small></div>
+<div class="metric"><span class="key">التحقق العلمي</span><strong>غير مكتمل</strong><small>لا يوجد اعتماد مستقل لمؤشرات السيول المعروضة</small></div>
+<div class="metric"><span class="key">الإنذارات الرسمية</span><strong>غير مرتبطة</strong><small>لا تتضمن الصفحة تنبيهات معتمدة من المركز الوطني للأرصاد</small></div>
+<div class="metric"><span class="key">توجيه الشاحنات</span><strong>محاكاة بحثية</strong><small>لا توجد موافقة على مسار أو تقرير بسلامة طريق</small></div>
+</section>
+<section class="bodygrid" aria-label="الخريطة وحالة البيانات">
+<div class="panel">
+<h2>الخريطة الوطنية الاستكشافية</h2><p class="sub"><strong id="selectedCityName" style="color:#7ff6df">المدينة المحددة: جدة</strong> · خريطة أساس OpenStreetMap مع مواقع مدن تقريبية، وليست خريطة مخاطر أو شبكة طرق معتمدة</p>
+<div id="map" class="map" role="region" aria-label="خريطة مدن السعودية"><span class="fine">جارٍ تحميل الخريطة...</span></div>
+<div class="switches" aria-label="اختيار نطاق الخريطة"><button type="button" id="allMap" aria-pressed="true">جميع المدن</button><button type="button" id="westMap" aria-pressed="false">غرب المملكة</button><button type="button" id="selectedMap" aria-pressed="false">المدينة المختارة</button></div>
+<p class="map-note">العلامات مواقع تقريبية لمراكز المدن. لا توجد طبقة مرخصة للأودية أو تصاريح سلامة أو إغلاقات رسمية في هذه المعاينة.</p>
+</div>
+<div class="side">
+<div class="panel"><h2>حالة مصادر البيانات</h2><p class="sub">حالة الاستجابة للمدينة المختارة، وليس ضمانًا لجودة التوقع</p>
+<div class="statusrow"><span>WeatherAPI.com</span><span id="weatherState" class="state">لم يُفحص بعد</span></div>
+<div class="statusrow"><span>Open-Meteo</span><span id="openMeteoState" class="state">لم يُفحص بعد</span></div>
+<div class="statusrow"><span>RainViewer</span><span id="rainViewerState" class="state">لم يُفحص بعد</span></div>
+<div class="statusrow"><span>أنواء / NCM</span><span id="ncmState" class="state">لم يُفحص بعد</span></div>
+<p id="weatherTime" class="fine">آخر جلب WeatherAPI: —</p><p id="sourceStatusDetail" class="fine" role="status" aria-live="polite">الفحوصات تبيّن توفر بيانات API ولا تُثبت دقة التوقع أو التغطية الجغرافية.</p><button id="refreshSourceStatus" type="button" class="retry">فحص المصادر الآن</button>
+<a class="outline" href="national-ai-os-v30.html#sourceAdapterStatusPanel">تفاصيل المحولات والسجلات</a>
+</div>
+<div class="panel"><h2>حالة التحقق والأدلة</h2><p class="sub">فصل حالة البرمجيات عن الاعتماد العلمي</p>
+<div class="statusrow"><span>أدلة تحقق ميدانية مستقلة</span><span class="state">غير مكتملة</span></div>
+<div class="statusrow"><span>دقة التنبؤ المعايرة</span><span class="state">غير مثبتة</span></div>
+<div class="statusrow"><span>اعتماد تنبيهات السيول</span><span class="state">غير متاح</span></div>
+<a class="outline" href="national-ai-os-v30.html">فتح اللوحة البحثية التفصيلية</a>
+</div>
+</div>
+</section>
+<section id="forecast" class="panel" aria-labelledby="forecastHeading">
+<div class="bar"><div><span class="eyebrow">HOURLY PROVIDER DATA · NOT VERIFIED SKILL</span><h2 id="forecastHeading">توقعات الأمطار المختصرة</h2></div><div><label for="citySelect">المدينة </label><select class="select" id="citySelect"><option value="21.5433,39.1728">جدة</option><option value="21.3891,39.8579">مكة المكرمة</option><option value="24.4672,39.6111">المدينة المنورة</option><option value="24.7136,46.6753">الرياض</option><option value="18.2164,42.5053">أبها</option><option value="26.4207,50.0888">الدمام</option><option value="16.8892,42.5511">جازان</option><option value="28.3838,36.5662">تبوك</option><option value="17.5650,44.2289">نجران</option><option value="22.0000,39.3180">خليص</option></select></div></div>
+<div class="forecast-connection"><p class="sub" id="forecastStatus" role="status" aria-live="polite">جارٍ طلب توقعات المدينة من WeatherAPI...</p><button class="retry" id="retryForecast" type="button" disabled>إعادة فحص التوقعات</button></div>
+<div class="forecast-grid" id="forecastGrid" aria-label="توقعات الفترات الخمس">
+<div class="forecast-item"><h3>6 ساعات</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>12 ساعة</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>24 ساعة</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>48 ساعة</h3><span class="pending">بانتظار البيانات</span></div><div class="forecast-item"><h3>72 ساعة</h3><span class="pending">بانتظار البيانات</span></div>
+</div>
+<p class="fine">تُجمع كميات المطر الساعية فقط عند اكتمال ساعات الفترة دون فجوات. الاحتمال المعروض هو <strong>أعلى احتمال لهطول المطر خلال ساعة واحدة</strong> داخل الفترة، وليس احتمال حدوث المطر طوال الفترة. عند نقص البيانات يظهر عدد الساعات المتاحة بدل كمية تقديرية. تُعرض مقارنة المصدرين بشكل مستقل عند وجود ساعات UTC متطابقة لكل فترة. الفروق بين توقعات النماذج ليست دقة مُعايرة ولا ضمانًا لسلامة الطرق.</p>
+<div class="provider-compare" aria-labelledby="comparisonHeading">
+<div class="bar"><div><span class="eyebrow">SAME UTC HOURLY WINDOWS · TWO INDEPENDENT SOURCES</span><h2 id="comparisonHeading">مقارنة توقعات المصدرين</h2></div><button type="button" class="retry" id="retryComparison">تحديث المقارنة</button></div>
+<p class="fine" id="comparisonStatus" aria-live="polite">تُقارن كميات المطر المتوقعة من WeatherAPI وOpen-Meteo للمدينة نفسها والساعات المتطابقة، دون احتساب «نسبة توافق» أو تقييم دقة علمية.</p>
+<div id="comparisonCards" class="compare-grid"><div class="compare-card">بانتظار بيانات المصدرين…</div></div>
+<p class="fine">الفروق المعروضة هي فروق <strong>كميات توقعات المصدرين</strong> فقط؛ ليست فروقًا مع أمطار مقاسة. لا تُجمع احتمالات الهطول أو تُقارن إلا إذا كان تعريفها وفترتها متكافئين. تعني الاستجابة المباشرة وصول البيانات فقط ولا تثبت دقتها.</p>
+</div>
+<section class="quality-panel" aria-labelledby="qualityHeading">
+<div class="bar"><div><span class="eyebrow">DATA COVERAGE · TIMESTAMPS · INDEPENDENT VALIDATION</span><h2 id="qualityHeading">جودة البيانات والتحقق العلمي — V35.5</h2></div><span class="quality-chip">مراجعة بحثية · غير معتمدة</span></div>
+<p class="fine">يُعرض وقت استلام الاستجابة بشكل مستقل عن وقت إنتاج التوقع لدى المزوّد. ولا يُحتسب أي مؤشر لدقة التنبؤ دون قياسات أمطار رصدية مستقلة ومطابقة زمنيًا ومكانيًا.</p>
+<div class="quality-grid">
+<article class="quality-card"><h3>WeatherAPI</h3><p id="qualityWeatherStatus">بانتظار بيانات المصدر</p><p id="qualityWeatherReceived">استلام الاستجابة: —</p><p id="qualityWeatherRetrieved">وقت الجلب المعلن من API: —</p><p id="qualityWeatherIssued">إصدار نموذج التوقع: غير متاح</p><p id="qualityWeatherCoverage">تغطية 72 ساعة: —</p></article>
+<article class="quality-card"><h3>Open-Meteo</h3><p id="qualityMeteoStatus">بانتظار بيانات المصدر</p><p id="qualityMeteoReceived">استلام الاستجابة: —</p><p id="qualityMeteoIssued">إصدار نموذج التوقع: غير متاح</p><p id="qualityMeteoCoverage">تغطية 72 ساعة: —</p></article>
+<article class="quality-card"><h3>قابلية المقارنة</h3><p id="qualityPaired">الساعات المشتركة: —</p><p id="qualityComparable">فترات المقارنة المكتملة: —</p><p id="qualityWindow">حدود الفترة: —</p><p>التطابق الزمني لا يثبت صحة التنبؤ.</p></article>
+<article class="quality-card"><h3>التحقق الرصدي المستقل</h3><p class="quality-warning">غير مكتمل</p><p>محطات الرصد المستقلة المطابقة: غير متاحة في هذه الصفحة</p><p>MAE / RMSE / الانحياز: غير محسوبة</p><p>سلامة الطرق وتنبيهات السيول: غير معتمدة</p></article>
+</div>
+<p id="qualityAudit" class="quality-foot" role="status" aria-live="polite">سجل الجلسة: لم تكتمل عملية جلب المصدرين بعد. لا يُحتفظ بالسجل على خادم أو قاعدة بيانات.</p>
+<details class="audit-details"><summary>سجل تدقيق جودة التوقعات V35.7</summary>
+<div class="audit-toolbar"><p class="fine">فحص محلي للساعات المفقودة والمكررة والبيانات غير الصالحة وأسباب استبعاد المقارنات. لا يُعد تحققًا ميدانيًا.</p><button class="retry" id="downloadAudit" type="button" disabled>تصدير تقرير Excel (.xlsx)</button></div>
+<div class="audit-scroll"><table class="audit-table"><thead><tr><th>الفترة</th><th>المصدر</th><th>صالحة</th><th>مفقودة</th><th>مكررة</th><th>غير صالحة</th><th>قرار المقارنة</th></tr></thead><tbody id="auditTableBody"><tr><td colspan="7">بانتظار البيانات…</td></tr></tbody></table></div>
+<p class="fine" id="auditDetailMessage" role="status" aria-live="polite">الطوابع الزمنية بتوقيت UTC، ولا تحفظ البيانات على خادم.</p><section class="audit-missing"><h3>التوقيت الفعلي للساعات المفقودة والمستبعدة</h3><p class="fine">الأوقات أدناه مأخوذة من استجابات المصدرين لهذه الجلسة، ولا يمكن استنتاجها من تقرير V35.6 القديم الذي حفظ الأعداد فقط.</p><ol id="auditMissingList"><li>بانتظار جمع البيانات…</li></ol><p class="fine" id="auditReportInfo">رقم التقرير: —</p></section>
+</details>
+</section>
+<div class="notice">تنبيه علمي: عدم ظهور أمطار أو عدم توفر توقعات لا يؤكد غياب خطر السيول. لا تُستخدم هذه الصفحة لقرارات القيادة أو الإخلاء أو الإنذار.</div>
+</section>
+<section class="summary"><div><strong>هل تحتاج التفاصيل التقنية؟</strong><p>أبقينا المحركات وبيانات المصادر والتقارير ضمن صفحاتها الأصلية، وخصصنا هذه الصفحة للعرض التنفيذي السريع.</p></div><a class="outline" href="national-ai-os-v30.html#rainForecastNationalPanel">فتح المقارنة العلمية الكاملة</a></section>
+<nav class="section-links" aria-label="الانتقال إلى الوحدات التفصيلية">
+<a href="national-ai-os-v30.html"><b>المحركات والمصادر</b><small>مراقبة تقنية، وسجلات المحولات، وجودة البيانات</small></a>
+<a href="truck-routes-prototype.html"><b>مسارات الشاحنات التجريبية</b><small>المواقع والمحاكاة دون توجيه قيادة معتمد</small></a>
+<a href="truck-journey-command-view.html"><b>الأدلة والتقارير البحثية</b><small>مراجعة السيناريوهات وحدود التحقق</small></a>
+</nav>
+</main>
+<footer class="footer">RainGuard AI V35 · نسخة بحثية مستقلة للعرض · لا تنبيهات رسمية ولا ضمان لسلامة الطرق</footer>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+const cities=[["جدة",21.5433,39.1728],["مكة المكرمة",21.3891,39.8579],["المدينة المنورة",24.4672,39.6111],["الرياض",24.7136,46.6753],["أبها",18.2164,42.5053],["الدمام",26.4207,50.0888],["جازان",16.8892,42.5511],["تبوك",28.3838,36.5662],["نجران",17.565,44.2289],["خليص",22,39.318]];
+const qualityId=(id)=>document.getElementById(id);const comparisonStatus=document.getElementById('comparisonStatus'),comparisonCards=document.getElementById('comparisonCards'),retryComparison=document.getElementById('retryComparison'),refreshSourceStatus=document.getElementById('refreshSourceStatus'),openMeteoState=document.getElementById('openMeteoState'),rainViewerState=document.getElementById('rainViewerState'),ncmState=document.getElementById('ncmState'),sourceStatusDetail=document.getElementById('sourceStatusDetail'),retry=document.getElementById('retryForecast'),sel=document.getElementById('citySelect'),selectedCityName=document.getElementById('selectedCityName'),weather=document.getElementById('weatherState'),status=document.getElementById('forecastStatus'),grid=document.getElementById('forecastGrid'),meter=document.getElementById('metricData'),meterNote=document.getElementById('metricDataNote'),time=document.getElementById('weatherTime');
+let map=null,abort=null,markers=new Map(),lastWeatherSnapshot=null;
+function mapMode(mode){if(!map)return;document.querySelectorAll('.switches button').forEach(b=>b.setAttribute('aria-pressed',String(b.id===mode)));if(mode==='westMap')map.fitBounds([[16.5,37.1],[26.9,43]],{padding:[15,15]});else if(mode==='selectedMap'){let [a,b]=sel.value.split(',').map(Number);map.setView([a,b],9);}else map.fitBounds([[16.5,34.5],[31.2,51.5]],{padding:[15,15]});}
+function updateSelectedMarker(){const selected=sel.options[sel.selectedIndex]?.textContent;selectedCityName.textContent="المدينة المحددة: "+selected;for(const [name,marker] of markers){const active=name===selected;marker.setStyle({radius:active?10:6,weight:active?4:2,color:active?"#ffdf97":"#b6fff5",fillColor:active?"#21d8c9":"#27bfb9"});if(active)marker.openTooltip();else marker.closeTooltip();}}
+function initMap(){const element=document.getElementById('map');if(!window.L){element.textContent='تعذر تحميل مكتبة الخريطة. يمكن متابعة توقعات المدينة دونها.';return;}element.textContent='';map=L.map(element,{scrollWheelZoom:false}).setView([23.5,44],5);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);cities.forEach(([name,lat,lon])=>{const marker=L.circleMarker([lat,lon],{radius:6,color:'#b6fff5',weight:2,fillColor:'#27bfb9',fillOpacity:.9}).addTo(map);marker.bindPopup(name+' — موقع مركز المدينة تقريبي');marker.bindTooltip(name,{direction:'top',offset:[0,-8],opacity:.92});markers.set(name,marker);marker.on('click',()=>{for(const o of sel.options){if(o.textContent===name){sel.value=o.value;updateSelectedMarker();mapMode('selectedMap');load();document.getElementById('forecast').scrollIntoView({behavior:'smooth',block:'start'});break}}});});updateSelectedMarker();mapMode('allMap');setTimeout(()=>map.invalidateSize(),250);}
+document.getElementById('allMap').addEventListener('click',()=>mapMode('allMap'));document.getElementById('westMap').addEventListener('click',()=>mapMode('westMap'));document.getElementById('selectedMap').addEventListener('click',()=>mapMode('selectedMap'));
+function numeric(v){return typeof v==='number'&&Number.isFinite(v)?v:null;}
+const monitorBase='https://rainguard-ai.onrender.com';
+const sourceFetchOptions={headers:{Accept:'application/json'},credentials:'omit',cache:'no-store'};
+let sourceAbort=null;
+function paintSource(element,label,success){element.textContent=label;element.classList.toggle('ok',success);}
+async function requestStatus(url,signal,timeoutMs=9000){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ const cancel=()=>controller.abort();
+ signal.addEventListener('abort',cancel,{once:true});
+ try{
+  const res=await fetch(url,{...sourceFetchOptions,signal:controller.signal});
+  if(!res.ok)throw new Error('HTTP_'+res.status);
+  return await res.json();
+ }finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);}
+}
+async function checkSources(){
+ if(sourceAbort)sourceAbort.abort();
+ const ctl=new AbortController();sourceAbort=ctl;
+ refreshSourceStatus.disabled=true;
+ paintSource(openMeteoState,'جارٍ الفحص...',false);
+ paintSource(rainViewerState,'جارٍ الفحص...',false);
+ paintSource(ncmState,'جارٍ الفحص...',false);
+ sourceStatusDetail.textContent='فحص اتصال المصادر دون حساب دقة التنبؤ أو إصدار تنبيهات.';
+ const [lat,lon]=sel.value.split(',').map(Number);
+ const tasks=[
+  requestStatus('https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(lat)+'&longitude='+encodeURIComponent(lon)+'&hourly=precipitation&forecast_days=1&timezone=UTC',ctl.signal).then(data=>{
+   const valid=data&&data.hourly&&Array.isArray(data.hourly.precipitation)&&Array.isArray(data.hourly.time)&&data.hourly.precipitation.length>0&&data.hourly.precipitation.length===data.hourly.time.length;
+   if(!valid)throw new Error('INVALID_OPEN_METEO');
+   if(ctl!==sourceAbort)return;
+   paintSource(openMeteoState,'بيانات API مستلمة',true);
+   return 'Open-Meteo: استجابة بيانات ساعية؛ لم تُراجع الدقة';
+  }).catch(()=>{if(ctl!==sourceAbort)return;paintSource(openMeteoState,'غير متاح / تعذر الفحص',false);return 'Open-Meteo: لم ينجح طلب البيانات';}),
+  requestStatus('https://api.rainviewer.com/public/weather-maps.json',ctl.signal).then(data=>{
+   const frames=data&&data.radar&&Array.isArray(data.radar.past)?data.radar.past:[];
+   const valid=frames.some(x=>Number.isFinite(x.time)&&typeof x.path==='string');
+   if(!valid)throw new Error('INVALID_RADAR_METADATA');
+   if(ctl!==sourceAbort)return;
+   paintSource(rainViewerState,'بيانات الرادار الوصفية متاحة',true);
+   return 'RainViewer: أحدث لقطة وصفية متاحة؛ تغطية المدينة لم تُثبت';
+  }).catch(()=>{if(ctl!==sourceAbort)return;paintSource(rainViewerState,'غير متاح / تعذر الفحص',false);return 'RainViewer: تعذر جلب بيانات الرادار الوصفية';}),
+  requestStatus(monitorBase+'/api/ncm/status',ctl.signal).then(data=>{
+   if(!data||typeof data.configured!=='boolean'||typeof data.connection_verified!=='boolean')throw new Error('INVALID_NCM');
+   if(ctl!==sourceAbort)return;
+   const verified=data.connection_verified===true&&data.data_live===true;
+   paintSource(ncmState,verified?'اتصال رسمي تم التحقق منه':data.configured?'مُعدّ ولكن غير موثَّق':'الربط الرسمي غير متاح',verified);
+   return 'أنواء: '+(verified?'اتصال رسمي موثّق من الخادم':'لم يثبت اتصال رسمي ببيانات حية');
+  }).catch(()=>{if(ctl!==sourceAbort)return;paintSource(ncmState,'تعذر قراءة حالة الربط',false);return 'أنواء: تعذر استلام حالة الربط من الخادم';})
+ ];
+ const results=await Promise.all(tasks);
+ if(ctl!==sourceAbort)return;
+ sourceStatusDetail.textContent=results.filter(Boolean).join(' | ');
+ refreshSourceStatus.disabled=false;
+}
+
+
+
+
+const auditTableBody=document.getElementById('auditTableBody');
+const auditDetailMessage=document.getElementById('auditDetailMessage');
+const downloadAudit=document.getElementById('downloadAudit');
+const auditMissingList=document.getElementById('auditMissingList');
+const auditReportInfo=document.getElementById('auditReportInfo');
+let auditSnapshot=null;
+function analyseHours(rows,kind,start,count){
+ const seen=new Map();
+ let outsideInvalidTime=0,invalidValues=0;
+ for(const row of rows){
+  const epoch=kind==='meteo'?utcHourEpoch(row.time):numeric(row.time_epoch);
+  if(epoch===null||!Number.isInteger(epoch)||epoch%3600!==0){outsideInvalidTime++;continue;}
+  if(epoch<start||epoch>=start+count*3600)continue;
+  const value=numeric(kind==='meteo'?row.precipitation:row.precip_mm);
+  const valid=value!==null&&value>=0;
+  if(!valid)invalidValues++;
+  const entry=seen.get(epoch)||{count:0,valid:0,invalid:0};
+  entry.count++;if(valid)entry.valid++;else entry.invalid++;
+  seen.set(epoch,entry);
+ }
+ const good=new Set(),missing=new Set(),duplicate=new Set(),bad=new Set();
+ for(let i=0;i<count;i++){
+  const t=start+i*3600,v=seen.get(t);
+  if(!v){missing.add(t);continue;}
+  if(v.count>1)duplicate.add(t);
+  if(v.invalid)bad.add(t);
+  if(v.count===1&&v.valid===1)good.add(t);
+ }
+ return {good,missing,duplicate,bad,outsideInvalidTime,invalidValues};
+}
+function auditBuild(weatherRows,meteoRows,start){
+ const sources=[['WeatherAPI',analyseHours(weatherRows,'weather',start,72)],['Open-Meteo',analyseHours(meteoRows,'meteo',start,72)]];
+ const output=[];
+ for(const hours of comparisonPeriods){
+  let paired=0;
+  for(let h=0;h<hours;h++)if(sources.every(([,v])=>v.good.has(start+h*3600)))paired++;
+  for(const [name,source] of sources){
+   let valid=0,missing=0,duplicate=0,invalid=0;
+   for(let h=0;h<hours;h++){
+    const epoch=start+h*3600;
+    valid+=Number(source.good.has(epoch));missing+=Number(source.missing.has(epoch));
+    duplicate+=Number(source.duplicate.has(epoch));invalid+=Number(source.bad.has(epoch));
+   }
+   const reasons=[];
+   if(missing)reasons.push('ساعات مفقودة');
+   if(duplicate)reasons.push('توقيت مكرر');
+   if(invalid)reasons.push('قيمة غير صالحة');
+   if(paired!==hours)reasons.push('مستبعدة: '+paired+'/'+hours+' مشتركة');
+   else reasons.push('مكتملة زمنيًا؛ الدقة غير مثبتة');
+   output.push({hours,name,valid,missing,duplicate,invalid,paired,decision:reasons.join('؛ ')});
+  }
+ }
+ return {output,sources};
+}
+function auditDetailedEvents(results,start){
+ const events=[];
+ for(const [source,data] of results.sources){
+  for(const [key,category] of [['missing','MISSING'],['duplicate','DUPLICATE'],['bad','INVALID_VALUE']]){
+   for(const ts of data[key])events.push({source,category,timestampUtc:new Date(ts*1000).toISOString()});
+  }
+  if(data.outsideInvalidTime)events.push({source,category:'INVALID_TIMESTAMP_COUNT',timestampUtc:'NOT_AVAILABLE',count:data.outsideInvalidTime});
+  if(data.invalidValues)events.push({source,category:'INVALID_VALUE_COUNT',timestampUtc:'NOT_AVAILABLE',count:data.invalidValues});
+ }
+ return events.sort((a,b)=>a.timestampUtc.localeCompare(b.timestampUtc)||a.source.localeCompare(b.source));
+}
+function auditReportId(received){
+ return 'RG-QUALITY-'+new Date(received.meteo).toISOString().replace(/[-:.]/g,'').replace('T','-').replace('Z','Z');
+}
+function auditMissingRender(events){
+ auditMissingList.replaceChildren();
+ if(!events.length){const li=document.createElement('li');li.textContent='لا توجد ساعات مفقودة أو مكررة أو غير صالحة ضمن الفترة المدققة.';auditMissingList.append(li);return;}
+ for(const ev of events){
+  const li=document.createElement('li');
+  li.textContent=ev.source+' — '+ev.category+' — '+ev.timestampUtc+(ev.count?' (عدد السجلات: '+ev.count+')':'');
+  auditMissingList.append(li);
+ }
+}
+function auditClear(message){
+ auditSnapshot=null;downloadAudit.disabled=true;auditMissingRender([]);auditReportInfo.textContent='رقم التقرير: —';
+ auditTableBody.replaceChildren();
+ const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent=message;tr.append(td);auditTableBody.append(tr);
+ auditDetailMessage.textContent='لا تتوفر نتائج مكتملة للتصدير؛ هذا فحص بحثي محلي فقط.';
+}
+function auditRender(weatherRows,meteoRows,start,received){
+ const result=auditBuild(weatherRows,meteoRows,start);
+ const events=auditDetailedEvents(result,start);
+ const reportId=auditReportId(received);
+ const exportCreatedAt=Date.now();
+ auditSnapshot={...result,start,received,events,reportId,exportCreatedAt,city:sel.options[sel.selectedIndex].textContent};
+ auditTableBody.replaceChildren();
+ for(const r of result.output){
+  const tr=document.createElement('tr');
+  const cells=[r.hours+' ساعة',r.name,r.valid+'/'+r.hours,r.missing,r.duplicate,r.invalid,r.decision];
+  cells.forEach((value,index)=>{const td=document.createElement('td');td.textContent=String(value);if(index===6&&r.paired!==r.hours)td.className='rejected';tr.append(td)});
+  auditTableBody.append(tr);
+ }
+ auditDetailMessage.textContent='بداية الفترة UTC: '+new Date(start*1000).toISOString()+
+ '; قيم زمنية غير صالحة: '+result.sources.map(([name,v])=>name+' '+v.outsideInvalidTime).join('، ')+
+ '. أوقات الاستلام ليست أوقات إصدار نماذج التنبؤ. لا يوجد تحقق رصدي مستقل.';
+ auditMissingRender(events);
+ auditReportInfo.textContent='رقم التقرير: '+reportId+' · وقت إنشاء التقرير: '+new Date(exportCreatedAt).toISOString()+' UTC · الأحداث المستبعدة: '+events.length;
+ downloadAudit.disabled=false;
+}
+
+function excelXml(value){
+ return String(value===undefined||value===null?'':value)
+  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+function excelColumn(index){
+ let out='';
+ for(let n=index+1;n>0;n=Math.floor((n-1)/26))out=String.fromCharCode(65+(n-1)%26)+out;
+ return out;
+}
+function excelSheetXml(rows,widths){
+ const lastColumn=excelColumn(Math.max(0,...rows.map(r=>r.length-1)));
+ const cols=widths.map((width,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+width+'" customWidth="1"/>').join('');
+ const lines=rows.map((row,ri)=>{
+  const cells=row.map((value,ci)=>{
+   if(value===null||value===undefined||value==='')return '';
+   const cell=excelColumn(ci)+(ri+1);
+   const style=ri===0?' s="1"':'';
+   if(typeof value==='number'&&Number.isFinite(value))return '<c r="'+cell+'"'+style+'><v>'+value+'</v></c>';
+   return '<c r="'+cell+'" t="inlineStr"'+style+'><is><t xml:space="preserve">'+excelXml(value)+'</t></is></c>';
+  }).join('');
+  return '<row r="'+(ri+1)+'">'+cells+'</row>';
+ }).join('');
+ const range='A1:'+lastColumn+Math.max(rows.length,1);
+ return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+ +'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+ +'<dimension ref="'+range+'"/><sheetViews><sheetView workbookViewId="0" rightToLeft="1"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+ +'<sheetFormatPr defaultRowHeight="19"/><cols>'+cols+'</cols><sheetData>'+lines+'</sheetData>'
+ +'<autoFilter ref="'+range+'"/></worksheet>';
+}
+function excelZip(files){
+ const encoder=new TextEncoder(),parts=[],central=[];
+ let offset=0;
+ const u16=(v)=>[v&255,(v>>>8)&255],u32=(v)=>[v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255];
+ const table=new Uint32Array(256);
+ for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;table[n]=c>>>0;}
+ function checksum(bytes){let crc=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)crc=table[(crc^bytes[i])&255]^(crc>>>8);return (crc^0xFFFFFFFF)>>>0;}
+ const push=(array)=>{parts.push(array);offset+=array.length;};
+ for(const [filename,content] of files){
+  const name=encoder.encode(filename),data=encoder.encode(content),crc=checksum(data),where=offset;
+  const header=new Uint8Array([80,75,3,4,...u16(20),...u16(2048),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0)]);
+  push(header);push(name);push(data);
+  const record=new Uint8Array([80,75,1,2,...u16(20),...u16(20),...u16(2048),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(where)]);
+  central.push(record,name);
+ }
+ const centralStart=offset;
+ for(const x of central)push(x);
+ const count=files.length,centralSize=offset-centralStart;
+ push(new Uint8Array([80,75,5,6,...u16(0),...u16(0),...u16(count),...u16(count),...u32(centralSize),...u32(centralStart),...u16(0)]));
+ return new Blob(parts,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function excelReport(a){
+ const metadata=[
+  ['الحقل','القيمة'],['اسم التقرير','RainGuard AI V35.8 — Research Preview'],['رقم التقرير',a.reportId],
+  ['تاريخ إنشاء التقرير UTC',new Date(a.exportCreatedAt).toISOString()],['المدينة',a.city],
+  ['بداية التوقع UTC',new Date(a.start*1000).toISOString()],['نهاية الفترة UTC (غير مشمولة)',new Date((a.start+72*3600)*1000).toISOString()],
+  ['المنطقة الزمنية','UTC'],['مصدر 1','WeatherAPI.com عبر /api/weather/weatherapi'],
+  ['مصدر 2','Open-Meteo عبر api.open-meteo.com/v1/forecast'],
+  ['استلام WeatherAPI UTC',new Date(a.received.weather).toISOString()],
+  ['استلام Open-Meteo UTC',new Date(a.received.meteo).toISOString()],
+  ['وقت إصدار نموذج التوقع','غير متاح من المصدر'],['وقت انتهاء صلاحية النموذج','غير متاح من المصدر'],
+  ['التحقق من قياسات رصد مستقلة','لم يكتمل'],['مقاييس دقة التنبؤ','غير محسوبة'],
+  ['الإنذارات الرسمية','غير مرتبطة'],['اعتماد سلامة الطرق','غير متاح'],
+  ['ملاحظة علمية','المقارنة الزمنية لا تعني صحة التنبؤ أو سلامة الطرق']
+ ];
+ const comparisons=[
+  ['الفترة (ساعة)','المصدر','الساعات الصالحة','الساعات المفقودة','الساعات المكررة','قيم غير صالحة','الساعات المشتركة','قرار المقارنة'],
+  ...a.output.map(x=>[x.hours,x.name,x.valid,x.missing,x.duplicate,x.invalid,x.paired,x.decision])
+ ];
+ const missing=[
+  ['المصدر','نوع السجل','التوقيت UTC','العدد'],
+  ...a.events.map(x=>[x.source,x.category,x.timestampUtc,x.count||1])
+ ];
+ const paths=[
+  ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+  ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+  ['xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets><sheet name="معلومات التقرير" sheetId="1" r:id="rId1"/><sheet name="مقارنة الفترات" sheetId="2" r:id="rId2"/><sheet name="الساعات المفقودة" sheetId="3" r:id="rId3"/></sheets></workbook>'],
+  ['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+  ['xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF123A51"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="right"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+  ['xl/worksheets/sheet1.xml',excelSheetXml(metadata,[34,95])],
+  ['xl/worksheets/sheet2.xml',excelSheetXml(comparisons,[18,22,20,20,20,22,22,78])],
+  ['xl/worksheets/sheet3.xml',excelSheetXml(missing,[22,29,35,14])]
+ ];
+ return excelZip(paths);
+}
+function exportAudit(){
+ if(!auditSnapshot)return;
+ const a=auditSnapshot;
+ const blob=excelReport(a);
+ const url=URL.createObjectURL(blob),link=document.createElement('a');
+ link.href=url;link.download='rainguard_v35_8_quality_audit_'+a.reportId+'.xlsx';
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+downloadAudit.addEventListener('click',exportAudit);
+
+let qualityWeatherSnapshot=null;
+const qualityExpectedHours=72;
+function qualityFmtTime(ts){
+ if(!Number.isFinite(ts))return 'غير متاح';
+ return new Intl.DateTimeFormat('ar-SA',{timeZone:'Asia/Riyadh',dateStyle:'medium',timeStyle:'short',hour12:true}).format(new Date(ts));
+}
+function qualityHourlyCoverage(index,start,period=72){
+ let valid=0;for(let i=0;i<period;i++)if(index.has(start+i*3600))valid++;
+ return {valid,total:period};
+}
+function qualitySet(id,text){qualityId(id).textContent=text;}
+function qualityReset(){
+ auditClear('جارٍ تحميل بيانات المدينة الجديدة…');
+ qualityWeatherSnapshot=null;
+ for(const id of ['qualityWeatherReceived','qualityWeatherRetrieved','qualityMeteoReceived','qualityWeatherCoverage','qualityMeteoCoverage','qualityPaired','qualityComparable','qualityWindow']){
+  qualitySet(id,'بانتظار جلب البيانات —');
+ }
+ qualitySet('qualityWeatherStatus','جارٍ طلب بيانات WeatherAPI');
+ qualitySet('qualityMeteoStatus','بانتظار استجابة Open-Meteo');
+ qualitySet('qualityWeatherIssued','إصدار نموذج التوقع: غير متاح');
+ qualitySet('qualityMeteoIssued','إصدار نموذج التوقع: غير متاح');
+ qualitySet('qualityAudit','سجل الجلسة: جارٍ تحديث البيانات؛ التحقق الرصدي المستقل غير متاح.');
+}
+function qualityReceivedWeather(data,start,lat,lon,receivedMs){
+ if(!data||!Array.isArray(data.forecastHours))return;
+ const index=createHourlyIndex(data.forecastHours,'weather');
+ const coverage=qualityHourlyCoverage(index,start,qualityExpectedHours);
+ qualityWeatherSnapshot={data,start,lat,lon,receivedMs};
+ qualitySet('qualityWeatherStatus','استجابة API صحيحة البنية (ليس اعتمادًا للدقة)');
+ qualitySet('qualityWeatherReceived','استلام الاستجابة في المتصفح: '+qualityFmtTime(receivedMs));
+ const retrieval=Date.parse(data.retrievedAt);
+ qualitySet('qualityWeatherRetrieved','وقت الجلب المعلن من API: '+qualityFmtTime(retrieval));
+ qualitySet('qualityWeatherCoverage','تغطية التوقع: '+coverage.valid+' من 72 ساعة UTC');
+ qualitySet('qualityAudit','سجل الجلسة: استلم WeatherAPI لمدينة '+sel.options[sel.selectedIndex].textContent+'؛ بانتظار المقارنة. لا تُحفظ السجلات على الخادم.');
+}
+function qualityReceivedComparison(weatherRows,meteoRows,start,meteoReceivedMs){
+ const weatherIndex=createHourlyIndex(weatherRows,'weather');
+ const meteoIndex=createHourlyIndex(meteoRows,'meteo');
+ const coverage=qualityHourlyCoverage(meteoIndex,start,qualityExpectedHours);
+ const complete=comparisonPeriods.filter(h=>comparePeriod(h,start,weatherIndex,meteoIndex).complete);
+ const paired=comparePeriod(72,start,weatherIndex,meteoIndex);
+ const end=start+72*3600;
+ qualitySet('qualityMeteoStatus','استجابة API صحيحة البنية (ليس اعتمادًا للدقة)');
+ qualitySet('qualityMeteoReceived','استلام الاستجابة في المتصفح: '+qualityFmtTime(meteoReceivedMs));
+ qualitySet('qualityMeteoCoverage','تغطية التوقع: '+coverage.valid+' من 72 ساعة UTC');
+ qualitySet('qualityPaired','الساعات المتطابقة: '+paired.paired+' من 72 ساعة');
+ qualitySet('qualityComparable','الفترات المكتملة: '+(complete.length?complete.join('، ')+' ساعة':'لا توجد فترات مكتملة'));
+ qualitySet('qualityWindow','الفترة المطلوبة: '+qualityFmtTime(start*1000)+' إلى '+qualityFmtTime(end*1000)+' (بداية النهاية غير مشمولة)');
+ qualitySet('qualityAudit','سجل الجلسة: WeatherAPI '+(qualityWeatherSnapshot?qualityFmtTime(qualityWeatherSnapshot.receivedMs):'غير متاح')+'؛ Open-Meteo '+qualityFmtTime(meteoReceivedMs)+'؛ الساعات المشتركة '+paired.paired+'/72. لم يُنفذ تحقق رصدي مستقل.');
+}
+function qualityFailure(source){
+ if(source==='weather'){
+  qualitySet('qualityWeatherStatus','تعذر التحقق من الاستجابة الآن');
+  qualitySet('qualityMeteoStatus','لم تبدأ المقارنة لغياب WeatherAPI');
+ }else{
+  qualitySet('qualityMeteoStatus','تعذر استلام بيانات صالحة للمقارنة');
+ }
+ qualitySet('qualityAudit','سجل الجلسة: فشل الحصول على '+(source==='weather'?'WeatherAPI':'Open-Meteo')+'؛ مؤشرات الدقة والتنبؤ الميداني غير محسوبة.');
+}
+
+let comparisonAbort=null;
+const comparisonPeriods=[6,12,24,48,72];
+function utcHourEpoch(iso){
+ if(typeof iso!=='string'||!/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(iso))return null;
+ const n=Date.parse(iso+'Z');
+ return Number.isFinite(n)&&n%3600000===0?Math.floor(n/1000):null;
+}
+function createHourlyIndex(rows,kind){
+ const result=new Map(),duplicate=new Set();
+ for(const row of rows){
+  const epoch=kind==='meteo'?utcHourEpoch(row.time):numeric(row.time_epoch);
+  const amount=numeric(kind==='meteo'?row.precipitation:row.precip_mm);
+  if(epoch===null||!Number.isInteger(epoch)||epoch%3600!==0||amount===null||amount<0)continue;
+  if(result.has(epoch)){duplicate.add(epoch);continue;}
+  result.set(epoch,amount);
+ }
+ for(const epoch of duplicate)result.delete(epoch);
+ return result;
+}
+function comparePeriod(hours,start,weatherIndex,meteoIndex){
+ let a=0,b=0,paired=0,aCovered=0,bCovered=0;
+ for(let i=0;i<hours;i++){
+  const t=start+3600*i;
+  const hasA=weatherIndex.has(t),hasB=meteoIndex.has(t);
+  if(hasA)aCovered++;
+  if(hasB)bCovered++;
+  if(hasA&&hasB){paired++;a+=weatherIndex.get(t);b+=meteoIndex.get(t);}
+ }
+ return {hours,paired,aCovered,bCovered,complete:paired===hours,weatherMm:a,meteoMm:b,diffMm:Math.abs(a-b)};
+}
+function drawComparison(weatherRows,meteoRows,start,meteoTimestamp){
+ comparisonCards.replaceChildren();
+ const a=createHourlyIndex(weatherRows,'weather'),b=createHourlyIndex(meteoRows,'meteo');
+ for(const h of comparisonPeriods){
+  const result=comparePeriod(h,start,a,b),card=document.createElement('article');
+  card.className='compare-card';
+  const title=document.createElement('h3');title.textContent=h+' ساعة';card.append(title);
+  if(!result.complete){
+   const missing=document.createElement('small');missing.className='unavailable';
+   missing.textContent='المقارنة غير مكتملة: '+result.paired+' من '+h+' ساعة مشتركة';
+   const meta=document.createElement('small');meta.textContent='WeatherAPI: '+result.aCovered+'/'+h+' · Open-Meteo: '+result.bCovered+'/'+h;
+   card.append(missing,meta);comparisonCards.append(card);continue;
+  }
+  for(const [label,value] of [['WeatherAPI',result.weatherMm],['Open-Meteo',result.meteoMm]]){
+   const line=document.createElement('div');line.className='pair';
+   const name=document.createElement('span');name.textContent=label;
+   const number=document.createElement('strong');number.textContent=value.toFixed(2)+' ملم';
+   line.append(name,number);card.append(line);
+  }
+  const delta=document.createElement('div');delta.className='delta';
+  delta.textContent='الفرق المطلق: '+result.diffMm.toFixed(2)+' ملم';
+  const details=document.createElement('small');details.textContent='ساعات UTC المتطابقة: '+result.paired+'/'+h;
+  card.append(delta,details);comparisonCards.append(card);
+ }
+ const formatTime=ts=>new Intl.DateTimeFormat('ar-SA',{timeZone:'Asia/Riyadh',dateStyle:'medium',timeStyle:'short'}).format(new Date(ts));
+ comparisonStatus.textContent='مقارنة توقعات الساعة نفسها في '+sel.options[sel.selectedIndex].textContent+
+ '; وقت طلب Open-Meteo: '+formatTime(meteoTimestamp)+'. البيانات قابلة للمقارنة زمنيًا وليست مُتحققًا من دقتها ميدانيًا.';
+}
+function clearComparison(message){
+ comparisonCards.replaceChildren();
+ for(const h of comparisonPeriods){
+  const card=document.createElement('div');card.className='compare-card';
+  const head=document.createElement('h3');head.textContent=h+' ساعة';
+  const desc=document.createElement('small');desc.className='unavailable';desc.textContent=message;
+  card.append(head,desc);comparisonCards.append(card);
+ }
+}
+async function loadComparison(weatherData,signal,start,lat,lon){
+ if(comparisonAbort)comparisonAbort.abort();
+ const ctl=new AbortController();comparisonAbort=ctl;
+ const cancel=()=>ctl.abort();signal.addEventListener('abort',cancel,{once:true});
+ retryComparison.disabled=true;
+ clearComparison('جاري استلام توقعات Open-Meteo...');
+ comparisonStatus.textContent='يُطابَق توقيت كل ساعة UTC قبل حساب أي فرق.';
+ const url='https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(lat)+'&longitude='+encodeURIComponent(lon)+'&hourly=precipitation&forecast_days=4&timezone=UTC';
+ try{
+  const meteo=await requestStatus(url,ctl.signal,12000);
+  const fetchedAt=Date.now();
+  if(ctl!==comparisonAbort||signal.aborted)return;
+  if(!meteo||!meteo.hourly||!Array.isArray(meteo.hourly.time)||!Array.isArray(meteo.hourly.precipitation)||meteo.hourly.time.length!==meteo.hourly.precipitation.length)throw new Error('INVALID_METEO');
+  const rows=meteo.hourly.time.map((time,i)=>({time,precipitation:meteo.hourly.precipitation[i]}));
+  drawComparison(weatherData.forecastHours,rows,start,fetchedAt);
+  qualityReceivedComparison(weatherData.forecastHours,rows,start,fetchedAt);
+  auditRender(weatherData.forecastHours,rows,start,{weather:qualityWeatherSnapshot?.receivedMs??fetchedAt,meteo:fetchedAt});
+ }catch(e){
+  if(ctl!==comparisonAbort||signal.aborted)return;
+  comparisonStatus.textContent='تعذر استلام بيانات Open-Meteo للمقارنة؛ لا تُستبدل ببيانات افتراضية.';
+  clearComparison('لا تتوفر مقارنة موثوقة الآن');
+  qualityFailure('meteo');
+  auditClear('تعذر جلب Open-Meteo؛ لا توجد مقارنة للتدقيق.');
+ }finally{
+  signal.removeEventListener('abort',cancel);
+  if(ctl===comparisonAbort)retryComparison.disabled=false;
+ }
+}
+
+function clearCards(message){grid.replaceChildren();for(const h of [6,12,24,48,72]){const c=document.createElement('div');c.className='forecast-item';const head=document.createElement('h3');head.textContent=h+' ساعة';const p=document.createElement('small');p.textContent=message;c.append(head,p);grid.append(c);}}
+function addCard(hours,records,windowStartEpoch){
+ const c=document.createElement('article');c.className='forecast-item';
+ const head=document.createElement('h3');head.textContent=hours+' ساعة';c.append(head);
+ // A forecast period must contain exactly one record for EACH expected
+ // hour. Never treat partial hours or duplicated timestamps as a full period.
+ const byHour=new Map();
+ for(const x of records){const epoch=numeric(x.time_epoch);if(epoch!==null&&Number.isInteger(epoch)&&epoch%3600===0)byHour.set(epoch,x);}
+ const windowRows=[];
+ for(let i=0;i<hours;i++){const x=byHour.get(windowStartEpoch+i*3600);if(x)windowRows.push(x);}
+ const count=document.createElement('small');count.textContent='تغطية البيانات: '+windowRows.length+' من '+hours+' ساعة';
+ if(windowRows.length!==hours){
+   const reason=document.createElement('small');reason.className='warning';
+   reason.textContent='فترة غير مكتملة — لا يُحسب إجمالي المطر أو الاحتمال';
+   c.append(count,reason);grid.append(c);return;
+ }
+ const amounts=windowRows.map(x=>numeric(x.precip_mm));
+ const probs=windowRows.map(x=>numeric(x.chance_of_rain));
+ if(amounts.some(x=>x===null||x<0)||probs.some(x=>x===null||x<0||x>100)){
+   const missing=document.createElement('small');missing.className='warning';
+   missing.textContent='قيم المطر أو الاحتمال غير متاحة أو خارج النطاق';
+   c.append(count,missing);grid.append(c);return;
+ }
+ const total=amounts.reduce((a,b)=>a+b,0);
+ const pmax=Math.max(...probs);
+ const metrics=document.createElement('div');metrics.className='forecast-metrics';
+ function metric(value,label){
+  const box=document.createElement('div');box.className='forecast-metric';
+  const strong=document.createElement('strong');strong.className='value';strong.textContent=value;
+  const text=document.createElement('span');text.className='label';text.textContent=label;
+  box.append(strong,text);return box;
+ }
+ metrics.append(metric(total.toFixed(1)+' ملم','إجمالي المطر المتوقع'),metric(Math.round(pmax)+'%','أعلى احتمال هطول خلال ساعة واحدة'));
+ const description=document.createElement('small');description.className='forecast-summary';
+ description.textContent=total<0.05?'لا تظهر كمية مطر مؤثرة بعد التقريب؛ لا يُستنتج غياب الخطر.':'توجد كمية مطر متوقعة؛ تحقق من المصدر والفترة.';
+ count.className='coverage';
+ const agreement=document.createElement('small');agreement.className='warning';
+ agreement.textContent='توافق المصادر: غير مُقيَّم (مصدر واحد)';
+ c.append(metrics,description,count,agreement);grid.append(c);
+}
+async function load(){if(abort)abort.abort();if(comparisonAbort)comparisonAbort.abort();qualityReset();lastWeatherSnapshot=null;comparisonStatus.textContent='بانتظار وصول المصدرين للمقارنة';clearComparison('بانتظار بيانات المصدرين');abort=new AbortController();const ctl=abort;retry.disabled=true;weather.textContent='جارٍ فحص المصدر';weather.classList.remove('ok');meter.textContent='جارٍ التحقق';meterNote.textContent='لا تعتبر الحالة التقنية مقياسًا للدقة';time.textContent='آخر جلب: —';status.textContent='جارٍ طلب بيانات المدينة...';clearCards('جارٍ التحميل');const [lat,lon]=sel.value.split(',');let timeout=setTimeout(()=>ctl.abort(),13000);
+try{const response=await fetch('https://rainguard-ai.onrender.com/api/weather/weatherapi?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{method:'GET',headers:{Accept:'application/json'},credentials:'omit',cache:'no-store',signal:ctl.signal});if(!response.ok)throw new Error('HTTP_'+response.status);const data=await response.json();if(!data||data.success!==true||!Array.isArray(data.forecastHours))throw new Error('INVALID_PROVIDER_DATA');const now=Math.floor(Date.now()/1000);const windowStartEpoch=Math.floor(now/3600)*3600;const hours=data.forecastHours.filter(x=>numeric(x.time_epoch)!==null&&x.time_epoch>=windowStartEpoch&&x.time_epoch<windowStartEpoch+72*3600).sort((a,b)=>a.time_epoch-b.time_epoch);if(!hours.length)throw new Error('NO_RECENT_FORECAST');if(ctl!==abort)return;weather.textContent='استجابة ناجحة';weather.classList.add('ok');meter.textContent='متاحة للعرض';meterNote.textContent='استجابة WeatherAPI؛ لا تعني تحقق دقة النتائج';const d=new Date(data.retrievedAt);time.textContent='وقت جلب البيانات: '+(Number.isFinite(d.getTime())?new Intl.DateTimeFormat('ar-SA',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Riyadh'}).format(d):'غير محدد');status.textContent='توقعات '+sel.options[sel.selectedIndex].textContent+' من WeatherAPI؛ تحليلات بحثية غير معتمدة.';grid.replaceChildren();for(const h of [6,12,24,48,72]){addCard(h,hours,windowStartEpoch);}lastWeatherSnapshot={data,start:windowStartEpoch,lat,lon};qualityReceivedWeather(data,windowStartEpoch,lat,lon,Date.now());loadComparison(data,ctl.signal,windowStartEpoch,lat,lon);}
+catch(err){if(ctl!==abort)return;weather.textContent='غير متاح حاليًا';meter.textContent='غير متاحة';const error=String(err&&err.message||'');const unavailable=error==='HTTP_503';const timedOut=ctl.signal.aborted;const description=unavailable?'خدمة API أعادت HTTP 503 — تعذر توفير توقعات الآن.':timedOut?'انتهت مهلة الاتصال بخدمة التوقعات.':'تعذر طلب التوقعات أو التحقق من صحة الاستجابة.';meterNote.textContent=description;status.textContent=description+' لا يُستنتج من غياب البيانات عدم وجود أمطار.';clearCards('بيانات غير متاحة — يمكن إعادة الفحص');comparisonStatus.textContent='تعذر الحصول على WeatherAPI؛ لا يمكن مقارنة مصدرين.';clearComparison('WeatherAPI غير متاح');qualityFailure('weather');auditClear('تعذر جلب WeatherAPI؛ لا توجد مقارنة للتدقيق.');}
+finally{clearTimeout(timeout);if(ctl===abort)retry.disabled=false;}
+}
+sel.addEventListener('change',()=>{updateSelectedMarker();mapMode('selectedMap');load();checkSources()});retry.addEventListener('click',()=>load());retryComparison.addEventListener('click',()=>{if(lastWeatherSnapshot&&!abort.signal.aborted){const q=lastWeatherSnapshot;loadComparison(q.data,abort.signal,q.start,q.lat,q.lon);}else load();});refreshSourceStatus.addEventListener('click',()=>checkSources());
+initMap();load();checkSources();
+})();
+</script>
+</body></html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071a28">
+<meta name="description" content="RainGuard AI V36.5: تحليل تطور التوقعات بين تشغيلات جدة التاريخية دون الادعاء بقياس الدقة.">
+<title>تطور التوقعات بين التشغيلات | RainGuard AI V36.5</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+:root{color-scheme:dark;--bg:#061724;--panel:#0e2d40;--card:#14384b;--line:#335c70;--mint:#45dccb;--soft:#bed3dd;--gold:#ffdfab;--white:#f5fbff}
+*{box-sizing:border-box}body{margin:0;font:14px/1.95 Cairo,Tahoma,Arial,sans-serif;color:var(--white);background:radial-gradient(ellipse 50% 32% at 100% 0,#124858,transparent),var(--bg)}.wrap{max-width:1210px;margin:0 auto;padding:0 23px}.nav{min-height:78px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}.brand{font-size:20px;font-weight:900;color:white;text-decoration:none;direction:ltr}.brand small{display:block;font-size:9px;letter-spacing:2px;color:var(--soft)}nav{display:flex;gap:9px;flex-wrap:wrap}nav a{color:var(--white);text-decoration:none;font-size:11px;padding:7px 11px;border:1px solid var(--line);border-radius:10px}.head{padding:37px 0 14px}.eyebrow{font-size:11px;color:var(--mint);font-weight:900;letter-spacing:.1em}h1{font-size:clamp(27px,3.4vw,42px);margin:7px 0}h2{font-size:20px;margin:0 0 6px}h3{font-size:15px;margin:0 0 8px}.muted{font-size:12px;color:var(--soft)}.notice{border:1px solid #9c804d;padding:13px 15px;color:var(--gold);background:#332c2790;border-radius:12px;font-size:12px}.panel{background:linear-gradient(140deg,#103548,#092637);border:1px solid var(--line);padding:20px;border-radius:18px;margin:15px 0}.inputgrid,.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.inputcard{background:var(--card);border:1px solid #3d6276;border-radius:12px;padding:15px}.inputcard label{display:block;font-size:13px;font-weight:800}.inputcard input{display:block;max-width:100%;margin:11px 0;font:inherit;font-size:12px}button{font:800 12px Cairo,Tahoma,sans-serif;background:#204558;border:1px solid #4c7387;color:var(--white);padding:10px 16px;border-radius:10px;cursor:pointer}button.primary{color:#062e37;background:var(--mint);border-color:var(--mint)}button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}.actions{display:flex;gap:11px;flex-wrap:wrap;margin-top:15px}.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.metric{background:#13394d;border:1px solid var(--line);border-radius:13px;padding:16px}.metric span{display:block;font-size:11px;color:var(--soft)}.metric strong{display:block;font-size:clamp(20px,2.4vw,27px)}.tablewrap{overflow:auto;max-height:490px}.data{border-collapse:collapse;width:100%;min-width:860px;font-size:11px;text-align:right}.data th,.data td{border-bottom:1px solid #2b5266;padding:10px 12px}.data th{background:#19465b;position:sticky;top:0}.data td{color:#d4e8ef}.positive{color:#9cf6dc!important}.negative{color:#ffd6a4!important}.status{font-size:12px;color:var(--gold)}.hint{padding:9px 0;color:var(--soft);font-size:11px}.footer{border-top:1px solid var(--line);padding:20px 0 30px;margin-top:24px;color:var(--soft);font-size:11px}@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.wrap{padding:0 14px}.inputgrid{grid-template-columns:1fr}.panel{padding:15px}.nav{padding:12px 0}}
+.formline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:13px 0}.formline input,.formline select{padding:7px;background:#103449;color:#fff;border:1px solid #557b8e;border-radius:8px;font:inherit}.formline input{width:92px}.formline select{max-width:100%;min-width:240px}.chartframe{overflow-x:auto}.chartframe svg{width:100%;min-width:520px;height:290px;background:#0a2535;border:1px solid var(--line);border-radius:14px}.legend{display:flex;gap:15px;flex-wrap:wrap;color:var(--soft);font-size:12px} </style></head><body><div class="wrap">
+<header class="nav"><a class="brand" href="v35-operations.html">RainGuard AI<small>FORECAST EVOLUTION · V36.5</small></a>
+<nav><a href="v36-historical-data.html">التشغيلات التاريخية V36.3</a><a href="v36-forecast-validation.html">التحقق العلمي V36.1</a><a href="v35-operations.html">مركز العمليات</a></nav></header>
+<main><section class="head"><span class="eyebrow">JEDDAH · RUN-TO-RUN FORECAST EVOLUTION</span><h1>تطور توقعات المطر بين التشغيلات</h1>
+<p class="muted">نقارن توقعات تشغيلين متتاليين للساعة المستهدفة نفسها داخل النموذج والموقع ذاتهما، باستخدام ملفات V36.3 المصدرة سابقًا. لا نحتاج إلى جلب البيانات من جديد إذا كانت الملفات محفوظة.</p>
+<div class="notice">هذه «فروق بين تشغيلات» وليست دقة تنبؤ. تطابق التوقعات أو اختلافها لا يثبت صحة أي تشغيل. لا توجد قياسات مطر مستقلة أو أوقات إتاحة مثبتة داخل ملفات V36.3؛ ولن نعرض MAE أو RMSE أو نسب أداء.</div></section>
+<section class="panel"><h2>1. استيراد ملفي التشغيلات</h2><div class="inputgrid">
+<div class="inputcard"><label for="forecastFile">توقعات التشغيلات المجمعة CSV</label><input id="forecastFile" type="file" accept=".csv,text/csv"><p class="muted">الملف يبدأ عادةً باسم <code>rainguard_v36_3_jeddah_multi_run_staging.csv</code>.</p></div>
+<div class="inputcard"><label for="manifestFile">سجل توثيق التشغيلات JSON</label><input id="manifestFile" type="file" accept=".json,application/json"><p class="muted">الملف يبدأ عادةً باسم <code>rainguard_v36_3_jeddah_multi_run_provenance.json</code>. مطلوب لفحص المصدر والتوقيت والهوية.</p></div></div>
+<div class="formline"><label for="threshold">عتبة الهطول المتوقع (ملم/ساعة)</label><input id="threshold" type="number" min="0.01" max="100" step="0.1" value="0.1"></div><div class="actions"><button id="analyze" class="primary" type="button">تحليل تطور التوقعات</button><button id="export" type="button" disabled>تصدير نتائج المقارنة CSV</button></div>
+<p id="status" class="status" role="status" aria-live="polite">لم تُحمّل بيانات. النتائج لا تُستكمل بقيم مصطنعة.</p></section>
+<section class="stats" aria-label="ملخص المقارنة">
+<div class="metric"><span>تشغيلات موثقة بالملف</span><strong id="runCount">—</strong></div>
+<div class="metric"><span>أزواج ساعات مشتركة صالحة</span><strong id="pairs">—</strong></div>
+<div class="metric"><span>أزواج مستبعدة / ناقصة</span><strong id="excluded">—</strong></div>
+<div class="metric"><span>متوسط الفرق المطلق بين التشغيلات</span><strong id="average">—</strong><span>ملم/ساعة؛ ليس MAE مقابل الرصد</span></div>
+</section>
+<section class="panel"><h2>2. ملخص كل زوج تشغيلين متتاليين</h2><p class="hint">الفرق = توقع التشغيل الأحدث ناقص توقع التشغيل الأقدم، للساعة نفسها. تُحسب فقط أزواج الساعات الصالحة المشتركة.</p>
+<div class="tablewrap"><table class="data"><thead><tr><th>التشغيل الأقدم UTC</th><th>التشغيل الأحدث UTC</th><th>ساعات مشتركة</th><th>أزواج صالحة</th><th>مستبعدة</th><th>توقعات تغيّرت</th><th>متوسط الفرق المطلق (ملم)</th><th>أكبر فرق مطلق (ملم)</th></tr></thead><tbody id="summaryRows"><tr><td colspan="8">بانتظار ملفات التشغيلات.</td></tr></tbody></table></div></section>
+<section class="panel"><h2>3. تفاصيل تغير التوقع ساعة بساعة</h2><p class="hint">كل صف ساعة مستهدفة مشتركة بين تشغيلين؛ أفق السبق محسوب من وقت تشغيل النموذج، وليس من وقت نشر التوقع.</p>
+<div class="tablewrap"><table class="data"><thead><tr><th>الساعة المستهدفة UTC</th><th>التشغيل الأقدم</th><th>الأحدث</th><th>سبق الأقدم (ساعة)</th><th>سبق الأحدث (ساعة)</th><th>مطر الأقدم (ملم)</th><th>مطر الأحدث (ملم)</th><th>التغير (ملم)</th></tr></thead><tbody id="detailRows"><tr><td colspan="8">لا توجد نتائج.</td></tr></tbody></table></div></section>
+<section class="panel"><h2>4. التحليل المنفصل للساعات الممطرة والجافة — V36.5</h2>
+<p class="muted">«ساعة ممطرة» تعني أن أحد التشغيلين على الأقل توقع هطولًا يساوي العتبة أو يتجاوزها، وليست إثباتًا لهطول فعلي. أما الجافة فهي دون العتبة في كلا التشغيلين.</p>
+<div class="stats">
+<div class="metric"><span>أزواج تتضمن توقع مطر</span><strong id="rainPairs">—</strong></div>
+<div class="metric"><span>أزواج جافة بحسب النموذج</span><strong id="dryPairs">—</strong></div>
+<div class="metric"><span>تحولات جاف ← ممطر</span><strong id="toRain">—</strong></div>
+<div class="metric"><span>تحولات ممطر ← جاف</span><strong id="toDry">—</strong></div>
+</div><div class="tablewrap"><table class="data"><thead><tr><th>المجموعة</th><th>عدد الأزواج</th><th>متوسط الفرق المطلق (ملم)</th><th>أكبر فرق (ملم)</th></tr></thead><tbody id="partitionRows"><tr><td colspan="4">بانتظار التحليل.</td></tr></tbody></table></div>
+</section>
+<section class="panel"><h2>5. تطور توقع ساعة مستهدفة عبر التشغيلات</h2><p class="muted">يُعرض منحنى تغير توقع كمية المطر لنفس الساعة المستهدفة حسب وقت تشغيل النموذج. الخطوط تصل نقاطًا متاحة فقط وقد تُخفي فواصل زمنية غير متساوية؛ ولا تمثل بيانات رصد حقيقية.</p>
+<div class="formline"><label for="targetSelect">الساعة المستهدفة UTC</label><select id="targetSelect" disabled><option>حمّل الملفات أولًا</option></select></div>
+<div class="chartframe"><svg id="chart" viewBox="0 0 750 290" role="img" aria-label="منحنى تطور التوقع حسب وقت تشغيل النموذج"><text x="375" y="140" text-anchor="middle" fill="#bed3dd" font-size="16">بانتظار تحليل الملفات</text></svg></div><p id="chartNote" class="hint">لا تتوفر نقاط رسم.</p></section>
+<section class="panel"><h2>6. ضوابط علمية</h2><p class="muted">تُقبل المقارنة فقط عندما تتطابق المدينة والإحداثيات والنموذج والساعة المستهدفة، وتختلف أوقات تشغيل النموذج. تُستبعد الساعات المكررة أو المفقودة أو غير الصالحة. لا تُفسر قيم المطر الصفرية على أنها غياب خطر السيول، ولا يُستنتج من متوسط فروق التشغيلات تحسن دقة التنبؤ.</p><p class="muted">الملفات تُقرأ في المتصفح فقط، والتصدير محلي. لم يتم التحقق بشكل مستقل من أصالة ملفات CSV وJSON أو توقيعها الرقمي.</p></section></main>
+<footer class="footer">RainGuard AI V36.5 · تحليل استكشافي لتطور التوقعات — ليس تحققًا من صحتها ولا إصدارًا لإنذارات معتمدة.</footer></div>
+<script>(function(){
+'use strict';
+const get=id=>document.getElementById(id);let latest=null;
+function csvParse(text){
+ text=String(text).replace(/^\uFEFF/,'');let rows=[],line=[],field='',quoted=false;
+ for(let i=0;i<text.length;i++){
+  const ch=text[i];
+  if(quoted){if(ch==='"'&&text[i+1]==='"'){field+='"';i++}else if(ch==='"')quoted=false;else field+=ch}
+  else if(ch==='"')quoted=true;
+  else if(ch===','){line.push(field);field='';}
+  else if(ch==='\r'||ch==='\n'){if(ch==='\r'&&text[i+1]==='\n')i++;line.push(field);if(line.some(x=>x.trim()))rows.push(line);line=[];field='';}
+  else field+=ch;
+ }
+ if(quoted)throw Error('علامة اقتباس غير مغلقة في CSV.');
+ line.push(field);if(line.some(x=>x.trim()))rows.push(line);
+ if(!rows.length)throw Error('ملف CSV فارغ.');
+ const headers=rows.shift().map(h=>h.trim());
+ if(new Set(headers).size!==headers.length)throw Error('تكررت أسماء الأعمدة.');
+ const expected=['source','city','target_time_utc','forecast_mm','model','run_initialization_utc','record_status'];
+ for(const h of expected)if(!headers.includes(h))throw Error('عمود مطلوب مفقود: '+h);
+ if(rows.length>15000)throw Error('تجاوز الحد الأقصى 15,000 صف.');
+ return rows.map((r,i)=>{if(r.length!==headers.length)throw Error('عدد أعمدة CSV غير صحيح في السطر '+(i+2));return Object.fromEntries(headers.map((h,k)=>[h,r[k].trim()]))});
+}
+function parseHour(v){if(typeof v!=='string'||! /^\d{4}-\d\d-\d\dT\d\d:00:00Z$/.test(v))return null;const n=Date.parse(v);return Number.isFinite(n)&&new Date(n).toISOString().replace('.000Z','Z')===v?n:null;}
+function parseNumber(v){if(v===''||v===null||v===undefined)return null;const n=Number(v);return Number.isFinite(n)&&n>=0?n:null;}
+function compareRuns(csvRows,manifest,threshold=0.1){
+ if(!Number.isFinite(threshold)||threshold<=0||threshold>100)throw Error('عتبة المطر غير صالحة.');
+ if(!manifest||manifest.version!=='RainGuard V36.3'||!Array.isArray(manifest.runs))throw Error('سجل JSON ليس بصيغة V36.3 المعتمدة للعرض.');
+ if(manifest.status!=='MULTI_RUN_STAGING_NOT_VALIDATED')throw Error('حالة سجل المصدر غير متوقعة.');
+ const runs=manifest.runs.filter(x=>x.status==='FETCHED');
+ if(runs.length<2)throw Error('يلزم تشغيلان ناجحان على الأقل.');
+ if(runs.length>24)throw Error('عدد التشغيلات يتجاوز حد الفحص.');
+ const groups=new Map(),seenPairs=new Set();
+ for(const run of runs){
+  const runMs=parseHour(run.run_initialization_utc);
+  if(runMs===null||typeof run.model!=='string'||run.city!=='Jeddah'||!Number.isFinite(run.latitude)||!Number.isFinite(run.longitude))throw Error('بيانات تشغيل غير موثقة أو خارج جدة.');
+  const key=[run.model,run.latitude,run.longitude,run.run_initialization_utc].join('|');
+  if(seenPairs.has(key))throw Error('تكرار تشغيل في سجل المصدر.');seenPairs.add(key);
+  groups.set(key,{...run,runMs,hours:new Map(),runKey:key});
+ }
+ for(const row of csvRows){
+  const runMs=parseHour(row.run_initialization_utc),target=parseHour(row.target_time_utc);
+  if(runMs===null||target===null||row.city!=='Jeddah')throw Error('سجل CSV له توقيت أو مدينة غير صالحة.');
+  const m=[...groups.values()].filter(x=>x.run_initialization_utc===row.run_initialization_utc&&x.model===row.model);
+  if(m.length!==1)throw Error('CSV يحتوي تشغيلًا غير موجود أو ملتبسًا في سجل JSON.');
+  const run=m[0];if(row.source!==run.model)throw Error('مصدر التوقع لا يطابق النموذج.');
+  const time=target;if(run.hours.has(time))throw Error('ساعة مستهدفة مكررة في التشغيل '+run.run_initialization_utc);
+  const value=parseNumber(row.forecast_mm),valid=row.record_status==='VALID'&&value!==null;
+  if(row.record_status==='VALID'&&value===null)throw Error('سجل مصنف VALID دون كمية مطر صالحة.');
+  if(row.record_status!=='VALID'&&value!==null)throw Error('سجل مستبعد يحتوي مطرًا رقميا؛ تعارض في حالة السجل.');
+  run.hours.set(time,{valid,value,reason:row.record_status});
+ }
+ for(const run of groups.values()){
+  if(run.hours.size!==run.expected_hours)throw Error('عدد ساعات CSV لا يطابق عدد ساعات التشغيل في JSON: '+run.run_initialization_utc);
+  const actual=[...run.hours.values()].filter(x=>x.valid).length;
+  if(actual!==run.valid_hours)throw Error('عدد الساعات الصالحة في CSV لا يطابق JSON.');
+ }
+ const byModel=new Map();
+ for(const run of groups.values()){
+  const key=[run.model,run.latitude,run.longitude].join('|');
+  if(!byModel.has(key))byModel.set(key,[]);
+  byModel.get(key).push(run);
+ }
+ const summaries=[],details=[];let excluded=0;
+ for(const arr of byModel.values()){
+  arr.sort((a,b)=>a.runMs-b.runMs);
+  for(let i=1;i<arr.length;i++){
+   const older=arr[i-1],newer=arr[i];let common=0,valid=0,changed=0,absSum=0,max=0;
+   for(const [time,old] of older.hours){
+    const current=newer.hours.get(time);if(!current)continue;
+    common++;if(!old.valid||!current.valid){excluded++;continue;}
+    valid++;const delta=current.value-old.value,absolute=Math.abs(delta);
+    absSum+=absolute;max=Math.max(max,absolute);if(absolute>0.00000001)changed++;
+    details.push({target:new Date(time).toISOString().replace('.000Z','Z'),older:older.run_initialization_utc,newer:newer.run_initialization_utc,leadOlder:(time-older.runMs)/3600000,leadNewer:(time-newer.runMs)/3600000,oldMm:old.value,newMm:current.value,delta});
+   }
+   summaries.push({older:older.run_initialization_utc,newer:newer.run_initialization_utc,common,valid,excluded:common-valid,changed,meanAbsolute:valid?absSum/valid:null,maxAbsolute:valid?max:null});
+  }
+ }
+ const avg=details.length?details.reduce((a,b)=>a+Math.abs(b.delta),0)/details.length:null;
+ const partitions=partitionEvolution(details,threshold);
+ const timelines=buildTimelines(groups);
+ return {runCount:groups.size,summaries,details:details.sort((a,b)=>a.target.localeCompare(b.target)||a.older.localeCompare(b.older)),excluded,meanAbsolute:avg,threshold,partitions,timelines};
+}
+function partitionEvolution(details,threshold){
+ const rain=[],dry=[];let toRain=0,toDry=0;
+ for(const x of details){
+  const olderWet=x.oldMm>=threshold,newerWet=x.newMm>=threshold;
+  (olderWet||newerWet?rain:dry).push(x);
+  if(!olderWet&&newerWet)toRain++;
+  else if(olderWet&&!newerWet)toDry++;
+ }
+ const sum=arr=>({count:arr.length,mean:arr.length?arr.reduce((a,x)=>a+Math.abs(x.delta),0)/arr.length:null,max:arr.length?Math.max(...arr.map(x=>Math.abs(x.delta))):null});
+ return {rain:sum(rain),dry:sum(dry),toRain,toDry};
+}
+function buildTimelines(groups){
+ const targets=new Map();
+ for(const group of groups.values()){
+  for(const [time,record] of group.hours){
+   if(!record.valid)continue;
+   const key=[group.model,group.latitude,group.longitude,time].join('|');
+   if(!targets.has(key))targets.set(key,{target:new Date(time).toISOString().replace('.000Z','Z'),model:group.model,points:[]});
+   targets.get(key).points.push({run:group.run_initialization_utc,runMs:group.runMs,mm:record.value});
+  }
+ }
+ return [...targets.values()].filter(t=>t.points.length>=2).map(t=>({...t,points:t.points.sort((a,b)=>a.runMs-b.runMs)})).sort((a,b)=>a.target.localeCompare(b.target));
+}
+function drawCurve(timeline){
+ const svg=get('chart');while(svg.firstChild)svg.removeChild(svg.firstChild);
+ if(!timeline){get('chartNote').textContent='لا تتوفر ساعة مستهدفة لها توقعان صالحان على الأقل.';return;}
+ const pts=timeline.points;const minT=pts[0].runMs,maxT=pts[pts.length-1].runMs;
+ const maxY=Math.max(.2,...pts.map(p=>p.mm))*1.18;
+ const ns='http://www.w3.org/2000/svg',el=(name,attrs,text)=>{const e=document.createElementNS(ns,name);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));if(text!==undefined)e.textContent=text;svg.append(e);return e};
+ const X=t=>70+(maxT===minT?0:(t-minT)/(maxT-minT))*620,Y=mm=>235-(mm/maxY)*175;
+ for(let i=0;i<5;i++){const y=235-i*43.75;el('line',{x1:70,y1:y,x2:700,y2:y,stroke:'#365e6f','stroke-dasharray':'3,5'});el('text',{x:58,y:y+4,fill:'#afc8d5','font-size':11,'text-anchor':'end'},(i*maxY/4).toFixed(2));}
+ el('text',{x:375,y:18,fill:'#d4edf2','text-anchor':'middle','font-size':14},timeline.target+' UTC');
+ const path=pts.map((p,i)=>(i?'L':'M')+X(p.runMs).toFixed(2)+','+Y(p.mm).toFixed(2)).join(' ');
+ el('path',{d:path,fill:'none',stroke:'#49dfcd','stroke-width':3,'stroke-linejoin':'round'});
+ for(const p of pts){const x=X(p.runMs),y=Y(p.mm);el('circle',{cx:x,cy:y,r:5,fill:'#ffdc9a',stroke:'#092736','stroke-width':2});el('text',{x:x,y:260,fill:'#bdd7df','text-anchor':'middle','font-size':10},p.run.slice(5,10));el('text',{x:x,y:276,fill:'#bdd7df','text-anchor':'middle','font-size':10},p.run.slice(11,16));}
+ get('chartNote').textContent='النموذج: '+timeline.model+' | عدد التشغيلات ذات توقع صالح: '+pts.length+' | القيم: '+pts.map(x=>x.mm.toFixed(2)+' ملم').join(' ← ')+' (الأقدم إلى الأحدث).';
+}
+function paintEvolution(result){
+ const p=result.partitions;get('rainPairs').textContent=p.rain.count;get('dryPairs').textContent=p.dry.count;get('toRain').textContent=p.toRain;get('toDry').textContent=p.toDry;
+ paintTable('partitionRows',[['توقع مطر في أحد التشغيلين',p.rain.count,dec(p.rain.mean),dec(p.rain.max)],['جاف في كلا التشغيلين',p.dry.count,dec(p.dry.mean),dec(p.dry.max)]],4);
+ const select=get('targetSelect');select.replaceChildren();for(let i=0;i<result.timelines.length;i++){const o=document.createElement('option');o.value=String(i);o.textContent=result.timelines[i].target+' — '+result.timelines[i].points.length+' تشغيلات';select.append(o);}
+ select.disabled=!result.timelines.length;
+ if(result.timelines.length){const wetIndex=result.timelines.findIndex(x=>x.points.some(p=>p.mm>=result.threshold));select.value=String(Math.max(0,wetIndex));drawCurve(result.timelines[Number(select.value)]);}
+ else drawCurve(null);
+}
+function paintTable(id,rows,colspan){
+ const tbody=get(id);tbody.replaceChildren();
+ if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=colspan;td.textContent='لا توجد أزواج صالحة للمقارنة.';tr.append(td);tbody.append(tr);return;}
+ for(const items of rows){const tr=document.createElement('tr');items.forEach(value=>{const td=document.createElement('td');td.textContent=String(value);tr.append(td)});tbody.append(tr);}
+}
+const dec=value=>value===null?'—':value.toFixed(3);
+function reset(msg){latest=null;get('export').disabled=true;['runCount','pairs','excluded','average','rainPairs','dryPairs','toRain','toDry'].forEach(id=>get(id).textContent='—');paintTable('summaryRows',[],8);paintTable('detailRows',[],8);paintTable('partitionRows',[],4);get('targetSelect').replaceChildren();get('targetSelect').disabled=true;drawCurve(null);get('status').textContent=msg;}
+get('forecastFile').addEventListener('change',()=>reset('تغير ملف CSV؛ أعد إجراء التحليل.'));
+get('manifestFile').addEventListener('change',()=>reset('تغير ملف JSON؛ أعد إجراء التحليل.'));
+get('analyze').addEventListener('click',async()=>{
+ reset('جارٍ فحص مصدر الملفات ومطابقة أوقات التشغيل…');
+ try{
+  const f=get('forecastFile').files[0],m=get('manifestFile').files[0];
+  if(!f||!m)throw Error('اختر ملف CSV وملف JSON معًا.');
+  if(f.size>3000000||m.size>1000000)throw Error('تجاوز أحد الملفين الحجم المسموح.');
+  const csv=csvParse(await f.text()),manifest=JSON.parse(await m.text());
+  const threshold=Number(get('threshold').value);const result=compareRuns(csv,manifest,threshold);latest={...result,analyzedAt:new Date().toISOString()};
+  get('runCount').textContent=String(result.runCount);
+  get('pairs').textContent=String(result.details.length);
+  get('excluded').textContent=String(result.excluded);
+  get('average').textContent=result.meanAbsolute===null?'—':dec(result.meanAbsolute)+' ملم';
+  paintTable('summaryRows',result.summaries.map(x=>[x.older,x.newer,x.common,x.valid,x.excluded,x.changed,dec(x.meanAbsolute),dec(x.maxAbsolute)]),8);
+  paintTable('detailRows',result.details.map(x=>[x.target,x.older,x.newer,x.leadOlder,x.leadNewer,dec(x.oldMm),dec(x.newMm),dec(x.delta)]),8);
+  get('status').textContent='تمت مقارنة '+result.runCount+' تشغيلات. الأزواج الصالحة '+result.details.length+'؛ أزواج مرفوضة بسبب نقص أو فساد البيانات '+result.excluded+'. هذه مقارنة بين التوقعات فقط.';
+  get('export').disabled=!result.details.length;
+  paintEvolution(result);
+ }catch(err){reset('تعذر التحليل: '+String(err.message||err));}
+});
+get('targetSelect').addEventListener('change',()=>{if(latest)drawCurve(latest.timelines[Number(get('targetSelect').value)]);});
+get('threshold').addEventListener('change',()=>reset('تغيرت عتبة المطر؛ أعد التحليل للحصول على تصنيف صحيح.'));
+function csvCell(value){let v=String(value??'');if(/^\s*[=+@-]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';}
+get('export').addEventListener('click',()=>{
+ if(!latest)return;
+ const rows=[['report','RainGuard AI V36.5 / RUN_TO_RUN_CHANGE_NOT_ACCURACY'],['generated_utc',latest.analyzedAt],['accuracy_validated','NO'],['independent_observations','NOT_AVAILABLE'],['run_count',latest.runCount],['rain_threshold_mm_per_hour',latest.threshold],['wet_pair_count',latest.partitions.rain.count],['dry_pair_count',latest.partitions.dry.count],['dry_to_wet_count',latest.partitions.toRain],['wet_to_dry_count',latest.partitions.toDry],['wet_mean_absolute_change_mm',latest.partitions.rain.mean??''],['dry_mean_absolute_change_mm',latest.partitions.dry.mean??''],[],['older_run_utc','newer_run_utc','overlap_hours','valid_pairs','excluded_pairs','changed_pairs','mean_absolute_change_mm','maximum_absolute_change_mm'],...latest.summaries.map(x=>[x.older,x.newer,x.common,x.valid,x.excluded,x.changed,x.meanAbsolute??'',x.maxAbsolute??'']),[],['target_utc','older_run_utc','newer_run_utc','older_lead_hours','newer_lead_hours','older_forecast_mm','newer_forecast_mm','change_mm'],...latest.details.map(x=>[x.target,x.older,x.newer,x.leadOlder,x.leadNewer,x.oldMm,x.newMm,x.delta])];
+ const blob=new Blob(['\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='rainguard_v36_5_run_to_run_evolution.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+});
+})();</script></body></html>

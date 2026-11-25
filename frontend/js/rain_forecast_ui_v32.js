@@ -40,19 +40,19 @@
                 </div>
                 <div class="rgf-source ${s.rainViewer?.available ? "ok" : "off"}">
                     <b>RainViewer</b>
-                    <span>${s.rainViewer?.available ? "الرادار متصل" : "غير متاح"}</span>
+                    <span>${s.rainViewer?.available ? "بيانات الرادار متاحة في نتائج الجمع (تحقق من وقتها)" : "غير متاح"}</span>
                 </div>
                 <div class="rgf-source ${s.openMeteo?.available ? "ok" : "off"}">
                     <b>Open-Meteo</b>
-                    <span>${s.openMeteo?.available ? "التوقع متصل" : "غير متاح"}</span>
+                    <span>${s.openMeteo?.available ? "بيانات التوقع متاحة في نتائج الجمع (قد تكون مخزنة)" : "غير متاح"}</span>
                 </div>
                 <div class="rgf-source ${s.weatherAPI?.available ? "ok" : "off"}">
                     <b>WeatherAPI.com</b>
-                    <span>${s.weatherAPI?.available ? "التوقع متصل" : "غير متاح"}</span>
+                    <span>${s.weatherAPI?.available ? "بيانات التوقع متاحة في نتائج الجمع (قد تكون مخزنة)" : "غير متاح"}</span>
                 </div>
                 <div class="rgf-source ${s.visualCrossing?.available ? "ok" : "off"}">
                     <b>Visual Crossing</b>
-                    <span>${s.visualCrossing?.available ? "التوقع متصل" : "غير متاح"}</span>
+                    <span>${s.visualCrossing?.available ? "بيانات التوقع متاحة في نتائج الجمع (قد تكون مخزنة)" : "غير متاح"}</span>
                 </div>
             </div>
         `;
@@ -74,6 +74,7 @@
     function comparisonLabel(item) {
         const c = item?.sourceComparisons;
         if (!c?.available) return "المقارنة غير متاحة";
+        if (c.rainAmountAgreementEvaluated === false) return c.rainAmountAgreementReason === "INSUFFICIENT_SOURCES" ? "غير مُقيَّم — مصادر غير كافية" : "غير مُقيَّم — كميات المطر المعروضة صفرية";
         if (c.level === "HIGH") return "اتفاق مرتفع";
         if (c.level === "MEDIUM") return "اتفاق متوسط";
         return "اختلاف بين المصادر";
@@ -83,14 +84,24 @@
         if (!item) return `<div class="rgf-card unavailable"><h4>${hours} ساعة</h4><strong>لا توجد بيانات</strong></div>`;
 
         const radarText = item.radarAvailable
-            ? (item.radarRainDetected ? "إشارة مطر مرصودة" : "لا توجد إشارة مطر حاليًا")
+            ? (item.radarRainDetected ? "إشارة مطر مرصودة" : "لا تظهر إشارة مطر في أحدث لقطة رادار متاحة")
             : "الرادار غير متاح";
 
         const om = item.openMeteo;
         const vc = item.visualCrossing;
         const wa = item.weatherAPI;
         const pairs = item.sourceComparisons?.pairs || {};
-        const pairText = pair => pair?.available ? `فرق الاحتمال ${pair.probabilityDifference}%، فرق المطر ${pair.rainAmountDifferenceMm} مم` : "لا تتوفر بيانات للمقارنة";
+        const pairText = pair => !pair?.available ? "لا تتوفر بيانات للمقارنة" :
+            pair.rainAmountAgreementEvaluated === false
+                ? `فرق الاحتمال ${pair.probabilityDifference}%؛ توافق كمية المطر: غير مُقيَّم (0.0 مم لكل مصدر)`
+                : `فرق الاحتمال ${pair.probabilityDifference}%، فرق المطر ${pair.rainAmountDifferenceMm} مم`;
+        const rainAmountAgreementAssessed = item.rainAmountAgreementEvaluated !== false
+            && item.sourceComparisons?.rainAmountAgreementEvaluated !== false
+            && item.sourceAgreement != null;
+        const agreementValue = rainAmountAgreementAssessed ? `${Number(item.sourceAgreement).toFixed(0)}%` : "غير مُقيَّم";
+        const agreementNote = rainAmountAgreementAssessed
+            ? "مؤشر توافر/توافق تشغيلي تجريبي — ليس دقة التنبؤ"
+            : "توافق كميات المطر غير مُقيَّم عند الصفر المشترك أو نقص المصادر؛ ولا يدل على دقة التنبؤ";
 
         return `
             <div class="rgf-card">
@@ -105,10 +116,11 @@
                     <div><b>${item.totalRainMm == null ? "غير متوفر" : `${Number(item.totalRainMm).toFixed(1)} مم`}</b><span>الكمية المتوقعة</span></div>
                     <div><b>${item.peakRainMmH == null ? "غير متوفر" : `${Number(item.peakRainMmH).toFixed(1)} مم/س`}</b><span>أعلى شدة</span></div>
                     <div><b>${esc(severityLabel(item))}</b><span>التصنيف</span></div>
-                    <div><b>${Number(item.sourceAgreement || 0).toFixed(0)}%</b><span>مؤشر توافق تشغيلي تجريبي — ليس دقة التنبؤ</span></div>
+                    <div><b>${esc(agreementValue)}</b><span>${esc(agreementNote)}</span></div>
                 </div>
 
-                <div class="rgf-compare">
+                <details class="rgf-compare">
+                    <summary>تفاصيل مقارنة المصادر وفروق الاحتمالات</summary>
                     <div><span>Open-Meteo</span><b>${om?.available ? `${Number(om.rainProbability || 0).toFixed(0)}% / ${Number(om.totalRainMm || 0).toFixed(1)} مم` : "--"}</b></div>
                     <div><span>Visual Crossing</span><b>${vc?.available ? `${Number(vc.rainProbability || 0).toFixed(0)}% / ${Number(vc.totalRainMm || 0).toFixed(1)} مم` : "--"}</b></div>
                     <div><span>WeatherAPI.com</span><b>${wa?.available ? `${Number(wa.rainProbability).toFixed(0)}% / ${Number(wa.totalRainMm).toFixed(1)} مم` : "--"}</b></div>
@@ -116,7 +128,7 @@
                     <div><span>Open-Meteo ↔ Visual Crossing</span><b>${esc(pairText(pairs.openMeteoVsVisualCrossing))}</b></div>
                     <div><span>Open-Meteo ↔ WeatherAPI</span><b>${esc(pairText(pairs.openMeteoVsWeatherAPI))}</b></div>
                     <div><span>Visual Crossing ↔ WeatherAPI</span><b>${esc(pairText(pairs.visualCrossingVsWeatherAPI))}</b></div>
-                </div>
+                </details>
 
                 <div class="rgf-times">
                     <div>بداية المطر: <b>${esc(formatTime(item.rainStart))}</b></div>
@@ -143,26 +155,26 @@
             .rgf-source span{margin-top:4px;font-size:12px;opacity:.8}
             .rgf-source.ok{border-color:rgba(50,220,160,.55)}
             .rgf-source.wait{border-color:rgba(255,190,70,.55)}
-            .rgf-cards{display:grid;grid-template-columns:repeat(5,minmax(205px,1fr));gap:10px;overflow-x:auto}
-            .rgf-card{min-width:205px;padding:13px;border-radius:14px;border:1px solid rgba(71,161,255,.28);background:rgba(255,255,255,.035)}
+            .rgf-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;min-width:0;width:100%;align-items:start}
+            .rgf-card{min-width:0;overflow-wrap:anywhere;padding:18px;border-radius:14px;border:1px solid rgba(71,161,255,.28);background:rgba(255,255,255,.035)}
             .rgf-card-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
-            .rgf-card h4{margin:0;font-size:17px}
+            .rgf-card h4{margin:0;font-size:19px}
             .rgf-source-tag{font-size:10px;opacity:.7}
-            .rgf-probability{margin-top:14px;font-size:30px;font-weight:800}
-            .rgf-caption{font-size:11px;opacity:.65;margin-bottom:12px}
+            .rgf-probability{margin-top:14px;font-size:36px;font-weight:800}
+            .rgf-caption{font-size:13px;opacity:.65;margin-bottom:12px}
             .rgf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
             .rgf-grid div{padding:7px;border-radius:9px;background:rgba(255,255,255,.04)}
             .rgf-grid b,.rgf-grid span{display:block}
-            .rgf-grid span{font-size:10px;opacity:.65;margin-top:3px}
-            .rgf-compare{margin-top:10px;padding:8px;border-radius:10px;background:rgba(255,255,255,.035);font-size:10px}
-            .rgf-compare div{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
-            .rgf-compare span{opacity:.65}
+            .rgf-grid span{font-size:12px;opacity:.65;margin-top:3px}
+            .rgf-compare{margin-top:12px;padding:10px 12px;border:1px solid rgba(98,193,201,.35);border-radius:10px;background:rgba(255,255,255,.035);font-size:12px;line-height:1.65}.rgf-compare summary{cursor:pointer;color:#9cf5ef;font-weight:700;font-size:13px;padding:3px 0}.rgf-compare[open] summary{margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,.13);padding-bottom:9px}.rgf-compare summary:focus-visible{outline:2px solid #f1ca7f;outline-offset:2px}
+            .rgf-compare div{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:3px 0}
+            .rgf-compare span{opacity:.75;overflow-wrap:anywhere}
             .rgf-compare-state{border-top:1px solid rgba(255,255,255,.08);margin-top:4px;padding-top:6px!important}
-            .rgf-times{margin-top:10px;font-size:11px;line-height:1.9;opacity:.85}
-            .rgf-radar{margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:11px}
+            .rgf-times{margin-top:10px;font-size:12px;line-height:1.9;opacity:.85}
+            .rgf-radar{margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:12px}
             .rgf-footer{margin-top:12px;font-size:11px;opacity:.65}
-            @media(max-width:800px){.rgf-sources{grid-template-columns:1fr 1fr}.rgf-cards{grid-template-columns:repeat(5,205px)}}
-            @media(max-width:520px){.rgf-sources{grid-template-columns:1fr}}
+            @media(max-width:1100px){.rgf-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:800px){.rgf-sources{grid-template-columns:repeat(2,minmax(0,1fr))}.rgf-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+            @media(max-width:620px){#rainForecastNationalPanel{padding:12px}.rgf-sources{grid-template-columns:1fr}.rgf-cards{grid-template-columns:1fr}.rgf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rgf-card{padding:14px}.rgf-compare{font-size:12px;line-height:1.6}}
         `;
         document.head.appendChild(style);
     }
@@ -221,7 +233,7 @@
             <div class="rgf-footer">
                 آخر تحديث: ${esc(formatTime(result.generatedAt))}
                 — RainViewer للتحقق الراداري، وOpen-Meteo وVisual Crossing للمقارنة العددية عند عدم توفر الربط الرسمي لأنواء.
-                مؤشر اتفاق/توافر المصادر ليس نسبة دقة للتنبؤ.
+                توافر المصادر مختلف عن توافق كميات الأمطار، وكلاهما ليس دليلًا على دقة التنبؤ. عندما تكون كميات المطر المعروضة صفرية، لا تُحتسب درجة توافق كمية المطر.
             </div>
         `;
     }

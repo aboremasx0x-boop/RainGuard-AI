@@ -2232,8 +2232,8 @@ RG30.Orchestrator = {
                 <h3>
 
                     ${this.text(
-                        "V30 System Readiness",
-                        "جاهزية نظام V30"
+                        "V30 Engine Availability (not operational readiness)",
+                        "توفر المحركات البرمجية (ليس جاهزية تشغيلية)"
                     )}
 
                 </h3>
@@ -2241,8 +2241,8 @@ RG30.Orchestrator = {
                 <b>
 
                     ${this.text(
-                        "Readiness",
-                        "نسبة الجاهزية"
+                        "Loaded engine availability",
+                        "نسبة توفر المحركات"
                     )}:
 
                 </b>
@@ -2254,8 +2254,8 @@ RG30.Orchestrator = {
                 <b>
 
                     ${this.text(
-                        "Engines Ready",
-                        "المحركات الجاهزة"
+                        "Engines loaded",
+                        "المحركات المحمّلة"
                     )}:
 
                 </b>
@@ -2276,6 +2276,13 @@ RG30.Orchestrator = {
                 ${this.escapeHtml(
                     missingNames
                 )}
+
+                <br><small style="display:block;margin-top:10px;line-height:1.8;color:#f9d99b">
+                    ${this.text(
+                        "This percentage checks only whether required scripts exist (2 engines). It does not validate live data, alerts, forecast accuracy, road safety or field evidence.",
+                        "هذه النسبة تقيس توفر محركين برمجيين فقط؛ ولا تثبت اتصال البيانات الحية أو دقة التوقع أو اعتماد التنبيهات أو سلامة الطرق أو الأدلة الميدانية."
+                    )}
+                </small>
 
             </div>
         `;

@@ -1,0 +1,32 @@
+name: Render V33 static build safety
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'frontend/**'
+      - 'scripts/build_render_v33_static.py'
+      - '.github/workflows/render-v33-static.yml'
+  workflow_dispatch:
+jobs:
+  render-static:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build isolated public-only site
+        run: python3 scripts/build_render_v33_static.py
+      - name: Verify critical HTML and deny backend exposure
+        run: |
+          test -f render-public/index.html
+          test -f render-public/frontend/truck-routes-prototype.html
+          test -f render-public/frontend/national-ai-os-v30.html
+          test ! -f render-public/main.py
+          test ! -f render-public/render.yaml
+          test ! -f render-public/requirements.txt
+          test ! -f render-public/legacy_rainguard.py
+          if find render-public -type f \( -name '*.py' -o -name '.env*' \) | grep -q .; then exit 1; fi
+          grep -q 'ذكاء الأمطار والسيول في واجهة واحدة' render-public/index.html

@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const source = fs.readFileSync("frontend/js/source_adapter_v30.js", "utf8");
 assert.match(source, /Configured source weight \(not live reliability\)/);
-assert.match(source, /نسبة نجاح طلبات الاتصال الفعلية/);
+assert.match(source, /نسبة نجاح الطلبات المسجلة \(لا تثبت حداثة البيانات\)/);
 assert.match(source, /state\.successes \+ state\.failures > 0/);
 assert.match(source, /100 \* state\.successes \/ \(state\.successes \+ state\.failures\)/);
 assert.match(source, /state\.lastDataFetchedAt =/);

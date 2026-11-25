@@ -43,9 +43,17 @@
         rel="stylesheet"
         href="css/national-ai-os-v30.css?v=operations-hub-1"
     >
+    <link rel="stylesheet" href="css/rainguard-v33-interface.css?v=33-1"
+    >
+<link rel="stylesheet" href="css/rainguard-v34-interior.css?v=34-1">
 </head>
 
-<body>
+<body class="rg34-page-national">
+<div class="rg34-top" role="navigation" aria-label="التنقل الموحد في RainGuard AI V34">
+<a class="rg34-brand" href="v34-showcase.html"><span class="rg34-logo" aria-hidden="true">◆</span><span>RainGuard AI<small>RESEARCH · EXPLORATION · V34</small></span></a>
+<div class="rg34-links"><a href="v35-operations.html">مركز العمليات V35</a><a href="v34-showcase.html">الرئيسية</a><a href="national-ai-os-v30.html" aria-current="page">الخريطة والمحركات</a><a href="v34-showcase.html#weather">التوقعات الساعية</a><a href="truck-routes-prototype.html">مواقع الشاحنات</a><a href="truck-journey-command-view.html">أدلة الرحلات</a></div>
+<span class="rg34-research">عرض بحثي غير تشغيلي</span></div>
+
 
 <main class="v30-page">
 
@@ -267,6 +275,12 @@
 
     </section>
 
+
+    <aside class="rg34-evidence-notice" role="note" aria-label="توضيح مصدر مؤشرات النظام">
+      <strong>توضيح علمي لمؤشرات اللوحة</strong>
+      <p>الأرقام الظاهرة أعلاه مؤشرات ناتجة عن الحسابات الداخلية للنموذج البحثي، وليست قياسات ميدانية معتمدة أو درجة دقة مثبتة للتنبؤ. عبارة «النظام يعمل» تصف حالة تشغيل مكوّن برمجي ولا تثبت اتصال جميع المصادر أو جاهزية الإنذار. اسم المدينة ودرجة الخطر لا يُستخدمان لاتخاذ قرار بشأن سلامة الطرق.</p>
+      <span>حالة الاعتماد: <b>لم يكتمل التحقق المستقل أو الربط بالتنبيهات والإغلاقات الرسمية.</b></span>
+    </aside>
 
     <!-- =====================================================
          V30 VERIFICATION PHASE BAR
@@ -2117,5 +2131,6 @@
 <script src="js/flood_risk_dual_indicator_ui_v32.js?v=forecast1j6g38"></script>
 
 <script src="js/ncm_status_ui_bridge_v32.js?v=forecast1j6g39c"></script>    
+<script defer src="js/rainguard-v33-interface.js?v=33-1"></script>
 </body>
 </html>
